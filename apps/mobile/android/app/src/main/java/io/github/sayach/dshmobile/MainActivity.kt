@@ -936,12 +936,24 @@ class MainActivity : Activity() {
         setContentView(root)
 
         // Keep the toolbar clear of the status bar; the loading bar sits below it.
-        root.setOnApplyWindowInsetsListener { _, insets ->
+        root.setOnApplyWindowInsetsListener { view, insets ->
             val top = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 insets.getInsets(WindowInsets.Type.statusBars()).top
             } else {
                 @Suppress("DEPRECATION")
                 insets.systemWindowInsetTop
+            }
+            // The on-screen keyboard covers the lower half of this edge-to-edge
+            // window because setDecorFitsSystemWindows(false) disables the
+            // automatic adjustResize resize on Android 11+ (and the legacy layout
+            // flags do the same on older versions). The shell must apply the IME
+            // inset itself: shrink the WebView so the page reflows to sit above
+            // the keyboard and the focused input stays visible.
+            val imeBottom = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insets.getInsets(WindowInsets.Type.ime()).bottom
+            } else {
+                @Suppress("DEPRECATION")
+                insets.systemWindowInsetBottom
             }
             bar.setPadding(dp(16), top, dp(4), 0)
             bar.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48) + top, Gravity.TOP)
@@ -952,6 +964,10 @@ class MainActivity : Activity() {
             bar.alpha = if (toolbarHidden) 0f else 1f
             loading.translationY = bar.translationY
             loading.alpha = bar.alpha
+            // Shrink the WebView above the keyboard (0 when the keyboard is closed)
+            // while still passing the insets through, so the WebView keeps reading
+            // env(safe-area-inset-*) for the status bar and gesture bar.
+            view.setPadding(0, 0, 0, imeBottom)
             // Pass the insets through instead of consuming them: the full-screen
             // WebView computes env(safe-area-inset-top/bottom) from them, which
             // keeps the page's own header clear of the status bar.
