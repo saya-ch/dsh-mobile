@@ -2,6 +2,11 @@
 
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
+## 0.2.2 - 2026-08-27
+
+- Detect LAN and remote pairing links automatically after a QR scan, independent of the currently selected connection page.
+- Clarify QR, network, firewall, certificate, and pairing failures so users can identify the shortest recovery path.
+
 ## 0.2.1 - 2026-08-25
 
 - Add a stable Android app download entry to the desktop Mobile Access panel.

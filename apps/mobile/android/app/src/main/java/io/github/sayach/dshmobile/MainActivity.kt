@@ -722,7 +722,7 @@ class MainActivity : Activity() {
             }
             SCAN_CAMERA_REQUEST -> {
                 if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startScanActivity()
-                else toast(R.string.scan_camera_denied)
+                else toastError(R.string.scan_camera_denied)
             }
             else -> Unit
         }
@@ -745,19 +745,13 @@ class MainActivity : Activity() {
         if (resultCode != RESULT_OK) return
         val text = data?.getStringExtra(ScanActivity.EXTRA_QR_RESULT)?.trim().orEmpty()
         if (text.isEmpty()) return
-        // A fingerprint-bound pairing link carries its own origin and can skip LAN discovery.
-        if (GatewayUrlPolicy.pairingKey(text) != null) {
-            val origin = GatewayConnection.parse(text)?.origin
-            val matchesMode = origin != null && when (accessMode) {
-                AccessMode.LAN -> !isRemoteTunnelHost(origin.host)
-                AccessMode.REMOTE -> isRemoteTunnelHost(origin.host)
-            }
-            if (origin != null && matchesMode) {
-                showPairing(manualHarness(origin), prefilledInput = text, autoConnect = true)
-                return
-            }
+        val target = PairingScanPolicy.parse(text)
+        if (target != null) {
+            accessMode = target.mode
+            showPairing(manualHarness(target.connection.origin), prefilledInput = text, autoConnect = true)
+            return
         }
-        toast(R.string.scan_result_invalid)
+        toastError(R.string.scan_result_invalid)
     }
 
     private fun installNativeSession(origin: GatewayOrigin, session: NativeSession, complete: () -> Unit) {
@@ -904,7 +898,7 @@ class MainActivity : Activity() {
             origin = origin,
             caCertificate = caCertificate,
             openExternal = ::openExternal,
-            onBlocked = { toast(R.string.blocked_navigation) },
+            onBlocked = { toastError(R.string.blocked_navigation) },
             onFailure = ::showLoadFailure,
             onLoaded = {
                 if (webView === browser && gatewayOrigin == origin) {
@@ -1061,7 +1055,7 @@ class MainActivity : Activity() {
         mimeType: String?,
     ) {
         if (!GatewayUrlPolicy.isAllowedDownload(origin, url)) {
-            toast(R.string.download_blocked)
+            toastError(R.string.download_blocked)
             return
         }
         val safeMime = mimeType?.substringBefore(';')?.trim()?.takeIf { MIME_TYPE.matches(it) }
@@ -1080,7 +1074,7 @@ class MainActivity : Activity() {
             )
         } catch (_: ActivityNotFoundException) {
             pendingDownload = null
-            toast(R.string.download_failed)
+            toastError(R.string.download_failed)
         }
     }
 
@@ -1113,13 +1107,13 @@ class MainActivity : Activity() {
                     } ?: error("The selected destination cannot be written")
                     runOnUiThread { toast(R.string.download_complete) }
                 } catch (_: Exception) {
-                    runOnUiThread { toast(R.string.download_failed) }
+                    runOnUiThread { toastError(R.string.download_failed) }
                 } finally {
                     temporary?.delete()
                 }
             }
         } catch (_: RejectedExecutionException) {
-            toast(R.string.download_failed)
+            toastError(R.string.download_failed)
         }
     }
 
@@ -1168,7 +1162,7 @@ class MainActivity : Activity() {
         try {
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
-            toast(R.string.no_browser)
+            toastError(R.string.no_browser)
         }
     }
 
@@ -1326,6 +1320,10 @@ class MainActivity : Activity() {
 
     private fun toast(textResource: Int) {
         Toast.makeText(this, textResource, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toastError(textResource: Int) {
+        Toast.makeText(this, textResource, Toast.LENGTH_LONG).show()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()

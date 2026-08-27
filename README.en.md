@@ -16,13 +16,13 @@
 
 <p align="center"><a href="README.md">简体中文</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
-> DSH Mobile 0.2.1 is a DeepSeek Harness community plugin for the DeepSeek Harness 0.1.1 series (verified with 0.1.1-rc.2); the native app supports Android only.
+> DSH Mobile 0.2.2 is a DeepSeek Harness community plugin for the DeepSeek Harness 0.1.1 series (verified with 0.1.1-rc.2); the native app supports Android only.
 >
-> **0.2.1 update**: adds an Android app download entry to the desktop Mobile Access panel.
+> **0.2.2 update**: pairing scans now select the LAN or remote path automatically, with clearer QR, network, firewall, certificate, and pairing errors for faster connection troubleshooting.
 >
-> Upgrading the app from 0.1.3 or earlier requires one uninstall and re-pair; older app builds can still use the 0.2.1 LAN path.
+> Upgrading the app from 0.1.3 or earlier requires one uninstall and re-pair; older app builds can still use the 0.2.2 LAN path.
 
-<p align="center"><a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.2.1/dsh-mobile-android-v0.2.1.apk"><strong>Download Android app 0.2.1</strong></a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.2.1">Release notes and checksums</a></p>
+<p align="center"><a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.2.2/dsh-mobile-android-v0.2.2.apk"><strong>Download Android app 0.2.2</strong></a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.2.2">Release notes and checksums</a></p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel or cpolar remote path. Local and remote access keep the same sessions, Workspaces, messages, and tools while using separate switches and paired-device stores without modifying DeepSeek Harness source.
 
@@ -176,6 +176,7 @@ See [SECURITY.md](SECURITY.md).
 
 | DSH Mobile | Verified DeepSeek Harness releases |
 | --- | --- |
+| `0.2.2` | `0.1.0-rc.5`, `0.1.0-rc.6`, `0.1.0-rc.7`, `0.1.1-rc.2` |
 | `0.2.1` | `0.1.0-rc.5`, `0.1.0-rc.6`, `0.1.0-rc.7`, `0.1.1-rc.2` |
 | `0.2.0` | `0.1.0-rc.5`, `0.1.0-rc.6`, `0.1.0-rc.7`, `0.1.1-rc.2` |
 | `0.1.4` | `0.1.0-rc.5`, `0.1.0-rc.6`, `0.1.0-rc.7`, `0.1.1-rc.2` |
