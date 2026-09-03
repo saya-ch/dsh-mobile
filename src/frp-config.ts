@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { isIP } from 'node:net'
 import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { isGloballyRoutableIpv4 } from './network.js'
 import { restrictPrivateFile } from './private-file.js'
 import { createRestrictedFrpServerTemplate, FRP_VHOST_HTTP_PORT } from './frp-template.js'
 
@@ -62,10 +63,14 @@ export function validateFrpPublicOrigin(value: unknown): string {
   if (typeof value !== 'string' || value.length > 512) throw new Error('frp_public_origin_invalid')
   let url: URL
   try { url = new URL(value) } catch { throw new Error('frp_public_origin_invalid') }
+  const publicHost = url.hostname
   if (url.protocol !== 'https:' || url.port !== '' || url.pathname !== '/' || url.search !== '' || url.hash !== ''
-    || url.username !== '' || url.password !== '' || isIP(url.hostname) !== 0 || !hostname(url.hostname)) {
+    || url.username !== '' || url.password !== '' || (isIP(publicHost) !== 4 && !hostname(publicHost))) {
     throw new Error('frp_public_origin_invalid')
   }
+  // Documentation and other non-routable IPv4 literals (e.g. 203.0.113.10)
+  // can never be a real VPS endpoint; reject them instead of deploying certs.
+  if (isIP(publicHost) === 4 && !isGloballyRoutableIpv4(publicHost)) throw new Error('frp_public_origin_invalid')
   return url.origin
 }
 
@@ -83,6 +88,48 @@ export function parseFrpSettings(value: unknown): FrpSettings {
     serverPort: validateFrpServerPort(record.serverPort),
     token: validateFrpToken(record.token),
     publicOrigin: validateFrpPublicOrigin(record.publicOrigin),
+  })
+}
+
+/**
+ * Merge a partial VPS request body with the saved configuration so a blank
+ * field keeps its saved value ("已保存时可留空"). Every merged field is still
+ * validated; with nothing saved and nothing supplied the result reports a
+ * missing configuration instead of silently deploying blanks.
+ */
+export function mergeSavedFrpSettings(
+  partial: Readonly<Record<string, unknown>>,
+  saved: FrpSettings | undefined,
+): FrpSettings {
+  const merged = {
+    serverAddress: partial.serverAddress === '' || partial.serverAddress === undefined
+      ? saved?.serverAddress : partial.serverAddress,
+    serverPort: typeof partial.serverPort === 'number' && Number.isSafeInteger(partial.serverPort) && partial.serverPort >= 1
+      ? partial.serverPort : saved?.serverPort,
+    token: partial.token === '' || partial.token === undefined ? saved?.token : partial.token,
+    publicOrigin: partial.publicOrigin === '' || partial.publicOrigin === undefined
+      ? saved?.publicOrigin : partial.publicOrigin,
+  }
+  if (merged.serverAddress === undefined && merged.serverPort === undefined
+    && merged.token === undefined && merged.publicOrigin === undefined) {
+    throw new Error('frp_config_missing')
+  }
+  return parseFrpSettings(merged)
+}
+
+/** Merge a VPS target (address and control port) with the saved configuration. */
+export function mergeSavedFrpTarget(
+  partial: Readonly<Record<string, unknown>>,
+  saved: FrpSettings | undefined,
+): { readonly serverAddress: string; readonly serverPort: number } {
+  const serverAddress = partial.serverAddress === '' || partial.serverAddress === undefined
+    ? saved?.serverAddress : partial.serverAddress
+  const serverPort = typeof partial.serverPort === 'number' && Number.isSafeInteger(partial.serverPort) && partial.serverPort >= 1
+    ? partial.serverPort : saved?.serverPort
+  if (serverAddress === undefined || serverPort === undefined) throw new Error('frp_config_missing')
+  return Object.freeze({
+    serverAddress: validateFrpServerAddress(serverAddress),
+    serverPort: validateFrpServerPort(serverPort),
   })
 }
 

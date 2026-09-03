@@ -119,6 +119,62 @@ export function isLoopbackAddress(address: string): boolean {
   }
 }
 
+/**
+ * IPv4 ranges that are never a public VPS endpoint (IANA special-purpose,
+ * private, shared, loopback, link-local, documentation, benchmark, multicast,
+ * and reserved space). Kept in sync with Android `RemoteHostPolicy`.
+ */
+const NON_ROUTABLE_IPV4_RANGES: ReadonlyArray<readonly [network: bigint, prefix: number]> = Object.freeze([
+  [0x00000000n, 8], // "This network" / software scope
+  [0x0a000000n, 8], // Private-Use (RFC 1918)
+  [0x64400000n, 10], // Shared address space / CGNAT (RFC 6598)
+  [0x7f000000n, 8], // Loopback (RFC 1122)
+  [0xa9fe0000n, 16], // Link-local (RFC 3927)
+  [0xac100000n, 12], // Private-Use (RFC 1918)
+  [0xc0000000n, 24], // IETF protocol assignments (RFC 6890)
+  [0xc0000200n, 24], // Documentation TEST-NET-1 (RFC 5737)
+  [0xc01fc400n, 24], // AS112-v4 (RFC 7534)
+  [0xc034c100n, 24], // AMT relay (RFC 7450)
+  [0xc0586300n, 24], // 6to4 relay anycast, deprecated (RFC 7526)
+  [0xc0a80000n, 16], // Private-Use (RFC 1918)
+  [0xc0af3000n, 24], // Direct delegation AS112 (RFC 7535)
+  [0xc6120000n, 15], // Benchmarking (RFC 2544)
+  [0xc6336400n, 24], // Documentation TEST-NET-2 (RFC 5737)
+  [0xcb007100n, 24], // Documentation TEST-NET-3 (RFC 5737)
+  [0xe0000000n, 4], // Multicast (RFC 1112, incl. MCAST-TEST-NET)
+  [0xf0000000n, 4], // Reserved for future use + broadcast (RFC 1112)
+])
+
+function parseStrictIpv4Octets(address: string): readonly [number, number, number, number] | undefined {
+  const parts = address.split('.')
+  if (parts.length !== 4) return undefined
+  const octets: number[] = []
+  for (const part of parts) {
+    if (!/^(?:0|[1-9][0-9]{0,2})$/u.test(part)) return undefined
+    const octet = Number(part)
+    if (octet > 255) return undefined
+    octets.push(octet)
+  }
+  return octets as [number, number, number, number]
+}
+
+/**
+ * Whether a dotted-quad IPv4 literal is globally routable and therefore usable
+ * as a public VPS / remote HTTPS endpoint. Rejects documentation addresses such
+ * as 203.0.113.10 alongside private, shared, and reserved space.
+ */
+export function isGloballyRoutableIpv4(address: string): boolean {
+  const octets = parseStrictIpv4Octets(address)
+  if (octets === undefined) return false
+  const value = (BigInt(octets[0]) << 24n) | (BigInt(octets[1]) << 16n) | (BigInt(octets[2]) << 8n) | BigInt(octets[3])
+  return !NON_ROUTABLE_IPV4_RANGES.some(([network, prefix]) => {
+    if (prefix === 0) return true
+    const hostBits = BigInt(32 - prefix)
+    const mask = ((1n << 32n) - 1n) ^ ((1n << hostBits) - 1n)
+    return (value & mask) === network
+  })
+}
+
 /** Parse a bare host or host:port authority without accepting URL components. */
 export function parseAuthority(source: string): AuthoritySpec {
   if (source.trim() !== source || source.length === 0 || /[/?#@\\]/u.test(source)) {

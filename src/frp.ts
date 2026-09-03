@@ -75,6 +75,7 @@ async function defaultProbeVhostExposure(serverAddress: string, port: number): P
   return new Promise<boolean>(resolveProbe => {
     const socket = connect({ host: serverAddress, port })
     let finished = false
+    let received = ''
     const finish = (exposed: boolean): void => {
       if (finished) return
       finished = true
@@ -84,7 +85,17 @@ async function defaultProbeVhostExposure(serverAddress: string, port: number): P
     }
     const timer = setTimeout(() => { finish(false) }, VHOST_PROBE_TIMEOUT_MS)
     timer.unref()
-    socket.once('connect', () => { finish(true) })
+    socket.once('connect', () => {
+      // A transparent proxy/TUN can acknowledge every TCP connect even when
+      // the remote port is closed. Require an actual HTTP response from the
+      // FRP vhost listener before treating the plaintext port as exposed.
+      socket.write('GET /dsh-mobile-exposure-probe HTTP/1.1\r\nHost: invalid.example\r\nConnection: close\r\n\r\n')
+    })
+    socket.on('data', chunk => {
+      received = `${received}${chunk.toString('latin1')}`.slice(0, 32)
+      if (/^HTTP\/1\.[01] [1-5][0-9]{2}/u.test(received)) finish(true)
+    })
+    socket.once('close', () => { finish(false) })
     socket.once('error', () => { finish(false) })
   })
 }

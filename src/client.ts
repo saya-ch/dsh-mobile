@@ -202,7 +202,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
 }
 
 const CONTROL_REQUEST_TIMEOUT_MS = 15_000
-const LONG_CONTROL_REQUEST_TIMEOUT_MS = 130_000
+const LONG_CONTROL_REQUEST_TIMEOUT_MS = 210_000
 const GITHUB_RELEASES_URL = 'https://github.com/saya-ch/dsh-mobile/releases'
 const CONTROL_PANEL_ID = 'dsh-mobile-control-panel'
 
@@ -408,7 +408,26 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const frpStep2Title = element('strong'); frpStep2Title.textContent = t('frpStep2Title')
   const frpStep2Text = element('p'); frpStep2Text.textContent = t('frpStep2Text')
   const frpCopyTemplate = element('button', 'dsh-mobile-control__secondary dsh-mobile-control__frp-action'); frpCopyTemplate.type = 'button'; frpCopyTemplate.textContent = t('copyServerTemplate')
-  frpStep2.append(frpStep2Title, frpStep2Text, frpCopyTemplate)
+  const vpsDeployText = element('p'); vpsDeployText.textContent = t('vpsDeployText')
+  const vpsChangesTitle = element('p'); vpsChangesTitle.textContent = t('vpsDeployChangesTitle')
+  const vpsChanges = element('ul', 'dsh-mobile-control__frp-changes')
+  for (const key of ['vpsDeployChangePackages', 'vpsDeployChangeServices', 'vpsDeployChangeFirewall', 'vpsDeployChangeManual'] as const) {
+    const item = element('li'); item.textContent = t(key); vpsChanges.append(item)
+  }
+  const vpsDeployFields = element('div', 'dsh-mobile-control__frp-fields')
+  const vpsSshUserLabel = element('label', 'dsh-mobile-control__field'); vpsSshUserLabel.textContent = t('vpsSshUser')
+  const vpsSshUser = element('input'); vpsSshUser.type = 'text'; vpsSshUser.autocomplete = 'username'; vpsSshUser.value = 'ubuntu'; vpsSshUser.spellcheck = false
+  const vpsSshPortLabel = element('label', 'dsh-mobile-control__field'); vpsSshPortLabel.textContent = t('vpsSshPort')
+  const vpsSshPort = element('input'); vpsSshPort.type = 'number'; vpsSshPort.inputMode = 'numeric'; vpsSshPort.min = '1'; vpsSshPort.max = '65535'; vpsSshPort.value = '22'
+  const vpsSshKeyLabel = element('label', 'dsh-mobile-control__field'); vpsSshKeyLabel.textContent = t('vpsSshKey')
+  const vpsSshKey = element('input'); vpsSshKey.type = 'text'; vpsSshKey.autocomplete = 'off'; vpsSshKey.spellcheck = false; vpsSshKey.placeholder = t('vpsSshKeyPlaceholder')
+  vpsSshUserLabel.append(vpsSshUser); vpsSshPortLabel.append(vpsSshPort); vpsSshKeyLabel.append(vpsSshKey)
+  vpsDeployFields.append(vpsSshUserLabel, vpsSshPortLabel, vpsSshKeyLabel)
+  const vpsDeploy = element('button', 'dsh-mobile-control__primary dsh-mobile-control__frp-action'); vpsDeploy.type = 'button'; vpsDeploy.textContent = t('vpsDeploy')
+  const vpsDeployStatus = element('p', 'dsh-mobile-control__component-status'); vpsDeployStatus.textContent = ''
+  const vpsCopyUninstall = element('button', 'dsh-mobile-control__secondary dsh-mobile-control__frp-action'); vpsCopyUninstall.type = 'button'; vpsCopyUninstall.textContent = t('vpsCopyUninstall')
+  const vpsUninstall = element('button', 'dsh-mobile-control__danger dsh-mobile-control__frp-action'); vpsUninstall.type = 'button'; vpsUninstall.textContent = t('vpsUninstall')
+  frpStep2.append(frpStep2Title, frpStep2Text, frpCopyTemplate, vpsDeployText, vpsChangesTitle, vpsChanges, vpsDeployFields, vpsDeploy, vpsDeployStatus, vpsCopyUninstall, vpsUninstall)
   const frpStep3 = element('section', 'dsh-mobile-control__frp-step')
   const frpStep3Title = element('strong'); frpStep3Title.textContent = t('frpStep3Title')
   const frpStep3Text = element('p'); frpStep3Text.textContent = t('frpStep3Text')
@@ -430,7 +449,25 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const frpOfficial = element('a', 'dsh-mobile-control__text-link'); frpOfficial.href = 'https://github.com/fatedier/frp/releases/tag/v0.70.1'; frpOfficial.target = '_blank'; frpOfficial.rel = 'noopener noreferrer'; frpOfficial.textContent = t('frpOfficialRelease')
   const frpPurge = element('button', 'dsh-mobile-control__danger'); frpPurge.type = 'button'; frpPurge.textContent = t('purgeFrp')
   frpDetailsBody.append(frpDetailsText, frpStorage, frpOfficial, frpPurge); frpDetails.append(frpDetailsSummary, frpDetailsBody)
-  frpSetup.append(frpSetupTitle, frpStep1, frpStep2, frpStep3, frpStep4, frpDetails)
+  const frpOverview = element('section', 'dsh-mobile-control__frp-overview'); frpOverview.hidden = true
+  const frpOverviewMark = element('span', 'dsh-mobile-control__frp-overview-mark'); frpOverviewMark.textContent = '✓'
+  const frpOverviewBody = element('div', 'dsh-mobile-control__frp-overview-body')
+  const frpOverviewTitle = element('strong'); frpOverviewTitle.textContent = t('frpConfigurationReady')
+  const frpOverviewEndpoint = element('span'); frpOverviewEndpoint.textContent = ''
+  frpOverviewBody.append(frpOverviewTitle, frpOverviewEndpoint); frpOverview.append(frpOverviewMark, frpOverviewBody)
+  const frpConnectionGroup = element('details', 'dsh-mobile-control__frp-group')
+  const frpConnectionSummary = element('summary'); frpConnectionSummary.textContent = t('frpStep1Title')
+  frpConnectionGroup.append(frpConnectionSummary, frpStep1)
+  const frpVpsGroup = element('details', 'dsh-mobile-control__frp-group')
+  const frpVpsSummary = element('summary'); frpVpsSummary.textContent = t('vpsDeployTitle')
+  frpVpsGroup.append(frpVpsSummary, frpStep2)
+  const frpComponentGroup = element('details', 'dsh-mobile-control__frp-group')
+  const frpComponentSummary = element('summary'); frpComponentSummary.textContent = t('frpStep3Title')
+  frpComponentGroup.append(frpComponentSummary, frpStep3)
+  const frpVerifyGroup = element('details', 'dsh-mobile-control__frp-group'); frpVerifyGroup.open = true
+  const frpVerifySummary = element('summary'); frpVerifySummary.textContent = t('frpStep4Title')
+  frpVerifyGroup.append(frpVerifySummary, frpStep4)
+  frpSetup.append(frpSetupTitle, frpOverview, frpConnectionGroup, frpVpsGroup, frpComponentGroup, frpVerifyGroup, frpDetails)
   const tailscaleInfo = element('details', 'dsh-mobile-control__details')
   const tailscaleInfoSummary = element('summary'); tailscaleInfoSummary.textContent = t('tailscaleHelp')
   const tailscaleInfoBody = element('div', 'dsh-mobile-control__details-body')
@@ -516,6 +553,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   let cpolarConfigured = false
   let frpInstalled = false
   let frpConfigured = false
+  let frpLayoutInitialized = false
   let frpDownloadSize = '14.0'
   let configuredFrpServer = ''
   let configuredFrpPort = 7000
@@ -752,11 +790,32 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       : t('installFrpc')
     frpInstall.disabled = remoteProviderBusy
     frpConfigure.disabled = remoteProviderBusy || !frpInstalled
+    vpsDeploy.disabled = remoteProviderBusy || !validVpsDeploymentForm()
+    vpsCopyUninstall.disabled = vpsDeploy.disabled
+    vpsUninstall.disabled = vpsDeploy.disabled
     frpPurge.hidden = !frpInstalled && !frpConfigured
     frpComponentStatus.textContent = !frpSupported
       ? t('frpUnsupported')
       : frpInstalled ? t('frpComponentReady', { version: frpVersion }) : t('frpNotInstalled')
     frpConfigurationStatus.textContent = frpConfigured ? t('frpConfigurationReady') : t('frpConfigurationMissing')
+    frpOverview.hidden = !frpConfigured
+    frpOverviewEndpoint.textContent = configuredFrpOrigin === ''
+      ? configuredFrpServer
+      : `${configuredFrpOrigin} · ${configuredFrpServer}:${String(configuredFrpPort)}`
+    frpToken.placeholder = frpConfigured
+      ? (locale === 'zh' ? '已安全保存；留空保持不变' : locale === 'it' ? 'Salvato; lascia vuoto per mantenerlo' : 'Saved securely; leave blank to keep it')
+      : t('frpTokenPlaceholder')
+    vpsDeploy.textContent = frpConfigured
+      ? (locale === 'zh' ? '修复或重新部署 VPS' : locale === 'it' ? 'Ripara o ridistribuisci VPS' : 'Repair or redeploy VPS')
+      : t('vpsDeploy')
+    frpConnectionSummary.textContent = `${frpConfigured ? '✓ ' : ''}${t('frpStep1Title')}`
+    frpComponentSummary.textContent = `${frpInstalled ? '✓ ' : ''}${t('frpStep3Title')}`
+    if (!frpLayoutInitialized) {
+      frpConnectionGroup.open = !frpConfigured
+      frpComponentGroup.open = !frpInstalled
+      frpVpsGroup.open = false
+      frpLayoutInitialized = true
+    }
     selfHostedBadge.textContent = frpConfigured && frpInstalled ? t('ready') : t('advanced')
     const state = typeof data.state === 'string' ? data.state : 'error'
     const errorCode = typeof data.errorCode === 'string' ? data.errorCode : ''
@@ -914,10 +973,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const validFrpServer = (value: string): boolean => value === value.trim() && value.length > 0 && value.length <= 253
     && !/[\s\u0000-\u001f\u007f/\\@?#]/u.test(value)
   const frpForm = (): { readonly serverAddress: string; readonly serverPort: number; readonly token: string; readonly publicOrigin: string } => ({
-    serverAddress: frpServer.value.trim(),
+    serverAddress: String(frpServer.value ?? '').trim(),
     serverPort: Number(frpPort.value),
-    token: frpToken.value,
-    publicOrigin: frpOrigin.value.trim(),
+    token: String(frpToken.value ?? ''),
+    publicOrigin: String(frpOrigin.value ?? '').trim(),
   })
   const validFrpForm = (form: ReturnType<typeof frpForm>): boolean => {
     if (!validFrpServer(form.serverAddress)) return false
@@ -934,6 +993,227 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     }
     void navigator.clipboard.writeText(createFrpServerTemplateForClipboard(form.serverPort, form.token, form.publicOrigin))
       .then(() => { remoteStatus.textContent = t('templateCopied') }, () => { remoteStatus.textContent = t('templateCopyFailed') })
+  })
+  const validVpsSshUser = (value: string): boolean => /^[a-z_][a-z0-9_.-]*[$]?$/iu.test(value) && value.length <= 64
+  const validVpsSshKey = (value: string): boolean => value === '' || (/^[a-zA-Z]:[\\/]/u.test(value) || value.startsWith('/'))
+  const vpsFormStorageKey = 'dsh-mobile.frp-vps-form.v1'
+  try {
+    const saved = JSON.parse(localStorage.getItem(vpsFormStorageKey) ?? '{}') as Record<string, unknown>
+    if (typeof saved.sshUser === 'string' && validVpsSshUser(saved.sshUser)) vpsSshUser.value = saved.sshUser
+    if (typeof saved.sshPort === 'number' && Number.isSafeInteger(saved.sshPort) && saved.sshPort >= 1 && saved.sshPort <= 65_535) vpsSshPort.value = String(saved.sshPort)
+    if (typeof saved.sshKeyPath === 'string' && validVpsSshKey(saved.sshKeyPath)) vpsSshKey.value = saved.sshKeyPath
+  } catch { /* Browser storage is an optional convenience only. */ }
+  const saveVpsForm = (): void => {
+    try {
+      localStorage.setItem(vpsFormStorageKey, JSON.stringify({
+        sshUser: String(vpsSshUser.value ?? '').trim(),
+        sshPort: Number(vpsSshPort.value),
+        sshKeyPath: String(vpsSshKey.value ?? '').trim(),
+      }))
+    } catch { /* Private browsing or a full quota must not block deployment. */ }
+  }
+  const validVpsDeploymentForm = (): boolean => {
+    const sshPort = Number(vpsSshPort.value)
+    return validVpsFrpForm()
+      && validVpsSshUser(String(vpsSshUser.value ?? '').trim())
+      && Number.isSafeInteger(sshPort) && sshPort >= 1 && sshPort <= 65_535
+      && validVpsSshKey(String(vpsSshKey.value ?? '').trim())
+  }
+  /**
+   * VPS actions accept blank connection fields when a configuration is already
+   * saved; blanks keep their saved values ("已保存时可留空"). The token itself
+   * is never readable here, so a blank token is merged server-side while the
+   * remaining fields still pass the regular template check.
+   */
+  const vpsEffectiveForm = (): ReturnType<typeof frpForm> => {
+    const form = frpForm()
+    if (!frpConfigured) return form
+    return {
+      serverAddress: form.serverAddress === '' ? configuredFrpServer : form.serverAddress,
+      serverPort: Number.isSafeInteger(form.serverPort) && form.serverPort >= 1 ? form.serverPort : configuredFrpPort,
+      token: form.token,
+      publicOrigin: form.publicOrigin === '' ? configuredFrpOrigin : form.publicOrigin,
+    }
+  }
+  const validVpsFrpForm = (): boolean => {
+    const form = vpsEffectiveForm()
+    const token = form.token === '' && frpConfigured ? '0123456789abcdef' : form.token
+    return validFrpForm({ ...form, token })
+  }
+  const refreshVpsDeployButton = (): void => {
+    const disabled = remoteProviderBusy || !validVpsDeploymentForm()
+    vpsDeploy.disabled = disabled
+    vpsCopyUninstall.disabled = disabled
+    vpsUninstall.disabled = disabled
+  }
+  for (const input of [frpServer, frpPort, frpToken, frpOrigin, vpsSshUser, vpsSshPort, vpsSshKey]) {
+    input.addEventListener('input', refreshVpsDeployButton)
+  }
+  for (const input of [vpsSshUser, vpsSshPort, vpsSshKey]) input.addEventListener('input', saveVpsForm)
+  const vpsCertName = (origin: string): string | undefined => {
+    try {
+      const host = new URL(origin).hostname
+      return /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(host) ? host : undefined
+    } catch { return undefined }
+  }
+  const requestVpsHostKeys = (serverAddress: string, sshUser: string, sshPort: number, sshKeyPath: string): Promise<ReadonlyArray<{ readonly display: string; readonly fingerprint: string }>> => {
+    const keyPayload: Record<string, unknown> = { serverAddress, sshUser, sshPort }
+    if (sshKeyPath !== '') keyPayload.sshKeyPath = sshKeyPath
+    return controlRequestJson('/api/mobile-access/remote/frp/vps/host-keys', { method: 'POST', body: JSON.stringify(keyPayload) }, LONG_CONTROL_REQUEST_TIMEOUT_MS)
+      .then(keys => {
+        const hostKeys = Array.isArray(keys.vpsHostKeys) ? keys.vpsHostKeys as Array<Record<string, unknown>> : []
+        const confirmed = hostKeys
+          .filter(key => typeof key.fingerprint === 'string' && typeof key.keyType === 'string')
+          .map(key => ({ display: `${String(key.keyType)} ${String(key.fingerprint)}`, fingerprint: String(key.fingerprint) }))
+        if (confirmed.length === 0) throw new Error(String(t('vpsHostKeyFailed', { error: 'empty' })))
+        return confirmed
+      })
+  }
+  vpsDeploy.addEventListener('click', () => {
+    if (remoteProviderBusy) return
+    const form = vpsEffectiveForm()
+    if (!validVpsFrpForm()) {
+      vpsDeployStatus.textContent = t('vpsDeployNotReady')
+      return
+    }
+    const sshUser = vpsSshUser.value.trim()
+    const sshPort = Number(vpsSshPort.value)
+    const sshKeyPath = vpsSshKey.value.trim()
+    saveVpsForm()
+    if (!validVpsSshUser(sshUser) || !Number.isSafeInteger(sshPort) || sshPort < 1 || sshPort > 65535 || !validVpsSshKey(sshKeyPath)) {
+      vpsDeployStatus.textContent = t('vpsDeployFailed', { error: t('vpsSshKey') })
+      return
+    }
+    remoteProviderBusy = true
+    vpsDeploy.disabled = true
+    vpsCopyUninstall.disabled = true
+    vpsUninstall.disabled = true
+    vpsDeployStatus.textContent = t('vpsHostKeyFetching')
+    remoteStatus.textContent = t('vpsHostKeyFetching')
+    void requestVpsHostKeys(form.serverAddress, sshUser, sshPort, sshKeyPath)
+      .then(hostKeys => {
+        const display = hostKeys.map(key => key.display).join('\n')
+        if (!window.confirm(t('vpsDeployConfirmWithKeys', { fingerprints: display }))) {
+          remoteProviderBusy = false
+          refreshVpsDeployButton()
+          loadRemote()
+          return
+        }
+        vpsDeployStatus.textContent = t('vpsDeploying')
+        remoteStatus.textContent = t('vpsDeploying')
+        const payload: Record<string, unknown> = {
+          confirm: true,
+          ...form,
+          sshUser,
+          sshPort,
+          hostFingerprints: hostKeys.map(key => key.fingerprint),
+        }
+        if (sshKeyPath !== '') payload.sshKeyPath = sshKeyPath
+        return controlRequestJson('/api/mobile-access/remote/frp/vps/deploy', { method: 'POST', body: JSON.stringify(payload) }, LONG_CONTROL_REQUEST_TIMEOUT_MS)
+          .then(data => {
+            const deployment = data.vpsDeployment !== null && typeof data.vpsDeployment === 'object' ? data.vpsDeployment as Record<string, unknown> : {}
+            vpsDeployStatus.textContent = deployment.deployed === true ? t('vpsDeploySuccess') : t('vpsDeployFailed', { error: t('vpsDeployFailed', { error: 'unknown result' }) })
+            remoteStatus.textContent = vpsDeployStatus.textContent
+            renderRemote(data)
+          }, error => {
+            vpsDeployStatus.textContent = t('vpsDeployFailed', { error: String(error) })
+            remoteStatus.textContent = vpsDeployStatus.textContent
+          })
+          .finally(() => { remoteProviderBusy = false; loadRemote() })
+      }, error => {
+        vpsDeployStatus.textContent = t('vpsHostKeyFailed', { error: String(error) })
+        remoteStatus.textContent = vpsDeployStatus.textContent
+        remoteProviderBusy = false
+        refreshVpsDeployButton()
+        loadRemote()
+      })
+  })
+  const readVpsSshForm = (): { sshUser: string; sshPort: number; sshKeyPath: string } | undefined => {
+    const sshUser = vpsSshUser.value.trim()
+    const sshPort = Number(vpsSshPort.value)
+    const sshKeyPath = vpsSshKey.value.trim()
+    saveVpsForm()
+    if (!validVpsSshUser(sshUser) || !Number.isSafeInteger(sshPort) || sshPort < 1 || sshPort > 65535 || !validVpsSshKey(sshKeyPath)) {
+      vpsDeployStatus.textContent = t('vpsDeployFailed', { error: t('vpsSshKey') })
+      return undefined
+    }
+    return { sshUser, sshPort, sshKeyPath }
+  }
+  vpsCopyUninstall.addEventListener('click', () => {
+    if (remoteProviderBusy) return
+    const form = vpsEffectiveForm()
+    if (!validVpsFrpForm()) {
+      vpsDeployStatus.textContent = t('vpsDeployNotReady')
+      return
+    }
+    remoteProviderBusy = true
+    refreshVpsDeployButton()
+    const scriptPayload: Record<string, unknown> = { serverPort: form.serverPort }
+    const certName = vpsCertName(form.publicOrigin)
+    if (certName !== undefined) scriptPayload.certName = certName
+    void controlRequestJson('/api/mobile-access/remote/frp/vps/uninstall-script', { method: 'POST', body: JSON.stringify(scriptPayload) }, LONG_CONTROL_REQUEST_TIMEOUT_MS)
+      .then(data => {
+        const script = typeof data.vpsUninstallScript === 'string' ? data.vpsUninstallScript : ''
+        if (script === '') throw new Error('empty script')
+        return navigator.clipboard.writeText(script)
+      })
+      .then(() => { vpsDeployStatus.textContent = t('vpsUninstallScriptCopied') }, error => {
+        vpsDeployStatus.textContent = t('vpsUninstallScriptFailed', { error: String(error) })
+      })
+      .finally(() => { remoteProviderBusy = false; loadRemote() })
+  })
+  vpsUninstall.addEventListener('click', () => {
+    if (remoteProviderBusy) return
+    const form = vpsEffectiveForm()
+    if (!validVpsFrpForm()) {
+      vpsDeployStatus.textContent = t('vpsDeployNotReady')
+      return
+    }
+    const ssh = readVpsSshForm()
+    if (ssh === undefined) return
+    remoteProviderBusy = true
+    refreshVpsDeployButton()
+    vpsDeployStatus.textContent = t('vpsHostKeyFetching')
+    remoteStatus.textContent = t('vpsHostKeyFetching')
+    void requestVpsHostKeys(form.serverAddress, ssh.sshUser, ssh.sshPort, ssh.sshKeyPath)
+      .then(hostKeys => {
+        if (!window.confirm(t('vpsUninstallConfirmWithKeys', { fingerprints: hostKeys.map(key => key.display).join('\n') }))) {
+          remoteProviderBusy = false
+          refreshVpsDeployButton()
+          loadRemote()
+          return
+        }
+        vpsDeployStatus.textContent = t('vpsUninstalling')
+        remoteStatus.textContent = t('vpsUninstalling')
+        const payload: Record<string, unknown> = {
+          confirm: true,
+          serverAddress: form.serverAddress,
+          serverPort: form.serverPort,
+          sshUser: ssh.sshUser,
+          sshPort: ssh.sshPort,
+          hostFingerprints: hostKeys.map(key => key.fingerprint),
+        }
+        if (ssh.sshKeyPath !== '') payload.sshKeyPath = ssh.sshKeyPath
+        const certName = vpsCertName(form.publicOrigin)
+        if (certName !== undefined) payload.certName = certName
+        return controlRequestJson('/api/mobile-access/remote/frp/vps/uninstall', { method: 'POST', body: JSON.stringify(payload) }, LONG_CONTROL_REQUEST_TIMEOUT_MS)
+          .then(data => {
+            const removal = data.vpsUninstall !== null && typeof data.vpsUninstall === 'object' ? data.vpsUninstall as Record<string, unknown> : {}
+            vpsDeployStatus.textContent = removal.removed === true ? t('vpsUninstallSuccess') : t('vpsUninstallFailed', { error: t('vpsUninstallFailed', { error: 'unknown result' }) })
+            remoteStatus.textContent = vpsDeployStatus.textContent
+            renderRemote(data)
+          }, error => {
+            vpsDeployStatus.textContent = t('vpsUninstallFailed', { error: String(error) })
+            remoteStatus.textContent = vpsDeployStatus.textContent
+          })
+          .finally(() => { remoteProviderBusy = false; loadRemote() })
+      }, error => {
+        vpsDeployStatus.textContent = t('vpsHostKeyFailed', { error: String(error) })
+        remoteStatus.textContent = vpsDeployStatus.textContent
+        remoteProviderBusy = false
+        refreshVpsDeployButton()
+        loadRemote()
+      })
   })
   frpInstall.addEventListener('click', () => {
     if (remoteProviderBusy) return
@@ -2236,6 +2516,7 @@ export const CONTROL_STYLES = `
 .dsh-mobile-control__self-hosted{margin:8px 0 0;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:12px;background:var(--dsw-alias-bg-layer-1,#f8fafc)}.dsh-mobile-control__self-hosted-summary{display:flex;box-sizing:border-box;min-height:48px;align-items:center;justify-content:space-between;gap:10px;padding:8px 11px;cursor:pointer;list-style-position:inside}.dsh-mobile-control__self-hosted-summary>span:first-child{display:flex;min-width:0;flex-direction:column;gap:1px}.dsh-mobile-control__self-hosted-summary strong{font-size:11px}.dsh-mobile-control__self-hosted-summary span span{color:var(--dsw-alias-label-secondary,#606873);font-size:9px;line-height:1.35}.dsh-mobile-control__provider-badge.is-frp{background:#eef0f3;color:#475569}.dsh-mobile-control__self-hosted-body{padding:0 8px 8px}.dsh-mobile-control__provider.is-frp{width:100%;min-height:64px;background:var(--dsw-alias-bg-layer-2,#fff)}
 .dsh-mobile-control__cpolar-setup{margin:0 0 12px;padding:12px;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:13px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__cpolar-setup[hidden],.dsh-mobile-control__cpolar-account[hidden],.dsh-mobile-control__details[hidden],.dsh-mobile-control__view.is-remote .dsh-mobile-control__actions[hidden],.dsh-mobile-control__danger[hidden]{display:none}.dsh-mobile-control__component-status,.dsh-mobile-control__component-note{margin:0 0 10px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.55}.dsh-mobile-control__cpolar-setup>.dsh-mobile-control__primary{width:100%;min-height:44px;padding:9px 12px;border-radius:10px;font:600 12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__cpolar-account{margin-top:10px}.dsh-mobile-control__link-row{display:flex;flex-wrap:wrap;gap:6px 12px;margin:0 0 10px}.dsh-mobile-control__text-link{color:#2563eb;font-size:11px;text-decoration:none}.dsh-mobile-control__text-link:hover{text-decoration:underline}.dsh-mobile-control__token-label{display:flex;flex-direction:column;gap:5px;margin:0 0 8px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px}.dsh-mobile-control__token{box-sizing:border-box;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-normal,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-2,#fff));color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__cpolar-connect{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:44px;padding:10px 14px;border-radius:12px;font:650 13px/1.2 system-ui;cursor:pointer;transition:background-color 160ms ease,border-color 160ms ease,opacity 160ms ease}.dsh-mobile-control__cpolar-connect:hover:not(:disabled){border-color:#1d4ed8;background:#1d4ed8}.dsh-mobile-control__cpolar-connect:active:not(:disabled){border-color:#1e40af;background:#1e40af}.dsh-mobile-control__cpolar-connect:disabled{cursor:wait;opacity:.55}.dsh-mobile-control__details{margin:10px 0 0;border-top:1px solid var(--dsw-alias-border-subtle,#e1e5eb);padding-top:9px}.dsh-mobile-control__details>summary{min-height:30px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:30px;cursor:pointer}.dsh-mobile-control__details-body{display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;padding:4px 0}.dsh-mobile-control__details-body p{flex:1 0 100%;margin:0;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__storage{display:block;flex:1 0 100%;max-width:100%;overflow:hidden;padding:7px 8px;border-radius:8px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);color:var(--dsw-alias-label-secondary,#475569);font:10px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__danger{flex:1 0 100%;min-height:38px;margin-top:3px;padding:7px 10px;border:1px solid #dc2626;border-radius:9px;background:transparent;color:#dc2626;font:12px/1.3 system-ui;cursor:pointer}
 .dsh-mobile-control__frp-setup{margin:0;padding:12px;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:13px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__frp-setup[hidden]{display:none}.dsh-mobile-control__frp-step{padding:11px 0}.dsh-mobile-control__frp-step + .dsh-mobile-control__frp-step{border-top:1px solid var(--dsw-alias-border-subtle,#e1e5eb)}.dsh-mobile-control__frp-step>strong{display:block;margin-bottom:3px;font-size:12px;line-height:1.4}.dsh-mobile-control__frp-step>p{margin:0 0 9px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__frp-step>.dsh-mobile-control__frp-requirement{padding:8px 9px;border-radius:9px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);color:var(--dsw-alias-label-primary,#384152);font-size:11px}.dsh-mobile-control__frp-fields{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px}.dsh-mobile-control__field{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px}.dsh-mobile-control__field:nth-child(3),.dsh-mobile-control__field:nth-child(4){grid-column:1/-1}.dsh-mobile-control__field input{box-sizing:border-box;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-normal,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__frp-action{box-sizing:border-box;width:100%;min-height:44px;padding:9px 12px;border-radius:10px;font:650 12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__frp-action:disabled{cursor:not-allowed;opacity:.5}.dsh-mobile-control__remote-workspace{margin:0;padding:12px;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:15px;background:var(--dsw-alias-bg-layer-1,#f7f8fa)}.dsh-mobile-control__stage-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}.dsh-mobile-control__stage-header .dsh-mobile-control__section-title{margin:0}.dsh-mobile-control__stage-meta{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:5px}.dsh-mobile-control__stage-value{max-width:115px;overflow:hidden;color:var(--dsw-alias-label-primary,#16181d);font:650 10px/1.3 system-ui;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__state-badge{flex:none;padding:3px 7px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-secondary,#606873);font:650 9px/1.25 system-ui}.dsh-mobile-control__state-badge.is-ready{background:#e6f7f0;color:#087454}.dsh-mobile-control__state-badge.is-busy{background:#e8f0ff;color:#1d4ed8}.dsh-mobile-control__state-badge.is-attention{background:#fff4dc;color:#935100}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__status{box-sizing:border-box;margin:0 0 10px;padding:9px 10px;border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);font-size:11px;line-height:1.45}.dsh-mobile-control__provider-setup-body{margin:0 0 10px}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__cpolar-setup{margin:0}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__cpolar-setup>.dsh-mobile-control__section-title,.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__frp-setup>.dsh-mobile-control__section-title{display:none}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__details{margin:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__actions{margin-top:2px}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__qr{margin:10px 0 0}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__manage-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-subtle,#e1e5eb)}
+.dsh-mobile-control__frp-overview{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:10px;margin:0 0 10px;padding:10px;border:1px solid #a9dfc9;border-radius:11px;background:#edf9f4}.dsh-mobile-control__frp-overview[hidden]{display:none}.dsh-mobile-control__frp-overview-mark{display:grid;width:32px;height:32px;place-items:center;border-radius:50%;background:#087454;color:#fff;font:700 15px/1 system-ui}.dsh-mobile-control__frp-overview-body{display:flex;min-width:0;flex-direction:column;gap:2px}.dsh-mobile-control__frp-overview-body strong{color:#075d46;font-size:12px;line-height:1.35}.dsh-mobile-control__frp-overview-body span{overflow:hidden;color:#357061;font:10px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__frp-group{margin:8px 0 0;overflow:hidden;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-1,#f8fafc)}.dsh-mobile-control__frp-group>summary{box-sizing:border-box;min-height:44px;padding:12px 34px 10px 12px;color:var(--dsw-alias-label-primary,#16181d);font:650 12px/1.4 system-ui;cursor:pointer}.dsh-mobile-control__frp-group[open]>summary{border-bottom:1px solid var(--dsw-alias-border-subtle,#e1e5eb);background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__frp-group>.dsh-mobile-control__frp-step{padding:12px}.dsh-mobile-control__frp-group>.dsh-mobile-control__frp-step>strong:first-child{display:none}.dsh-mobile-control__frp-group .dsh-mobile-control__frp-step{border-top:0}.dsh-mobile-control__frp-setup>.dsh-mobile-control__frp-step{margin-bottom:8px;padding:10px;border:1px solid var(--dsw-alias-border-subtle,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-1,#f8fafc)}
 .dsh-mobile-control__access{display:flex;align-items:baseline;gap:6px;min-width:0;margin:0 0 12px}.dsh-mobile-control__access[hidden]{display:none}.dsh-mobile-control__access-label{flex:none;color:var(--dsw-alias-label-secondary,#606873);white-space:nowrap}.dsh-mobile-control__access-label::after{content:"："}.dsh-mobile-control__access-link{min-width:0;overflow:hidden;color:#2563eb;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__access-link:hover{text-decoration:underline}.dsh-mobile-control__qr{display:flex;justify-content:center;margin:0 0 12px}.dsh-mobile-control__qr[hidden]{display:none}.dsh-mobile-control__qr img{border-radius:12px;background:#fff;padding:8px}
 .dsh-mobile-control__status{margin:0 0 14px;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary,#606873)}.dsh-mobile-control__status::before{display:inline-block;width:8px;height:8px;margin-right:7px;border-radius:50%;background:#98a1ad;content:""}.dsh-mobile-control__status.is-running::before{background:#16a36a}.dsh-mobile-control__status.is-key{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;word-break:break-all}
 .dsh-mobile-control__guide{margin:0 0 14px;padding:12px;border:1px solid #6f96db;border-radius:12px;background:var(--dsw-alias-bg-layer-1,#eff6ff)}.dsh-mobile-control__guide[hidden]{display:none}.dsh-mobile-control__guide-title{margin:0;color:var(--dsw-alias-label-primary,#172554);font:650 13px/1.45 system-ui}.dsh-mobile-control__guide-summary,.dsh-mobile-control__guide-note{margin:4px 0 0;color:var(--dsw-alias-label-secondary,#475569);font-size:12px;line-height:1.5}.dsh-mobile-control__guide-steps{margin:8px 0 0;padding-left:20px;color:var(--dsw-alias-label-primary,#1e293b);font-size:12px;line-height:1.6}.dsh-mobile-control__guide-note{color:var(--dsw-alias-label-secondary,#64748b)}.dsh-mobile-control__guide-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.dsh-mobile-control__guide-actions button{min-width:0;min-height:44px;padding:8px;border-radius:10px;font:12px/1.25 system-ui;cursor:pointer}.dsh-mobile-control__guide-actions button:disabled{cursor:not-allowed;opacity:.45}
