@@ -6,6 +6,7 @@ Notable changes to DSH Mobile are recorded here. GitHub Releases remain the sour
 ## Unreleased
 
 - Verify the mobile frontend, connection, and trust contracts against DeepSeek Harness 0.1.2-alpha.5 and 0.1.2-rc.1 through the existing upstream-source CI gate; no plugin code change was required.
+- Improve the `/mobile` customization command: inject the current mobile customization state (whether `mobile.css` / `mobile.js` exist and which extensions are installed) into the agent guide so earlier work is not overwritten blindly, teach the agent how to restore the built-in default appearance by removing those files, and require syntax and schema self-checks before it reports completion.
 
 ## 0.3.8 - 2026-09-03
 

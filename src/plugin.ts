@@ -10,7 +10,7 @@ import { copyFile, lstat, readFile, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedGatewayConfig } from './config.js'
 import { collectConnectionDiagnostics } from './diagnostics.js'
-import { MOBILE_CUSTOMIZATION_GUIDE } from './mobile-guide.js'
+import { buildMobileGuide, type MobileGuideState } from './mobile-guide.js'
 import { createVpsUninstallScript, deployVps, fetchVpsHostKeys, parseVpsDeploymentInput, uninstallVps } from './vps-deploy.js'
 import {
   FollowingMobileAccessRuntime,
@@ -136,6 +136,16 @@ const SETUP_KEYS = new Set([
   'version', 'publicOrigin', 'listenHost', 'listenPort', 'upstreamOrigin',
   'publicAuthorities', 'allowedCidrs', 'instanceId', 'pairingCaFile', 'tls',
 ])
+
+/** True when path names a regular file (not a directory or symlink). */
+async function existsRegularFile(path: string): Promise<boolean> {
+  try {
+    const info = await lstat(path)
+    return info.isFile() && !info.isSymbolicLink()
+  } catch {
+    return false
+  }
+}
 
 type LoadedSetup = {
   readonly kind: 'fixed'
@@ -697,14 +707,28 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       name: 'mobile',
       description: '按需求修改 DSH Mobile 的手机端界面或添加电脑端能力',
       input: { hint: '<要做什么>' },
-      handler: ({ agent, rawInput }) => {
+      handler: async ({ agent, rawInput }) => {
         const task = rawInput.trim()
         if (task === '') return { kind: 'error', text: '请带上需求，例如：/mobile 把手机端改成深色主题' }
+        // Collect the current customization state so the guide does not
+        // overwrite earlier /mobile work blindly.
+        const state: MobileGuideState = {
+          directory: stateDirectory,
+          hasCustomCss: await existsRegularFile(template.customCssFile),
+          hasCustomJs: await existsRegularFile(template.customScriptFile),
+          extensions: mobileAccess.manifest().map(entry => ({
+            id: entry.id,
+            name: entry.name,
+            version: entry.version,
+          })),
+          failedExtensionCount: mobileAccess.status().failed,
+        }
+        const guide = buildMobileGuide(state)
         // A plugin-source message renders as a collapsed context-injection row
         // (label "dsh-mobile", one-line notice summary) instead of a user bubble,
         // while steering still wakes the agent with the full guide as input.
         agent.steer(createUserMessage({
-          content: [{ type: 'text', text: `${MOBILE_CUSTOMIZATION_GUIDE}\n\n用户需求：${task}` }],
+          content: [{ type: 'text', text: `${guide}\n\n用户需求：${task}` }],
           source: {
             kind: 'plugin',
             plugin: 'dsh-mobile',
