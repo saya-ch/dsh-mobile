@@ -3,11 +3,12 @@
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
 
-## Unreleased
+## 0.3.9 - 2026-09-04
 
-- Verify the mobile frontend, connection, and trust contracts against DeepSeek Harness 0.1.2-alpha.5 and 0.1.2-rc.1 through the existing upstream-source CI gate; no plugin code change was required.
-- Verify the mobile frontend, connection, and trust contracts against DeepSeek Harness 0.1.3-alpha.1 through the existing upstream-source CI gate; no plugin code change was required. Extend the DSH peer ranges with the `^0.1.3-0` family so fresh installs resolve against 0.1.3 prereleases (the previous `^0.1.2-0` ceiling rejects them under npm's prerelease-tuples rule).
+- Add one-click VPS deployment for self-hosted FRP (PR #38, thanks @qzyqmzn): fill in the SSH user, port, and key in the control panel and the plugin installs frps, Caddy, firewall rules, and a Let's Encrypt IP certificate over pinned SSH with user-confirmed host fingerprints. Server-side cleanup removes only DSH Mobile-owned artifacts through a reviewable uninstall script. Public IPv4 origins are accepted on both the panel and the Android app.
 - Improve the `/mobile` customization command: inject the current mobile customization state (whether `mobile.css` / `mobile.js` exist and which extensions are installed) into the agent guide so earlier work is not overwritten blindly, teach the agent how to restore the built-in default appearance by removing those files, and require syntax and schema self-checks before it reports completion.
+- Verify the mobile frontend, connection, and trust contracts against DeepSeek Harness 0.1.2-alpha.5, 0.1.2-rc.1, and 0.1.3-alpha.1 through the existing upstream-source CI gate; no plugin code change was required. Extend the DSH peer ranges with the `^0.1.3-0` family so fresh installs resolve against 0.1.3 prereleases.
+- Shrink the composer dock stats strip on phones and link the community WeChat Mini-Program client in the README (thanks @StrawberryAO). Existing 0.3.3-0.3.8 Android apps and paired devices remain compatible.
 
 ## 0.3.8 - 2026-09-03
 

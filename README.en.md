@@ -19,14 +19,14 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin; the native app supports Android only.
 >
-> **0.3.8 update**: thanks to @StrawberryAO for the WeChat Mini-Program compatibility fix covering its automatic `Sec-Fetch-Site` and comma-joined Origin headers. The gateway also follows the active DSH WebServer port and rejects mixed untrusted Origins. [Details](CHANGELOG.md).
+> **0.3.9 update**: thanks to @qzyqmzn for one-click VPS deployment of self-hosted FRP — fill in SSH details in the panel and frps, Caddy, and certificates install automatically; `/mobile` customization now reads the current mobile state before editing and self-checks afterwards; DeepSeek Harness 0.1.3-alpha.1 is supported. [Details](CHANGELOG.md).
 >
-> **Upgrade reminder**: Windows DSH Desktop users should update to plugin 0.3.8. Existing 0.3.3-0.3.7 apps and paired devices remain compatible without re-pairing. [Compatibility notes](#compatibility).
+> **Upgrade reminder**: Windows DSH Desktop users should update to plugin 0.3.9. Existing 0.3.3-0.3.8 apps and paired devices remain compatible without re-pairing. [Compatibility notes](#compatibility).
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.8/dsh-mobile-android-v0.3.8.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.8/dsh-mobile-android-v0.3.8.apk"><strong>Download Android app 0.3.8</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.8">Release notes and checksums</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.9/dsh-mobile-android-v0.3.9.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.9/dsh-mobile-android-v0.3.9.apk"><strong>Download Android app 0.3.9</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.9">Release notes and checksums</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, or self-hosted FRP remote path. Local and remote access keep the same sessions, Workspaces, messages, and tools while using separate switches and paired-device stores without modifying DeepSeek Harness source.
@@ -198,12 +198,13 @@ The table below lists, for each plugin version, the DeepSeek Harness version it 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.3.9` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |
 | `0.3.4`, `0.3.5` | `0.1.2-alpha.2` |
 | `0.3.0`-`0.3.3` | `0.1.2-alpha.1` |
 | `0.1.4`, `0.2.x` | `0.1.1-rc.2` |
 
-Existing 0.3.3-0.3.7 apps do not need re-pairing. Earlier apps use a different status-bar strategy, so updating both is recommended. App 0.1.3 or earlier requires reinstalling and pairing again.
+Existing 0.3.3-0.3.8 apps do not need re-pairing. Earlier apps use a different status-bar strategy, so updating both is recommended. App 0.1.3 or earlier requires reinstalling and pairing again.
 
 ## Uninstall
 

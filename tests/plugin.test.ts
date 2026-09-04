@@ -301,10 +301,10 @@ describe('stock DSH lifecycle', () => {
       signal: new AbortController().signal,
       rawInput,
     } as never)
-    const empty = invoke('  ')
+    const empty = await invoke('  ')
     expect(empty).toMatchObject({ kind: 'error' })
     expect(steered).toEqual([])
-    const result = invoke(' 把手机端改成深色主题')
+    const result = await invoke(' 把手机端改成深色主题')
     expect(result).toMatchObject({ kind: 'success' })
     expect(steered.length).toBe(1)
     const [steeredMessage] = steered
