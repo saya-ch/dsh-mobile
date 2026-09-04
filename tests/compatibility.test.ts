@@ -9,6 +9,7 @@ describe('DeepSeek Harness compatibility', () => {
     for (const [name, range] of Object.entries(manifest.peerDependencies)) {
       if (!name.startsWith('@deepseek-ai/dsh-')) continue
       expect(range).toContain('^0.1.2-0')
+      expect(range).toContain('^0.1.3-0')
       expect(range).not.toMatch(/0\.1\.2-alpha\.\d/u)
     }
   })

@@ -62,6 +62,7 @@ describe('native mobile presentation', () => {
     expect(NATIVE_MOBILE_STYLES).toContain('grid-template-columns:16px minmax(0,1fr)')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-context-fields]')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-composer-card] ~ * [class*="_root"]')
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-slot="conversation.composer.dock"] [class*="_root"] { font-size:10px !important; line-height:16px !important; }')
     expect(NATIVE_MOBILE_STYLES).toContain('white-space:normal !important; overflow:visible !important')
     expect(NATIVE_MOBILE_STYLES).toContain('margin-bottom:-6px !important')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-mobile-media-shortcuts')

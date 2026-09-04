@@ -105,6 +105,8 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] [data-composer-card] ~ * [class*="_root"] { box-sizing:border-box !important; width:100% !important; max-width:100% !important; margin-bottom:-6px !important; padding:3px 4px 0 !important; font-size:11px !important; line-height:18px !important; white-space:normal !important; overflow:visible !important; text-overflow:clip !important; }
   [data-dsh-mobile-center] [data-composer-card] ~ [class*="_root"] [class*="_sep"],
   [data-dsh-mobile-center] [data-composer-card] ~ * [class*="_root"] [class*="_sep"] { margin:0 6px !important; }
+  /* Composer dock stats strip (turns/steps/tokens) reads small on phones. */
+  [data-dsh-mobile-center] [data-slot="conversation.composer.dock"] [class*="_root"] { font-size:10px !important; line-height:16px !important; }
   /* Message runtime details are inline on desktop. Give the clock/runtime
      label its own wrapping row on narrow screens so TTFT and throughput do
      not push the action buttons or clip at the viewport edge. */
