@@ -21,3 +21,8 @@ apps/mobile/android/**/build/
 # The iOS experiment is intentionally outside the Android-only alpha.
 apps/mobile/ios/
 apps/mobile/store/ios/
+
+# Local test scratch (playwright output, transient web logs)
+.playwright-mcp/
+tmp-dsh-web.log
+tmp-dsh-web.err.log

@@ -8,6 +8,8 @@ Notable changes to DSH Mobile are recorded here. GitHub Releases remain the sour
 - Support the DeepSeek Harness 0.1.5 keyed `main` panel, root `panelInfo` hook, navigation lifecycle, and root right sidebar while retaining the earlier `conversation` and `details` paths.
 - Recover mobile boot batches from transient upstream resets with bounded retry, lower concurrency, and one request-independent assembly shared by concurrent clients.
 - The 0.1.5 LAN path was first verified on rc.1 by @idoall; current compatibility checks target rc.2. See [the verification record](docs/DSH_0.1.5_LAN.md).
+- The gateway now proxies the DSH desktop UI's sidebar terminal by default: its upgrade path (`/sidebar/ws/terminal`, first-party DSH surface, renderer-v2) joins the built-in WebSocket allow-list, so pairing no longer fails with repeated `1006` when the terminal connects. Third-party plugin paths still require one-click approval in the connection diagnostics.
+- The mobile-access entry in the desktop sidebar now participates in the official footer-action flex layout instead of reserving a full fixed-width row with negative margins; installing a second plugin that contributes a footer action can no longer push it out of the sidebar, and the rail (collapsed) state keeps its round trigger.
 
 ## 0.3.14 - 2026-09-08
 
