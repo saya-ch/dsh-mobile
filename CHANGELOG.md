@@ -3,6 +3,17 @@
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
 
+## Unreleased — `local/0.1.5-lan`
+
+Not a published npm/GitHub Release. Plugin version remains **0.3.14**. Runtime layout/boot patches come from upstream [PR #60](https://github.com/saya-ch/dsh-mobile/pull/60); this branch adds scope docs and LAN verification.
+
+- Restore the DeepSeek Harness **0.1.5** dedicated-layout contract: keyed `main` slot, root `panelInfo` hook, `openRightbar`/`closeRightbar`, `beginNavigation`, and `canShow: true` on the details overlay (`src/mobile-layout.ts`).
+- Keep the mobile boot batch alive through upstream `ECONNRESET` while assembling client entries: retries, lower fan-out, and in-flight dedupe (`src/gateway.ts`).
+- **Verified** against DeepSeek Harness **0.1.5-rc.1** on the **LAN** path only (pairing, conversation, session list, new session, right panel).
+- **Not done**: Funnel / cpolar / FRP remote testing; npm version bump; `peerDependencies` `^0.1.5-0`; `scripts/check-dsh-compatibility.mjs` update for the 0.1.5 layout source; new Android APK.
+
+See [docs/DSH_0.1.5_LAN.md](docs/DSH_0.1.5_LAN.md).
+
 ## 0.3.14 - 2026-09-08
 
 - The panel's “Update plugin” action now shows a preview card first: the latest release notes (fetched from the GitHub releases API, graceful fallback when unavailable) plus fixed upgrade notices (restart DSH after installing; apps and paired devices need no re-pairing; check the README compatibility table when unsure about the desktop version), then explicit Update now / Not now buttons. Notes are served from the release itself, so a user on any older plugin version sees the current guidance before updating.
