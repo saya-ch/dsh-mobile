@@ -3,7 +3,7 @@
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
 
-## 0.3.15 - unreleased
+## 0.3.15 - 2026-09-11
 
 - Support the DeepSeek Harness 0.1.5 keyed `main` panel, root `panelInfo` hook, navigation lifecycle, and root right sidebar while retaining the earlier `conversation` and `details` paths.
 - Recover mobile boot batches from transient upstream resets with bounded retry, lower concurrency, and one request-independent assembly shared by concurrent clients; proxy DSH installations that disable browser launch-token authentication (thanks @longisland-icetea for PRs #59 and #60).

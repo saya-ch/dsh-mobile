@@ -19,7 +19,7 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin; the native app supports Android only.
 >
-> **0.3.15 update (unreleased)**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend and cpolar address rotation and slow first loads, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
+> **0.3.15 update**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend and cpolar address rotation and slow first loads, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
 >
 > **Upgrade reminder**: DSH 0.1.5 requires plugin **0.3.15** and a DSH restart. Existing pairings remain valid; cpolar users should also install app 0.3.15 so an older app does not cancel a slow first load. [Compatibility notes](#compatibility).
 
@@ -201,7 +201,7 @@ The table below lists, for each plugin version, the DeepSeek Harness version it 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `0.3.15` (unreleased) | `0.1.5-rc.2` (contract check); `0.1.5-rc.1` (@idoall LAN verification) |
+| `0.3.15` | `0.1.5-rc.2` (contract check); `0.1.5-rc.1` (@idoall LAN verification) |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |
