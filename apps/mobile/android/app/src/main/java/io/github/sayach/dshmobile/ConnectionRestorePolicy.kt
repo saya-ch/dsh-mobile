@@ -26,13 +26,16 @@ internal enum class RestoreFailureDisposition {
 
 /** Selects valid cold-start restore targets without depending on Android lifecycle state. */
 internal object ConnectionRestorePolicy {
+    /** Send a persisted bearer credential only to the exact remote origin that previously received it. */
     fun shouldRenewBeforePairing(
         mode: AccessMode,
         credential: DeviceCredential?,
         instanceId: String,
+        candidateOrigin: GatewayOrigin,
+        savedOrigin: GatewayOrigin?,
         now: Long,
     ): Boolean = mode == AccessMode.REMOTE && credential != null && credential.expiresAt > now
-        && credential.instanceId == instanceId
+        && credential.instanceId == instanceId && candidateOrigin == savedOrigin
 
     fun mayPairAfterRenewFailure(failure: Throwable): Boolean =
         (failure as? NativeAuthFailure)?.kind == NativeAuthFailureKind.PAIRING_EXPIRED

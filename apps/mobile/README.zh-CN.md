@@ -16,7 +16,7 @@ DeepSeek Harness 是这个轻量、社区维护的 Android WebView 薄壳的显�
 
 自建 FRP 使用同一套远程配对流程，并允许二维码中经过明确配对的自定义 HTTPS 域名。它需要 Android App 0.3.3 或更高版本；受支持的旧 App 仍可继续使用局域网、cpolar 和 Tailscale Funnel。
 
-首次配对完后，App 使用 Android Keystore 加密保存可随时撤销的长期设备 token，日常 Web 会话仍然是短期的。电脑的局域网 IP 变化后，App 会扫描默认端口，用稳定的 DSH 安装标识找回同一台电脑，换取新的短期 Web 会话，并自动更新保存的地址。发现过程不会暴露设备 token 或 Session 凭据。
+首次配对后，App 使用 Android Keystore 加密保存可随时撤销的长期设备 token，并且只向原先保存的精确 Origin 发送该 token，以换取短期 Web 会话。电脑的局域网 IP 变化后，App 会扫描默认端口，用稳定的 DSH 安装标识找回同一台电脑并更新地址。cpolar 免费地址等远程 Origin 失效后无法从旧地址发现新地址，需要扫描电脑端当前远程二维码，用一次性配对 token 验证新 Origin；App 不会把旧设备 token 发送给该新地址。发现过程不会暴露设备 token 或 Session 凭据。
 
 App 会在配对前读取独立的版本元数据，明确区分“App 过旧”“插件过旧”和协议不兼容；旧插件没有该端点时仍按原流程连接。已配对连接会在后台快速恢复，连接选择页可立即操作；仅对短暂断网或服务不可用进行有限次数的自动重试。App 原生页面由 Android 按系统语言自动显示简体中文、英文或意大利文，不提供另一套语言开关。WebView 中的插件界面跟随 DSH 选择的语言；当前 DSH 尚未提供意大利语，相关字典会在 DSH 后续加入该语言时直接生效。
 

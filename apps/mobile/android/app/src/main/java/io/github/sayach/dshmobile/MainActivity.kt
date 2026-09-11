@@ -791,11 +791,16 @@ class MainActivity : Activity() {
                 return@execute
             }
             val (certificate, expectedInstanceId) = trust
+            val savedOrigin = GatewayOrigin.parse(
+                preferences.getString(originPreference(mode), "").orEmpty(),
+            )
             val existingCredential = store.load().takeIf {
                 ConnectionRestorePolicy.shouldRenewBeforePairing(
                     mode = mode,
                     credential = it,
                     instanceId = key.instanceId,
+                    candidateOrigin = origin,
+                    savedOrigin = savedOrigin,
                     now = System.currentTimeMillis(),
                 )
             }
@@ -1585,15 +1590,20 @@ class MainActivity : Activity() {
             && credentialStore().load() != null) {
             scheduleAutomaticRecovery()
         }
-        val (title, message) = when (failure) {
-            LoadFailure.TLS -> R.string.secure_connection_failed to R.string.secure_connection_failed_message
-            LoadFailure.AUTH_EXPIRED -> R.string.session_expired to R.string.session_expired_message
-            LoadFailure.RATE_LIMITED -> R.string.remote_rate_limited to R.string.remote_rate_limited_message
-            LoadFailure.SERVICE_UNAVAILABLE -> R.string.dsh_unavailable to R.string.dsh_unavailable_message
-            LoadFailure.NETWORK -> if (accessMode == AccessMode.REMOTE) {
-                R.string.remote_unreachable to R.string.remote_unreachable_message
-            } else {
-                R.string.page_load_failed to R.string.page_load_failed_message
+        val cpolarAddressFailure = isCpolarAddressFailure(failure, accessMode, gatewayOrigin)
+        val (title, message) = if (cpolarAddressFailure) {
+            R.string.cpolar_address_unreachable to R.string.cpolar_address_unreachable_message
+        } else {
+            when (failure) {
+                LoadFailure.TLS -> R.string.secure_connection_failed to R.string.secure_connection_failed_message
+                LoadFailure.AUTH_EXPIRED -> R.string.session_expired to R.string.session_expired_message
+                LoadFailure.RATE_LIMITED -> R.string.remote_rate_limited to R.string.remote_rate_limited_message
+                LoadFailure.SERVICE_UNAVAILABLE -> R.string.dsh_unavailable to R.string.dsh_unavailable_message
+                LoadFailure.NETWORK -> if (accessMode == AccessMode.REMOTE) {
+                    R.string.remote_unreachable to R.string.remote_unreachable_message
+                } else {
+                    R.string.page_load_failed to R.string.page_load_failed_message
+                }
             }
         }
         failureDialog = AlertDialog.Builder(this)
@@ -1609,7 +1619,7 @@ class MainActivity : Activity() {
                 }
             }
             .setNegativeButton(R.string.edit_connection) { _, _ ->
-                showConnectionCenter()
+                if (cpolarAddressFailure) showRemoteSetup() else showConnectionCenter()
             }
             .create()
             .also { dialog ->

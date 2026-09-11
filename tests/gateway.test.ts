@@ -1481,15 +1481,17 @@ describe('WebSocket gateway', () => {
 
   it('allows the known DSH event and Remote paths, forwards only the Session Cookie, and closes all on revocation', async () => {
     const inner = await upstream()
-    const instance = await gateway(inner.port, { maxWebSockets: 3 })
+    const instance = await gateway(inner.port, { maxWebSockets: 4 })
     const paired = await pair(instance)
     const first = await openWebSocket(instance, '/api/events.mux', paired.session)
     const second = await openWebSocket(instance, '/api/events.host', paired.session)
     const third = await openWebSocket(instance, '/api/remote.mux', paired.session)
+    const terminal = await openWebSocket(instance, '/sidebar/ws/terminal?sessionId=s1&tab=t1', paired.session)
     expect(first.response).toContain('101 Switching Protocols')
     expect(second.response).toContain('101 Switching Protocols')
     expect(third.response).toContain('101 Switching Protocols')
-    expect(inner.upgradeObservations).toHaveLength(3)
+    expect(terminal.response).toContain('101 Switching Protocols')
+    expect(inner.upgradeObservations).toHaveLength(4)
     for (const observed of inner.upgradeObservations) {
       expect(observed.cookie).toBeUndefined()
       expect(observed.origin).toBe(`http://127.0.0.1:${String(inner.port)}`)
@@ -1509,9 +1511,9 @@ describe('WebSocket gateway', () => {
 
   it('proxies an admin-approved third-party path with its query string', async () => {
     const inner = await upstream()
-    const instance = await gateway(inner.port, {}, undefined, undefined, ['/sidebar/ws/terminal'])
+    const instance = await gateway(inner.port, {}, undefined, undefined, ['/ext/demo.ws'])
     const paired = await pair(instance)
-    const opened = await openWebSocket(instance, '/sidebar/ws/terminal?sessionId=s1&tab=t1', paired.session)
+    const opened = await openWebSocket(instance, '/ext/demo.ws?sessionId=s1&tab=t1', paired.session)
     expect(opened.response).toContain('101 Switching Protocols')
     opened.socket.destroy()
     const core = await openWebSocket(instance, '/api/events.mux?generation=2', paired.session)
@@ -1524,10 +1526,10 @@ describe('WebSocket gateway', () => {
     const log = new BlockedUpgradePathLog()
     const instance = await gateway(inner.port, {}, undefined, undefined, [], log)
     const paired = await pair(instance)
-    const blocked = await openWebSocket(instance, '/sidebar/ws/terminal?sessionId=s1', paired.session)
+    const blocked = await openWebSocket(instance, '/ext/demo.ws?sessionId=s1', paired.session)
     expect(blocked.response).toContain('404')
     blocked.socket.destroy()
-    expect(instance.blockedUpgradePathReport()).toMatchObject([{ path: '/sidebar/ws/terminal', attempts: 1 }])
+    expect(instance.blockedUpgradePathReport()).toMatchObject([{ path: '/ext/demo.ws', attempts: 1 }])
   })
 
   it('still rejects unlisted paths and their query strings', async () => {

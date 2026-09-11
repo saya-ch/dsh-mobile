@@ -1,6 +1,7 @@
 package io.github.sayach.dshmobile
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -90,22 +91,42 @@ class ConnectionRestorePolicyTest {
     }
 
     @Test
-    fun reusesRemoteDeviceTrustWhenAProviderChangesItsPublicAddress() {
+    fun renewsOnlyAtThePreviouslySavedRemoteOrigin() {
+        val savedOrigin = GatewayOrigin.parse("https://remote.cpolar.cn")!!
         assertTrue(ConnectionRestorePolicy.shouldRenewBeforePairing(
             AccessMode.REMOTE,
             remoteCredential,
             remoteCredential.instanceId,
-            now,
+            candidateOrigin = savedOrigin,
+            savedOrigin = savedOrigin,
+            now = now,
         ))
-        assertEquals(
-            false,
-            ConnectionRestorePolicy.shouldRenewBeforePairing(
-                AccessMode.LAN,
-                remoteCredential,
-                remoteCredential.instanceId,
-                now,
-            ),
-        )
+        assertFalse(ConnectionRestorePolicy.shouldRenewBeforePairing(
+            AccessMode.REMOTE,
+            remoteCredential,
+            remoteCredential.instanceId,
+            candidateOrigin = GatewayOrigin.parse("https://new-address.cpolar.cn")!!,
+            savedOrigin = savedOrigin,
+            now = now,
+        ))
+        // An attacker can copy the public instance id into a QR code. A new
+        // HTTPS origin must not receive the existing bearer device token.
+        assertFalse(ConnectionRestorePolicy.shouldRenewBeforePairing(
+            AccessMode.REMOTE,
+            remoteCredential,
+            remoteCredential.instanceId,
+            candidateOrigin = GatewayOrigin.parse("https://attacker.example.com")!!,
+            savedOrigin = savedOrigin,
+            now = now,
+        ))
+        assertFalse(ConnectionRestorePolicy.shouldRenewBeforePairing(
+            AccessMode.LAN,
+            remoteCredential,
+            remoteCredential.instanceId,
+            candidateOrigin = savedOrigin,
+            savedOrigin = savedOrigin,
+            now = now,
+        ))
         assertTrue(ConnectionRestorePolicy.mayPairAfterRenewFailure(
             NativeAuthFailure(NativeAuthFailureKind.PAIRING_EXPIRED),
         ))

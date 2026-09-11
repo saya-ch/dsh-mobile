@@ -29,6 +29,11 @@ export interface CpolarControllerOptions {
   readonly region?: string
   readonly createGateway: (origin: string, listenPort: number) => Promise<MobileAccessGateway>
   readonly onStatus?: (status: CpolarStatus) => void
+  readonly spawnProcess?: (
+    executable: string,
+    args: readonly string[],
+    environment: NodeJS.ProcessEnv,
+  ) => ChildProcessWithoutNullStreams
 }
 
 interface PortReservation {
@@ -85,6 +90,19 @@ async function reserveLoopbackPort(): Promise<PortReservation> {
       await new Promise<void>(resolveClose => { server.close(() => resolveClose()) })
     },
   }
+}
+
+function spawnCpolarProcess(
+  executable: string,
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+): ChildProcessWithoutNullStreams {
+  return spawn(executable, [...args], {
+    env: environment,
+    shell: false,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
+  })
 }
 
 function withoutProxyEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -231,12 +249,11 @@ export class CpolarController implements RemoteProviderController {
       '-log-level=INFO',
       String(reservation.port),
     ]
-    const child = spawn(this.options.executable, args, {
-      env: withoutProxyEnvironment(process.env),
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true,
-    })
+    const child = (this.options.spawnProcess ?? spawnCpolarProcess)(
+      this.options.executable,
+      args,
+      withoutProxyEnvironment(process.env),
+    )
     this.child = child
     child.stdout.setEncoding('utf8')
     child.stderr.setEncoding('utf8')
@@ -276,7 +293,13 @@ export class CpolarController implements RemoteProviderController {
   }
 
   private async attachGateway(generation: number, origin: string): Promise<void> {
-    if (generation !== this.generation || !this.enabled || this.gatewayValue !== undefined) return
+    if (generation !== this.generation || !this.enabled || this.disposed) return
+    const current = this.gatewayValue
+    if (current !== undefined) {
+      if (current.address().origin === origin) return
+      await this.rotateGateway(generation, origin, current)
+      return
+    }
     const reservation = this.reservation
     if (reservation === undefined) return
     this.publish({ enabled: true, state: 'connecting', origin })
@@ -287,13 +310,45 @@ export class CpolarController implements RemoteProviderController {
       await this.failGeneration(generation, 'gateway_start_failed')
       return
     }
-    if (generation !== this.generation || !this.enabled) {
+    if (generation !== this.generation || !this.enabled || this.disposed || this.child === undefined) {
       await gateway.close()
       return
     }
     this.gatewayValue = gateway
     if (this.startupTimer !== undefined) clearTimeout(this.startupTimer)
     this.startupTimer = undefined
+    this.publish({ enabled: true, state: 'ready', origin })
+  }
+
+  /** Replace the gateway authority when cpolar rotates a temporary public origin. */
+  private async rotateGateway(
+    generation: number,
+    origin: string,
+    current: MobileAccessGateway,
+  ): Promise<void> {
+    const listenPort = current.address().port
+    // A replacement must bind the same port cpolar already forwards to. Stop
+    // exposing the closing instance before releasing that port.
+    if (this.gatewayValue === current) this.gatewayValue = undefined
+    this.publish({ enabled: true, state: 'connecting', origin })
+    try {
+      await current.close()
+    } catch {
+      await this.failGeneration(generation, 'gateway_start_failed')
+      return
+    }
+    if (generation !== this.generation || !this.enabled || this.disposed || this.child === undefined) return
+
+    let replacement: MobileAccessGateway
+    try { replacement = await this.options.createGateway(origin, listenPort) } catch {
+      await this.failGeneration(generation, 'gateway_start_failed')
+      return
+    }
+    if (generation !== this.generation || !this.enabled || this.disposed || this.child === undefined) {
+      await replacement.close()
+      return
+    }
+    this.gatewayValue = replacement
     this.publish({ enabled: true, state: 'ready', origin })
   }
 

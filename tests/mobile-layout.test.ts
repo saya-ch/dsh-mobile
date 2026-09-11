@@ -3,7 +3,17 @@ import { runInNewContext } from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
 import { rewriteMobileIndex } from '../src/gateway.js'
 import { CSRF_COOKIE, CSRF_HEADER } from '../src/http-security.js'
-import { MOBILE_LAYOUT_MESSAGES, MOBILE_LAYOUT_STYLES, WIDE_LAYOUT_MIN_WIDTH_PX, apply as applyMobileLayout, isWideViewportLayout, resolveMobileLayoutLanguage } from '../src/mobile-layout.js'
+import {
+  MOBILE_LAYOUT_MESSAGES,
+  MOBILE_LAYOUT_STYLES,
+  WIDE_LAYOUT_MIN_WIDTH_PX,
+  apply as applyMobileLayout,
+  closeDetailsFromScrim,
+  isMobileScrimOpen,
+  isSidebarRightControl,
+  isWideViewportLayout,
+  resolveMobileLayoutLanguage,
+} from '../src/mobile-layout.js'
 
 function index(entries: unknown[]): string {
   return `<!doctype html><html><head><script>window.__DSH_BOOT__ = ${JSON.stringify({ rev: 'stock', entries })};</script></head><body></body></html>`
@@ -355,6 +365,56 @@ describe('dedicated mobile layout boot', () => {
     expect(isWideViewportLayout(1920)).toBe(true)
   })
 
+  it.each([
+    [false, false, false, false],
+    [true, false, false, true],
+    [false, true, false, true],
+    [true, true, false, true],
+    [true, false, true, false],
+    [false, true, true, false],
+    [true, true, true, false],
+  ])(
+    'shows the modal scrim for sidebar=%s details=%s wide=%s as %s',
+    (sidebarOpen, detailsOpen, wideViewport, expected) => {
+      expect(isMobileScrimOpen(sidebarOpen, detailsOpen, wideViewport)).toBe(expected)
+    },
+  )
+
+  it('collapses the optional DSH right Sidebar before closing the Mobile drawer', () => {
+    const events: string[] = []
+    const sidebarRight = {
+      expanded: true,
+      isExpanded() { return this.expanded },
+      toggleExpanded() { this.expanded = !this.expanded; events.push('official') },
+    }
+
+    expect(isSidebarRightControl(sidebarRight)).toBe(true)
+    closeDetailsFromScrim(sidebarRight, () => { events.push('mobile') })
+
+    expect(sidebarRight.expanded).toBe(false)
+    expect(events).toEqual(['official', 'mobile'])
+  })
+
+  it('closes locally when the old host has no right-Sidebar service', () => {
+    const closeDetails = vi.fn()
+    closeDetailsFromScrim(undefined, closeDetails)
+    expect(closeDetails).toHaveBeenCalledOnce()
+  })
+
+  it('does not reopen an official right Sidebar that is already collapsed', () => {
+    const toggleExpanded = vi.fn()
+    const closeDetails = vi.fn()
+    closeDetailsFromScrim({ isExpanded: () => false, toggleExpanded }, closeDetails)
+    expect(toggleExpanded).not.toHaveBeenCalled()
+    expect(closeDetails).toHaveBeenCalledOnce()
+  })
+
+  it('rejects partial optional service values', () => {
+    expect(isSidebarRightControl(null)).toBe(false)
+    expect(isSidebarRightControl({ isExpanded: () => true })).toBe(false)
+    expect(isSidebarRightControl({ toggleExpanded: () => {} })).toBe(false)
+  })
+
   it('keeps the narrow overlay drawer CSS untouched while docking the wide sidebar', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer{position:fixed')
     expect(MOBILE_LAYOUT_STYLES).toContain('@media(min-width:900px)')
@@ -369,7 +429,9 @@ describe('dedicated mobile layout boot', () => {
     expect(source).toContain('sidebarOpen: viewportIsWide()')
     expect(source).toContain('sharedController ??= new MobileLayoutController()')
     expect(source).toContain('if (viewportIsWide()) return')
-    expect(source).toContain('state.detailsOpen || (state.sidebarOpen && !wideViewport)')
+    expect(source).toContain('isMobileScrimOpen(state.sidebarOpen, state.detailsOpen, wideViewport)')
+    expect(source).toContain("'aria-hidden': !scrimOpen")
+    expect(source).toContain('tabIndex: scrimOpen ? 0 : -1')
   })
 
   it('projects the current session title into the browser tab like the stock layout', () => {
@@ -393,6 +455,7 @@ describe('dedicated mobile layout boot', () => {
       const mainEntries: Array<{ options: { key?: string } }> = [{ options: { key: 'alpha' } }]
       let notifyMainEntries = (): void => {}
       let root: { children: Record<string, { kind: string; scope: string }> } | undefined
+      let rootComponent: ((props: Record<string, never>) => unknown) | undefined
       let contribution: { hooks: { panelInfo: { getSnapshot: () => { activePanelId: string | null }, subscribe: (listener: () => void) => () => void } } } | undefined
       let layout: {
         selectPanel: (id: string | null) => void
@@ -402,11 +465,14 @@ describe('dedicated mobile layout boot', () => {
         beginNavigation: () => AbortSignal
       } | undefined
       let mobileController: { getSnapshot: () => { detailsOpen: boolean } } | undefined
+      let sidebarRightService: unknown
+      const get = vi.fn((name: string): unknown => name === 'sidebarRight' ? sidebarRightService : undefined)
       const ctx = {
         effect: (effect: () => void | (() => void)) => {
           const cleanup = effect()
           if (typeof cleanup === 'function') cleanups.push(cleanup)
         },
+        get,
         on: () => () => {},
         reflect: { provide: (name: string, value: unknown) => {
           if (name !== 'layout') return () => {}
@@ -415,7 +481,11 @@ describe('dedicated mobile layout boot', () => {
           return () => {}
         } },
         slots: {
-          register: (options: Record<string, unknown>) => { root = options as typeof root; return () => {} },
+          register: (options: Record<string, unknown>, component: unknown) => {
+            root = options as typeof root
+            rootComponent = component as typeof rootComponent
+            return () => {}
+          },
           provideRoot: (value: unknown) => { contribution = value as typeof contribution; return () => {} },
           entries: (name: string) => name === 'main' ? mainEntries : [],
           subscribe: (name: string, listener: () => void) => {
@@ -458,6 +528,18 @@ describe('dedicated mobile layout boot', () => {
       expect(mobileController?.getSnapshot()).toMatchObject({ detailsOpen: true })
       layout?.closeRightbar()
       expect(mobileController?.getSnapshot()).toMatchObject({ detailsOpen: false })
+      expect(get).not.toHaveBeenCalled()
+
+      // The optional service is registered after the layout, so the scrim's
+      // callback must discover it when the user acts rather than at boot.
+      layout?.openRightbar(true, false)
+      const frameElement = rootComponent?.({}) as { props: { requestDetailsClose: () => void } }
+      const toggleExpanded = vi.fn()
+      sidebarRightService = { isExpanded: () => true, toggleExpanded }
+      frameElement.props.requestDetailsClose()
+      expect(get).toHaveBeenCalledWith('sidebarRight')
+      expect(toggleExpanded).toHaveBeenCalledOnce()
+      expect(mobileController?.getSnapshot()).toMatchObject({ detailsOpen: false })
 
       // The new-session button goes startSession -> openWorkspace ->
       // ctx.layout.beginNavigation(); a missing method made it silently no-op.
@@ -480,6 +562,9 @@ describe('dedicated mobile layout boot', () => {
       // RightbarSeat collapse the surface right after it opens.
       expect(source).toContain('canShow: true')
       expect(source).not.toContain('canShow: window.innerWidth >=')
+      expect(source).toContain("ctx.get('sidebarRight')")
+      expect(source).toContain("export const inject: readonly string[] = ['slots', 'theme']")
+      expect(source).not.toMatch(/export const inject[^\n]*sidebarRight/u)
     } finally {
       restore()
     }
@@ -494,6 +579,7 @@ describe('dedicated mobile layout boot', () => {
           const cleanup = effect()
           if (typeof cleanup === 'function') cleanups.push(cleanup)
         },
+        get: () => undefined,
         on: () => () => {},
         reflect: { provide: () => () => {} },
         slots: {

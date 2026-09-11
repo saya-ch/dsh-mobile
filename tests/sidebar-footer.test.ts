@@ -151,14 +151,14 @@ function declarations(selector: string): Record<string, string> {
 }
 
 describe('desktop Mobile Access footer', () => {
-  it('matches the Settings row geometry and preserves the compact rail target', () => {
+  it('shares the footer row and preserves the compact rail target', () => {
     expect(declarations('.dsh-mobile-control__trigger')).toMatchObject({
       'box-sizing': 'border-box',
-      flex: 'none',
+      flex: '1 1 auto',
       gap: '8px',
-      width: 'calc(100% + 4px)',
+      width: '100%',
       height: '42px',
-      margin: '4px -2px',
+      margin: '4px 0',
       padding: '0 10px 0 8px',
       border: '0',
       'border-radius': '12px',
@@ -168,6 +168,7 @@ describe('desktop Mobile Access footer', () => {
       color: 'var(--dsw-alias-label-primary,#16181d)',
     })
     expect(declarations('.dsh-mobile-control__trigger.is-rail')).toMatchObject({
+      flex: '0 0 auto',
       width: '36px',
       height: '36px',
       margin: '8px 0 10px',
