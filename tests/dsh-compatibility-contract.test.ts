@@ -29,9 +29,14 @@ function sourceFixture(version = '0.1.2-alpha.2', architecture: 'renderer-v2' | 
   sources['packages/client/ui-settings/package.json'] = manifest(version, remoteTrust ? [remotes] : [connection, remotes])
   sources['packages/api/remotes/package.json'] = manifest(version, [gateway])
   sources['packages/api/gateway/package.json'] = manifest(version, ['@deepseek-ai/dsh-typert-registry', connection])
+  // DSH 0.1.5 moved the conversation panel into the keyed 'main' root slot,
+  // widened 'rightbar' from session to root scope, and kept the module's root
+  // 'panelInfo' standard hook. The dedicated mobile layout replaces this module,
+  // so it declares and dispatches the same slots and republishes that hook.
   sources['packages/client/ui-layout/src/client/index.ts'] = [
-    "'sidebar': { kind: 'single', scope: 'root' }", "'conversation': { kind: 'single', scope: 'session-maybe' }",
-    "'rightbar': { kind: 'single', scope: 'session' }", "'shell.overlay': { kind: 'list', scope: 'root' }", "ctx.reflect.provide('layout'",
+    "'sidebar': { kind: 'single', scope: 'root' }", "'main': { kind: 'keyed', scope: 'root' }",
+    "'rightbar': { kind: 'single', scope: 'root' }", "'shell.overlay': { kind: 'list', scope: 'root' }",
+    "ctx.reflect.provide('layout'", "ctx.slots.provideRoot({ hooks: { panelInfo } })",
   ].join('\n')
   sources['packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx'] = 'data-conversation-scroll'
   sources['packages/client/ui-conversation/src/client/skeleton/InputBar.tsx'] = 'data-composer-card data-input-scroll aria-haspopup="listbox"'
@@ -122,6 +127,24 @@ describe('DSH source compatibility gate', () => {
     const result = await check(sources)
     expect(result.status).toBe(1)
     expect(result.output).toContain('Connection transport contract changed')
+  })
+
+  it('rejects when the layout stops declaring the keyed main slot', async () => {
+    const sources = sourceFixture()
+    const path = 'packages/client/ui-layout/src/client/index.ts'
+    sources[path] = sources[path]!.replace("'main': { kind: 'keyed', scope: 'root' }", "'conversation': { kind: 'single', scope: 'session-maybe' }")
+    const result = await check(sources)
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('DSH layout contract changed')
+  })
+
+  it('rejects when the layout stops publishing the panelInfo root hook', async () => {
+    const sources = sourceFixture()
+    const path = 'packages/client/ui-layout/src/client/index.ts'
+    sources[path] = sources[path]!.replace("ctx.slots.provideRoot({ hooks: { panelInfo } })", '')
+    const result = await check(sources)
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('DSH layout contract changed')
   })
 
   it('rejects legacy settings without its direct Connection dependency', async () => {

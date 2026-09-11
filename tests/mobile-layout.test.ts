@@ -389,6 +389,9 @@ describe('dedicated mobile layout boot', () => {
   it('publishes the root panelInfo hook the official layout owns', () => {
     const restore = stubClientGlobals()
     try {
+      const cleanups: Array<() => void> = []
+      const mainEntries: Array<{ options: { key?: string } }> = [{ options: { key: 'alpha' } }]
+      let notifyMainEntries = (): void => {}
       let root: { children: Record<string, { kind: string; scope: string }> } | undefined
       let contribution: { hooks: { panelInfo: { getSnapshot: () => { activePanelId: string | null }, subscribe: (listener: () => void) => () => void } } } | undefined
       let layout: {
@@ -400,7 +403,10 @@ describe('dedicated mobile layout boot', () => {
       } | undefined
       let mobileController: { getSnapshot: () => { detailsOpen: boolean } } | undefined
       const ctx = {
-        effect: (effect: () => void | (() => void)) => { effect(); return () => {} },
+        effect: (effect: () => void | (() => void)) => {
+          const cleanup = effect()
+          if (typeof cleanup === 'function') cleanups.push(cleanup)
+        },
         on: () => () => {},
         reflect: { provide: (name: string, value: unknown) => {
           if (name !== 'layout') return () => {}
@@ -411,6 +417,11 @@ describe('dedicated mobile layout boot', () => {
         slots: {
           register: (options: Record<string, unknown>) => { root = options as typeof root; return () => {} },
           provideRoot: (value: unknown) => { contribution = value as typeof contribution; return () => {} },
+          entries: (name: string) => name === 'main' ? mainEntries : [],
+          subscribe: (name: string, listener: () => void) => {
+            if (name === 'main') notifyMainEntries = listener
+            return () => { notifyMainEntries = () => {} }
+          },
         },
         theme: { getTheme: () => ({ active: { colorScheme: 'light' as const, tokens: {} } }) },
       }
@@ -420,6 +431,7 @@ describe('dedicated mobile layout boot', () => {
       expect(root?.children.main?.kind).toBe('keyed')
       expect(root?.children.main?.scope).toBe('root')
       expect(Object.keys(root?.children ?? {})).toContain('conversation')
+      expect(root?.children.rightbar).toEqual({ kind: 'single', scope: 'root' })
 
       // Missing this hook fails assembly for every usePanelInfo registration.
       const panelInfo = contribution?.hooks.panelInfo
@@ -429,9 +441,14 @@ describe('dedicated mobile layout boot', () => {
       const seen: Array<{ activePanelId: string | null }> = []
       panelInfo?.subscribe(() => { seen.push(panelInfo.getSnapshot()) })
       layout?.selectPanel('alpha')
-      layout?.retainMainPanels(['beta'])
-      layout?.retainMainPanels(['alpha'])
-      expect(seen).toEqual([{ activePanelId: 'alpha' }, { activePanelId: null }])
+      mainEntries.splice(0, mainEntries.length, { options: { key: 'beta' } })
+      // Validation reads the live registry instead of waiting for its batched
+      // subscription notification.
+      layout?.selectPanel('beta')
+      expect(() => { layout?.selectPanel('missing') }).toThrow('main panel "missing" is not registered')
+      mainEntries.splice(0)
+      notifyMainEntries()
+      expect(seen).toEqual([{ activePanelId: 'alpha' }, { activePanelId: 'beta' }, { activePanelId: null }])
 
       // The right panel (dsh-better-sidebar and friends) drives the drawer
       // through these two; without them syncPresentation throws.
@@ -451,14 +468,43 @@ describe('dedicated mobile layout boot', () => {
       expect(second?.aborted).toBe(false)
       expect(AbortSignal.any([second as AbortSignal]).aborted).toBe(false)
 
+      for (const cleanup of cleanups.reverse()) cleanup()
+      expect(second?.aborted).toBe(true)
+
       const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
       expect(source).toContain("entryKey: state.panelInfo.activePanelId ?? 'conversation'")
+      expect(source).toContain("fallback: props.renderSlot('conversation', {})")
+      expect(source).toContain("hasSession ? props.renderSlot('details', {}) : undefined")
       expect(source).toContain('disposePanelInfo()')
       // A phone-width viewport must still report room: reporting false makes
       // RightbarSeat collapse the surface right after it opens.
       expect(source).toContain('canShow: true')
       expect(source).not.toContain('canShow: window.innerWidth >=')
     } finally {
+      restore()
+    }
+  })
+
+  it('keeps the legacy layout usable when the renderer cannot publish root hooks', () => {
+    const restore = stubClientGlobals()
+    const cleanups: Array<() => void> = []
+    try {
+      expect(() => { applyMobileLayout({
+        effect: (effect: () => void | (() => void)) => {
+          const cleanup = effect()
+          if (typeof cleanup === 'function') cleanups.push(cleanup)
+        },
+        on: () => () => {},
+        reflect: { provide: () => () => {} },
+        slots: {
+          register: () => () => {},
+          entries: () => [],
+          subscribe: () => () => {},
+        },
+        theme: { getTheme: () => ({ active: { colorScheme: 'light' as const, tokens: {} } }) },
+      } as never) }).not.toThrow()
+    } finally {
+      for (const cleanup of cleanups.reverse()) cleanup()
       restore()
     }
   })

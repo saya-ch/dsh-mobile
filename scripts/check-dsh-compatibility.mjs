@@ -81,12 +81,19 @@ if (!Array.isArray(layoutInject)
 }
 
 const layoutSource = await text('packages/client/ui-layout/src/client/index.ts')
+// The conversation panel lives in this keyed root slot since DSH 0.1.5 (it was
+// its own root slot named 'conversation' before), and the dedicated mobile
+// layout has to declare and dispatch the same slot. The root 'panelInfo'
+// standard hook below is the other half of that contract: the mobile layout
+// replaces this module, so it must publish the hook too or every usePanelInfo
+// registration fails assembly.
 for (const declaration of [
   "'sidebar': { kind: 'single', scope: 'root' }",
-  "'conversation': { kind: 'single', scope: 'session-maybe' }",
-  "'rightbar': { kind: 'single', scope: 'session' }",
+  "'main': { kind: 'keyed', scope: 'root' }",
+  "'rightbar': { kind: 'single', scope: 'root' }",
   "'shell.overlay': { kind: 'list', scope: 'root' }",
   "ctx.reflect.provide('layout'",
+  "ctx.slots.provideRoot({ hooks: { panelInfo } })",
 ]) {
   if (!layoutSource.includes(declaration)) throw new Error(`DSH layout contract changed: missing ${declaration}`)
 }

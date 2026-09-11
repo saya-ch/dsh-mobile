@@ -1,7 +1,15 @@
 import { createHash, X509Certificate } from 'node:crypto'
 import { createSocket } from 'node:dgram'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { createServer, request as requestHttp, type IncomingHttpHeaders, type Server } from 'node:http'
+import {
+  createServer,
+  request as requestHttp,
+  type ClientRequest,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from 'node:http'
 import { request as requestHttps } from 'node:https'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -29,6 +37,11 @@ interface UpstreamObservation {
   readonly headers: IncomingHttpHeaders
   readonly body: string
 }
+
+type BatchedBundleResponder = (
+  request: IncomingMessage,
+  response: ServerResponse,
+) => boolean | Promise<boolean>
 
 const cleanups: Array<() => Promise<void>> = []
 const TEST_GATEWAY_PORT = 38080
@@ -61,16 +74,17 @@ async function closeServer(server: Server, sockets: Set<Socket> = new Set()): Pr
   await new Promise<void>(resolve => { server.close(() => resolve()) })
 }
 
-async function request(
+function beginRequest(
   port: number,
   path: string,
   options: { method?: string; headers?: Record<string, string>; body?: string } = {},
-): Promise<HttpResult> {
-  return new Promise((resolve, reject) => {
+): { readonly outgoing: ClientRequest; readonly result: Promise<HttpResult> } {
+  let outgoing!: ClientRequest
+  const result = new Promise<HttpResult>((resolve, reject) => {
     const body = options.body
     const headers = { ...options.headers }
     if (body !== undefined && headers['content-length'] === undefined) headers['content-length'] = String(Buffer.byteLength(body))
-    const outgoing = requestHttp({
+    outgoing = requestHttp({
       host: '127.0.0.1',
       port,
       path,
@@ -88,6 +102,15 @@ async function request(
     outgoing.once('error', reject)
     outgoing.end(body)
   })
+  return { outgoing, result }
+}
+
+async function request(
+  port: number,
+  path: string,
+  options: { method?: string; headers?: Record<string, string>; body?: string } = {},
+): Promise<HttpResult> {
+  return beginRequest(port, path, options).result
 }
 
 async function udpDiscovery(port: number): Promise<Record<string, unknown>> {
@@ -186,6 +209,7 @@ async function upstream(
   upgradeBurst: Buffer = Buffer.alloc(0),
   upgradeHeaderLines: string[] = [],
   upgradeHeaderBytes?: number,
+  batchedBundleResponder?: BatchedBundleResponder,
 ): Promise<{
   port: number
   observations: UpstreamObservation[]
@@ -256,6 +280,7 @@ async function upstream(
       return
     }
     if (boot === 'batched' && incoming.url?.startsWith('/plugins/') === true) {
+      if (await batchedBundleResponder?.(incoming, response) === true) return
       const body = `globalThis.__loadedMobileFixture ??= []; globalThis.__loadedMobileFixture.push(${JSON.stringify(incoming.url)});\n`
       response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'content-length': Buffer.byteLength(body) })
       response.end(body)
@@ -398,6 +423,42 @@ async function pair(instance: MobileAccessGateway): Promise<{
     device: cookies.get(DEVICE_COOKIE) ?? '',
     csrf: body.csrfToken,
   }
+}
+
+async function mobileBatchFixture(responder?: BatchedBundleResponder): Promise<{
+  readonly inner: Awaited<ReturnType<typeof upstream>>
+  readonly instance: MobileAccessGateway
+  readonly headers: Record<string, string>
+  readonly path: string
+}> {
+  const inner = await upstream('batched', false, Buffer.alloc(0), [], undefined, responder)
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-batched-layout-'))
+  cleanups.push(() => rm(directory, { recursive: true, force: true }))
+  const mobileLayoutFile = join(directory, 'mobile-layout.js')
+  await writeFile(mobileLayoutFile, 'globalThis.__dedicatedMobileLayout = true;\n', 'utf8')
+  const instance = await gateway(inner.port, { mobileLayoutFile })
+  const paired = await pair(instance)
+  const headers = {
+    ...browserHeaders(instance),
+    accept: 'text/html,application/xhtml+xml',
+    cookie: `${SESSION_COOKIE}=${paired.session}`,
+  }
+  const mobile = await request(instance.address().port, '/', { headers })
+  expect(mobile.status).toBe(200)
+  const match = /"url":"(\/mobile-access\/mobile-boot\/[a-f\d]{64}\.js)"/u.exec(mobile.body)
+  expect(match?.[1]).toBeDefined()
+  return { inner, instance, headers, path: match![1]! }
+}
+
+function activeRequestCount(instance: MobileAccessGateway): number {
+  return (instance as unknown as { readonly activeRequests: ReadonlyMap<number, unknown> }).activeRequests.size
+}
+
+function activeMobileBatchTask(instance: MobileAccessGateway): Promise<Buffer> | undefined {
+  const batches = (instance as unknown as {
+    readonly mobileBootBatches: ReadonlyMap<string, { readonly assembly?: { readonly task: Promise<Buffer> } }>
+  }).mobileBootBatches
+  return [...batches.values()].find(batch => batch.assembly !== undefined)?.assembly?.task
 }
 
 async function openWebSocket(
@@ -639,6 +700,110 @@ describe('HTTP gateway', () => {
     expect(inner.observations.map(observation => observation.url)).toContain('/plugins/feature.js?rev=feature')
     expect(inner.observations.map(observation => observation.url)).not.toContain('/plugins/layout.js?rev=layout')
     expect(inner.observations.map(observation => observation.url)).not.toContain('/plugins/application.js?rev=stock')
+  })
+
+  it('does not retry a deterministic bundle response and permits the next assembly to recover', async () => {
+    let rejectRenderer = true
+    const fixture = await mobileBatchFixture((incoming, response) => {
+      if (!rejectRenderer || incoming.url !== '/plugins/renderer.js?rev=renderer') return false
+      response.writeHead(503, { 'content-type': 'text/plain' })
+      response.end('temporarily unavailable')
+      return true
+    })
+
+    const failed = await request(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    expect(failed.status).toBe(502)
+    expect(JSON.parse(failed.body)).toEqual({ error: 'upstream_unavailable' })
+    expect(fixture.inner.observations.filter(entry => entry.url === '/plugins/renderer.js?rev=renderer')).toHaveLength(1)
+
+    rejectRenderer = false
+    const recovered = await request(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    expect(recovered.status).toBe(200)
+    expect(recovered.body).toContain('/plugins/renderer.js?rev=renderer')
+    expect(fixture.inner.observations.filter(entry => entry.url === '/plugins/renderer.js?rev=renderer')).toHaveLength(2)
+  })
+
+  it('retries a transient upstream reset while assembling a mobile batch', async () => {
+    let resetRenderer = true
+    const fixture = await mobileBatchFixture((incoming) => {
+      if (!resetRenderer || incoming.url !== '/plugins/renderer.js?rev=renderer') return false
+      resetRenderer = false
+      incoming.socket.destroy()
+      return true
+    })
+
+    const batch = await request(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    expect(batch.status).toBe(200)
+    expect(batch.body).toContain('/plugins/renderer.js?rev=renderer')
+    expect(fixture.inner.observations.filter(entry => entry.url === '/plugins/renderer.js?rev=renderer')).toHaveLength(2)
+  })
+
+  it('reuses one in-flight assembly for concurrent mobile batch requests', async () => {
+    let releaseBundles!: () => void
+    const bundlesReleased = new Promise<void>(resolve => { releaseBundles = resolve })
+    const fixture = await mobileBatchFixture(async () => {
+      await bundlesReleased
+      return false
+    })
+
+    const first = beginRequest(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    await vi.waitFor(() => {
+      expect(fixture.inner.observations.filter(entry => entry.url.startsWith('/plugins/'))).toHaveLength(2)
+    })
+    const second = beginRequest(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    await vi.waitFor(() => { expect(activeRequestCount(fixture.instance)).toBe(2) })
+
+    releaseBundles()
+    const [firstResult, secondResult] = await Promise.all([first.result, second.result])
+    expect(firstResult.status).toBe(200)
+    expect(secondResult.status).toBe(200)
+    expect(secondResult.rawBody).toEqual(firstResult.rawBody)
+    expect(fixture.inner.observations.filter(entry => entry.url.startsWith('/plugins/'))).toHaveLength(2)
+  })
+
+  it('keeps a shared mobile batch assembly alive when its first requester disconnects', async () => {
+    let releaseBundles!: () => void
+    const bundlesReleased = new Promise<void>(resolve => { releaseBundles = resolve })
+    const fixture = await mobileBatchFixture(async () => {
+      await bundlesReleased
+      return false
+    })
+
+    const first = beginRequest(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    await vi.waitFor(() => {
+      expect(fixture.inner.observations.filter(entry => entry.url.startsWith('/plugins/'))).toHaveLength(2)
+    })
+    first.outgoing.destroy(new Error('test requester disconnected'))
+    await first.result.catch(() => undefined)
+    await vi.waitFor(() => { expect(activeRequestCount(fixture.instance)).toBe(0) })
+
+    const second = beginRequest(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    await vi.waitFor(() => { expect(activeRequestCount(fixture.instance)).toBe(1) })
+    releaseBundles()
+    const result = await second.result
+    expect(result.status).toBe(200)
+    expect(result.body).toContain('/plugins/renderer.js?rev=renderer')
+    expect(fixture.inner.observations.filter(entry => entry.url.startsWith('/plugins/'))).toHaveLength(2)
+  })
+
+  it('aborts an assembly during retry teardown without issuing another upstream request', async () => {
+    let reportReset!: () => void
+    const resetObserved = new Promise<void>(resolve => { reportReset = resolve })
+    const fixture = await mobileBatchFixture((incoming) => {
+      if (incoming.url !== '/plugins/renderer.js?rev=renderer') return false
+      reportReset()
+      incoming.socket.destroy()
+      return true
+    })
+
+    const pending = beginRequest(fixture.instance.address().port, fixture.path, { headers: fixture.headers })
+    await resetObserved
+    const assembly = activeMobileBatchTask(fixture.instance)
+    expect(assembly).toBeDefined()
+    await fixture.instance.close()
+    await expect(assembly).rejects.toBeDefined()
+    await pending.result.catch(() => undefined)
+    expect(fixture.inner.observations.filter(entry => entry.url === '/plugins/renderer.js?rev=renderer')).toHaveLength(1)
   })
 
   it('keeps the DSH 0.1.2 browser-auth cookie inside the authenticated mobile gateway', async () => {

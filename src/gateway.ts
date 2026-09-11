@@ -98,6 +98,21 @@ const MOBILE_BOOT_BATCH_PREFIX = `${AUTH_PREFIX}/mobile-boot/`
 const MAX_MOBILE_BOOT_BATCH_BYTES = 32 * 1024 * 1024
 const MAX_MOBILE_BOOT_ENTRY_BYTES = 8 * 1024 * 1024
 const MAX_MOBILE_BOOT_BATCHES = 8
+const MOBILE_BOOT_UPSTREAM_ATTEMPTS = 4
+const MOBILE_BOOT_RETRY_DELAY_MS = 150
+const TRANSIENT_UPSTREAM_ERROR_CODES = new Set([
+  'EAI_AGAIN',
+  'ECONNABORTED',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EPIPE',
+  'EHOSTUNREACH',
+  'ENETDOWN',
+  'ENETRESET',
+  'ENETUNREACH',
+  'ETIMEDOUT',
+  'ERR_STREAM_PREMATURE_CLOSE',
+])
 const UPSTREAM_AUTH_REFRESH_MARGIN_MS = 60_000
 const UPSTREAM_COOKIE_PAIR = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+=[\x21-\x3A\x3C-\x7E]*$/u
 const CUSTOM_STYLE_FALLBACK = '/* Add mobile overrides in the DSH home mobile-access/mobile.css file. */\n'
@@ -187,7 +202,12 @@ interface StoredMobileBootBatch {
   etag?: string
   layoutMtimeMs?: number
   /** In-flight assembly shared by every concurrent requester of this batch. */
-  assembly?: Promise<Buffer>
+  assembly?: MobileBootBatchAssembly
+}
+
+interface MobileBootBatchAssembly {
+  readonly controller: AbortController
+  readonly task: Promise<Buffer>
 }
 
 const gzipBuffer = promisify(gzip)
@@ -666,6 +686,59 @@ function mapError(error: unknown): HttpError {
   if (error instanceof AccessError) return new HttpError(error.status, error.code)
   if (error instanceof MobileExtensionError) return new HttpError(error.status, error.code)
   return new HttpError(500, 'internal_error')
+}
+
+function requestAbortedError(): Error {
+  const error = new Error('request aborted')
+  error.name = 'AbortError'
+  return error
+}
+
+function isTransientUpstreamError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const code = (error as NodeJS.ErrnoException).code
+  return typeof code === 'string' && TRANSIENT_UPSTREAM_ERROR_CODES.has(code)
+}
+
+function upstreamTimeoutError(): NodeJS.ErrnoException {
+  const error = new Error('upstream timeout') as NodeJS.ErrnoException
+  error.code = 'ETIMEDOUT'
+  return error
+}
+
+function waitForAbortableDelay(delayMs: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.reject(requestAbortedError())
+  return new Promise((resolve, reject) => {
+    const aborted = (): void => {
+      clearTimeout(timer)
+      reject(requestAbortedError())
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', aborted)
+      resolve()
+    }, delayMs)
+    signal.addEventListener('abort', aborted, { once: true })
+  })
+}
+
+function waitForRequestTask<T>(task: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(requestAbortedError())
+  return new Promise((resolve, reject) => {
+    const aborted = (): void => {
+      reject(requestAbortedError())
+    }
+    signal.addEventListener('abort', aborted, { once: true })
+    void task.then(
+      value => {
+        signal.removeEventListener('abort', aborted)
+        resolve(value)
+      },
+      error => {
+        signal.removeEventListener('abort', aborted)
+        reject(error)
+      },
+    )
+  })
 }
 
 function discoveryDeviceName(): string {
@@ -1687,6 +1760,7 @@ export class MobileAccessGateway {
     while (this.mobileBootBatches.size > MAX_MOBILE_BOOT_BATCHES) {
       const oldest = this.mobileBootBatches.keys().next().value as string | undefined
       if (oldest === undefined) break
+      this.mobileBootBatches.get(oldest)?.assembly?.controller.abort()
       this.mobileBootBatches.delete(oldest)
     }
   }
@@ -1701,27 +1775,13 @@ export class MobileAccessGateway {
     const stored = this.mobileBootBatches.get(key)
     if (stored === undefined) throw new HttpError(404, 'not_found')
     const operation = this.allocateRequest(authorization, response, {})
+    response.once('close', operation.abort)
     try {
       const layoutStat = await stat(this.config.mobileLayoutFile)
       if (stored.body === undefined || stored.etag === undefined || stored.layoutMtimeMs !== layoutStat.mtimeMs) {
-        // Deduplicate concurrent requests for the same batch: without this,
-        // every request arriving before the first assembly settles starts its
-        // own full fan-out over all client entries — a thundering herd that
-        // overwhelms the upstream and 502s the batch for everyone.
-        stored.assembly ??= (async () => {
-          const body = await this.assembleMobileBootBatch(stored.plan, operation.signal)
-          stored.body = body
-          delete stored.gzipBody
-          stored.etag = createHash('sha256').update(body).digest('hex')
-          stored.layoutMtimeMs = layoutStat.mtimeMs
-          return body
-        })()
-        const task = stored.assembly
-        try {
-          await task
-        } finally {
-          if (stored.assembly === task) delete stored.assembly
-        }
+        operation.signal.throwIfAborted()
+        const assembly = stored.assembly ?? this.startMobileBootBatchAssembly(stored, layoutStat.mtimeMs)
+        await waitForRequestTask(assembly.task, operation.signal)
       }
       const compressed = acceptsGzip(request.headers['accept-encoding'])
       // The assembly above assigns stored.body; TypeScript cannot narrow a
@@ -1754,8 +1814,28 @@ export class MobileAccessGateway {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new HttpError(503, 'mobile_frontend_unavailable')
       throw error
     } finally {
+      response.removeListener('close', operation.abort)
       operation.release()
     }
+  }
+
+  private startMobileBootBatchAssembly(stored: StoredMobileBootBatch, layoutMtimeMs: number): MobileBootBatchAssembly {
+    const controller = new AbortController()
+    const task = (async (): Promise<Buffer> => {
+      const body = await this.assembleMobileBootBatch(stored.plan, controller.signal)
+      stored.body = body
+      delete stored.gzipBody
+      stored.etag = createHash('sha256').update(body).digest('hex')
+      stored.layoutMtimeMs = layoutMtimeMs
+      return body
+    })()
+    const assembly = Object.freeze({ controller, task })
+    stored.assembly = assembly
+    void task.then(
+      () => { if (stored.assembly === assembly) delete stored.assembly },
+      () => { if (stored.assembly === assembly) delete stored.assembly },
+    )
+    return assembly
   }
 
   private async assembleMobileBootBatch(plan: MobileBootBatchPlan, signal: AbortSignal): Promise<Buffer> {
@@ -1792,24 +1872,22 @@ export class MobileAccessGateway {
    * every observed reset; a genuine upstream error still fails.
    */
   private async readUpstreamClientBundleWithRetry(source: string, signal: AbortSignal): Promise<Buffer> {
-    const attempts = 4
-    let lastError: unknown
-    for (let attempt = 1; attempt <= attempts; attempt++) {
+    for (let attempt = 1; attempt <= MOBILE_BOOT_UPSTREAM_ATTEMPTS; attempt++) {
+      signal.throwIfAborted()
       try {
         return await this.readUpstreamClientBundle(source, signal)
       } catch (error) {
-        lastError = error
-        if (signal.aborted || attempt === attempts) throw error
-        // Only transient transport failures are worth retrying; a deterministic
-        // rejection (bad source, oversized body, non-200) fails as before.
-        if (error instanceof HttpError && error.code !== 'upstream_unavailable') throw error
-        await new Promise(resolve => setTimeout(resolve, 150 * attempt))
+        if (signal.aborted) throw error
+        if (!isTransientUpstreamError(error)) throw error
+        if (attempt === MOBILE_BOOT_UPSTREAM_ATTEMPTS) throw new HttpError(502, 'upstream_unavailable')
+        await waitForAbortableDelay(MOBILE_BOOT_RETRY_DELAY_MS * attempt, signal)
       }
     }
-    throw lastError
+    throw new HttpError(502, 'upstream_unavailable')
   }
 
   private async readUpstreamClientBundle(source: string, signal: AbortSignal): Promise<Buffer> {
+    signal.throwIfAborted()
     if (!source.startsWith('/plugins/') || source.includes('#')) throw new HttpError(502, 'upstream_unavailable')
     const target = new URL(source, this.config.upstreamOrigin)
     if (target.origin !== this.config.upstreamOrigin.origin) throw new HttpError(502, 'upstream_unavailable')
@@ -1818,6 +1896,7 @@ export class MobileAccessGateway {
     signal.addEventListener('abort', aborted, { once: true })
     try {
       const upstreamCookie = await this.upstreamCookieHeader()
+      signal.throwIfAborted()
       const proxied = await new Promise<IncomingMessage>((resolve, reject) => {
         upstreamRequest = requestHttp({
           protocol: 'http:',
@@ -1834,7 +1913,7 @@ export class MobileAccessGateway {
           agent: false,
         })
         upstreamRequest.setTimeout(this.config.upstreamTimeoutMs, () => {
-          upstreamRequest?.destroy(new Error('upstream timeout'))
+          upstreamRequest?.destroy(upstreamTimeoutError())
         })
         upstreamRequest.once('response', resolve)
         upstreamRequest.once('error', reject)
@@ -1852,6 +1931,7 @@ export class MobileAccessGateway {
       return Buffer.concat(chunks)
     } catch (error) {
       if (error instanceof HttpError) throw error
+      if (signal.aborted || isTransientUpstreamError(error)) throw error
       throw new HttpError(502, 'upstream_unavailable')
     } finally {
       signal.removeEventListener('abort', aborted)
@@ -1863,7 +1943,7 @@ export class MobileAccessGateway {
     authorization: SessionAuthorization,
     response: ServerResponse,
     upstream: { request?: ClientRequest },
-  ): { id: number; signal: AbortSignal; release: () => void } {
+  ): { id: number; signal: AbortSignal; abort: () => void; release: () => void } {
     if (this.activeRequests.size >= this.config.maxActiveRequests) throw new HttpError(429, 'busy')
     const id = this.nextOperationId++
     const controller = new AbortController()
@@ -1878,6 +1958,7 @@ export class MobileAccessGateway {
     return {
       id,
       signal: controller.signal,
+      abort,
       release: () => {
         const entry = this.activeRequests.get(id)
         if (entry !== undefined) clearTimeout(entry.timer)
@@ -2313,6 +2394,7 @@ export class MobileAccessGateway {
     this.upstreamAuthRequest = undefined
     this.removeSessionListener()
     const accessClose = this.access.close()
+    for (const stored of this.mobileBootBatches.values()) stored.assembly?.controller.abort()
     for (const request of this.activeRequests.values()) request.abort()
     for (const websocket of this.activeWebSockets.values()) {
       websocket.client.destroy()
