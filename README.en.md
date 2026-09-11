@@ -19,7 +19,7 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin; the native app supports Android only.
 >
-> **0.3.15 update (unreleased)**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend's boot reliability, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
+> **0.3.15 update (unreleased)**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend and cpolar temporary-address transitions, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
 >
 > **Upgrade reminder**: DSH 0.1.5 requires plugin **0.3.15** and a DSH restart. Existing 0.3.3–0.3.14 apps and pairings remain compatible; installing app 0.3.15 as well is recommended. [Compatibility notes](#compatibility).
 
@@ -113,11 +113,11 @@ Remote providers may impose bandwidth and connection limits: the [cpolar Free pl
 
 1. Open **Mobile Access → Remote** in the lower-left corner of DeepSeek Harness and choose a provider:
    - **Tailscale Funnel**: select **Enable remote access**, complete the one-time Tailscale sign-in on the official page, follow the panel prompt to allow Funnel, then return to DSH and wait until the connection is ready.
-   - **cpolar**: select **Install official component**, sign in to the cpolar dashboard and obtain an Authtoken, paste it, then select **Save and connect**. The component is downloaded into the plugin's private directory only after confirmation.
+   - **cpolar**: select **Install official component**, sign in to the cpolar dashboard and obtain an Authtoken, paste it, then select **Save and connect**. The component is downloaded into the plugin's private directory only after confirmation; free temporary addresses may change after DSH or cpolar restarts.
    - **Self-hosted FRP (advanced)**: expand **Self-hosted connection**, enter the VPS, frps port, shared token, and public HTTPS origin. The origin may use your domain or the VPS public IPv4 address (for example, `https://203.0.113.10` — substitute your own real address; documentation ranges are rejected). Apply the restricted template manually or enter an SSH user, port, and local private-key path for automatic deployment. Automatic deployment supports Ubuntu/Debian with systemd, uses OpenSSH keys or an agent, refuses password auth, and does not overwrite Caddy configuration it does not manage; both deployment and server cleanup display the SSH host keys for verification against the VPS console before continuing. IPv4 mode obtains a roughly six-day Let's Encrypt IP certificate and installs daily automatic renewal. Install the official `frpc` on demand and verify the path afterward. A reviewable uninstall script or one-click server cleanup removes only DSH Mobile-owned services and configs. This requires Android app 0.3.3 or later.
 2. When the panel reports that remote access is ready, select **Create remote pairing QR code**.
 3. In the Android app, open **Remote access** and scan the QR code to create its separate pairing.
-4. The app keeps device trust and reconnects automatically. Disable remote access when it is not needed; LAN access remains unchanged.
+4. The app saves the current address and device credential for automatic reconnection. If a free cpolar address changes, scan the computer's current remote QR code to verify the connection again; clearing app data is unnecessary. A stored device token is sent only to its exact saved Origin, never to a new QR-code domain.
 
 > **Remote notifications**: browser notification permission is granted per origin, so allow it separately for the remote address; OS-level toasts only appear on the computer, never on the phone. To push task completion to the phone, use a third-party channel (e.g. dsh-messager's Feishu/WeCom/Telegram push), which is delivered server-side and unaffected by the gateway.
 

@@ -134,7 +134,10 @@ describe('mobile-control localization', () => {
       requestTimeout: 'Operazione scaduta. Verifica che DSH sia ancora in esecuzione e riprova.',
     })
     expect((MOBILE_CONTROL_MESSAGES.en as Record<string, string>).diagnosticsCopied?.toLowerCase()).toContain('redacted report')
+    expect(MOBILE_CONTROL_MESSAGES.en.cpolarReady).toContain('temporary addresses')
+    expect(MOBILE_CONTROL_MESSAGES.it.cpolarReady).toContain('indirizzi temporanei')
     expect(MOBILE_CONTROL_MESSAGES.zh.mobileAccess).toBe('移动访问')
+    expect(MOBILE_CONTROL_MESSAGES.zh.cpolarReady).toContain('临时地址')
     const englishReasons = Object.keys(DIAGNOSTIC_REASON_MESSAGES.en).sort()
     expect(Object.keys(DIAGNOSTIC_REASON_MESSAGES.it).sort()).toEqual(englishReasons)
     expect(Object.keys(DIAGNOSTIC_REASON_MESSAGES.zh).sort()).toEqual(englishReasons)
