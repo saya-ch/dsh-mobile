@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyNativeMobileLanguageMarker, dispatchComposerImageDrop, installNativeMobileSurface, isComposerMediaOriginCurrent, markNativeMobileSettings, NATIVE_MOBILE_STYLES, preflightComposerImageDrop, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier } from '../src/native-mobile.js'
+import { applyNativeMobileLanguageMarker, dispatchComposerImageDrop, drawerScrimVisible, installNativeMobileSurface, isComposerMediaOriginCurrent, markNativeMobileSettings, NATIVE_MOBILE_OVERLAY_QUERY, NATIVE_MOBILE_STYLES, preflightComposerImageDrop, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier } from '../src/native-mobile.js'
 
 interface FakeElementOptions {
   readonly children?: readonly HTMLElement[]
@@ -49,6 +49,34 @@ describe('native mobile presentation', () => {
     expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-toggle] svg { display:none !important; }')
     expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-toggle]::after')
     expect(NATIVE_MOBILE_STYLES).not.toContain('html.dsh-native-mobile-active :focus { outline:none')
+  })
+
+  it('keeps the drawer scrim invisible wherever the overlay query stops matching', () => {
+    // The surface appends the scrim on every non-loopback page load, but every
+    // rule that gives it a box lives inside the overlay query. Outside that
+    // query the element fell back to the UA button box: an empty, nameless
+    // button in normal flow at the document's bottom-left, whose click still
+    // collapsed the sidebar.
+    const [neutral] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
+    expect(neutral).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }')
+    expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop { display:block; position:fixed; z-index:235;')
+    expect(NATIVE_MOBILE_STYLES).toContain('.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:block; position:fixed;')
+    expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop[hidden] { display:none; }')
+  })
+
+  it('shows the drawer scrim only while the overlay drawer is open', () => {
+    expect(drawerScrimVisible(false, true)).toBe(true)
+    expect(drawerScrimVisible(true, true)).toBe(false)
+    expect(drawerScrimVisible(false, false)).toBe(false)
+    expect(drawerScrimVisible(true, false)).toBe(false)
+  })
+
+  it('tracks the overlay breakpoint while the surface is mounted', () => {
+    const source = installNativeMobileSurface.toString()
+    expect(source).toContain('window.matchMedia(NATIVE_MOBILE_OVERLAY_QUERY)')
+    expect(source).toContain('drawerScrimVisible(collapsed, overlayQuery.matches)')
+    expect(source).toContain('overlayQuery.addEventListener("change", schedule)')
+    expect(source).toContain('overlayQuery.removeEventListener("change", schedule)')
   })
 
   it('stacks narrow settings and conversation metadata instead of squeezing text', () => {
