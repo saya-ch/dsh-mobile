@@ -29,6 +29,8 @@
 > **0.3.14 更新**：0.3.13 布局回归修复（右栏在已发布与开发线宿主均可显示）+ 面板「更新插件」现在先展示最新版更新内容与注意事项、确认后才更新；0.3.13 功能不变（第三方 WebSocket 一键放行 #47、面板修整、读屏播报）。[详细记录](CHANGELOG.md)。
 >
 > **升级提醒**：推荐升级到插件 **0.3.14**（0.1.3 各版本桌面均适用，含 alpha.1）。安装新插件后需重启 DSH。现有 0.3.3-0.3.13 App 可继续使用，无需重新配对。[兼容说明](#兼容性)。
+>
+> **0.3.15 开发中**：适配 DeepSeek Harness **0.1.5-rc.2** 的主面板、右栏与启动批处理；@idoall 已完成 rc.1 局域网实测。[验证记录](docs/DSH_0.1.5_LAN.md)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.14/dsh-mobile-android-v0.3.14.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
@@ -210,6 +212,7 @@ flowchart LR
 
 | DSH Mobile 插件 | 验证支持的 DeepSeek Harness 版本 |
 | --- | --- |
+| `0.3.15`（开发中） | `0.1.5-rc.2`（契约检查）；`0.1.5-rc.1`（@idoall 局域网实测） |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |
