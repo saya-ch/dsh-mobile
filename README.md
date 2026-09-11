@@ -26,16 +26,14 @@
 
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 仅支持 Android。
 >
-> **0.3.14 更新**：0.3.13 布局回归修复（右栏在已发布与开发线宿主均可显示）+ 面板「更新插件」现在先展示最新版更新内容与注意事项、确认后才更新；0.3.13 功能不变（第三方 WebSocket 一键放行 #47、面板修整、读屏播报）。[详细记录](CHANGELOG.md)。
+> **0.3.15 更新（待发布）**：完整适配 DeepSeek Harness **0.1.5-rc.2**，提升新版前端启动稳定性，并修复移动右栏关闭、宽屏遮罩、终端 WebSocket、桌面 footer 共存及思考/正文间距。[详细记录](CHANGELOG.md)。
 >
-> **升级提醒**：推荐升级到插件 **0.3.14**（0.1.3 各版本桌面均适用，含 alpha.1）。安装新插件后需重启 DSH。现有 0.3.3-0.3.13 App 可继续使用，无需重新配对。[兼容说明](#兼容性)。
->
-> **0.3.15 开发中**：适配 DeepSeek Harness **0.1.5-rc.2** 的主面板、右栏与启动批处理；@idoall 已完成 rc.1 局域网实测。[验证记录](docs/DSH_0.1.5_LAN.md)。
+> **升级提醒**：DSH 0.1.5 用户需将插件升级至 **0.3.15** 并重启 DSH；现有 0.3.3–0.3.14 App 与配对继续兼容，建议同步安装 0.3.15 App。[兼容说明](#兼容性)。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.14/dsh-mobile-android-v0.3.14.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.14/dsh-mobile-android-v0.3.14.apk"><strong>下载 Android App 0.3.14</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.14">版本说明与校验文件</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><strong>下载 Android App 0.3.15</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.15">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、自建 FRP 远程通道连接电脑，继续使用同一份会话、工作区、消息和工具。局域网与远程访问分别启停、分别管理设备，且都不修改 DeepSeek Harness 源码。
@@ -212,7 +210,7 @@ flowchart LR
 
 | DSH Mobile 插件 | 验证支持的 DeepSeek Harness 版本 |
 | --- | --- |
-| `0.3.15`（开发中） | `0.1.5-rc.2`（契约检查）；`0.1.5-rc.1`（@idoall 局域网实测） |
+| `0.3.15`（待发布） | `0.1.5-rc.2`（契约检查）；`0.1.5-rc.1`（@idoall 局域网实测） |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |
@@ -220,7 +218,7 @@ flowchart LR
 | `0.3.0`-`0.3.3` | `0.1.2-alpha.1` |
 | `0.1.4`、`0.2.x` | `0.1.1-rc.2` |
 
-现有 0.3.3-0.3.14 App 无需重新配对；更早的 App 使用不同的状态栏策略，建议同步升级；App 0.1.3 及更早版本需卸载重装并重新配对。
+现有 0.3.3–0.3.15 App 无需重新配对；更早的 App 使用不同的状态栏策略，建议同步升级；App 0.1.3 及更早版本需卸载重装并重新配对。
 
 ## 卸载
 

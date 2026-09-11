@@ -6,10 +6,13 @@ Notable changes to DSH Mobile are recorded here. GitHub Releases remain the sour
 ## 0.3.15 - unreleased
 
 - Support the DeepSeek Harness 0.1.5 keyed `main` panel, root `panelInfo` hook, navigation lifecycle, and root right sidebar while retaining the earlier `conversation` and `details` paths.
-- Recover mobile boot batches from transient upstream resets with bounded retry, lower concurrency, and one request-independent assembly shared by concurrent clients.
-- The 0.1.5 LAN path was first verified on rc.1 by @idoall; current compatibility checks target rc.2. See [the verification record](docs/DSH_0.1.5_LAN.md).
+- Recover mobile boot batches from transient upstream resets with bounded retry, lower concurrency, and one request-independent assembly shared by concurrent clients; proxy DSH installations that disable browser launch-token authentication (thanks @longisland-icetea for PRs #59 and #60).
+- Synchronize Mobile drawer dismissal with the DSH 0.1.5 right-Sidebar state, and keep the wide-screen right panel non-modal so its scrim cannot cover the composer (thanks @idoall for reporting #62).
+- Keep the injected drawer backdrop and transient toasts out of wide desktop document flow while preserving the narrow overlay behavior (thanks @longisland-icetea for PR #63).
 - The gateway now proxies the DSH desktop UI's sidebar terminal by default: its upgrade path (`/sidebar/ws/terminal`, first-party DSH surface, renderer-v2) joins the built-in WebSocket allow-list, so pairing no longer fails with repeated `1006` when the terminal connects. Third-party plugin paths still require one-click approval in the connection diagnostics.
-- The mobile-access entry in the desktop sidebar now participates in the official footer-action flex layout instead of reserving a full fixed-width row with negative margins; installing a second plugin that contributes a footer action can no longer push it out of the sidebar, and the rail (collapsed) state keeps its round trigger.
+- Let the mobile-access entry share the desktop footer-action row, preserve the compact rail target, and separate folded or expanded reasoning from the reply (thanks @IvyC-zz for reporting #58).
+- Declare DSH 0.1.5 prerelease peers, align the development toolchain with rc.2, and update `js-yaml` to the compatible security fix 4.3.2.
+- The 0.1.5 LAN path was first verified on rc.1 by @idoall; current compatibility checks target rc.2. See [the verification record](docs/DSH_0.1.5_LAN.md).
 
 ## 0.3.14 - 2026-09-08
 
