@@ -272,7 +272,7 @@ class ThemePresenter {
 export const MOBILE_LAYOUT_STYLES = `
 html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-shell{position:relative;display:grid;width:100%;height:100dvh;min-width:0;overflow:hidden;background:var(--dsw-alias-bg-base,#fff)}
-.dshm-main{grid-area:1/1;min-width:0;min-height:0;overflow:hidden}
+.dshm-main{grid-area:1/1;position:relative;min-width:0;min-height:0;overflow:hidden}
 .dshm-main>*,.dshm-main>*>*{min-width:0}
 .dshm-drawer{position:fixed;z-index:70;inset:0 auto 0 0;box-sizing:border-box;width:56px;max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background:var(--dsw-alias-bg-layer-1,#f8fafc);box-shadow:none;will-change:width;transition:width 240ms cubic-bezier(.22,1,.36,1),box-shadow 240ms ease}
 .dshm-drawer[data-open=true]{width:min(88vw,340px);box-shadow:18px 0 46px rgb(15 23 42 / 18%)}
@@ -431,7 +431,16 @@ function MobileAppFrame(props: MobileRootProps & {
   }
 
   return createElement('div', { className: 'dshm-shell', lang: language },
-    createElement('main', { className: 'dshm-main', 'data-dsh-mobile-session': activeSessionId },
+    createElement('main', {
+      className: 'dshm-main',
+      'data-dsh-mobile-session': activeSessionId,
+      // Stock AppFrame names these columns `sidebar` / `conversation`. Third-party
+      // plugins such as `@linxin666/dsh-client-ui-task-board` scrape those pane
+      // attributes (or `*sidebarCol` / `*centerCol` class tokens) to inject a
+      // sidebar row and take over the center column. The dedicated remote layout
+      // must keep the same public anchors or those plugins mount nowhere.
+      'data-pane': 'conversation',
+    },
       props.renderSlot('main', {}, {
         entryKey: state.panelInfo.activePanelId ?? 'conversation',
         fallback: props.renderSlot('conversation', {}),
@@ -453,7 +462,12 @@ function MobileAppFrame(props: MobileRootProps & {
     createElement('aside', {
       'aria-label': messages.workspaceNavigation,
       className: 'dshm-drawer',
+      'data-pane': 'sidebar',
       'data-open': state.sidebarOpen,
+      // Task-board (and ssh) collapse their injected row when an ancestor carries
+      // this attribute; the stock frame sets it on the rail. Mirror it here so
+      // the 56px dedicated rail still shows an icon-only entry.
+      ...(state.sidebarOpen ? {} : { 'data-sidebar-collapsed': '' }),
       onClickCapture: closeDrawerAfterSessionAction,
     }, props.renderSlot('sidebar', {
       collapsed: !state.sidebarOpen,

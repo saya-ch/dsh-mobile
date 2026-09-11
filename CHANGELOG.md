@@ -3,6 +3,10 @@
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
 
+## Unreleased
+
+- Keep the stock `data-pane="sidebar"` / `data-pane="conversation"` anchors (and a collapsed-rail `data-sidebar-collapsed` flag) on the dedicated remote layout so third-party center-column plugins such as `@linxin666/dsh-client-ui-task-board` can inject their sidebar entry and panel.
+
 ## 0.3.15 - 2026-09-11
 
 - Support the DeepSeek Harness 0.1.5 keyed `main` panel, root `panelInfo` hook, navigation lifecycle, and root right sidebar while retaining the earlier `conversation` and `details` paths.

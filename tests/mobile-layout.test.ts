@@ -441,6 +441,14 @@ describe('dedicated mobile layout boot', () => {
     expect(source).toContain('return () => { document.title = productTitle }')
   })
 
+  it('exposes stock pane anchors so third-party center-column plugins can mount', () => {
+    const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    expect(source).toContain("'data-pane': 'conversation'")
+    expect(source).toContain("'data-pane': 'sidebar'")
+    expect(source).toContain("'data-sidebar-collapsed': ''")
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-main{grid-area:1/1;position:relative;')
+  })
+
   it('opens the command menu without restoring focus to the mobile editor', () => {
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain("event.target.closest('button[aria-haspopup=\"listbox\"]')")
