@@ -26,9 +26,9 @@
 
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 仅支持 Android。
 >
-> **0.3.15 更新（待发布）**：完整适配 DeepSeek Harness **0.1.5-rc.2**，提升新版前端与 cpolar 临时地址切换的稳定性，并修复移动右栏关闭、宽屏遮罩、终端 WebSocket、桌面 footer 共存及思考/正文间距。[详细记录](CHANGELOG.md)。
+> **0.3.15 更新（待发布）**：完整适配 DeepSeek Harness **0.1.5-rc.2**，提升新版前端及 cpolar 换址、慢速首屏加载的稳定性，并修复移动右栏关闭、宽屏遮罩、终端 WebSocket、桌面 footer 共存及思考/正文间距。[详细记录](CHANGELOG.md)。
 >
-> **升级提醒**：DSH 0.1.5 用户需将插件升级至 **0.3.15** 并重启 DSH；现有 0.3.3–0.3.14 App 与配对继续兼容，建议同步安装 0.3.15 App。[兼容说明](#兼容性)。
+> **升级提醒**：DSH 0.1.5 用户需将插件升级至 **0.3.15** 并重启 DSH；现有配对继续有效，cpolar 用户需同步安装 0.3.15 App，以免慢速首屏被旧版 App 提前终止。[兼容说明](#兼容性)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
@@ -218,7 +218,7 @@ flowchart LR
 | `0.3.0`-`0.3.3` | `0.1.2-alpha.1` |
 | `0.1.4`、`0.2.x` | `0.1.1-rc.2` |
 
-现有 0.3.3–0.3.15 App 无需重新配对；更早的 App 使用不同的状态栏策略，建议同步升级；App 0.1.3 及更早版本需卸载重装并重新配对。
+现有 0.3.3–0.3.15 App 无需重新配对；cpolar 用户应升级到 0.3.15 App，较早版本可能在免费线路的慢速首次加载完成前超时；更早的 App 还使用不同的状态栏策略。App 0.1.3 及更早版本需卸载重装并重新配对。
 
 ## 卸载
 

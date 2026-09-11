@@ -13,6 +13,7 @@ Notable changes to DSH Mobile are recorded here. GitHub Releases remain the sour
 - Let the mobile-access entry share the desktop footer-action row, preserve the compact rail target, and separate folded or expanded reasoning from the reply (thanks @IvyC-zz for reporting #58).
 - Declare DSH 0.1.5 prerelease peers, align the development toolchain with rc.2, and update `js-yaml` to the compatible security fix 4.3.2.
 - Follow cpolar public-origin rotations by rebuilding the authenticated gateway on the existing loopback port. Android identifies an expired temporary cpolar address, opens the remote scanner directly, and never sends a stored device token to a different QR-provided Origin; the new Origin is accepted only through one-time pairing.
+- Allow up to 120 seconds for an authenticated cpolar page to finish its first load while retaining the 15-second LAN and 30-second other-remote budgets. ADB and Chrome DevTools reproduced a valid 200 response whose 4.41 MB compressed DSH 0.1.5 boot module needed 88 seconds over the free route; the App now lets that transfer finish instead of misreporting the healthy tunnel as unreachable.
 - The 0.1.5 LAN path was first verified on rc.1 by @idoall; current compatibility checks target rc.2. See [the verification record](docs/DSH_0.1.5_LAN.md).
 
 ### Contributors

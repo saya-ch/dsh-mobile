@@ -19,9 +19,9 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin; the native app supports Android only.
 >
-> **0.3.15 update (unreleased)**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend and cpolar temporary-address transitions, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
+> **0.3.15 update (unreleased)**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend and cpolar address rotation and slow first loads, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
 >
-> **Upgrade reminder**: DSH 0.1.5 requires plugin **0.3.15** and a DSH restart. Existing 0.3.3–0.3.14 apps and pairings remain compatible; installing app 0.3.15 as well is recommended. [Compatibility notes](#compatibility).
+> **Upgrade reminder**: DSH 0.1.5 requires plugin **0.3.15** and a DSH restart. Existing pairings remain valid; cpolar users should also install app 0.3.15 so an older app does not cancel a slow first load. [Compatibility notes](#compatibility).
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
@@ -209,7 +209,7 @@ The table below lists, for each plugin version, the DeepSeek Harness version it 
 | `0.3.0`-`0.3.3` | `0.1.2-alpha.1` |
 | `0.1.4`, `0.2.x` | `0.1.1-rc.2` |
 
-Existing 0.3.3–0.3.15 apps do not need re-pairing. Earlier apps use a different status-bar strategy, so updating both is recommended. App 0.1.3 or earlier requires reinstalling and pairing again.
+Existing 0.3.3–0.3.15 apps do not need re-pairing. cpolar users should update to app 0.3.15 because earlier apps may time out before a slow first load over the free route finishes; earlier apps also use a different status-bar strategy. App 0.1.3 or earlier requires reinstalling and pairing again.
 
 ## Uninstall
 

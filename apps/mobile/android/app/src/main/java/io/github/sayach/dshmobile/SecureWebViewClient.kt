@@ -37,8 +37,11 @@ internal fun isCpolarAddressFailure(
     && origin?.host?.let(RemoteHostPolicy::isCpolarHost) == true
 
 /** Main-frame budget after native authentication has already completed. */
-internal fun webViewLoadTimeoutMs(host: String): Long =
-    if (RemoteHostPolicy.isRemoteCandidate(host)) 30_000L else 15_000L
+internal fun webViewLoadTimeoutMs(host: String): Long = when {
+    RemoteHostPolicy.isCpolarHost(host) -> 120_000L
+    RemoteHostPolicy.isRemoteCandidate(host) -> 30_000L
+    else -> 15_000L
+}
 
 /** Subframes may load only resources and documents from the authenticated gateway. */
 internal fun shouldBlockSubframeNavigation(origin: GatewayOrigin, candidate: String): Boolean =
