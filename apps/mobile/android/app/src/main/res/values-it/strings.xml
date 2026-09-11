@@ -109,4 +109,6 @@
     <string name="dsh_unavailable_message">Mantieni in esecuzione DSH e il trasporto remoto sul computer, quindi riprova.</string>
     <string name="remote_unreachable">Trasporto remoto non raggiungibile</string>
     <string name="remote_unreachable_message">Il provider potrebbe essere offline oppure la rete potrebbe essere instabile. Riconnetti il trasporto remoto selezionato in DSH sul computer.</string>
+    <string name="cpolar_address_unreachable">Indirizzo cpolar salvato non raggiungibile</string>
+    <string name="cpolar_address_unreachable_message">L\'indirizzo cpolar temporaneo può cambiare dopo il riavvio di DSH o del tunnel. Apri Accesso remoto sul computer, genera il codice QR corrente e scansionalo per verificare di nuovo la connessione. Non è necessario cancellare i dati dell\'app.</string>
 </resources>

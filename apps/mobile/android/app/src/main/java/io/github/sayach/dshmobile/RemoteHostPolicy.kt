@@ -4,18 +4,26 @@ import java.util.Locale
 
 /** Classifies provider and user-owned remote hosts without treating LAN origins as remote. */
 internal object RemoteHostPolicy {
-    private val supportedSuffixes = listOf(
-        ".ts.net",
+    private val cpolarSuffixes = listOf(
         ".cpolar.cn",
         ".cpolar.io",
         ".cpolar.top",
         ".cpolar.com",
     )
+    private val supportedSuffixes = listOf(
+        ".ts.net",
+    ) + cpolarSuffixes
 
     /** Returns whether the host belongs to a supported remote tunnel provider. */
     fun isSupported(host: String): Boolean {
         val normalized = host.lowercase(Locale.ROOT)
         return supportedSuffixes.any(normalized::endsWith)
+    }
+
+    /** Returns whether the host is one of cpolar's public tunnel domains. */
+    fun isCpolarHost(host: String): Boolean {
+        val normalized = host.lowercase(Locale.ROOT)
+        return cpolarSuffixes.any(normalized::endsWith)
     }
 
     /** Returns whether an HTTPS host can represent a user-owned public remote endpoint. */

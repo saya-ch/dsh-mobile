@@ -108,4 +108,6 @@
     <string name="dsh_unavailable_message">Keep DSH and the remote transport running on the computer, then retry.</string>
     <string name="remote_unreachable">Remote transport is unreachable</string>
     <string name="remote_unreachable_message">The provider may be offline or the network may be unstable. Reconnect the selected remote transport in desktop DSH.</string>
+    <string name="cpolar_address_unreachable">Saved cpolar address is unreachable</string>
+    <string name="cpolar_address_unreachable_message">The temporary cpolar address may change after DSH or the tunnel restarts. Open Remote Access on the computer, generate a current QR code, and scan it to verify the connection again. You do not need to clear App data.</string>
 </resources>

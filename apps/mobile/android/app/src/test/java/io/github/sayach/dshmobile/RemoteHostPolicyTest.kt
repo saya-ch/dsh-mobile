@@ -34,6 +34,17 @@ class RemoteHostPolicyTest {
     }
 
     @Test
+    fun identifiesOnlyCpolarProviderHosts() {
+        assertTrue(RemoteHostPolicy.isCpolarHost("EXAMPLE.CPOLAR.CN"))
+        assertTrue(RemoteHostPolicy.isCpolarHost("example.cpolar.io"))
+        assertTrue(RemoteHostPolicy.isCpolarHost("example.cpolar.top"))
+        assertTrue(RemoteHostPolicy.isCpolarHost("example.cpolar.com"))
+        assertFalse(RemoteHostPolicy.isCpolarHost("computer.tail1234.ts.net"))
+        assertFalse(RemoteHostPolicy.isCpolarHost("dsh.example.com"))
+        assertFalse(RemoteHostPolicy.isCpolarHost("example.cpolar.cn.evil.test"))
+    }
+
+    @Test
     fun enforcesTheSelectedConnectionModeAtTheFinalOrigin() {
         assertTrue(RemoteHostPolicy.isAllowed(AccessMode.LAN, "192.168.1.20"))
         assertFalse(RemoteHostPolicy.isAllowed(AccessMode.LAN, "dsh-example.cpolar.cn"))

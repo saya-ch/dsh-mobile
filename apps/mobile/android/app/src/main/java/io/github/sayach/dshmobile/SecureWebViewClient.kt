@@ -24,9 +24,17 @@ internal enum class LoadFailure {
 internal fun loadFailureForHttpStatus(status: Int): LoadFailure = when (status) {
     401, 403 -> LoadFailure.AUTH_EXPIRED
     429 -> LoadFailure.RATE_LIMITED
-    502, 503, 504 -> LoadFailure.SERVICE_UNAVAILABLE
+    in 500..599 -> LoadFailure.SERVICE_UNAVAILABLE
     else -> LoadFailure.NETWORK
 }
+
+/** Whether a remote load failure should direct the user to refresh a temporary cpolar address. */
+internal fun isCpolarAddressFailure(
+    failure: LoadFailure,
+    mode: AccessMode,
+    origin: GatewayOrigin?,
+): Boolean = failure == LoadFailure.NETWORK && mode == AccessMode.REMOTE
+    && origin?.host?.let(RemoteHostPolicy::isCpolarHost) == true
 
 /** Main-frame budget after native authentication has already completed. */
 internal fun webViewLoadTimeoutMs(host: String): Long =

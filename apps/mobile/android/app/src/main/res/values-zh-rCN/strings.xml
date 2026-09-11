@@ -107,4 +107,6 @@
     <string name="dsh_unavailable_message">请保持电脑端 DSH 与远程通道运行，然后重试。</string>
     <string name="remote_unreachable">远程通道不可达</string>
     <string name="remote_unreachable_message">提供方可能离线或当前网络不稳定。请在电脑端 DSH 重新连接所选远程通道。</string>
+    <string name="cpolar_address_unreachable">已保存的 cpolar 地址不可达</string>
+    <string name="cpolar_address_unreachable_message">DSH 或远程通道重启后，cpolar 临时地址可能发生变化。请在电脑端打开“远程访问”，重新生成并扫描当前二维码以验证连接；无需清除 App 数据。</string>
 </resources>
