@@ -14,6 +14,12 @@ Notable changes to DSH Mobile are recorded here. GitHub Releases remain the sour
 - Declare DSH 0.1.5 prerelease peers, align the development toolchain with rc.2, and update `js-yaml` to the compatible security fix 4.3.2.
 - The 0.1.5 LAN path was first verified on rc.1 by @idoall; current compatibility checks target rc.2. See [the verification record](docs/DSH_0.1.5_LAN.md).
 
+### Contributors
+
+- @longisland-icetea contributed PRs #59, #60, and #63: browser-auth-disabled proxying, the DSH 0.1.5 layout and boot-batch adaptation, and the wide-screen scrim fix.
+- @idoall contributed PR #61's LAN verification and documentation, and provided the detailed right-Sidebar state report in #62.
+- @IvyC-zz provided the terminal and mobile UI reproductions in #58.
+
 ## 0.3.14 - 2026-09-08
 
 - The panel's “Update plugin” action now shows a preview card first: the latest release notes (fetched from the GitHub releases API, graceful fallback when unavailable) plus fixed upgrade notices (restart DSH after installing; apps and paired devices need no re-pairing; check the README compatibility table when unsure about the desktop version), then explicit Update now / Not now buttons. Notes are served from the release itself, so a user on any older plugin version sees the current guidance before updating.
