@@ -30,7 +30,7 @@
 >
 > **升级提醒**：推荐升级到插件 **0.3.14**（0.1.3 各版本桌面均适用，含 alpha.1）。安装新插件后需重启 DSH。现有 0.3.3-0.3.13 App 可继续使用，无需重新配对。[兼容说明](#兼容性)。
 >
-> **本分支 `local/0.1.5-lan`**：在 0.3.14 上补齐 DeepSeek Harness **0.1.5-rc.1** 的移动 layout/boot 契约，**仅局域网实测通过**。远程通道未测、未发新版本。范围见 [0.1.5 局域网适配说明](docs/DSH_0.1.5_LAN.md)。
+> **0.3.15 开发中**：适配 DeepSeek Harness **0.1.5-rc.2** 的主面板、右栏与启动批处理；@idoall 已完成 rc.1 局域网实测。[验证记录](docs/DSH_0.1.5_LAN.md)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.14/dsh-mobile-android-v0.3.14.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
@@ -212,7 +212,7 @@ flowchart LR
 
 | DSH Mobile 插件 | 验证支持的 DeepSeek Harness 版本 |
 | --- | --- |
-| `local/0.1.5-lan`（0.3.14 + layout/boot） | `0.1.5-rc.1`（**仅局域网**；远程未测） |
+| `0.3.15`（开发中） | `0.1.5-rc.2`（契约检查）；`0.1.5-rc.1`（@idoall 局域网实测） |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |

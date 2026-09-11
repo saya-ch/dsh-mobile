@@ -23,7 +23,7 @@
 >
 > **Upgrade reminder**: plugin **0.3.14** is recommended and works on every 0.1.3 desktop release (alpha.1 included). Restart DSH after installing a new plugin. Existing 0.3.3-0.3.13 apps and paired devices remain compatible without re-pairing. [Compatibility notes](#compatibility).
 >
-> **This branch `local/0.1.5-lan`**: on top of 0.3.14, restores the DeepSeek Harness **0.1.5-rc.1** mobile layout/boot contract. **LAN access is verified; remote paths are not.** Scope: [0.1.5 LAN adaptation notes](docs/DSH_0.1.5_LAN.md).
+> **0.3.15 in development**: adapts main panels, the right sidebar, and boot batches to DeepSeek Harness **0.1.5-rc.2**; @idoall completed the initial rc.1 LAN verification. [Verification record](docs/DSH_0.1.5_LAN.md).
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.14/dsh-mobile-android-v0.3.14.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
@@ -203,7 +203,7 @@ The table below lists, for each plugin version, the DeepSeek Harness version it 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `local/0.1.5-lan` (0.3.14 + layout/boot) | `0.1.5-rc.1` (**LAN only**; remote untested) |
+| `0.3.15` (in development) | `0.1.5-rc.2` (contract check); `0.1.5-rc.1` (@idoall LAN verification) |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |

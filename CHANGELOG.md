@@ -3,16 +3,11 @@
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
 
-## Unreleased — `local/0.1.5-lan`
+## 0.3.15 - unreleased
 
-Not a published npm/GitHub Release. Plugin version remains **0.3.14**. Runtime layout/boot patches come from upstream [PR #60](https://github.com/saya-ch/dsh-mobile/pull/60); this branch adds scope docs and LAN verification.
-
-- Restore the DeepSeek Harness **0.1.5** dedicated-layout contract: keyed `main` slot, root `panelInfo` hook, `openRightbar`/`closeRightbar`, `beginNavigation`, and `canShow: true` on the details overlay (`src/mobile-layout.ts`).
-- Keep the mobile boot batch alive through upstream `ECONNRESET` while assembling client entries: retries, lower fan-out, and in-flight dedupe (`src/gateway.ts`).
-- **Verified** against DeepSeek Harness **0.1.5-rc.1** on the **LAN** path only (pairing, conversation, session list, new session, right panel).
-- **Not done**: Funnel / cpolar / FRP remote testing; npm version bump; `peerDependencies` `^0.1.5-0`; `scripts/check-dsh-compatibility.mjs` update for the 0.1.5 layout source; new Android APK.
-
-See [docs/DSH_0.1.5_LAN.md](docs/DSH_0.1.5_LAN.md).
+- Support the DeepSeek Harness 0.1.5 keyed `main` panel, root `panelInfo` hook, navigation lifecycle, and root right sidebar while retaining the earlier `conversation` and `details` paths.
+- Recover mobile boot batches from transient upstream resets with bounded retry, lower concurrency, and one request-independent assembly shared by concurrent clients.
+- The 0.1.5 LAN path was first verified on rc.1 by @idoall; current compatibility checks target rc.2. See [the verification record](docs/DSH_0.1.5_LAN.md).
 
 ## 0.3.14 - 2026-09-08
 
