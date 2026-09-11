@@ -29,6 +29,7 @@ interface RootHookContribution {
 
 interface MobileClientContext {
   readonly effect: (effect: () => void | (() => void), label?: string) => void
+  readonly get: (name: string) => unknown
   readonly on: (event: string, listener: (value: ThemeSnapshot) => void) => () => void
   readonly reflect: { provide: (name: string, value: unknown) => () => void | Promise<void> }
   readonly slots: {
@@ -65,6 +66,19 @@ interface PanelInfoSnapshot {
   readonly activePanelId: string | null
 }
 
+/** Optional DSH 0.1.5 right-Sidebar controls used by a Mobile close gesture. */
+export interface SidebarRightControl {
+  isExpanded(): boolean
+  toggleExpanded(): void
+}
+
+/** Whether an optional service value supports the public right-Sidebar controls. */
+export function isSidebarRightControl(value: unknown): value is SidebarRightControl {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as Partial<SidebarRightControl>
+  return typeof candidate.isExpanded === 'function' && typeof candidate.toggleExpanded === 'function'
+}
+
 /**
  * Viewport width at which the dedicated layout treats the sidebar as a
  * persistent desktop panel instead of an overlay drawer. Narrow screens
@@ -74,6 +88,26 @@ export const WIDE_LAYOUT_MIN_WIDTH_PX = 900
 
 export function isWideViewportLayout(viewportWidth: number): boolean {
   return viewportWidth >= WIDE_LAYOUT_MIN_WIDTH_PX
+}
+
+/** Whether the narrow layout needs the modal scrim for either side panel. */
+export function isMobileScrimOpen(
+  sidebarOpen: boolean,
+  detailsOpen: boolean,
+  wideViewport: boolean,
+): boolean {
+  return !wideViewport && (sidebarOpen || detailsOpen)
+}
+
+/**
+ * Close the details drawer from its scrim, collapsing the DSH 0.1.5 right
+ * Sidebar first when that optional service owns the visible content.
+ */
+export function closeDetailsFromScrim(sidebarRight: unknown, closeDetails: () => void): void {
+  if (isSidebarRightControl(sidebarRight) && sidebarRight.isExpanded()) {
+    sidebarRight.toggleExpanded()
+  }
+  closeDetails()
 }
 
 /** Reads the live viewport; unknown environments (SSR, tests) stay narrow. */
@@ -288,7 +322,10 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 @media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*{transition:none!important}}
 `
 
-function MobileAppFrame(props: MobileRootProps & { readonly controller: MobileLayoutController }): ReactNode {
+function MobileAppFrame(props: MobileRootProps & {
+  readonly controller: MobileLayoutController
+  readonly requestDetailsClose: () => void
+}): ReactNode {
   const state = useSyncExternalStore(props.controller.subscribe, props.controller.getSnapshot)
   const suppressKeyboardUntil = useRef(0)
   const [wideViewport, setWideViewport] = useState(viewportIsWide)
@@ -296,6 +333,7 @@ function MobileAppFrame(props: MobileRootProps & { readonly controller: MobileLa
   const browserLanguages = navigator.languages.length > 0 ? navigator.languages : [navigator.language]
   const language = resolveMobileLayoutLanguage(documentLanguage, browserLanguages)
   const messages = MOBILE_LAYOUT_MESSAGES[language]
+  const scrimOpen = isMobileScrimOpen(state.sidebarOpen, state.detailsOpen, wideViewport)
   const activeSessionId = props.useSessions(session => {
     const current = session.current
     return current !== undefined && session.byId[current]?.blank === false ? current : undefined
@@ -403,9 +441,13 @@ function MobileAppFrame(props: MobileRootProps & { readonly controller: MobileLa
       className: 'dshm-scrim',
       // A persistent wide sidebar needs no dimming; the scrim only covers
       // the narrow overlay drawer and the details panel.
-      'data-open': state.detailsOpen || (state.sidebarOpen && !wideViewport),
-      onClick: () => { state.detailsOpen ? props.controller.closeDetails() : props.controller.closeSidebar() },
-      tabIndex: state.sidebarOpen || state.detailsOpen ? 0 : -1,
+      'data-open': scrimOpen,
+      'aria-hidden': !scrimOpen,
+      onClick: () => {
+        if (!scrimOpen) return
+        state.detailsOpen ? props.requestDetailsClose() : props.controller.closeSidebar()
+      },
+      tabIndex: scrimOpen ? 0 : -1,
       type: 'button',
     }),
     createElement('aside', {
@@ -483,7 +525,15 @@ export function apply(ctx: MobileClientContext): void {
         details: { kind: 'single', scope: 'session' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
-    }, props => createElement(MobileAppFrame, { ...props, controller }))
+    }, props => createElement(MobileAppFrame, {
+      ...props,
+      controller,
+      // sidebarRight is registered after the layout it depends on, so resolve
+      // the optional service at gesture time rather than caching it at boot.
+      requestDetailsClose: () => {
+        closeDetailsFromScrim(ctx.get('sidebarRight'), () => { controller.closeDetails() })
+      },
+    }))
     const retainMainPanels = (): void => {
       controller.retainMainPanels(ctx.slots.entries('main').flatMap(entry =>
         entry.options.key === undefined ? [] : [entry.options.key]))
