@@ -12,7 +12,6 @@ export type {
   SessionAuthorization,
 } from './access.js'
 export { Config, parseControlFile, parseGatewayConfig } from './config.js'
-export { BUNDLED_EXTENSION_IDS, bundledExtensionsRoot, seedBundledExtensions } from './bundled-extensions.js'
 export type {
   DisabledTlsConfig,
   PluginConfig,
