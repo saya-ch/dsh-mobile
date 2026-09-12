@@ -6,7 +6,8 @@ import {
   type MobileControlLocale,
 } from './client-messages.js'
 import { createRestrictedFrpServerTemplate } from './frp-template.js'
-import { installNativeMobileSurface, NATIVE_MOBILE_STYLES } from './native-mobile.js'
+import { installNativeMobileSurface, NATIVE_MOBILE_STYLES, resolveNativeMobileLanguage } from './native-mobile.js'
+import { fireTaskNotifyEvent, parseTaskNotifyPayload, readSessionLabel } from './task-notify.js'
 
 export { DIAGNOSTIC_REASON_MESSAGES, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
@@ -2103,6 +2104,7 @@ export function startExtensionChangeStream(
     window,
     create: url => new EventSource(url, { withCredentials: true }),
   },
+  onTaskEvent?: (payload: unknown) => void,
 ): () => void {
   let source: ReturnType<ExtensionEventRuntime['create']> | undefined
   let timer: number | undefined
@@ -2120,6 +2122,12 @@ export function startExtensionChangeStream(
     source = next
     next.onopen = () => { retryMs = 1_000 }
     next.addEventListener('extensions-changed', changed)
+    if (onTaskEvent !== undefined) {
+      next.addEventListener('task-notify', (message: Event) => {
+        const data = (message as MessageEvent).data
+        onTaskEvent(data)
+      })
+    }
     next.onerror = () => {
       if (source !== next) return
       next.close()
@@ -2689,7 +2697,37 @@ function installCustomAssets(): () => void {
   const stopRefresh = startLifecycleRefreshScheduler(async signal => {
     await refreshExtensions(signal)
   })
-  const stopEvents = startExtensionChangeStream(() => { stopRefresh.refresh() })
+  const stopEvents = startExtensionChangeStream(
+    () => { stopRefresh.refresh() },
+    undefined,
+    payload => {
+      // Host-pushed task completion: exact, no guessing. The tag matches the
+      // DOM watcher's so an overlapping announcement replaces instead of
+      // doubling. Watching users are never interrupted.
+      if (document.hidden !== true) return
+      const parsed = parseTaskNotifyPayload(payload)
+      if (parsed === undefined) return
+      const language = resolveNativeMobileLanguage(
+        document.documentElement.lang,
+        navigator.languages.length > 0 ? [...navigator.languages] : [navigator.language],
+      )
+      const label = (italian: string, english: string, chinese: string): string =>
+        language === 'it' ? italian : language === 'zh' ? chinese : english
+      const sessionLabel = readSessionLabel(document.title)
+      fireTaskNotifyEvent({
+        kind: 'done',
+        title: label('Attività completata', 'Task finished', '任务已完成'),
+        body: sessionLabel === ''
+          ? label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成')
+          : label(
+            `Il tuo task DSH è terminato: ${sessionLabel}`,
+            `Your DSH task finished: ${sessionLabel}`,
+            `你的 DSH 任务已完成：${sessionLabel}`,
+          ),
+        tag: 'dsh-task-done',
+      })
+    },
+  )
   return () => { disposed = true; stopEvents(); stopRefresh(); started = false; legacyDispose?.(); legacyDispose = undefined; legacyRoot?.remove(); legacyRoot = undefined; legacyStyle.remove(); activations.dispose(); for (const node of styleNodes.values()) node.remove(); styleNodes.clear(); const layer = document.querySelector('[data-dsh-mobile-extension-layer]'); layer?.remove(); for (const host of document.querySelectorAll('[data-dsh-mobile-surface-host]')) host.remove(); if (previous === undefined) delete window.dshMobile; else window.dshMobile = previous }
 }
 

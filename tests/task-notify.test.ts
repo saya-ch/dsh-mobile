@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fireTaskNotifyEvent,
   hasPendingInputQuestion,
   observeTaskActivity,
+  parseTaskNotifyPayload,
   pendingInputQuestionKey,
   readComposerBusyState,
   readSessionLabel,
@@ -202,6 +204,20 @@ describe('task completion tracker', () => {
     expect(readSessionLabel('  demo session  ')).toBe('demo session')
     expect(readSessionLabel('x'.repeat(200)).length).toBe(80)
     expect(readSessionLabel('a\u0000b')).toBe('a b')
+  })
+
+  it('parses host-pushed payloads and rejects malformed frames', () => {
+    expect(parseTaskNotifyPayload('{"sessionId":"s-1","turn":2}')).toEqual({ sessionId: 's-1', turn: 2 })
+    expect(parseTaskNotifyPayload('{"sessionId":"s-1"}')).toEqual({ sessionId: 's-1', turn: 0 })
+    expect(parseTaskNotifyPayload('not-json')).toBeUndefined()
+    expect(parseTaskNotifyPayload('{"sessionId":""}')).toBeUndefined()
+    expect(parseTaskNotifyPayload('{"sessionId":42}')).toBeUndefined()
+    expect(parseTaskNotifyPayload(null)).toBeUndefined()
+    expect(parseTaskNotifyPayload(['s-1'])).toBeUndefined()
+  })
+
+  it('stays silent without a native bridge', () => {
+    expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done' })).toBe(false)
   })
 
   it('uses safe bounded tags for arbitrary question keys', () => {

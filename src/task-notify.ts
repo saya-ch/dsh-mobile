@@ -270,6 +270,61 @@ function readNativeBridge(): NativeBridgeHandle | undefined {
   return bridge
 }
 
+export interface TaskNotifyWireEvent {
+  readonly kind: TaskNotifyKind
+  readonly title: string
+  readonly body: string
+  readonly tag: string
+}
+
+/** Parse a `task-notify` SSE payload; rejects anything malformed or empty. */
+export function parseTaskNotifyPayload(value: unknown): { readonly sessionId: string; readonly turn: number } | undefined {
+  let record: Record<string, unknown> | undefined
+  if (typeof value === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(value)
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined
+      record = parsed as Record<string, unknown>
+    } catch {
+      return undefined
+    }
+  } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    record = value as Record<string, unknown>
+  } else return undefined
+  if (typeof record.sessionId !== 'string' || record.sessionId.trim() === '') return undefined
+  const turn = typeof record.turn === 'number' && Number.isSafeInteger(record.turn) && record.turn >= 0 ? record.turn : 0
+  return Object.freeze({ sessionId: record.sessionId.slice(0, 128), turn })
+}
+
+/**
+ * Deliver one notification through the native bridge when available.
+ * Returns false when there is no bridge (desktop browsers keep their own
+ * UI) so callers can fall back; a denial flips the module sticky flag via
+ * onDenied for the session-lifetime nag guard.
+ */
+export function fireTaskNotifyEvent(
+  event: TaskNotifyWireEvent,
+  onDenied?: () => void,
+): boolean {
+  const bridge = readNativeBridge()
+  if (bridge === undefined) return false
+  void Promise.resolve()
+    .then(() => bridge.capabilities())
+    .then(capabilities => {
+      if (!capabilities.includes('notification.notify')) return
+      return bridge.invoke('notification.notify', { title: event.title, body: event.body, tag: event.tag })
+    })
+    .then(
+      () => undefined,
+      (error: unknown) => {
+        const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : ''
+        // A denial is sticky for this page load: never nag for permission.
+        if ((code === 'permission_denied' || code === 'denied') && onDenied !== undefined) onDenied()
+      },
+    )
+  return true
+}
+
 /**
  * Watch the rendered conversation for finished runs and waiting questions,
  * notifying through the native bridge while the page is hidden. Returns a
@@ -285,22 +340,7 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
 
   const fire = (event: TaskNotifyEvent): void => {
     if (notifyBlocked) return
-    const bridge = readNativeBridge()
-    if (bridge === undefined) return
-    void Promise.resolve()
-      .then(() => bridge.capabilities())
-      .then(capabilities => {
-        if (!capabilities.includes('notification.notify')) return
-        return bridge.invoke('notification.notify', { title: event.title, body: event.body, tag: event.tag })
-      })
-      .then(
-        () => undefined,
-        (error: unknown) => {
-          const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : ''
-          // A denial is sticky for this page load: never nag for permission.
-          if (code === 'permission_denied' || code === 'denied') notifyBlocked = true
-        },
-      )
+    if (!fireTaskNotifyEvent(event, () => { notifyBlocked = true })) return
   }
   const evaluateNow = (): void => {
     const busy = readComposerBusyState(document)
