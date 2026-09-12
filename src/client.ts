@@ -515,7 +515,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const remoteLogin = element('button', 'dsh-mobile-control__primary'); remoteLogin.type = 'button'; remoteLogin.textContent = t('continueLogin'); remoteLogin.hidden = true
   const remoteReconnect = element('button', 'dsh-mobile-control__secondary'); remoteReconnect.type = 'button'; remoteReconnect.textContent = t('reconnect'); remoteReconnect.hidden = true
   const remotePair = element('button', 'dsh-mobile-control__secondary'); remotePair.type = 'button'; remotePair.textContent = t('generateRemoteQr'); remotePair.disabled = true
-  remoteActions.append(remoteToggle, remoteLogin, remoteReconnect, remotePair)
+  const remoteCopyLink = element('button', 'dsh-mobile-control__secondary'); remoteCopyLink.type = 'button'; remoteCopyLink.textContent = t('copyRemoteLink'); remoteCopyLink.disabled = true
+  const remotePairLink = element('p', 'dsh-mobile-control__status'); remotePairLink.hidden = true
+  remoteActions.append(remoteToggle, remoteLogin, remoteReconnect, remotePair, remoteCopyLink)
   const remoteManageRow = element('div', 'dsh-mobile-control__manage-row')
   const remoteDevices = element('button', 'dsh-mobile-control__manage'); remoteDevices.type = 'button'; remoteDevices.textContent = t('manageRemoteDevices'); remoteDevices.disabled = true
   const remoteReset = element('button', 'dsh-mobile-control__manage'); remoteReset.type = 'button'; remoteReset.textContent = t('resetRemoteLogin')
@@ -661,7 +663,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     saveWsPaths([...wsPathsCurrent, value])
   })
   const remoteWorkspace = element('section', 'dsh-mobile-control__remote-workspace')
-  remoteWorkspace.append(providerSetupHeader, remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteActions, remoteQr, remoteManageRow, remoteDevicePanel)
+  remoteWorkspace.append(providerSetupHeader, remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteActions, remoteQr, remotePairLink, remoteManageRow, remoteDevicePanel)
   const diagnosticsView = element('div', 'dsh-mobile-control__view is-diagnostics'); diagnosticsView.hidden = true
   const diagnosticsIntro = element('p', 'dsh-mobile-control__intro'); diagnosticsIntro.textContent = t('diagnosticsIntro')
   const diagnosticsSummary = element('section', 'dsh-mobile-control__diagnostic-summary is-idle'); diagnosticsSummary.setAttribute('aria-live', 'polite')
@@ -1059,8 +1061,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       || !providerPrepared
     remoteActions.hidden = !providerPrepared
     remotePair.disabled = !remoteReady
+    remoteCopyLink.disabled = !remoteReady
     remoteDevices.disabled = !remoteReady
-    if (!remoteReady) remoteQr.hidden = true
+    if (!remoteReady) { remoteQr.hidden = true; remotePairLink.hidden = true }
     if (!needsFunnelSetup) remoteSetupPending = false
   }
   let remoteLoadInFlight = false
@@ -1474,6 +1477,25 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       }
       remoteStatus.textContent = t('remoteQrReady')
     }, error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) }).finally(() => { remotePair.disabled = !remoteReady })
+  })
+  remoteCopyLink.addEventListener('click', () => {
+    remoteCopyLink.disabled = true
+    void controlRequestJson('/api/mobile-access/remote/pairing/open', { method: 'POST', body: '{}' }).then(async data => {
+      const pairUrl = typeof data.pairUrl === 'string' ? data.pairUrl : ''
+      showQr(typeof data.qrSvg === 'string' ? data.qrSvg : '', remoteQr)
+      if (pairUrl === '') { remoteStatus.textContent = t('keyGenerationFailed'); return }
+      // The link stays visible so it can be re-copied or typed manually when
+      // the QR cannot be scanned (e.g. devices on different networks).
+      remotePairLink.textContent = pairUrl
+      remotePairLink.classList.add('is-key')
+      remotePairLink.hidden = false
+      try {
+        await navigator.clipboard.writeText(pairUrl)
+        remoteStatus.textContent = t('linkCopied')
+      } catch {
+        remoteStatus.textContent = t('remoteQrReady')
+      }
+    }, error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) }).finally(() => { remoteCopyLink.disabled = !remoteReady })
   })
   const renderRemoteDevices = (data: Record<string, unknown>): void => {
     const devices = Array.isArray(data.devices) ? data.devices as Record<string, unknown>[] : []
