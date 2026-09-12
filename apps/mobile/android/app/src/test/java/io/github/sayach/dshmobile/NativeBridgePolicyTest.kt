@@ -173,4 +173,28 @@ class NativeBridgePolicyTest {
         assertFalse(GatewayUrlPolicy.isSameOrigin(origin, "https://trusted.example.evil:3443/session"))
         assertFalse(GatewayUrlPolicy.isSameOrigin(origin, "https://trusted.example/session"))
     }
+
+    @Test
+    fun taskNotificationChannelStaysStable() {
+        assertEquals("dsh_task_completion", NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)
+        assertEquals(7101, NativeBridgePolicy.TASK_NOTIFICATION_ID)
+        assertEquals(80, NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS)
+        assertEquals(200, NativeBridgePolicy.TASK_NOTIFICATION_BODY_CHARS)
+        assertEquals(64, NativeBridgePolicy.TASK_NOTIFICATION_TAG_CHARS)
+    }
+
+    @Test
+    fun notificationTextIsSingleLineBoundedAndControlFree() {
+        assertEquals("hi there", NativeBridgePolicy.sanitizeNotificationField("  hi\nthere\u0000", 80))
+        assertEquals("a".repeat(80), NativeBridgePolicy.sanitizeNotificationField("a".repeat(200), 80))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationField(" \n ", 80))
+    }
+
+    @Test
+    fun notificationTagsAreBoundedLowercaseSlugs() {
+        assertEquals("dsh-task-done", NativeBridgePolicy.sanitizeNotificationTag("dsh-task-done"))
+        assertEquals("q-1-2-pick", NativeBridgePolicy.sanitizeNotificationTag("Q 1/2: pick!"))
+        assertEquals("dsh-task", NativeBridgePolicy.sanitizeNotificationTag("!!!"))
+        assertTrue(NativeBridgePolicy.sanitizeNotificationTag("x".repeat(100)).length <= 64)
+    }
 }

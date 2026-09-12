@@ -52,7 +52,7 @@ CA 不属于发现数据。用户选定电脑并输入密钥后，Android 会在
 
 认证后的页面可以通过 `dshMobile` 扩展调用 Android Bridge。Bridge 使用 `androidx.webkit` WebMessage listener，每条消息都校验配置的精确顶层 Origin 和 `isMainFrame`，绝不使用 `addJavascriptInterface`。入站消息上限为 1 MiB，剪贴板文本为 256 KiB，二进制结果为 8 MiB，回复为 12 MiB；它不暴露 Cookie、设备令牌、配对密钥、CA 私钥或任意 Android API。
 
-可用能力包括 `files.pick`、`camera.capture`、`share`、`clipboard.read`、`clipboard.write`。已打开会话且 DSH 附件 owner 的 `canAcceptDrop` 为真时，图片选择和拍照会出现在输入栏加号菜单顶部的独立一行。文件通过当前 DSH 附件 owner 校验和提交；兼容适配器可能合成 DSH 原本使用的 drag-and-drop 事件。图片选择器仅接受 PNG、JPEG、WebP、GIF，单个文件不超过 8 MiB。拍照仅在使用时申请 Android 相机权限，通过 `FileProvider` 写入完整分辨率 JPEG，再作为浏览器 `File` 返回。文件选择和拍照同一时间只允许一个，最长等待五分钟；取消、旋转、WebView 销毁、超时或会话已变化时都会清理或拒绝旧结果。手机浏览器使用对应 Web API，不支持时返回 `unsupported`。
+可用能力包括 `files.pick`、`camera.capture`、`share`、`clipboard.read`、`clipboard.write`、`notification.notify`。已打开会话且 DSH 附件 owner 的 `canAcceptDrop` 为真时，图片选择和拍照会出现在输入栏加号菜单顶部的独立一行。文件通过当前 DSH 附件 owner 校验和提交；兼容适配器可能合成 DSH 原本使用的 drag-and-drop 事件。图片选择器仅接受 PNG、JPEG、WebP、GIF，单个文件不超过 8 MiB。拍照仅在使用时申请 Android 相机权限，通过 `FileProvider` 写入完整分辨率 JPEG，再作为浏览器 `File` 返回。任务提醒（`notification.notify`）在页面不可见时触发：任务安静一段时间后完成、或有提问等待确认时推送；首次使用申请通知权限，同会话更新替换上一条，点击回到 App。文件选择和拍照同一时间只允许一个，最长等待五分钟；取消、旋转、WebView 销毁、超时或会话已变化时都会清理或拒绝旧结果。手机浏览器使用对应 Web API，不支持时返回 `unsupported`。
 
 电脑端扩展是另一层：`host.mjs` 作为 DSH 主机上的可信 Node.js 代码运行，`mobile.js` 通过限定到自身扩展的 Action 和 Route 调用它。App Bridge 不能编辑或上传扩展源文件。
 
