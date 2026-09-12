@@ -17,6 +17,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.text.TextUtils
 import android.text.InputType
 import android.util.TypedValue
@@ -1002,6 +1003,15 @@ class MainActivity : Activity() {
             return
         }
         when (requestCode) {
+            TASK_NOTIFICATION_PERMISSION_REQUEST -> {
+                toast(
+                    if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                        R.string.task_notifications_enabled
+                    } else {
+                        R.string.task_notifications_denied
+                    },
+                )
+            }
             NEARBY_WIFI_REQUEST -> {
                 val retry = pendingScan
                 pendingScan = null
@@ -1375,12 +1385,18 @@ class MainActivity : Activity() {
         more.setOnClickListener {
             PopupMenu(this, more).apply {
                 menu.add(0, MENU_SHARE, 0, R.string.share)
-                menu.add(0, MENU_EDIT_CONNECTION, 1, R.string.edit_connection)
-                menu.add(0, MENU_CLEAR_DATA, 2, R.string.clear_site_data)
+                menu.add(0, MENU_TASK_NOTIFICATIONS, 1, R.string.task_notification_settings)
+                menu.add(0, MENU_EDIT_CONNECTION, 2, R.string.edit_connection)
+                menu.add(0, MENU_CLEAR_DATA, 3, R.string.clear_site_data)
                 setOnMenuItemClickListener { item ->
                     when (item.itemId) {
                         MENU_SHARE -> {
                             shareGateway(origin)
+                            true
+                        }
+
+                        MENU_TASK_NOTIFICATIONS -> {
+                            openTaskNotificationSettings()
                             true
                         }
 
@@ -1404,6 +1420,29 @@ class MainActivity : Activity() {
             ?: origin.serialized
         retryUrl = initialUrl
         browser.loadUrl(initialUrl)
+    }
+
+    /** Request task-reminder permission in foreground, or open its system settings once decided. */
+    private fun openTaskNotificationSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !preferences.getBoolean(PREFERENCE_NOTIFICATION_PERMISSION_REQUESTED, false)
+        ) {
+            preferences.edit().putBoolean(PREFERENCE_NOTIFICATION_PERMISSION_REQUESTED, true).apply()
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                TASK_NOTIFICATION_PERMISSION_REQUEST,
+            )
+            return
+        }
+        val settings = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        try {
+            startActivity(settings)
+        } catch (_: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
     }
 
     /** Slide the floating toolbar out of view while the page scrolls down. */
@@ -1768,6 +1807,7 @@ class MainActivity : Activity() {
         const val PREFERENCE_REMOTE_ORIGIN = "remote_gateway_origin"
         const val PREFERENCE_LAST_ACCESS_MODE = "last_access_mode"
         const val PREFERENCE_NEARBY_PERMISSION_LIMITED = "nearby_permission_limited"
+        const val PREFERENCE_NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
         const val PREFERENCE_WEB_CHROME_COLOR = "web_chrome_color"
         const val STATE_SHOWING_SETUP = "showing_setup"
         const val STATE_ACCESS_MODE = "access_mode"
@@ -1781,10 +1821,12 @@ class MainActivity : Activity() {
         const val DOWNLOAD_DESTINATION_REQUEST = 4102
         const val SCAN_CAMERA_REQUEST = 4103
         const val NEARBY_WIFI_REQUEST = 4104
+        const val TASK_NOTIFICATION_PERMISSION_REQUEST = 4105
         const val SCAN_QR_REQUEST = 4106
         const val MENU_EDIT_CONNECTION = 1
         const val MENU_CLEAR_DATA = 2
         const val MENU_SHARE = 3
+        const val MENU_TASK_NOTIFICATIONS = 4
         const val APP_RELEASES_URL = "https://github.com/saya-ch/dsh-mobile/releases/latest"
         val RECOVERY_DELAYS_MS = longArrayOf(0L, 1_000L, 3_000L, 8_000L)
         val MIME_TYPE = Regex("^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+*-]+$")

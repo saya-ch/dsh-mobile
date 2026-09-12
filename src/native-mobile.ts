@@ -805,6 +805,10 @@ export function installNativeMobileSurface(): () => void {
   backdrop.addEventListener('click', () => { if (sidebar?.dataset.open === 'true') toggle?.click() })
   sync()
   const disposeTaskWatcher = installTaskCompletionWatcher({
+    // Current gateways announce exact root turn completion. The DOM watcher
+    // remains only for explicit pending-input cards, avoiding false completion
+    // reminders from unrelated page mutations.
+    completionFallback: false,
     label: (kind: TaskNotifyKind, sessionLabel: string) => kind === 'done'
       ? {
           title: label('Attività completata', 'Task finished', '任务已完成'),
@@ -818,6 +822,7 @@ export function installNativeMobileSurface(): () => void {
         },
   })
   return () => {
+    disposed = true
     disposeTaskWatcher()
     mediaRequestGeneration += 1
     mediaPickerAbortController.abort()

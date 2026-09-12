@@ -171,8 +171,11 @@ async function checkAndroid() {
   for (const marker of ['WebViewCompat.addWebMessageListener', 'setOf(origin.serialized)', 'MAX_MESSAGE_BYTES', 'MAX_PENDING', 'files.pick', 'camera.capture']) {
     if (!nativeBridge.includes(marker)) fail(`Android native bridge is missing ${marker}`)
   }
-  for (const marker of ['notification.notify', 'NotificationChannel', 'POST_NOTIFICATIONS', 'notification_channel_tasks']) {
+  for (const marker of ['notification.notify', 'NotificationChannel', 'notification_channel_tasks', 'ic_task_notification', 'VISIBILITY_PRIVATE']) {
     if (!nativeBridge.includes(marker)) fail(`Android task reminders are missing ${marker}`)
+  }
+  for (const marker of ['POST_NOTIFICATIONS', 'TASK_NOTIFICATION_PERMISSION_REQUEST', 'ACTION_APP_NOTIFICATION_SETTINGS']) {
+    if (!mainActivity.includes(marker)) fail(`Android task-reminder permission UI is missing ${marker}`)
   }
   if (!nativeBridgePolicy.includes('TASK_NOTIFICATION_CHANNEL_ID')
     || !nativeBridgePolicy.includes('sanitizeNotificationField')

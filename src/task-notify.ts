@@ -78,6 +78,12 @@ function sanitizeTagFragment(value: string): string {
   return value.toLowerCase().replaceAll(/[^a-z0-9-]+/gu, '-').replaceAll(/^-+|-+$/gu, '').slice(0, TASK_NOTIFY_LIMITS.tag)
 }
 
+/** Stable per-turn tag so concurrent sessions keep separate notifications. */
+export function taskCompletionTag(sessionId: string, turn: number): string {
+  const suffix = sanitizeTagFragment(`${sessionId}-${String(turn)}`) || 'task'
+  return `dsh-task-done-${suffix}`.slice(0, TASK_NOTIFY_LIMITS.tag)
+}
+
 /** Decide whether the current snapshot deserves a system notification. */
 export class TaskNotifyTracker {
   private lastActivityAt: number | undefined
@@ -256,6 +262,8 @@ export function observeTaskActivity(
 
 export interface TaskWatcherLabels {
   readonly label: (kind: TaskNotifyKind, sessionLabel: string) => { title: string; body: string }
+  /** Legacy DOM-only completion inference. Current gateways provide exact Host events. */
+  readonly completionFallback?: boolean
 }
 
 interface NativeBridgeHandle {
@@ -334,6 +342,7 @@ export function fireTaskNotifyEvent(
 export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => void {
   if (typeof document === 'undefined' || typeof window === 'undefined') return () => undefined
   const tracker = new TaskNotifyTracker({ format: options.label })
+  const completionFallback = options.completionFallback ?? true
   let notifyBlocked = false
   let timer = 0
   let anchorTimer = 0
@@ -343,7 +352,7 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
     if (!fireTaskNotifyEvent(event, () => { notifyBlocked = true })) return
   }
   const evaluateNow = (): void => {
-    const busy = readComposerBusyState(document)
+    const busy = completionFallback && readComposerBusyState(document)
     const event = tracker.evaluate({
       pageHidden: document.hidden,
       pendingQuestion: hasPendingInputQuestion(document),
@@ -373,7 +382,7 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
     }, delay)
   }
   const disposeObservation = observeTaskActivity(document.documentElement, () => {
-    tracker.markActivity()
+    if (completionFallback) tracker.markActivity()
     evaluateNow()
   })
   const onVisibility = (): void => { evaluateNow() }

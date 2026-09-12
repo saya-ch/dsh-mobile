@@ -20,6 +20,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.WebView
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
@@ -51,14 +52,6 @@ internal class NativeBridge(
     private data class Pending(
         val action: String,
         val replyProxy: JavaScriptReplyProxy,
-    )
-
-    /** A notification request waiting for the Android runtime permission. */
-    private data class PendingNotification(
-        val requestId: String,
-        val title: String,
-        val body: String,
-        val tag: String,
     )
 
     /** Restored operations have no surviving JavaScript caller and are cleanup-only tombstones. */
@@ -111,7 +104,6 @@ internal class NativeBridge(
     private var activityTimeoutRunnable: Runnable? = null
     private var cameraOutputFile: File? = null
     private var cameraOutputUri: Uri? = null
-    private var pendingNotification: PendingNotification? = null
     private var processingTarget: ActivityResultTarget? = null
     private var restoredOperation: RestoredOperation? = null
     private val cameraCleanupOwnership = CameraCleanupOwnership<File>()
@@ -276,7 +268,6 @@ internal class NativeBridge(
             } else {
                 pending.clear()
                 activityRequestId = null
-                pendingNotification = null
                 val processing = processingTarget
                 val restored = restoredOperation
                 processingTarget = null
@@ -332,7 +323,6 @@ internal class NativeBridge(
 
     /** Continue a bridge-owned camera request after Android runtime permission. */
     fun onRequestPermissionsResult(requestCode: Int, grantResults: IntArray): Boolean {
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) return onNotificationPermissionResult(grantResults)
         if (requestCode != CAMERA_PERMISSION_REQUEST) return false
         if (preservingForConfiguration) return true
         synchronized(requestLock) {
@@ -727,9 +717,9 @@ internal class NativeBridge(
     }
 
     /**
-     * Fire-and-forget task notification. Unlike camera and picker flows this
-     * needs no Activity result: the pending entry only survives a possible
-     * runtime-permission round trip, then the reply closes immediately.
+     * Fire-and-forget task notification. Permission is deliberately granted
+     * from the visible toolbar menu; a background page never opens a runtime
+     * permission dialog over another app.
      */
     private fun startTaskNotification(requestId: String, input: JSONObject) {
         val title = NativeBridgePolicy.sanitizeNotificationField(
@@ -743,14 +733,11 @@ internal class NativeBridge(
             finishPending(requestId, errorJson("bad_message", "notification text is empty", requestId))
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) ||
+            !NotificationManagerCompat.from(activity).areNotificationsEnabled()
         ) {
-            synchronized(requestLock) { pendingNotification = PendingNotification(requestId, title, body, tag) }
-            activity.requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST,
-            )
+            finishPending(requestId, errorJson("permission_required", "enable task notifications from the app menu", requestId))
             return
         }
         activity.runOnUiThread {
@@ -760,24 +747,6 @@ internal class NativeBridge(
                 finishPending(requestId, errorJson("failed", "native operation failed", requestId))
             }
         }
-    }
-
-    private fun onNotificationPermissionResult(grantResults: IntArray): Boolean {
-        if (preservingForConfiguration) return true
-        val stashed = synchronized(requestLock) { pendingNotification?.also { pendingNotification = null } }
-            ?: return true
-        if (grantResults.firstOrNull() != PackageManager.PERMISSION_GRANTED) {
-            finishPending(stashed.requestId, errorJson("permission_denied", "notification permission was denied", stashed.requestId))
-            return true
-        }
-        activity.runOnUiThread {
-            try {
-                postTaskNotification(stashed.requestId, stashed.title, stashed.body, stashed.tag)
-            } catch (_: Exception) {
-                finishPending(stashed.requestId, errorJson("failed", "native operation failed", stashed.requestId))
-            }
-        }
-        return true
     }
 
     private fun postTaskNotification(requestId: String, title: String, body: String, tag: String) {
@@ -803,11 +772,12 @@ internal class NativeBridge(
         val shownTitle = title.ifEmpty { body }
         val shownBody = if (title.isEmpty() || body.isEmpty()) "" else body
         val notification = NotificationCompat.Builder(activity, NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_task_notification)
             .setContentTitle(shownTitle)
             .setContentText(if (shownBody.isEmpty()) null else shownBody)
             .setContentIntent(openApp)
             .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .build()
         manager.notify(tag, NativeBridgePolicy.TASK_NOTIFICATION_ID, notification)
         finishPending(requestId, successJson(requestId, JSONObject().put("ok", true)))
@@ -1123,7 +1093,6 @@ internal class NativeBridge(
         private const val FILE_REQUEST = 5101
         private const val CAMERA_REQUEST = 5102
         const val CAMERA_PERMISSION_REQUEST = 5103
-        const val NOTIFICATION_PERMISSION_REQUEST = 5104
         private const val FILE_PICKER_GRANT_FLAGS = Intent.FLAG_GRANT_READ_URI_PERMISSION
         private const val CAMERA_CACHE_DIRECTORY = "native-camera"
         private const val STATE_REQUEST_ID = "requestId"

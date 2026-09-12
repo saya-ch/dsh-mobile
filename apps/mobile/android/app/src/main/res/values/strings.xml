@@ -112,4 +112,7 @@
     <string name="cpolar_address_unreachable_message">The temporary cpolar address may change after DSH or the tunnel restarts. Open Remote Access on the computer, generate a current QR code, and scan it to verify the connection again. You do not need to clear App data.</string>
     <string name="notification_channel_tasks">Task reminders</string>
     <string name="notification_channel_tasks_description">Notifies when a DSH task finishes or waits for input</string>
+    <string name="task_notification_settings">Task notification settings</string>
+    <string name="task_notifications_enabled">Task notifications enabled.</string>
+    <string name="task_notifications_denied">Task notifications remain disabled. You can enable them later from this menu.</string>
 </resources>

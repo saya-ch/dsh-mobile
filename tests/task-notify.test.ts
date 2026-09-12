@@ -9,6 +9,7 @@ import {
   readSessionLabel,
   TASK_NOTIFY_LIMITS,
   TASK_NOTIFY_QUIET_MS,
+  taskCompletionTag,
   TaskNotifyTracker,
 } from '../src/task-notify.js'
 
@@ -225,6 +226,12 @@ describe('task completion tracker', () => {
     const event = tracker.evaluate(hiddenSnapshot({ pendingQuestion: true, questionKey: 'Q 1/2: pick!' }))
     expect(event?.tag).toBe('dsh-task-question-q-1-2-pick')
     expect(event?.tag.length).toBeLessThanOrEqual(TASK_NOTIFY_LIMITS.tag)
+  })
+
+  it('keeps completed turns separate with bounded native tags', () => {
+    expect(taskCompletionTag('session-a', 1)).toBe('dsh-task-done-session-a-1')
+    expect(taskCompletionTag('session-a', 2)).not.toBe(taskCompletionTag('session-a', 1))
+    expect(taskCompletionTag('x'.repeat(200), 3).length).toBeLessThanOrEqual(TASK_NOTIFY_LIMITS.tag)
   })
 })
 

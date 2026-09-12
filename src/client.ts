@@ -7,7 +7,7 @@ import {
 } from './client-messages.js'
 import { createRestrictedFrpServerTemplate } from './frp-template.js'
 import { installNativeMobileSurface, NATIVE_MOBILE_STYLES, resolveNativeMobileLanguage } from './native-mobile.js'
-import { fireTaskNotifyEvent, parseTaskNotifyPayload, readSessionLabel } from './task-notify.js'
+import { fireTaskNotifyEvent, parseTaskNotifyPayload, taskCompletionTag } from './task-notify.js'
 
 export { DIAGNOSTIC_REASON_MESSAGES, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
@@ -518,6 +518,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const remotePair = element('button', 'dsh-mobile-control__secondary'); remotePair.type = 'button'; remotePair.textContent = t('generateRemoteQr'); remotePair.disabled = true
   const remoteCopyLink = element('button', 'dsh-mobile-control__secondary'); remoteCopyLink.type = 'button'; remoteCopyLink.textContent = t('copyRemoteLink'); remoteCopyLink.disabled = true
   const remotePairLink = element('p', 'dsh-mobile-control__status'); remotePairLink.hidden = true
+  let activeRemotePairUrl = ''
+  let activeRemotePairExpiresAt = 0
   remoteActions.append(remoteToggle, remoteLogin, remoteReconnect, remotePair, remoteCopyLink)
   const remoteManageRow = element('div', 'dsh-mobile-control__manage-row')
   const remoteDevices = element('button', 'dsh-mobile-control__manage'); remoteDevices.type = 'button'; remoteDevices.textContent = t('manageRemoteDevices'); remoteDevices.disabled = true
@@ -1064,7 +1066,12 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     remotePair.disabled = !remoteReady
     remoteCopyLink.disabled = !remoteReady
     remoteDevices.disabled = !remoteReady
-    if (!remoteReady) { remoteQr.hidden = true; remotePairLink.hidden = true }
+    if (!remoteReady) {
+      remoteQr.hidden = true
+      remotePairLink.hidden = true
+      activeRemotePairUrl = ''
+      activeRemotePairExpiresAt = 0
+    }
     if (!needsFunnelSetup) remoteSetupPending = false
   }
   let remoteLoadInFlight = false
@@ -1468,35 +1475,42 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   }
   window.addEventListener('focus', retryAfterSetup)
   document.addEventListener('visibilitychange', retryAfterSetup)
+  const copyRemotePairUrl = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(activeRemotePairUrl)
+      remoteStatus.textContent = t('linkCopied')
+    } catch {
+      remoteStatus.textContent = t('remoteQrReady')
+    }
+  }
+  const openRemotePairing = (): Promise<void> => controlRequestJson('/api/mobile-access/remote/pairing/open', { method: 'POST', body: '{}' }).then(async data => {
+    const pairUrl = typeof data.pairUrl === 'string' ? data.pairUrl : ''
+    const expiresAt = typeof data.expiresAt === 'number' && Number.isFinite(data.expiresAt) ? data.expiresAt : 0
+    showQr(typeof data.qrSvg === 'string' ? data.qrSvg : '', remoteQr)
+    if (pairUrl === '') { remoteStatus.textContent = t('keyGenerationFailed'); return }
+    // QR and copy actions share the same one-time pairing window. Re-copying
+    // cannot invalidate a QR that the phone may already be scanning.
+    activeRemotePairUrl = pairUrl
+    activeRemotePairExpiresAt = expiresAt
+    remotePairLink.textContent = pairUrl
+    remotePairLink.classList.add('is-key')
+    remotePairLink.hidden = false
+    await copyRemotePairUrl()
+  })
   remotePair.addEventListener('click', () => {
     remotePair.disabled = true
-    void controlRequestJson('/api/mobile-access/remote/pairing/open', { method: 'POST', body: '{}' }).then(async data => {
-      const pairUrl = typeof data.pairUrl === 'string' ? data.pairUrl : ''
-      showQr(typeof data.qrSvg === 'string' ? data.qrSvg : '', remoteQr)
-      if (pairUrl !== '') {
-        try { await navigator.clipboard.writeText(pairUrl) } catch { /* QR remains the primary remote handoff. */ }
-      }
-      remoteStatus.textContent = t('remoteQrReady')
-    }, error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) }).finally(() => { remotePair.disabled = !remoteReady })
+    void openRemotePairing()
+      .catch(error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) })
+      .finally(() => { remotePair.disabled = !remoteReady })
   })
   remoteCopyLink.addEventListener('click', () => {
     remoteCopyLink.disabled = true
-    void controlRequestJson('/api/mobile-access/remote/pairing/open', { method: 'POST', body: '{}' }).then(async data => {
-      const pairUrl = typeof data.pairUrl === 'string' ? data.pairUrl : ''
-      showQr(typeof data.qrSvg === 'string' ? data.qrSvg : '', remoteQr)
-      if (pairUrl === '') { remoteStatus.textContent = t('keyGenerationFailed'); return }
-      // The link stays visible so it can be re-copied or typed manually when
-      // the QR cannot be scanned (e.g. devices on different networks).
-      remotePairLink.textContent = pairUrl
-      remotePairLink.classList.add('is-key')
-      remotePairLink.hidden = false
-      try {
-        await navigator.clipboard.writeText(pairUrl)
-        remoteStatus.textContent = t('linkCopied')
-      } catch {
-        remoteStatus.textContent = t('remoteQrReady')
-      }
-    }, error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) }).finally(() => { remoteCopyLink.disabled = !remoteReady })
+    const operation = activeRemotePairUrl !== '' && activeRemotePairExpiresAt > Date.now()
+      ? copyRemotePairUrl()
+      : openRemotePairing()
+    void operation
+      .catch(error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) })
+      .finally(() => { remoteCopyLink.disabled = !remoteReady })
   })
   const renderRemoteDevices = (data: Record<string, unknown>): void => {
     const devices = Array.isArray(data.devices) ? data.devices as Record<string, unknown>[] : []
@@ -2701,9 +2715,9 @@ function installCustomAssets(): () => void {
     () => { stopRefresh.refresh() },
     undefined,
     payload => {
-      // Host-pushed task completion: exact, no guessing. The tag matches the
-      // DOM watcher's so an overlapping announcement replaces instead of
-      // doubling. Watching users are never interrupted.
+      // Host-pushed task completion: exact, no guessing. Each completed turn
+      // keeps its own notification, and generic text avoids attributing a
+      // background task to whichever session happens to be open on the phone.
       if (document.hidden !== true) return
       const parsed = parseTaskNotifyPayload(payload)
       if (parsed === undefined) return
@@ -2713,18 +2727,11 @@ function installCustomAssets(): () => void {
       )
       const label = (italian: string, english: string, chinese: string): string =>
         language === 'it' ? italian : language === 'zh' ? chinese : english
-      const sessionLabel = readSessionLabel(document.title)
       fireTaskNotifyEvent({
         kind: 'done',
         title: label('Attività completata', 'Task finished', '任务已完成'),
-        body: sessionLabel === ''
-          ? label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成')
-          : label(
-            `Il tuo task DSH è terminato: ${sessionLabel}`,
-            `Your DSH task finished: ${sessionLabel}`,
-            `你的 DSH 任务已完成：${sessionLabel}`,
-          ),
-        tag: 'dsh-task-done',
+        body: label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成'),
+        tag: taskCompletionTag(parsed.sessionId, parsed.turn),
       })
     },
   )

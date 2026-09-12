@@ -111,4 +111,7 @@
     <string name="cpolar_address_unreachable_message">DSH 或远程通道重启后，cpolar 临时地址可能发生变化。请在电脑端打开“远程访问”，重新生成并扫描当前二维码以验证连接；无需清除 App 数据。</string>
     <string name="notification_channel_tasks">任务提醒</string>
     <string name="notification_channel_tasks_description">DSH 任务完成或等待确认时发送通知</string>
+    <string name="task_notification_settings">任务通知设置</string>
+    <string name="task_notifications_enabled">任务通知已开启。</string>
+    <string name="task_notifications_denied">任务通知仍处于关闭状态，之后可从此菜单重新开启。</string>
 </resources>
