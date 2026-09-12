@@ -96,6 +96,16 @@ export class TaskNotifyTracker {
     if (this.notifiedDoneAt !== undefined && this.notifiedDoneAt <= now) this.notifiedDoneAt = undefined
   }
 
+  /**
+   * Milliseconds until a pending completion anchor fires, or undefined when
+   * no anchor exists. Lets the watcher schedule one exact timer instead of
+   * waiting for the next coarse poll tick.
+   */
+  pendingAnchorDelayMs(): number | undefined {
+    if (this.idleAnchoredAt === undefined) return undefined
+    return Math.max(0, this.graceMs - (this.now() - this.idleAnchoredAt))
+  }
+
   evaluate(snapshot: TaskNotifySnapshot): TaskNotifyEvent | undefined {
     const now = this.now()
     if (this.wasBusy && !snapshot.composerBusy) {
@@ -251,6 +261,7 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
   const tracker = new TaskNotifyTracker({ format: options.label })
   let notifyBlocked = false
   let timer = 0
+  let anchorTimer = 0
 
   const fire = (event: TaskNotifyEvent): void => {
     if (notifyBlocked) return
@@ -281,6 +292,25 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
       composerBusy: busy,
     })
     if (event !== undefined) fire(event)
+    scheduleAnchorTimer()
+  }
+  // The interval is only a backstop: an anchor schedules its own exact shot
+  // so completion announces ~grace after the run ends instead of waiting out
+  // the next coarse tick with no further mutations to wake it.
+  const scheduleAnchorTimer = (): void => {
+    const delay = tracker.pendingAnchorDelayMs()
+    if (delay === undefined) {
+      if (anchorTimer !== 0) {
+        window.clearTimeout(anchorTimer)
+        anchorTimer = 0
+      }
+      return
+    }
+    if (anchorTimer !== 0) return
+    anchorTimer = window.setTimeout(() => {
+      anchorTimer = 0
+      evaluateNow()
+    }, delay)
   }
   const disposeObservation = observeTaskActivity(document.documentElement, () => {
     tracker.markActivity()
@@ -296,5 +326,6 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
     disposeObservation()
     document.removeEventListener('visibilitychange', onVisibility)
     if (timer !== 0) window.clearInterval(timer)
+    if (anchorTimer !== 0) window.clearTimeout(anchorTimer)
   }
 }

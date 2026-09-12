@@ -96,8 +96,21 @@ describe('task completion tracker', () => {
     expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
   })
 
-  it('announces completion right after the grace period without waiting out quiet', () => {
+  it('exposes the pending anchor delay for exact timer scheduling', () => {
     const { tracker, advance } = trackerAt()
+    expect(tracker.pendingAnchorDelayMs()).toBeUndefined()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
+    expect(tracker.pendingAnchorDelayMs()).toBeUndefined()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: false }))
+    expect(tracker.pendingAnchorDelayMs()).toBe(10_000)
+    advance(4_000)
+    expect(tracker.pendingAnchorDelayMs()).toBe(6_000)
+    advance(6_000)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
+    expect(tracker.pendingAnchorDelayMs()).toBeUndefined()
+  })
+
+  it('announces completion right after the grace period without waiting out quiet', () => {    const { tracker, advance } = trackerAt()
     tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
     expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
     advance(9_999)
