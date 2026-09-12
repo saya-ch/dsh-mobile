@@ -24,7 +24,7 @@ function trackerAt(startMs = 1_000_000) {
 
 function hiddenSnapshot(overrides: Partial<Parameters<TaskNotifyTracker['evaluate']>[0]> = {}) {
   return {
-    pageHidden: true, pendingQuestion: false, questionKey: undefined, sessionLabel: 'demo',
+    pageHidden: true, pendingQuestion: false, questionKey: undefined, sessionLabel: 'demo', composerBusy: false,
     ...overrides,
   }
 }
@@ -86,16 +86,50 @@ describe('task completion tracker', () => {
 
   it('anchors the quiet clock on the busy-to-idle transition', () => {
     const { tracker, advance } = trackerAt()
-    tracker.noteComposerBusy(true)
-    expect(tracker.evaluate(hiddenSnapshot())).toBeUndefined()
-    tracker.noteComposerBusy(true)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: true }))).toBeUndefined()
     advance(TASK_NOTIFY_QUIET_MS * 2)
     // Still busy: no completion while the run holds the composer.
-    expect(tracker.evaluate(hiddenSnapshot())).toBeUndefined()
-    tracker.noteComposerBusy(false)
-    expect(tracker.evaluate(hiddenSnapshot())).toBeUndefined()
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: true }))).toBeUndefined()
+    tracker.markActivity()
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
     advance(TASK_NOTIFY_QUIET_MS)
-    expect(tracker.evaluate(hiddenSnapshot())?.kind).toBe('done')
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
+  })
+
+  it('announces completion right after the grace period without waiting out quiet', () => {
+    const { tracker, advance } = trackerAt()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+    advance(9_999)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+    advance(1)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
+    // Already announced: stays silent without new activity.
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+  })
+
+  it('absorbs composer flicker inside the grace period', () => {
+    const { tracker, advance } = trackerAt()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
+    tracker.evaluate(hiddenSnapshot({ composerBusy: false }))
+    advance(5_000)
+    // Busy again before grace elapsed: the pending announcement is dropped.
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: true }))).toBeUndefined()
+    advance(60_000)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: true }))).toBeUndefined()
+  })
+
+  it('treats an ending watched on screen as seen', () => {
+    const { tracker, advance } = trackerAt()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true, pageHidden: false }))
+    tracker.evaluate(hiddenSnapshot({ composerBusy: false, pageHidden: false }))
+    // Backgrounding later with no new activity stays silent.
+    advance(TASK_NOTIFY_QUIET_MS * 2)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+    // A new run re-arms normally.
+    tracker.markActivity()
+    advance(TASK_NOTIFY_QUIET_MS)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
   })
 
   it('reads the composer busy signal like the media actions do', () => {

@@ -12,6 +12,12 @@
 /** How long the conversation must stay quiet before a run counts as done. */
 export const TASK_NOTIFY_QUIET_MS = 90_000
 
+/**
+ * Grace after a busy-to-idle transition before announcing completion.
+ * Absorbs composer flicker between steps while still feeling immediate.
+ */
+export const TASK_NOTIFY_GRACE_MS = 10_000
+
 /** Maximum quiet period worth waiting through before giving up on a run. */
 export const TASK_NOTIFY_STALE_MS = 30 * 60_000
 
@@ -40,6 +46,8 @@ export interface TaskNotifySnapshot {
   readonly questionKey: string | undefined
   /** Best-effort session label for the notification body. */
   readonly sessionLabel: string
+  /** Current composer busy flag; drives the completion transition. */
+  readonly composerBusy: boolean
 }
 
 export interface TaskNotifyEvent {
@@ -51,6 +59,7 @@ export interface TaskNotifyEvent {
 
 export interface TaskNotifyOptions {
   readonly quietMs?: number
+  readonly graceMs?: number
   readonly now?: () => number
   readonly format: (kind: TaskNotifyKind, sessionLabel: string) => { title: string; body: string }
 }
@@ -66,13 +75,16 @@ export class TaskNotifyTracker {
   private lastActivityAt: number | undefined
   private notifiedDoneAt: number | undefined
   private wasBusy = false
+  private idleAnchoredAt: number | undefined
   private readonly seenQuestionKeys = new Set<string>()
   private readonly quietMs: number
+  private readonly graceMs: number
   private readonly now: () => number
   private readonly format: (kind: TaskNotifyKind, sessionLabel: string) => { title: string; body: string }
 
   constructor(options: TaskNotifyOptions) {
     this.quietMs = options.quietMs ?? TASK_NOTIFY_QUIET_MS
+    this.graceMs = options.graceMs ?? TASK_NOTIFY_GRACE_MS
     this.now = options.now ?? Date.now
     this.format = options.format
   }
@@ -84,18 +96,22 @@ export class TaskNotifyTracker {
     if (this.notifiedDoneAt !== undefined && this.notifiedDoneAt <= now) this.notifiedDoneAt = undefined
   }
 
-  /**
-   * Track the composer busy flag (aria-busy/disabled/readOnly). A busy→idle
-   * transition anchors the quiet clock at run end; later mutations still move
-   * it forward through markActivity.
-   */
-  noteComposerBusy(busy: boolean): void {
-    if (this.wasBusy && !busy) this.markActivity()
-    this.wasBusy = busy
-  }
-
   evaluate(snapshot: TaskNotifySnapshot): TaskNotifyEvent | undefined {
     const now = this.now()
+    if (this.wasBusy && !snapshot.composerBusy) {
+      // The run just ended: watching users have seen it, hidden users start
+      // the grace clock for a near-immediate announcement.
+      this.idleAnchoredAt = snapshot.pageHidden ? now : undefined
+      if (!snapshot.pageHidden) this.notifiedDoneAt = now
+    }
+    this.wasBusy = snapshot.composerBusy
+    if (snapshot.composerBusy) {
+      this.idleAnchoredAt = undefined
+    } else if (this.idleAnchoredAt !== undefined && !snapshot.pageHidden) {
+      // Came back before the grace elapsed: treat the ending as seen.
+      this.idleAnchoredAt = undefined
+      this.notifiedDoneAt = now
+    }
     if (!snapshot.pageHidden) {
       if (snapshot.pendingQuestion && snapshot.questionKey !== undefined) this.rememberQuestionKey(snapshot.questionKey)
       return undefined
@@ -104,6 +120,14 @@ export class TaskNotifyTracker {
       if (snapshot.questionKey === undefined || this.seenQuestionKeys.has(snapshot.questionKey)) return undefined
       this.rememberQuestionKey(snapshot.questionKey)
       return this.event('question', snapshot.sessionLabel, snapshot.questionKey)
+    }
+    // Completion: the anchored transition announces fast; the quiet period
+    // remains as the fallback for activity without a busy signal.
+    if (this.idleAnchoredAt !== undefined) {
+      if (now - this.idleAnchoredAt < this.graceMs) return undefined
+      this.idleAnchoredAt = undefined
+      this.notifiedDoneAt = now
+      return this.event('done', snapshot.sessionLabel, undefined)
     }
     if (this.lastActivityAt === undefined) return undefined
     if (now - this.lastActivityAt < this.quietMs) return undefined
@@ -248,12 +272,13 @@ export function installTaskCompletionWatcher(options: TaskWatcherLabels): () => 
       )
   }
   const evaluateNow = (): void => {
-    tracker.noteComposerBusy(readComposerBusyState(document))
+    const busy = readComposerBusyState(document)
     const event = tracker.evaluate({
       pageHidden: document.hidden,
       pendingQuestion: hasPendingInputQuestion(document),
       questionKey: pendingInputQuestionKey(document),
       sessionLabel: readSessionLabel(document.title),
+      composerBusy: busy,
     })
     if (event !== undefined) fire(event)
   }
