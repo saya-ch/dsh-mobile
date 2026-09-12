@@ -81,7 +81,7 @@ pnpm dsh --profile web
 dsh plugin --profile web add dshmarket
 ```
 
-重启 DSH 后，在 **设置 → 插件市场** 里搜索 dsh-mobile，一键安装即可。
+重启 DSH 后，在 **设置 → 插件市场** 里搜索 dsh-mobile 并安装。首次打开“移动访问”时，局域网页会列出电脑当前网络；确认网卡后由插件生成私有证书并配置局域网，按提示重启一次 DSH 即可使用，无需再打开终端运行 `setup`。
 
 `setup` 会自动选择并记住当前局域网，切换 Wi-Fi、热点或 IP 后通常自动恢复；仅在自动选择失败时使用 `--address 192.168.x.x`。设置、证书、设备和自定义文件保存在 `$DSH_HOME/mobile-access/`。
 

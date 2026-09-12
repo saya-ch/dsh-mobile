@@ -19,6 +19,22 @@ const healthy: DiagnosticSnapshot = {
 }
 
 describe('connection diagnostics', () => {
+  it('reports missing LAN setup as an actionable blocking problem', async () => {
+    const result = await collectConnectionDiagnostics({
+      ...healthy,
+      lan: { configured: false, running: false },
+      remote: { provider: 'cpolar', running: false, state: 'off' },
+    }, {
+      firewall: async () => ({ state: 'not-applicable' }),
+      remote: async () => ({ state: 'not-applicable' }),
+    })
+
+    expect(result.overall).toBe('error')
+    expect(result.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'network', status: 'error', reason: 'lan-setup-required', action: expect.stringContaining('选择网卡') }),
+    ]))
+  })
+
   it('allows known remote relays longer than direct endpoints', () => {
     expect(remoteDiagnosticTimeoutMs('https://private-name.r8.cpolar.cn')).toBe(10_000)
     expect(remoteDiagnosticTimeoutMs('https://example.tail1234.ts.net')).toBe(10_000)

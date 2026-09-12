@@ -50,11 +50,14 @@ import {
 } from './remote.js'
 import { parseAuthority, parseCidr } from './network.js'
 import {
+  availableLanNetworks,
   materializeManagedSetup,
   parseManagedSetup,
+  preferredLanInterfaceNames,
   selectLanNetwork,
   type ManagedSetup,
 } from './managed-setup.js'
+import { prepareManagedLanSetup, type ManagedLanSetupResult } from './lan-setup.js'
 
 /** Stable Cordis plugin name. */
 export const name = 'dsh-mobile'
@@ -147,6 +150,9 @@ function mapAdminError(error: unknown): HttpError {
   if (error instanceof Error && error.message.startsWith('plugin_update_')) {
     return new HttpError(409, error.message)
   }
+  if (error instanceof Error && error.message.startsWith('lan_setup_')) {
+    return new HttpError(409, error.message)
+  }
   return new HttpError(500, 'internal_error')
 }
 
@@ -169,6 +175,10 @@ type LoadedSetup = {
   readonly kind: 'fixed'
   readonly config: PluginConfig
 } | {
+  readonly kind: 'unconfigured'
+  readonly config: PluginConfig
+  readonly setupFile: string
+} | {
   readonly kind: 'managed'
   readonly config: PluginConfig
   readonly setup: ManagedSetup
@@ -187,7 +197,9 @@ async function loadSetup(config: PluginConfig): Promise<LoadedSetup> {
   try {
     source = await readFile(resolve(config.setupFile), 'utf8')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { kind: 'fixed', config }
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { kind: 'unconfigured', config, setupFile: resolve(config.setupFile) }
+    }
     throw error
   }
   let parsed: unknown
@@ -360,6 +372,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   await webSocketPaths.load()
   const blockedUpgradePaths = new BlockedUpgradePathLog()
   let lanGateway: MobileAccessGateway | undefined
+  let preparedLanSetup: ManagedLanSetupResult | undefined
   const startGateway = async (candidateConfig: PluginConfig): Promise<MobileAccessRuntime> => {
     const resolved = parseGatewayConfig({
       ...candidateConfig,
@@ -383,6 +396,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     }
   }
   const startRuntime = async (): Promise<MobileAccessRuntime> => {
+    if (loaded.kind === 'unconfigured') throw new Error(preparedLanSetup === undefined ? 'lan_setup_required' : 'lan_setup_restart_required')
     if (loaded.kind === 'fixed') return startGateway(loaded.config)
     const following = new FollowingMobileAccessRuntime(async () => {
       const network = selectLanNetwork(undefined, loaded.setup.networkInterface)
@@ -401,10 +415,12 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     await following.initialize(2_000)
     return following
   }
-  const lanController = new MobileAccessGatewayController(
-    new JsonMobileAccessControlStore(parseControlFile(config.controlFile), config.initiallyEnabled),
-    startRuntime,
-  )
+  const lanControlFile = parseControlFile(config.controlFile)
+  const lanControlStore = new JsonMobileAccessControlStore(lanControlFile, config.initiallyEnabled)
+  if (loaded.kind === 'unconfigured' && (await lanControlStore.load()).enabled) {
+    await lanControlStore.save({ version: 1, enabled: false })
+  }
+  const lanController = new MobileAccessGatewayController(lanControlStore, startRuntime)
   const remoteDeviceFile = join(remoteDirectory, 'devices.json')
   const legacyCpolarDeviceFile = join(remoteDirectory, 'cpolar', 'devices.json')
   if (initialRemoteProvider === 'cpolar') {
@@ -478,10 +494,33 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     frpConfig.status(),
   )
   const lanPayload = (): Record<string, unknown> => ({
+    ...(loaded.kind === 'unconfigured' ? {
+      configured: preparedLanSetup !== undefined,
+      restartRequired: preparedLanSetup !== undefined,
+    } : {}),
     running: lanController.isRunning(),
     origin: lanGateway?.address().origin,
+    ...(preparedLanSetup === undefined ? {} : { pendingOrigin: preparedLanSetup.origin }),
     ...(lanGateway === undefined ? {} : { extensions: lanGateway.extensionStatus() }),
   })
+  const lanSetupPayload = async (): Promise<Record<string, unknown>> => {
+    if (loaded.kind !== 'unconfigured' || preparedLanSetup !== undefined) return lanPayload()
+    const networks = availableLanNetworks()
+    const preferred = await preferredLanInterfaceNames()
+    let recommendedAddress: string | undefined
+    try { recommendedAddress = selectLanNetwork(undefined, undefined, undefined, preferred).address } catch { /* user chooses when selection is ambiguous */ }
+    return {
+      ...lanPayload(),
+      networks: networks.map(network => ({
+        name: network.name,
+        address: network.address,
+        cidr: network.cidr,
+        recommended: network.address === recommendedAddress,
+      })),
+      listenPort: 3443,
+      windowsFirewall: process.platform === 'win32',
+    }
+  }
   const diagnosticsPayload = async (): Promise<Record<string, unknown>> => {
     let interfaceName: string | undefined
     let networkError: string | undefined
@@ -493,6 +532,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     return collectConnectionDiagnostics({
       dshVersion,
       lan: {
+        configured: loaded.kind !== 'unconfigured' || preparedLanSetup !== undefined,
         running: lanController.isRunning(),
         ...(lanGateway === undefined ? {} : { origin: lanGateway.address().origin, port: lanGateway.address().port }),
         ...(loaded.kind === 'managed' ? { configuredInterface: loaded.setup.networkInterface, port: loaded.setup.listenPort } : {}),
@@ -523,6 +563,10 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           sendJson(response, 200, lanPayload(), false)
           return
         }
+        if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/lan/setup`) {
+          sendJson(response, 200, await lanSetupPayload(), false)
+          return
+        }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/diagnostics`) {
           sendJson(response, 200, await diagnosticsPayload(), false)
           return
@@ -539,8 +583,37 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (request.method === 'POST' && lanControl) {
           const body = await readJsonObject(request, 4096)
           if (typeof body.running !== 'boolean') throw new HttpError(400, 'bad_request')
+          if (body.running && loaded.kind === 'unconfigured') {
+            throw new HttpError(409, preparedLanSetup === undefined ? 'lan_setup_required' : 'lan_setup_restart_required')
+          }
           await lanController.setRunning(body.running)
           sendJson(response, 200, lanPayload(), false)
+          return
+        }
+        if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/lan/setup`) {
+          const body = await readJsonObject(request, 4096)
+          if (loaded.kind !== 'unconfigured') throw new HttpError(409, 'lan_setup_already_configured')
+          if (preparedLanSetup !== undefined) {
+            sendJson(response, 200, await lanSetupPayload(), false)
+            return
+          }
+          if (body.confirm !== true || typeof body.address !== 'string') throw new HttpError(400, 'bad_request')
+          const network = availableLanNetworks().find(candidate => candidate.address === body.address)
+          if (network === undefined) throw new HttpError(409, 'lan_setup_network_unavailable')
+          try {
+            preparedLanSetup = await prepareManagedLanSetup({
+              setupFile: loaded.setupFile,
+              controlFile: lanControlFile,
+              network,
+              listenPort: 3443,
+              dshPort: ctx.webServer.port,
+              configureFirewall: body.configureFirewall !== false,
+            })
+          } catch (error) {
+            logger.error('managed LAN setup failed: %s', error instanceof Error ? error.stack ?? error.message : String(error))
+            throw new HttpError(409, 'lan_setup_failed')
+          }
+          sendJson(response, 200, await lanSetupPayload(), false)
           return
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/control`) {

@@ -58,6 +58,9 @@ describe('mobile-control localization', () => {
     expect(CONTROL_STYLES).toContain('dsh-mobile-control__remote-workspace')
     expect(CONTROL_STYLES).toContain('dsh-mobile-control__stage-value')
     expect(CONTROL_STYLES).toContain('dsh-mobile-control__state-badge')
+    expect(CONTROL_STYLES).toContain('dsh-mobile-control__lan-setup{')
+    expect(CONTROL_STYLES).toContain('min-height:44px')
+    expect(CONTROL_STYLES).toContain('dsh-mobile-control__actions[hidden],.dsh-mobile-control__manage-row[hidden]{display:none}')
     expect(CONTROL_STYLES).toContain('dsh-mobile-control__qr img{border-radius:12px;background:#fff')
   })
 
@@ -138,6 +141,7 @@ describe('mobile-control localization', () => {
     expect(MOBILE_CONTROL_MESSAGES.it.cpolarReady).toContain('indirizzi temporanei')
     expect(MOBILE_CONTROL_MESSAGES.zh.mobileAccess).toBe('移动访问')
     expect(MOBILE_CONTROL_MESSAGES.zh.cpolarReady).toContain('临时地址')
+    expect(MOBILE_CONTROL_MESSAGES.zh.lanSetupRequired).toContain('选择上方网络')
     const englishReasons = Object.keys(DIAGNOSTIC_REASON_MESSAGES.en).sort()
     expect(Object.keys(DIAGNOSTIC_REASON_MESSAGES.it).sort()).toEqual(englishReasons)
     expect(Object.keys(DIAGNOSTIC_REASON_MESSAGES.zh).sort()).toEqual(englishReasons)

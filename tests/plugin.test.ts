@@ -295,6 +295,25 @@ describe('stock DSH lifecycle', () => {
     expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
   })
 
+  it('does not present the loopback fallback as LAN access when managed setup is missing', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-unconfigured-plugin-'))
+    temporaryDirectories.push(directory)
+    const mounted = await mount(false, 3080, { setupFile: join(directory, 'missing-setup.json') })
+
+    const status = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control')
+    expect(status.status).toBe(200)
+    expect(JSON.parse(status.body)).toMatchObject({ configured: false, restartRequired: false, running: false })
+    expect(status.body).not.toContain('127.0.0.1:3443')
+
+    const setup = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/setup')
+    expect(setup.status).toBe(200)
+    expect(JSON.parse(setup.body)).toMatchObject({ configured: false, listenPort: 3443, networks: expect.any(Array) })
+
+    const started = await invoke(mounted.route, 'POST', '/api/mobile-access/lan/control', JSON.stringify({ running: true }))
+    expect(started.status).toBe(409)
+    expect(JSON.parse(started.body)).toEqual({ error: 'lan_setup_required' })
+  })
+
   it('follows the active WebServer port instead of a managed setup snapshot', async () => {
     const setupFile = await managedSetupFile('http://127.0.0.1:3080')
     const mounted = await mount(false, 43120, { setupFile })

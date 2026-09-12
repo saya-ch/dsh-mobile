@@ -7,7 +7,7 @@ import { DSH_MOBILE_VERSION, MINIMUM_ANDROID_APP_VERSION } from './version.js'
 export type DiagnosticStatus = 'ok' | 'warning' | 'error' | 'info'
 export type DiagnosticReason =
   | 'versions-current'
-  | 'network-unavailable' | 'network-interface' | 'network-fixed'
+  | 'lan-setup-required' | 'network-unavailable' | 'network-interface' | 'network-fixed'
   | 'lan-ready' | 'lan-off'
   | 'firewall-ready' | 'firewall-missing' | 'firewall-unknown'
   | 'remote-off' | 'remote-ready' | 'remote-rate-limited' | 'remote-fake-ip' | 'remote-unreachable'
@@ -37,6 +37,7 @@ export interface DiagnosticCheck {
 export interface DiagnosticSnapshot {
   readonly dshVersion: string
   readonly lan: {
+    readonly configured?: boolean
     readonly running: boolean
     readonly origin?: string
     readonly configuredInterface?: string
@@ -245,7 +246,9 @@ export async function collectConnectionDiagnostics(
     `插件 ${DSH_MOBILE_VERSION}，DSH ${snapshot.dshVersion}，Android App 最低 ${MINIMUM_ANDROID_APP_VERSION}。`,
   ))
 
-  if (snapshot.lan.networkError !== undefined) {
+  if (snapshot.lan.configured === false) {
+    checks.push(check('network', 'error', 'lan-setup-required', '局域网配置', '尚未完成局域网初始化。', '返回局域网页选择网卡并完成配置。'))
+  } else if (snapshot.lan.networkError !== undefined) {
     checks.push(check('network', 'error', 'network-unavailable', '局域网网卡', '已保存的网卡当前不可用。', '重新运行 dsh-mobile setup。'))
   } else if (snapshot.lan.configuredInterface !== undefined) {
     const interfaceName = snapshot.lan.interfaceName ?? snapshot.lan.configuredInterface

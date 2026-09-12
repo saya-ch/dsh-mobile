@@ -1,15 +1,9 @@
 #!/usr/bin/env node
-import { execFileText as execFile } from './exec-file.js'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import {
-  ensureManagedCa,
-  preferredLanInterfaceNames,
-  refreshManagedServerCertificate,
-  selectLanNetwork,
-  type ManagedSetup,
-} from './managed-setup.js'
+import { preferredLanInterfaceNames, selectLanNetwork } from './managed-setup.js'
+import { prepareManagedLanSetup, removeWindowsFirewall } from './lan-setup.js'
 import { assertExtensionId } from './extensions.js'
 import { restrictPrivateFile } from './private-file.js'
 
@@ -19,9 +13,6 @@ interface SetupOptions {
   readonly dshPort: number
   readonly configureFirewall: boolean
 }
-
-const FIREWALL_TCP_RULE = 'DSH Mobile HTTPS'
-const FIREWALL_UDP_RULE = 'DSH Mobile Discovery'
 
 function parseOptions(args: readonly string[]): SetupOptions {
   let address: string | undefined
@@ -61,80 +52,13 @@ function dshHome(): string {
   return resolve(process.env.DSH_HOME ?? join(homedir(), '.dsh'))
 }
 
-async function runElevatedPowerShell(script: string): Promise<void> {
-  const encoded = Buffer.from(script, 'utf16le').toString('base64')
-  const launch = [
-    "$ErrorActionPreference = 'Stop'; $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -WindowStyle Hidden -Wait -PassThru",
-    `  -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand','${encoded}')`,
-    '; exit $process.ExitCode',
-  ].join(' ')
-  await execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', launch], { windowsHide: true })
-}
-
-async function configureWindowsFirewall(port: number): Promise<void> {
-  if (process.platform !== 'win32') return
-  const script = [
-    "$ErrorActionPreference = 'Stop'",
-    `Get-NetFirewallRule -DisplayName '${FIREWALL_TCP_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule`,
-    `Get-NetFirewallRule -DisplayName '${FIREWALL_UDP_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule`,
-    `New-NetFirewallRule -DisplayName '${FIREWALL_TCP_RULE}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${String(port)} -RemoteAddress LocalSubnet -Profile Any | Out-Null`,
-    `New-NetFirewallRule -DisplayName '${FIREWALL_UDP_RULE}' -Direction Inbound -Action Allow -Protocol UDP -LocalPort ${String(port)} -RemoteAddress LocalSubnet -Profile Any | Out-Null`,
-  ].join('; ')
-  console.log('Windows will request administrator approval for two LAN-only firewall rules.')
-  await runElevatedPowerShell(script)
-}
-
-async function removeWindowsFirewall(): Promise<void> {
-  if (process.platform !== 'win32') return
-  await runElevatedPowerShell([
-    "$ErrorActionPreference = 'Stop'",
-    `Get-NetFirewallRule -DisplayName '${FIREWALL_TCP_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule`,
-    `Get-NetFirewallRule -DisplayName '${FIREWALL_UDP_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule`,
-  ].join('; '))
-}
-
 async function setup(args: readonly string[]): Promise<void> {
   const options = parseOptions(args)
   const preferredInterfaces = options.address === undefined ? await preferredLanInterfaceNames() : []
   const network = selectLanNetwork(options.address, undefined, undefined, preferredInterfaces)
   const home = dshHome()
   const directory = join(home, 'mobile-access')
-  const tls = join(directory, 'tls')
-  await mkdir(tls, { recursive: true, mode: 0o700 })
-
-  const legacyCertFile = join(tls, 'cert.pem')
-  const legacyKeyFile = join(tls, 'key.pem')
-  const certFile = join(tls, 'server-cert.pem')
-  const keyFile = join(tls, 'server-key.pem')
-  const caCertFile = join(tls, 'ca.pem')
-  const caKeyFile = join(tls, 'ca-key.pem')
-  const androidCertificate = join(tls, 'dsh-mobile-ca.cer')
-  const managedTls: ManagedSetup['tls'] = {
-    mode: 'managed',
-    caCertFile,
-    caKeyFile,
-    certFile,
-    keyFile,
-  }
-  const ca = await ensureManagedCa(managedTls, { certFile: legacyCertFile, keyFile: legacyKeyFile })
-  const managedSetup: ManagedSetup = {
-    version: 2,
-    networkInterface: network.name,
-    listenPort: options.port,
-    upstreamOrigin: `http://127.0.0.1:${String(options.dshPort)}`,
-    tls: managedTls,
-  }
-  await refreshManagedServerCertificate(managedSetup, network.address)
-  await writeFile(androidCertificate, ca.raw, { mode: 0o600 })
-  await Promise.all([
-    restrictPrivateFile(caCertFile),
-    restrictPrivateFile(caKeyFile),
-    restrictPrivateFile(certFile),
-    restrictPrivateFile(keyFile),
-    restrictPrivateFile(androidCertificate),
-  ])
-  if (options.configureFirewall) await configureWindowsFirewall(options.port)
-
+  await mkdir(directory, { recursive: true, mode: 0o700 })
   const customCss = join(directory, 'mobile.css')
   try {
     await readFile(customCss)
@@ -170,22 +94,20 @@ async function setup(args: readonly string[]): Promise<void> {
   await mkdir(extensions, { recursive: true, mode: 0o700 })
   await createExtensionScaffold(extensions, 'custom', '自定义移动扩展', false)
 
-  const origin = `https://${network.address}:${String(options.port)}`
-  await Promise.all([
-    writeFile(join(directory, 'setup.json'), `${JSON.stringify({
-      ...managedSetup,
-      tls: Object.fromEntries(Object.entries(managedSetup.tls)
-        .map(([key, value]) => [key, typeof value === 'string' ? value.replaceAll('\\', '/') : value])),
-    }, null, 2)}\n`, { mode: 0o600 }),
-    writeFile(join(directory, 'control.json'), '{"version":1,"enabled":true}\n', { mode: 0o600 }),
-  ])
-  await Promise.all([
-    restrictPrivateFile(join(directory, 'setup.json')),
-    restrictPrivateFile(join(directory, 'control.json')),
-  ])
+  if (options.configureFirewall && process.platform === 'win32') {
+    console.log('Windows will request administrator approval for two LAN-only firewall rules.')
+  }
+  const result = await prepareManagedLanSetup({
+    setupFile: join(directory, 'setup.json'),
+    controlFile: join(directory, 'control.json'),
+    network,
+    listenPort: options.port,
+    dshPort: options.dshPort,
+    configureFirewall: options.configureFirewall,
+  })
 
-  console.log(`DSH Mobile follows ${network.name} and is currently configured for ${origin}`)
-  console.log(`Install this CA certificate on Android once: ${androidCertificate}`)
+  console.log(`DSH Mobile follows ${network.name} and is currently configured for ${result.origin}`)
+  console.log(`Install this CA certificate on Android once: ${result.androidCertificate}`)
   console.log(`Ask DSH to customize the mobile Web UI and features in: ${customCss} and ${customScript}`)
   console.log(`Additional extensions live in: ${extensions}`)
   console.log('Start DSH with: dsh --profile web')

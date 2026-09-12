@@ -74,7 +74,7 @@ Or via the plugin market (optional):
 dsh plugin --profile web add dshmarket
 ```
 
-Restart DSH, then search for **dsh-mobile** under **Settings → Plugin Market** and install it with one click.
+Restart DSH, then search for **dsh-mobile** under **Settings → Plugin Market** and install it. On first opening Mobile access, the Local network page lists this computer's current networks; confirm one to create private certificates and LAN configuration, then restart DSH once as prompted. No terminal `setup` command is required for this path.
 
 `setup` automatically selects and remembers the current LAN; Wi-Fi, hotspot, and IP changes normally recover without re-pairing. Use `--address 192.168.x.x` only when automatic selection fails. Settings, certificates, devices, and customization files live under `$DSH_HOME/mobile-access/`.
 
