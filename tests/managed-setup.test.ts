@@ -130,6 +130,17 @@ describe('managed DHCP setup', () => {
     expect(persistedCa.fingerprint256).toBe(ca.fingerprint256)
   })
 
+  it('keeps a custom Mobile HTTPS port independent from the active DSH Web port', async () => {
+    const setup = { ...await fixture(), listenPort: 4567 }
+    await ensureManagedCa(setup.tls)
+    const config = await materializeManagedSetup(setup, interfaceTable('192.168.50.23'))
+    expect(config).toMatchObject({
+      publicOrigin: 'https://192.168.50.23:4567',
+      listenHost: '192.168.50.23',
+    })
+    expect(config).not.toHaveProperty('upstreamOrigin')
+  })
+
   it('rejects unknown durable fields before using paths', () => {
     expect(() => parseManagedSetup({
       version: 2,
