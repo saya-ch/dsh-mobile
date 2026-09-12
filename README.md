@@ -26,14 +26,14 @@
 
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 仅支持 Android。
 >
-> **0.3.15 更新**：完整适配 DeepSeek Harness **0.1.5-rc.2**，提升新版前端及 cpolar 换址、慢速首屏加载的稳定性，并修复移动右栏关闭、宽屏遮罩、终端 WebSocket、桌面 footer 共存及思考/正文间距。[详细记录](CHANGELOG.md)。
+> **0.3.16 更新**：兼容社区任务看板的移动布局锚点，优化宽屏右栏与手机提问卡片，并修复自定义 DSH Web 端口仍连接旧默认端口的问题。[详细记录](CHANGELOG.md)。
 >
-> **升级提醒**：DSH 0.1.5 用户需将插件升级至 **0.3.15** 并重启 DSH；现有配对继续有效，cpolar 用户需同步安装 0.3.15 App，以免慢速首屏被旧版 App 提前终止。[兼容说明](#兼容性)。
+> **升级提醒**：建议将插件升级至 **0.3.16** 并重启 DSH；现有配对与 0.3.15 App 保持兼容，本次 Android App 仅同步版本号，可按需更新。[兼容说明](#兼容性)。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><strong>下载 Android App 0.3.15</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.15">版本说明与校验文件</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.16/dsh-mobile-android-v0.3.16.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.16/dsh-mobile-android-v0.3.16.apk"><strong>下载 Android App 0.3.16</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.16">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、自建 FRP 远程通道连接电脑，继续使用同一份会话、工作区、消息和工具。局域网与远程访问分别启停、分别管理设备，且都不修改 DeepSeek Harness 源码。
@@ -105,6 +105,8 @@ dsh plugin --profile web add dshmarket
 2. 如果尚未开启，点击 **开启局域网访问**；随后点击 **生成并复制密钥**，面板会显示配对二维码。
 3. 在 Android App 中进入 **局域网访问**，扫描发现电脑并点击设备，再扫描二维码或粘贴配对密钥。
 4. 配对完成后会建立持久设备信任。以后打开 App 会自动发现并连接，切换 Wi-Fi、热点或 DHCP 地址通常不需要重新配对。
+
+端口说明：`dsh web --port` 修改 DSH Web 上游端口（默认 3080），插件会自动跟随；`dsh-mobile setup --port` 修改 Mobile HTTPS 监听端口（默认 3443），配对二维码会包含实际端口。
 
 不安装 App 也可以访问：点击 **复制配对链接**，在手机浏览器中打开；首次访问需要按浏览器提示手动信任插件证书。
 
@@ -191,7 +193,7 @@ flowchart LR
   DSH -->|"同一工作区、会话和事件流"| Phone
 ```
 
-插件包含三层：Host face 负责发现、配对、HTTPS、回环代理和扩展注册表；Client face 提供独立的移动布局与扩展 SDK；Android App 提供受限的原生 Bridge。Bridge 使用 `androidx.webkit` WebMessage，每条消息都校验精确顶层 Origin 和主 Frame，并限制消息大小；不使用 `addJavascriptInterface`。DeepSeek Harness 的源码和 3080 桌面页面都不会被修改，安装和卸载完全通过插件机制完成。
+插件包含三层：Host face 负责发现、配对、HTTPS、回环代理和扩展注册表；Client face 提供独立的移动布局与扩展 SDK；Android App 提供受限的原生 Bridge。Bridge 使用 `androidx.webkit` WebMessage，每条消息都校验精确顶层 Origin 和主 Frame，并限制消息大小；不使用 `addJavascriptInterface`。DeepSeek Harness 的源码和当前 Web 页面（默认端口 3080，可通过 `dsh web --port` 修改）都不会被改动，安装和卸载完全通过插件机制完成。
 
 ## 安全
 
@@ -210,7 +212,7 @@ flowchart LR
 
 | DSH Mobile 插件 | 验证支持的 DeepSeek Harness 版本 |
 | --- | --- |
-| `0.3.15` | `0.1.5-rc.2`（契约检查）；`0.1.5-rc.1`（@idoall 局域网实测） |
+| `0.3.15`、`0.3.16` | `0.1.5-rc.2`（契约检查）；`0.1.5-rc.1`（@idoall 局域网实测） |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |
@@ -218,7 +220,7 @@ flowchart LR
 | `0.3.0`-`0.3.3` | `0.1.2-alpha.1` |
 | `0.1.4`、`0.2.x` | `0.1.1-rc.2` |
 
-现有 0.3.3–0.3.15 App 无需重新配对；cpolar 用户应升级到 0.3.15 App，较早版本可能在免费线路的慢速首次加载完成前超时；更早的 App 还使用不同的状态栏策略。App 0.1.3 及更早版本需卸载重装并重新配对。
+现有 0.3.3–0.3.16 App 无需重新配对；cpolar 用户应使用 0.3.15 或更新 App，较早版本可能在免费线路的慢速首次加载完成前超时；更早的 App 还使用不同的状态栏策略。App 0.1.3 及更早版本需卸载重装并重新配对。
 
 ## 卸载
 

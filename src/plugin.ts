@@ -205,6 +205,7 @@ async function loadSetup(config: PluginConfig): Promise<LoadedSetup> {
     throw new Error('mobile setup file has an unsupported format')
   }
   const { version: _version, ...setup } = record
+  delete setup.upstreamOrigin
   return {
     kind: 'fixed',
     config: { ...withoutSetupKeys(config), ...setup } as unknown as PluginConfig,
@@ -213,11 +214,12 @@ async function loadSetup(config: PluginConfig): Promise<LoadedSetup> {
 
 function loopbackTemplate(loaded: LoadedSetup, webServerPort: number): ResolvedGatewayConfig {
   const base = withoutSetupKeys(loaded.config)
+  const activeUpstreamOrigin = `http://127.0.0.1:${String(webServerPort)}`
   return parseGatewayConfig({
     ...base,
     ...(loaded.kind === 'managed'
-      ? { upstreamOrigin: loaded.setup.upstreamOrigin }
-      : { upstreamOrigin: loaded.config.upstreamOrigin ?? `http://127.0.0.1:${String(webServerPort)}` }),
+      ? { upstreamOrigin: activeUpstreamOrigin }
+      : { upstreamOrigin: loaded.config.upstreamOrigin ?? activeUpstreamOrigin }),
     listenHost: '127.0.0.1',
     listenPort: 0,
     publicAuthorities: ['127.0.0.1'],
@@ -367,7 +369,10 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const blockedUpgradePaths = new BlockedUpgradePathLog()
   let lanGateway: MobileAccessGateway | undefined
   const startGateway = async (candidateConfig: PluginConfig): Promise<MobileAccessRuntime> => {
-    const resolved = parseGatewayConfig(candidateConfig)
+    const resolved = parseGatewayConfig({
+      ...candidateConfig,
+      upstreamOrigin: template.upstreamOrigin.origin,
+    })
     const candidate = new MobileAccessGateway(
       resolved,
       new JsonDeviceStore(resolved.stateFile, resolved.maxDevices),

@@ -55,6 +55,8 @@ interface ThemeSnapshot {
 interface LayoutSnapshot {
   readonly sidebarOpen: boolean
   readonly detailsOpen: boolean
+  readonly rightbarTrack: boolean
+  readonly rightbarFullscreen: boolean
   readonly panelInfo: PanelInfoSnapshot
 }
 
@@ -85,18 +87,53 @@ export function isSidebarRightControl(value: unknown): value is SidebarRightCont
  * keep the overlay behavior byte-for-byte.
  */
 export const WIDE_LAYOUT_MIN_WIDTH_PX = 900
+const RIGHTBAR_MIN_WIDTH_PX = 300
+const RIGHTBAR_MAX_WIDTH_PX = 460
+const RIGHTBAR_CENTER_MIN_WIDTH_PX = 400
+const RIGHTBAR_DEFAULT_RATIO = 0.45
+const SIDEBAR_EXPANDED_WIDTH_PX = 340
+const SIDEBAR_COLLAPSED_WIDTH_PX = 56
 
 export function isWideViewportLayout(viewportWidth: number): boolean {
   return viewportWidth >= WIDE_LAYOUT_MIN_WIDTH_PX
 }
 
-/** Whether the narrow layout needs the modal scrim for either side panel. */
+/** Resolved right-panel presentation for the dedicated responsive layout. */
+export interface MobileRightbarLayout {
+  readonly docked: boolean
+  readonly width: number
+}
+
+/** Preserve a readable conversation width before turning a requested right track into a docked column. */
+export function resolveMobileRightbarLayout(
+  viewportWidth: number,
+  sidebarOpen: boolean,
+  track: boolean,
+  fullscreen: boolean,
+): MobileRightbarLayout {
+  const overlayWidth = Math.min(viewportWidth * 0.94, RIGHTBAR_MAX_WIDTH_PX)
+  if (!track || fullscreen || (!isWideViewportLayout(viewportWidth) && sidebarOpen)) {
+    return Object.freeze({ docked: false, width: overlayWidth })
+  }
+  const sidebarWidth = isWideViewportLayout(viewportWidth) && sidebarOpen
+    ? SIDEBAR_EXPANDED_WIDTH_PX
+    : SIDEBAR_COLLAPSED_WIDTH_PX
+  const available = Math.floor(viewportWidth - sidebarWidth - RIGHTBAR_CENTER_MIN_WIDTH_PX)
+  if (available < RIGHTBAR_MIN_WIDTH_PX) return Object.freeze({ docked: false, width: overlayWidth })
+  const preferred = Math.min(
+    RIGHTBAR_MAX_WIDTH_PX,
+    Math.max(RIGHTBAR_MIN_WIDTH_PX, Math.round(viewportWidth * RIGHTBAR_DEFAULT_RATIO)),
+  )
+  return Object.freeze({ docked: true, width: Math.min(preferred, available) })
+}
+
+/** Whether an overlay drawer needs the modal scrim without dimming a docked desktop panel. */
 export function isMobileScrimOpen(
   sidebarOpen: boolean,
-  detailsOpen: boolean,
+  detailsModalOpen: boolean,
   wideViewport: boolean,
 ): boolean {
-  return !wideViewport && (sidebarOpen || detailsOpen)
+  return (!wideViewport && sidebarOpen) || detailsModalOpen
 }
 
 /**
@@ -133,6 +170,8 @@ class MobileLayoutController {
   private snapshot: LayoutSnapshot = Object.freeze({
     sidebarOpen: viewportIsWide(),
     detailsOpen: false,
+    rightbarTrack: false,
+    rightbarFullscreen: false,
     panelInfo: Object.freeze({ activePanelId: null }),
   })
   private readonly listeners = new Set<() => void>()
@@ -157,7 +196,7 @@ class MobileLayoutController {
   }
 
   closeDetails(): void {
-    this.update({ detailsOpen: false })
+    this.update({ detailsOpen: false, rightbarTrack: false, rightbarFullscreen: false })
   }
 
   closeSidebar(): void {
@@ -191,13 +230,9 @@ class MobileLayoutController {
     }
   }
 
-  /**
-   * Show the right panel. The official controller tracks a persistent column
-   * here; this layout always renders the panel as the details overlay, so both
-   * the track and fullscreen requests open the same drawer.
-   */
-  openRightbar(_track?: boolean, _fullscreen?: boolean): void {
-    this.openDetails()
+  /** Preserve the native seat's distinction between a docked track and fullscreen. */
+  openRightbar(track = true, fullscreen = false): void {
+    this.update({ detailsOpen: true, rightbarTrack: track, rightbarFullscreen: fullscreen })
   }
 
   /** Hide the right panel. */
@@ -232,6 +267,8 @@ class MobileLayoutController {
     if (
       snapshot.sidebarOpen === this.snapshot.sidebarOpen
       && snapshot.detailsOpen === this.snapshot.detailsOpen
+      && snapshot.rightbarTrack === this.snapshot.rightbarTrack
+      && snapshot.rightbarFullscreen === this.snapshot.rightbarFullscreen
       && snapshot.panelInfo === this.snapshot.panelInfo
     ) return
     this.snapshot = snapshot
@@ -272,7 +309,12 @@ class ThemePresenter {
 export const MOBILE_LAYOUT_STYLES = `
 html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-shell{position:relative;display:grid;width:100%;height:100dvh;min-width:0;overflow:hidden;background:var(--dsw-alias-bg-base,#fff)}
-.dshm-main{grid-area:1/1;min-width:0;min-height:0;overflow:hidden}
+.dshm-main{grid-area:1/1;position:relative;min-width:0;min-height:0;margin-right:0;overflow:hidden;transition:margin-right var(--ds-transition-duration-slow,190ms) var(--ds-ease-in-out,ease)}
+.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:var(--dshm-rightbar-width)}
+.dshm-shell[data-rightbar-docked=true] .dshm-details{position:absolute;width:var(--dshm-rightbar-width);box-shadow:none;padding-top:0}
+/* Draw above the native absolute panel without consuming its width or
+   intercepting controls; only docked mode needs this column separator. */
+.dshm-shell[data-rightbar-docked=true] .dshm-details::after{content:"";position:absolute;inset:0 auto 0 0;width:.5px;background:var(--dsw-alias-border-l4);z-index:11;pointer-events:none}
 .dshm-main>*,.dshm-main>*>*{min-width:0}
 .dshm-drawer{position:fixed;z-index:70;inset:0 auto 0 0;box-sizing:border-box;width:56px;max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background:var(--dsw-alias-bg-layer-1,#f8fafc);box-shadow:none;will-change:width;transition:width 240ms cubic-bezier(.22,1,.36,1),box-shadow 240ms ease}
 .dshm-drawer[data-open=true]{width:min(88vw,340px);box-shadow:18px 0 46px rgb(15 23 42 / 18%)}
@@ -280,6 +322,8 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-drawer>*{width:100%!important;height:100%!important;transform:translateX(-6px);opacity:.94;transition:transform 220ms cubic-bezier(.22,1,.36,1),opacity 160ms ease-out}
 .dshm-drawer[data-open=true]>*{transform:translateX(0);opacity:1}
 .dshm-drawer[data-open=false]>*{width:56px!important}
+/* display:none also suppresses fixed descendants installed by the phone adapter. */
+.dshm-drawer[data-right-modal=true]{display:none!important}
 .dshm-details{position:fixed;z-index:80;inset:0 0 0 auto;box-sizing:border-box;width:min(94vw,460px);max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:-18px 0 46px rgb(15 23 42 / 18%);transform:translateX(104%);transition:transform 190ms cubic-bezier(.22,1,.36,1)}
 .dshm-details[data-open=true]{transform:translateX(0)}
 .dshm-details[data-open=false]{pointer-events:none;visibility:hidden;transition:transform 190ms cubic-bezier(.22,1,.36,1),visibility 0s linear 190ms}
@@ -295,11 +339,11 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-shell [data-disclosure-row]>*{min-width:0;overflow-wrap:anywhere}
 .dshm-shell [data-context-fields]>*{min-width:0}
 .dshm-shell [class*="_body"]{max-width:100%;overflow-wrap:anywhere}
+@media(max-width:420px){.dshm-shell [data-context-fields]>*{display:grid;grid-template-columns:1fr!important;gap:4px}.dshm-shell [class*="_ioSection"]{grid-template-columns:1fr!important}}
+@media(max-width:600px){
 .dshm-shell [data-question-key],.dshm-shell [data-plan-review-key]{box-sizing:border-box;width:100%;height:auto!important;min-width:0;flex:none!important;align-self:flex-end;padding:6px max(10px,env(safe-area-inset-left)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right))!important}
 .dshm-shell [data-question-key]>section,.dshm-shell [data-plan-review-key]>section{width:100%;height:auto!important;min-height:0!important;max-width:none!important;max-height:min(68dvh,520px)!important;border-radius:16px!important}
 .dshm-shell [data-question-scroll],.dshm-shell [data-plan-review-scroll]{flex:0 1 auto!important;min-height:0!important;max-height:min(42dvh,360px)!important;overscroll-behavior:contain;scroll-padding-bottom:12px}
-@media(max-width:420px){.dshm-shell [data-context-fields]>*{display:grid;grid-template-columns:1fr!important;gap:4px}.dshm-shell [class*="_ioSection"]{grid-template-columns:1fr!important}}
-@media(max-width:600px){
 .dshm-shell [data-question-key]>section>header{display:flex!important;visibility:visible!important;flex:none!important;gap:8px!important;padding:12px 8px 4px 14px!important}
 .dshm-shell [data-question-key]>section>header h2{min-width:0;overflow-wrap:anywhere;font-size:16px!important;line-height:22px!important}
 .dshm-shell [data-question-key]>section>header button{min-width:40px;min-height:40px}
@@ -319,7 +363,7 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-drawer[data-open=true]{width:340px;box-shadow:none}
 .dshm-drawer[data-open=false]{width:56px}
 }
-@media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}}
 `
 
 function MobileAppFrame(props: MobileRootProps & {
@@ -328,26 +372,40 @@ function MobileAppFrame(props: MobileRootProps & {
 }): ReactNode {
   const state = useSyncExternalStore(props.controller.subscribe, props.controller.getSnapshot)
   const suppressKeyboardUntil = useRef(0)
-  const [wideViewport, setWideViewport] = useState(viewportIsWide)
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
+  useEffect(() => {
+    let frame: number | undefined
+    const resize = (): void => {
+      if (frame !== undefined) return
+      frame = window.requestAnimationFrame(() => {
+        frame = undefined
+        setViewportWidth(window.innerWidth)
+      })
+    }
+    window.addEventListener('resize', resize)
+    return () => {
+      window.removeEventListener('resize', resize)
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+  const wideViewport = isWideViewportLayout(viewportWidth)
+  const rightbar = resolveMobileRightbarLayout(
+    viewportWidth,
+    state.sidebarOpen,
+    state.rightbarTrack,
+    state.rightbarFullscreen,
+  )
+  const rightbarDocked = state.detailsOpen && rightbar.docked
   const [documentLanguage, setDocumentLanguage] = useState(document.documentElement.lang)
   const browserLanguages = navigator.languages.length > 0 ? navigator.languages : [navigator.language]
   const language = resolveMobileLayoutLanguage(documentLanguage, browserLanguages)
   const messages = MOBILE_LAYOUT_MESSAGES[language]
-  const scrimOpen = isMobileScrimOpen(state.sidebarOpen, state.detailsOpen, wideViewport)
+  const scrimOpen = isMobileScrimOpen(state.sidebarOpen, state.detailsOpen && !rightbarDocked, wideViewport)
   const activeSessionId = props.useSessions(session => {
     const current = session.current
     return current !== undefined && session.byId[current]?.blank === false ? current : undefined
   })
   const hasSession = activeSessionId !== undefined
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return
-    const query = window.matchMedia(`(min-width: ${WIDE_LAYOUT_MIN_WIDTH_PX}px)`)
-    const syncViewport = (): void => { setWideViewport(query.matches) }
-    syncViewport()
-    query.addEventListener('change', syncViewport)
-    return () => { query.removeEventListener('change', syncViewport) }
-  }, [])
 
   useEffect(() => {
     const observer = new MutationObserver(() => { setDocumentLanguage(document.documentElement.lang) })
@@ -430,8 +488,18 @@ function MobileAppFrame(props: MobileRootProps & {
     }, 0)
   }
 
-  return createElement('div', { className: 'dshm-shell', lang: language },
-    createElement('main', { className: 'dshm-main', 'data-dsh-mobile-session': activeSessionId },
+  return createElement('div', {
+    className: 'dshm-shell', lang: language,
+    'data-rightbar-docked': rightbarDocked,
+    style: { '--dshm-rightbar-width': `${rightbar.width}px` },
+  },
+    createElement('main', {
+      className: 'dshm-main',
+      'data-dsh-mobile-session': activeSessionId,
+      // Legacy dsh-web community plugins use semantic pane attributes as their
+      // compatibility path when the stock CSS-module column names are absent.
+      'data-pane': 'conversation',
+    },
       props.renderSlot('main', {}, {
         entryKey: state.panelInfo.activePanelId ?? 'conversation',
         fallback: props.renderSlot('conversation', {}),
@@ -453,7 +521,14 @@ function MobileAppFrame(props: MobileRootProps & {
     createElement('aside', {
       'aria-label': messages.workspaceNavigation,
       className: 'dshm-drawer',
+      'data-pane': 'sidebar',
       'data-open': state.sidebarOpen,
+      // The phone adapter promotes the whale toggle to a fixed high layer.
+      // Remove that entire navigation surface while the right modal owns focus.
+      'data-right-modal': state.detailsOpen && !rightbarDocked,
+      ...(state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}),
+      // Community rows collapse their label when an ancestor carries this marker.
+      ...(state.sidebarOpen ? {} : { 'data-sidebar-collapsed': '' }),
       onClickCapture: closeDrawerAfterSessionAction,
     }, props.renderSlot('sidebar', {
       collapsed: !state.sidebarOpen,
@@ -470,8 +545,8 @@ function MobileAppFrame(props: MobileRootProps & {
       // occupant must stay mounted even while no Session is selected.
       hasSession ? props.renderSlot('details', {}) : undefined,
       props.renderSlot('rightbar', {
-        width: Math.min(window.innerWidth * 0.94, 460),
-        viewportWidth: window.innerWidth,
+        width: rightbar.width,
+        viewportWidth,
         // The official frame reports whether a persistent column still fits
         // (normal.rightbar > 0); this layout renders the right panel in the
         // details overlay, which needs no column space. Reporting false would

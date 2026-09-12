@@ -19,14 +19,14 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin; the native app supports Android only.
 >
-> **0.3.15 update**: fully adapts to DeepSeek Harness **0.1.5-rc.2**, improves the new frontend and cpolar address rotation and slow first loads, and fixes right-sidebar dismissal, wide-screen scrims, terminal WebSockets, shared desktop footer layout, and reasoning/reply spacing. [Details](CHANGELOG.md).
+> **0.3.16 update**: supports community task-board pane anchors, improves wide-screen rightbar docking and phone question cards, and fixes custom DSH Web ports still targeting the saved default upstream. [Details](CHANGELOG.md).
 >
-> **Upgrade reminder**: DSH 0.1.5 requires plugin **0.3.15** and a DSH restart. Existing pairings remain valid; cpolar users should also install app 0.3.15 so an older app does not cancel a slow first load. [Compatibility notes](#compatibility).
+> **Upgrade reminder**: update the plugin to **0.3.16** and restart DSH. Existing pairings and app 0.3.15 remain compatible; the 0.3.16 APK changes only Android version metadata, so the app update is optional. [Compatibility notes](#compatibility).
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.15/dsh-mobile-android-v0.3.15.apk"><strong>Download Android app 0.3.15</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.15">Release notes and checksums</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.16/dsh-mobile-android-v0.3.16.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.3.16/dsh-mobile-android-v0.3.16.apk"><strong>Download Android app 0.3.16</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.3.16">Release notes and checksums</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, or self-hosted FRP remote path. Local and remote access keep the same sessions, Workspaces, messages, and tools while using separate switches and paired-device stores without modifying DeepSeek Harness source.
@@ -98,6 +98,8 @@ Use this when the phone and computer share Wi-Fi, Ethernet, or a phone hotspot. 
 2. If needed, select **Enable local access**, then select **Create and copy key**. The panel displays a pairing QR code.
 3. In the Android app, open **Local network**, scan for computers, select the device, then scan the QR code or paste the pairing key.
 4. Pairing creates persistent device trust. Later app launches discover and connect automatically; Wi-Fi, hotspot, and DHCP address changes normally do not require pairing again.
+
+Port note: `dsh web --port` changes the DSH Web upstream port (3080 by default), which the plugin follows automatically. `dsh-mobile setup --port` changes the Mobile HTTPS listener (3443 by default), and the pairing QR code includes the selected port.
 
 The app is optional: select **Copy pairing link** and open it in a mobile browser. The browser must manually trust the plugin certificate on the first visit.
 
@@ -182,7 +184,7 @@ flowchart LR
   Gateway -->|"loopback proxy"| DSH["Stock DSH Web and Host"]
 ```
 
-Three layers: the Host face for discovery, pairing, HTTPS, loopback proxying, and extension registration; the Client face for the dedicated mobile layout and extension SDK; and the Android app for a narrow native bridge. The bridge uses `androidx.webkit` WebMessage, verifies the exact top-level origin and main frame on every bounded message, and never uses `addJavascriptInterface`. Neither the DeepSeek Harness source nor its desktop page on port 3080 is modified.
+Three layers: the Host face for discovery, pairing, HTTPS, loopback proxying, and extension registration; the Client face for the dedicated mobile layout and extension SDK; and the Android app for a narrow native bridge. The bridge uses `androidx.webkit` WebMessage, verifies the exact top-level origin and main frame on every bounded message, and never uses `addJavascriptInterface`. Neither the DeepSeek Harness source nor its active Web page (port 3080 by default, configurable through `dsh web --port`) is modified.
 
 ## Security
 
@@ -201,7 +203,7 @@ The table below lists, for each plugin version, the DeepSeek Harness version it 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `0.3.15` | `0.1.5-rc.2` (contract check); `0.1.5-rc.1` (@idoall LAN verification) |
+| `0.3.15`, `0.3.16` | `0.1.5-rc.2` (contract check); `0.1.5-rc.1` (@idoall LAN verification) |
 | `0.3.14` | `0.1.3-alpha.2` |
 | `0.3.9`-`0.3.12` | `0.1.3-alpha.1` |
 | `0.3.6`-`0.3.8` | `0.1.2-rc.1` |
@@ -209,7 +211,7 @@ The table below lists, for each plugin version, the DeepSeek Harness version it 
 | `0.3.0`-`0.3.3` | `0.1.2-alpha.1` |
 | `0.1.4`, `0.2.x` | `0.1.1-rc.2` |
 
-Existing 0.3.3–0.3.15 apps do not need re-pairing. cpolar users should update to app 0.3.15 because earlier apps may time out before a slow first load over the free route finishes; earlier apps also use a different status-bar strategy. App 0.1.3 or earlier requires reinstalling and pairing again.
+Existing 0.3.3–0.3.16 apps do not need re-pairing. cpolar users should use app 0.3.15 or later because earlier apps may time out before a slow first load over the free route finishes; earlier apps also use a different status-bar strategy. App 0.1.3 or earlier requires reinstalling and pairing again.
 
 ## Uninstall
 

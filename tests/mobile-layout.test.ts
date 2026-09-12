@@ -13,6 +13,7 @@ import {
   isSidebarRightControl,
   isWideViewportLayout,
   resolveMobileLayoutLanguage,
+  resolveMobileRightbarLayout,
 } from '../src/mobile-layout.js'
 
 function index(entries: unknown[]): string {
@@ -348,14 +349,22 @@ describe('dedicated mobile layout boot', () => {
   })
 
   it('adapts stable DSH question surfaces for touch screens', () => {
-    expect(MOBILE_LAYOUT_STYLES).toContain('[data-question-key]')
-    expect(MOBILE_LAYOUT_STYLES).toContain('[data-question-scroll]')
-    expect(MOBILE_LAYOUT_STYLES).toContain('[data-plan-review-key]')
-    expect(MOBILE_LAYOUT_STYLES).toContain('[data-plan-review-scroll]')
-    expect(MOBILE_LAYOUT_STYLES).toContain('[data-plan-review-key]>section>div:last-child')
-    expect(MOBILE_LAYOUT_STYLES).toContain('max-height:min(42dvh,360px)')
-    expect(MOBILE_LAYOUT_STYLES).toContain('height:auto!important')
-    expect(MOBILE_LAYOUT_STYLES).toContain('min-height:44px')
+    const narrowStart = MOBILE_LAYOUT_STYLES.indexOf('@media(max-width:600px){')
+    const wideStart = MOBILE_LAYOUT_STYLES.indexOf('@media(min-width:900px){')
+    expect(narrowStart).toBeGreaterThan(0)
+    expect(wideStart).toBeGreaterThan(narrowStart)
+    const shared = MOBILE_LAYOUT_STYLES.slice(0, narrowStart)
+    const narrow = MOBILE_LAYOUT_STYLES.slice(narrowStart, wideStart)
+    expect(shared).not.toContain('[data-question-key]')
+    expect(shared).not.toContain('[data-plan-review-key]')
+    expect(narrow).toContain('[data-question-key]')
+    expect(narrow).toContain('[data-question-scroll]')
+    expect(narrow).toContain('[data-plan-review-key]')
+    expect(narrow).toContain('[data-plan-review-scroll]')
+    expect(narrow).toContain('[data-plan-review-key]>section>div:last-child')
+    expect(narrow).toContain('max-height:min(42dvh,360px)')
+    expect(narrow).toContain('height:auto!important')
+    expect(narrow).toContain('min-height:44px')
   })
 
   it('treats viewports at least 900px wide as a persistent desktop sidebar', () => {
@@ -371,12 +380,12 @@ describe('dedicated mobile layout boot', () => {
     [false, true, false, true],
     [true, true, false, true],
     [true, false, true, false],
-    [false, true, true, false],
-    [true, true, true, false],
+    [false, true, true, true],
+    [true, true, true, true],
   ])(
-    'shows the modal scrim for sidebar=%s details=%s wide=%s as %s',
-    (sidebarOpen, detailsOpen, wideViewport, expected) => {
-      expect(isMobileScrimOpen(sidebarOpen, detailsOpen, wideViewport)).toBe(expected)
+    'shows the modal scrim for sidebar=%s detailsModal=%s wide=%s as %s',
+    (sidebarOpen, detailsModalOpen, wideViewport, expected) => {
+      expect(isMobileScrimOpen(sidebarOpen, detailsModalOpen, wideViewport)).toBe(expected)
     },
   )
 
@@ -415,6 +424,43 @@ describe('dedicated mobile layout boot', () => {
     expect(isSidebarRightControl({ toggleExpanded: () => {} })).toBe(false)
   })
 
+  it.each([
+    [755, false, true, false, false, 460],
+    [756, false, true, false, true, 300],
+    [899, false, true, false, true, 405],
+    [899, true, true, false, false, 460],
+    [900, true, true, false, false, 460],
+    [900, false, true, false, true, 405],
+    [1039, true, true, false, false, 460],
+    [1040, true, true, false, true, 300],
+    [1200, true, true, false, true, 460],
+    [1200, true, false, false, false, 460],
+    [1200, true, true, true, false, 460],
+  ] as const)(
+    'resolves rightbar viewport=%i sidebar=%s track=%s fullscreen=%s as docked=%s width=%i',
+    (viewport, sidebarOpen, track, fullscreen, docked, width) => {
+      expect(resolveMobileRightbarLayout(viewport, sidebarOpen, track, fullscreen)).toEqual({ docked, width })
+    },
+  )
+
+  it('reserves only the resolved native rightbar track', () => {
+    expect(MOBILE_LAYOUT_STYLES).toContain('margin-right:0;')
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:var(--dshm-rightbar-width)}')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('--dsh-sidebar-width')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('data-dsh-sidebar-dragging')
+  })
+
+  it('draws a theme-aware docked separator without changing geometry or hit targets', () => {
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-details::after{content:"";position:absolute;inset:0 auto 0 0;width:.5px;background:var(--dsw-alias-border-l4);z-index:11;pointer-events:none}')
+  })
+
+  it('suppresses the fixed whale toggle only while the right modal is open', () => {
+    const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    expect(source).toContain("'data-right-modal': state.detailsOpen && !rightbarDocked")
+    expect(source).toContain("state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}")
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer[data-right-modal=true]{display:none!important}')
+  })
+
   it('keeps the narrow overlay drawer CSS untouched while docking the wide sidebar', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer{position:fixed')
     expect(MOBILE_LAYOUT_STYLES).toContain('@media(min-width:900px)')
@@ -429,7 +475,7 @@ describe('dedicated mobile layout boot', () => {
     expect(source).toContain('sidebarOpen: viewportIsWide()')
     expect(source).toContain('sharedController ??= new MobileLayoutController()')
     expect(source).toContain('if (viewportIsWide()) return')
-    expect(source).toContain('isMobileScrimOpen(state.sidebarOpen, state.detailsOpen, wideViewport)')
+    expect(source).toContain('isMobileScrimOpen(state.sidebarOpen, state.detailsOpen && !rightbarDocked, wideViewport)')
     expect(source).toContain("'aria-hidden': !scrimOpen")
     expect(source).toContain('tabIndex: scrimOpen ? 0 : -1')
   })
@@ -439,6 +485,14 @@ describe('dedicated mobile layout boot', () => {
     expect(source).toContain('session.byId[session.current]?.title')
     expect(source).toContain('document.title = `${sessionTitle} — ${productTitle}`')
     expect(source).toContain('return () => { document.title = productTitle }')
+  })
+
+  it('exposes legacy dsh-web pane anchors so community center-column plugins can mount', () => {
+    const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    expect(source).toContain("'data-pane': 'conversation'")
+    expect(source).toContain("'data-pane': 'sidebar'")
+    expect(source).toContain("'data-sidebar-collapsed': ''")
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-main{grid-area:1/1;position:relative;')
   })
 
   it('opens the command menu without restoring focus to the mobile editor', () => {

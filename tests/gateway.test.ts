@@ -44,7 +44,6 @@ type BatchedBundleResponder = (
 ) => boolean | Promise<boolean>
 
 const cleanups: Array<() => Promise<void>> = []
-const TEST_GATEWAY_PORT = 38080
 const TEST_FAILED_START_PORT = 38081
 const SESSION_HISTORY_PATH = '/api/session.history'
 const COMPRESSIBLE_SCRIPT = 'globalThis.__compressionProbe = true;\n'.repeat(256)
@@ -377,7 +376,7 @@ async function gateway(
 ): Promise<MobileAccessGateway> {
   const resolved = parseGatewayConfig({
     listenHost: '127.0.0.1',
-    listenPort: TEST_GATEWAY_PORT,
+    listenPort: 0,
     upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`,
     publicAuthorities: ['127.0.0.1'],
     allowedCidrs: ['127.0.0.0/8'],
