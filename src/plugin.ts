@@ -12,6 +12,7 @@ import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedG
 import { collectConnectionDiagnostics } from './diagnostics.js'
 import { buildMobileGuide, type MobileGuideState } from './mobile-guide.js'
 import { createVpsUninstallScript, deployVps, fetchVpsHostKeys, parseVpsDeploymentInput, uninstallVps } from './vps-deploy.js'
+import { TaskEventHub, watchTaskCompletions } from './task-events.js'
 import {
   FollowingMobileAccessRuntime,
   JsonMobileAccessControlStore,
@@ -313,6 +314,13 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const logFile = await installMobileFileLogger(ctx, stateDirectory)
   const logger = ctx.logger('dsh-mobile')
   logger.info('logging initialized file=%s', logFile)
+  // Completed root turns fan out to every live mobile gateway, whose phones
+  // render the notification text locally. One subscription serves all paths.
+  const taskEventHub = new TaskEventHub()
+  const disposeTaskEvents = watchTaskCompletions(ctx, {
+    onTaskCompleted: event => taskEventHub.broadcast(event),
+    log(event, fields) { logger.info('task event=%s fields=%o', event, fields) },
+  })
   const remoteDirectory = join(stateDirectory, 'remote')
   const configuredDshHome = process.env.DSH_HOME?.trim()
   const dshHome = configuredDshHome === undefined || configuredDshHome === ''
@@ -375,9 +383,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     )
     await candidate.start()
     lanGateway = candidate
+    const removeTaskSink = taskEventHub.add(candidate)
     return {
       close: async () => {
         if (lanGateway === candidate) lanGateway = undefined
+        removeTaskSink()
         await candidate.close()
       },
     }
@@ -464,6 +474,12 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   }
   const remoteProviders = new RemoteProviderCoordinator(initialRemoteProvider, remoteControllers, remoteProviderStore)
   const remoteController = () => remoteProviders.controller()
+  // Remote gateways rotate inside their controllers; forward through the
+  // current instance so stale gateways never receive events.
+  for (const provider of ['tailscale', 'cpolar', 'frp'] as const) {
+    const controller = remoteControllers[provider]
+    taskEventHub.add({ broadcastTaskEvent: event => { controller.gateway()?.broadcastTaskEvent(event) } })
+  }
   const remotePayload = (): Record<string, unknown> => remoteControlPayload(
     remoteProviders.selected,
     remoteController().status(),
@@ -804,6 +820,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         await settleCleanupSteps([
           unregister,
           disposeMobileCommand,
+          disposeTaskEvents,
           async () => {
             const results = await Promise.allSettled(Object.values(remoteControllers).map(controller => controller.close()))
             const failures = results.filter(result => result.status === 'rejected').map(result => result.reason as unknown)
@@ -822,6 +839,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       await settleCleanupSteps([
         unregister,
         disposeMobileCommand,
+        disposeTaskEvents,
         async () => {
           const results = await Promise.allSettled(Object.values(remoteControllers).map(controller => controller.close()))
           const failures = results.filter(result => result.status === 'rejected').map(result => result.reason as unknown)

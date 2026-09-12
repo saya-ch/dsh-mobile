@@ -5,6 +5,8 @@
  * this query, so a wider viewport never grows drawer chrome whose rules cannot
  * style it.
  */
+import { installTaskCompletionWatcher, type TaskNotifyKind } from './task-notify.js'
+
 export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
 /** Mobile feature and compatibility rules applied to DSH React surfaces. */
@@ -802,8 +804,26 @@ export function installNativeMobileSurface(): () => void {
   overlayQuery.addEventListener('change', schedule)
   backdrop.addEventListener('click', () => { if (sidebar?.dataset.open === 'true') toggle?.click() })
   sync()
+  const disposeTaskWatcher = installTaskCompletionWatcher({
+    // Current gateways announce exact root turn completion. The DOM watcher
+    // remains only for explicit pending-input cards, avoiding false completion
+    // reminders from unrelated page mutations.
+    completionFallback: false,
+    label: (kind: TaskNotifyKind, sessionLabel: string) => kind === 'done'
+      ? {
+          title: label('Attività completata', 'Task finished', '任务已完成'),
+          body: sessionLabel === ''
+            ? label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成')
+            : label(`Il tuo task DSH è terminato: ${sessionLabel}`, `Your DSH task finished: ${sessionLabel}`, `你的 DSH 任务已完成：${sessionLabel}`),
+        }
+      : {
+          title: label('È richiesto un input', 'Input needed', '需要你确认'),
+          body: label('DSH attende una tua scelta', 'DSH waits for your choice', 'DSH 等待你的选择'),
+        },
+  })
   return () => {
     disposed = true
+    disposeTaskWatcher()
     mediaRequestGeneration += 1
     mediaPickerAbortController.abort()
     restoreLanguageMarker()

@@ -863,6 +863,7 @@ export class MobileAccessGateway {
   private readonly mobileBootBatches = new Map<string, StoredMobileBootBatch>()
   private readonly extensionEventListeners = new Set<(revision: number) => void>()
   private extensionEventRevision = 0
+  private readonly taskEventListeners = new Set<(payload: string) => void>()
   private extensionChangeTimer: NodeJS.Timeout | undefined
   private extensionChangeTask: Promise<void> | undefined
   private legacyCustomDigest = ''
@@ -2058,6 +2059,13 @@ export class MobileAccessGateway {
     for (const listener of this.extensionEventListeners) listener(this.extensionEventRevision)
   }
 
+  /** Fan a completed task to every phone holding this gateway's event stream. */
+  broadcastTaskEvent(event: { readonly sessionId: string; readonly turn: number }): void {
+    if (this.closing) return
+    const payload = JSON.stringify({ sessionId: String(event.sessionId), turn: Number(event.turn) || 0 })
+    for (const listener of this.taskEventListeners) listener(payload)
+  }
+
   private pollLegacyCustomChanges(): Promise<void> {
     if (this.extensionChangeTask !== undefined) return this.extensionChangeTask
     const digestFile = async (path: string, fallback: string): Promise<string> => {
@@ -2097,6 +2105,7 @@ export class MobileAccessGateway {
       closed = true
       if (heartbeat !== undefined) clearInterval(heartbeat)
       this.extensionEventListeners.delete(send)
+      this.taskEventListeners.delete(sendTask)
       request.removeListener('aborted', close)
       response.removeListener('close', close)
       operation.release()
@@ -2104,6 +2113,10 @@ export class MobileAccessGateway {
     const send = (revision: number): void => {
       if (closed || response.destroyed || response.writableEnded) return
       response.write(`id: ${String(revision)}\nevent: extensions-changed\ndata: {\"revision\":${String(revision)}}\n\n`)
+    }
+    const sendTask = (payload: string): void => {
+      if (closed || response.destroyed || response.writableEnded) return
+      response.write(`event: task-notify\ndata: ${payload}\n\n`)
     }
     setSecurityHeaders(response, this.tlsEnabled)
     response.writeHead(200, {
@@ -2114,6 +2127,7 @@ export class MobileAccessGateway {
     })
     response.write('retry: 2000\n: ready\n\n')
     this.extensionEventListeners.add(send)
+    this.taskEventListeners.add(sendTask)
     heartbeat = setInterval(() => {
       if (!closed && !response.destroyed && !response.writableEnded) response.write(': heartbeat\n\n')
     }, EXTENSION_EVENT_HEARTBEAT_MS)

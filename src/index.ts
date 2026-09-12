@@ -119,4 +119,17 @@ export type {
   RemoteProviderState,
   RemoteProviderStatus,
 } from './remote.js'
+export {
+  TASK_EVENT_DEBOUNCE_MS,
+  TaskEventHub,
+  watchTaskCompletions,
+} from './task-events.js'
+export type {
+  TaskCompletionEvent,
+  TaskEventContext,
+  TaskEventSession,
+  TaskEventSink,
+  TaskEventWatcherOptions,
+  TaskTurnEvent,
+} from './task-events.js'
 export { apply, inject, name } from './plugin.js'

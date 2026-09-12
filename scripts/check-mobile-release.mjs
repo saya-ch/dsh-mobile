@@ -158,6 +158,9 @@ async function checkAndroid() {
   if (!manifest.includes('android.permission.CAMERA')) {
     fail('Android manifest must declare CAMERA for QR pairing')
   }
+  if (!manifest.includes('android.permission.POST_NOTIFICATIONS')) {
+    fail('Android manifest must declare POST_NOTIFICATIONS for task reminders')
+  }
   if (!qrDecoder.includes('MultiFormatReader') || !scanActivity.includes('QrDecoder.decodeNv21')) {
     fail('Android QR pairing must keep ZXing decoding wired to the scanner')
   }
@@ -167,6 +170,17 @@ async function checkAndroid() {
   }
   for (const marker of ['WebViewCompat.addWebMessageListener', 'setOf(origin.serialized)', 'MAX_MESSAGE_BYTES', 'MAX_PENDING', 'files.pick', 'camera.capture']) {
     if (!nativeBridge.includes(marker)) fail(`Android native bridge is missing ${marker}`)
+  }
+  for (const marker of ['notification.notify', 'NotificationChannel', 'notification_channel_tasks', 'ic_task_notification', 'VISIBILITY_PRIVATE']) {
+    if (!nativeBridge.includes(marker)) fail(`Android task reminders are missing ${marker}`)
+  }
+  for (const marker of ['POST_NOTIFICATIONS', 'TASK_NOTIFICATION_PERMISSION_REQUEST', 'ACTION_APP_NOTIFICATION_SETTINGS']) {
+    if (!mainActivity.includes(marker)) fail(`Android task-reminder permission UI is missing ${marker}`)
+  }
+  if (!nativeBridgePolicy.includes('TASK_NOTIFICATION_CHANNEL_ID')
+    || !nativeBridgePolicy.includes('sanitizeNotificationField')
+    || !nativeBridgePolicy.includes('sanitizeNotificationTag')) {
+    fail('Android task reminders must bound notification text through NativeBridgePolicy')
   }
   if (!nativeBridge.includes('NativeBridgePolicy.isTrustedMessage(origin, sourceOrigin.toString(), isMainFrame)')
     || !nativeBridgePolicy.includes('isMainFrame && GatewayOrigin.parse(sourceOrigin) == origin')) {

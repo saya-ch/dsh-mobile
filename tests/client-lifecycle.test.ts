@@ -373,6 +373,36 @@ describe('custom asset refresh lifecycle', () => {
     stop()
     expect(sources[3]?.close).toHaveBeenCalledTimes(1)
   })
+
+  it('delivers task notifications to the optional handler and ignores malformed frames', () => {
+    vi.useFakeTimers()
+    class FakeEventSource {
+      onopen: ((event: Event) => void) | null = null
+      onerror: ((event: Event) => void) | null = null
+      readonly listeners = new Map<string, EventListener>()
+      readonly close = vi.fn()
+      addEventListener(name: string, listener: EventListener): void { this.listeners.set(name, listener) }
+    }
+    const fakeWindow = new FakeWindow()
+    const sources: FakeEventSource[] = []
+    const changed = vi.fn()
+    const notified: unknown[] = []
+    const stop = startExtensionChangeStream(changed, {
+      window: fakeWindow,
+      create: () => { const source = new FakeEventSource(); sources.push(source); return source as unknown as EventSource },
+    }, payload => { notified.push(payload) })
+    const task = sources[0]?.listeners.get('task-notify')
+    expect(typeof task).toBe('function')
+    // The stream delivers frames verbatim; parsing and filtering belong to
+    // the caller (covered by parseTaskNotifyPayload tests).
+    task?.(({ data: '{"sessionId":"s-1","turn":2}' }) as unknown as Event)
+    task?.(({ data: 'not-json' }) as unknown as Event)
+    task?.(({ data: '{"sessionId":""}' }) as unknown as Event)
+    expect(notified).toEqual(['{"sessionId":"s-1","turn":2}', 'not-json', '{"sessionId":""}'])
+    expect(changed).not.toHaveBeenCalled()
+    stop()
+    vi.useRealTimers()
+  })
 })
 
 describe('extension request isolation', () => {

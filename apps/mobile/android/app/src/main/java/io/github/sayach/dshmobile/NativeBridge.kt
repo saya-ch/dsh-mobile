@@ -2,6 +2,9 @@ package io.github.sayach.dshmobile
 
 import android.Manifest
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -9,12 +12,15 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.WebView
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
@@ -393,6 +399,7 @@ internal class NativeBridge(
                 }
                 "clipboard.read" -> startClipboardRead(requestId)
                 "clipboard.write" -> startClipboardWrite(requestId, input.optString("text", ""))
+                "notification.notify" -> startTaskNotification(requestId, input)
                 else -> finishPending(requestId, errorJson("unsupported", "native capability is unavailable", requestId))
             }
         } catch (_: Exception) {
@@ -709,8 +716,74 @@ internal class NativeBridge(
         activity.startActivityForResult(chooser, CAMERA_REQUEST)
     }
 
-    private fun revokeCameraGrant(uri: Uri?) {
-        if (uri == null) return
+    /**
+     * Fire-and-forget task notification. Permission is deliberately granted
+     * from the visible toolbar menu; a background page never opens a runtime
+     * permission dialog over another app.
+     */
+    private fun startTaskNotification(requestId: String, input: JSONObject) {
+        val title = NativeBridgePolicy.sanitizeNotificationField(
+            input.optString("title", ""), NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS,
+        )
+        val body = NativeBridgePolicy.sanitizeNotificationField(
+            input.optString("body", ""), NativeBridgePolicy.TASK_NOTIFICATION_BODY_CHARS,
+        )
+        val tag = NativeBridgePolicy.sanitizeNotificationTag(input.optString("tag", ""))
+        if (title.isEmpty() && body.isEmpty()) {
+            finishPending(requestId, errorJson("bad_message", "notification text is empty", requestId))
+            return
+        }
+        if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) ||
+            !NotificationManagerCompat.from(activity).areNotificationsEnabled()
+        ) {
+            finishPending(requestId, errorJson("permission_required", "enable task notifications from the app menu", requestId))
+            return
+        }
+        activity.runOnUiThread {
+            try {
+                postTaskNotification(requestId, title, body, tag)
+            } catch (_: Exception) {
+                finishPending(requestId, errorJson("failed", "native operation failed", requestId))
+            }
+        }
+    }
+
+    private fun postTaskNotification(requestId: String, title: String, body: String, tag: String) {
+        val manager = activity.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: throw IllegalStateException("notification service is unavailable")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID,
+                    activity.getString(R.string.notification_channel_tasks),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply { description = activity.getString(R.string.notification_channel_tasks_description) },
+            )
+        }
+        val openApp = PendingIntent.getActivity(
+            activity,
+            NativeBridgePolicy.TASK_NOTIFICATION_ID,
+            Intent(activity, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val shownTitle = title.ifEmpty { body }
+        val shownBody = if (title.isEmpty() || body.isEmpty()) "" else body
+        val notification = NotificationCompat.Builder(activity, NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_task_notification)
+            .setContentTitle(shownTitle)
+            .setContentText(if (shownBody.isEmpty()) null else shownBody)
+            .setContentIntent(openApp)
+            .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .build()
+        manager.notify(tag, NativeBridgePolicy.TASK_NOTIFICATION_ID, notification)
+        finishPending(requestId, successJson(requestId, JSONObject().put("ok", true)))
+    }
+
+    private fun revokeCameraGrant(uri: Uri?) {        if (uri == null) return
         runCatching {
             activity.revokeUriPermission(
                 uri,
@@ -941,7 +1014,7 @@ internal class NativeBridge(
           bridge.onmessage = handleReply;
           window.__DSH_MOBILE_NATIVE_STATE__ = { pending };
           window.__DSH_MOBILE_NATIVE__ = {
-            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write']),
+            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write','notification.notify']),
             invoke: (action, input = {}) => new Promise((resolve, reject) => {
               const requestId = crypto.randomUUID();
               let raw;

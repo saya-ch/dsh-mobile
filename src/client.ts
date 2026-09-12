@@ -6,7 +6,8 @@ import {
   type MobileControlLocale,
 } from './client-messages.js'
 import { createRestrictedFrpServerTemplate } from './frp-template.js'
-import { installNativeMobileSurface, NATIVE_MOBILE_STYLES } from './native-mobile.js'
+import { installNativeMobileSurface, NATIVE_MOBILE_STYLES, resolveNativeMobileLanguage } from './native-mobile.js'
+import { fireTaskNotifyEvent, parseTaskNotifyPayload, taskCompletionTag } from './task-notify.js'
 
 export { DIAGNOSTIC_REASON_MESSAGES, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
@@ -515,7 +516,11 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const remoteLogin = element('button', 'dsh-mobile-control__primary'); remoteLogin.type = 'button'; remoteLogin.textContent = t('continueLogin'); remoteLogin.hidden = true
   const remoteReconnect = element('button', 'dsh-mobile-control__secondary'); remoteReconnect.type = 'button'; remoteReconnect.textContent = t('reconnect'); remoteReconnect.hidden = true
   const remotePair = element('button', 'dsh-mobile-control__secondary'); remotePair.type = 'button'; remotePair.textContent = t('generateRemoteQr'); remotePair.disabled = true
-  remoteActions.append(remoteToggle, remoteLogin, remoteReconnect, remotePair)
+  const remoteCopyLink = element('button', 'dsh-mobile-control__secondary'); remoteCopyLink.type = 'button'; remoteCopyLink.textContent = t('copyRemoteLink'); remoteCopyLink.disabled = true
+  const remotePairLink = element('p', 'dsh-mobile-control__status'); remotePairLink.hidden = true
+  let activeRemotePairUrl = ''
+  let activeRemotePairExpiresAt = 0
+  remoteActions.append(remoteToggle, remoteLogin, remoteReconnect, remotePair, remoteCopyLink)
   const remoteManageRow = element('div', 'dsh-mobile-control__manage-row')
   const remoteDevices = element('button', 'dsh-mobile-control__manage'); remoteDevices.type = 'button'; remoteDevices.textContent = t('manageRemoteDevices'); remoteDevices.disabled = true
   const remoteReset = element('button', 'dsh-mobile-control__manage'); remoteReset.type = 'button'; remoteReset.textContent = t('resetRemoteLogin')
@@ -661,7 +666,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     saveWsPaths([...wsPathsCurrent, value])
   })
   const remoteWorkspace = element('section', 'dsh-mobile-control__remote-workspace')
-  remoteWorkspace.append(providerSetupHeader, remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteActions, remoteQr, remoteManageRow, remoteDevicePanel)
+  remoteWorkspace.append(providerSetupHeader, remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteActions, remoteQr, remotePairLink, remoteManageRow, remoteDevicePanel)
   const diagnosticsView = element('div', 'dsh-mobile-control__view is-diagnostics'); diagnosticsView.hidden = true
   const diagnosticsIntro = element('p', 'dsh-mobile-control__intro'); diagnosticsIntro.textContent = t('diagnosticsIntro')
   const diagnosticsSummary = element('section', 'dsh-mobile-control__diagnostic-summary is-idle'); diagnosticsSummary.setAttribute('aria-live', 'polite')
@@ -1059,8 +1064,14 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       || !providerPrepared
     remoteActions.hidden = !providerPrepared
     remotePair.disabled = !remoteReady
+    remoteCopyLink.disabled = !remoteReady
     remoteDevices.disabled = !remoteReady
-    if (!remoteReady) remoteQr.hidden = true
+    if (!remoteReady) {
+      remoteQr.hidden = true
+      remotePairLink.hidden = true
+      activeRemotePairUrl = ''
+      activeRemotePairExpiresAt = 0
+    }
     if (!needsFunnelSetup) remoteSetupPending = false
   }
   let remoteLoadInFlight = false
@@ -1464,16 +1475,42 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   }
   window.addEventListener('focus', retryAfterSetup)
   document.addEventListener('visibilitychange', retryAfterSetup)
+  const copyRemotePairUrl = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(activeRemotePairUrl)
+      remoteStatus.textContent = t('linkCopied')
+    } catch {
+      remoteStatus.textContent = t('remoteQrReady')
+    }
+  }
+  const openRemotePairing = (): Promise<void> => controlRequestJson('/api/mobile-access/remote/pairing/open', { method: 'POST', body: '{}' }).then(async data => {
+    const pairUrl = typeof data.pairUrl === 'string' ? data.pairUrl : ''
+    const expiresAt = typeof data.expiresAt === 'number' && Number.isFinite(data.expiresAt) ? data.expiresAt : 0
+    showQr(typeof data.qrSvg === 'string' ? data.qrSvg : '', remoteQr)
+    if (pairUrl === '') { remoteStatus.textContent = t('keyGenerationFailed'); return }
+    // QR and copy actions share the same one-time pairing window. Re-copying
+    // cannot invalidate a QR that the phone may already be scanning.
+    activeRemotePairUrl = pairUrl
+    activeRemotePairExpiresAt = expiresAt
+    remotePairLink.textContent = pairUrl
+    remotePairLink.classList.add('is-key')
+    remotePairLink.hidden = false
+    await copyRemotePairUrl()
+  })
   remotePair.addEventListener('click', () => {
     remotePair.disabled = true
-    void controlRequestJson('/api/mobile-access/remote/pairing/open', { method: 'POST', body: '{}' }).then(async data => {
-      const pairUrl = typeof data.pairUrl === 'string' ? data.pairUrl : ''
-      showQr(typeof data.qrSvg === 'string' ? data.qrSvg : '', remoteQr)
-      if (pairUrl !== '') {
-        try { await navigator.clipboard.writeText(pairUrl) } catch { /* QR remains the primary remote handoff. */ }
-      }
-      remoteStatus.textContent = t('remoteQrReady')
-    }, error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) }).finally(() => { remotePair.disabled = !remoteReady })
+    void openRemotePairing()
+      .catch(error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) })
+      .finally(() => { remotePair.disabled = !remoteReady })
+  })
+  remoteCopyLink.addEventListener('click', () => {
+    remoteCopyLink.disabled = true
+    const operation = activeRemotePairUrl !== '' && activeRemotePairExpiresAt > Date.now()
+      ? copyRemotePairUrl()
+      : openRemotePairing()
+    void operation
+      .catch(error => { remoteStatus.textContent = t('requestFailed', { error: String(error) }) })
+      .finally(() => { remoteCopyLink.disabled = !remoteReady })
   })
   const renderRemoteDevices = (data: Record<string, unknown>): void => {
     const devices = Array.isArray(data.devices) ? data.devices as Record<string, unknown>[] : []
@@ -2081,6 +2118,7 @@ export function startExtensionChangeStream(
     window,
     create: url => new EventSource(url, { withCredentials: true }),
   },
+  onTaskEvent?: (payload: unknown) => void,
 ): () => void {
   let source: ReturnType<ExtensionEventRuntime['create']> | undefined
   let timer: number | undefined
@@ -2098,6 +2136,12 @@ export function startExtensionChangeStream(
     source = next
     next.onopen = () => { retryMs = 1_000 }
     next.addEventListener('extensions-changed', changed)
+    if (onTaskEvent !== undefined) {
+      next.addEventListener('task-notify', (message: Event) => {
+        const data = (message as MessageEvent).data
+        onTaskEvent(data)
+      })
+    }
     next.onerror = () => {
       if (source !== next) return
       next.close()
@@ -2667,7 +2711,30 @@ function installCustomAssets(): () => void {
   const stopRefresh = startLifecycleRefreshScheduler(async signal => {
     await refreshExtensions(signal)
   })
-  const stopEvents = startExtensionChangeStream(() => { stopRefresh.refresh() })
+  const stopEvents = startExtensionChangeStream(
+    () => { stopRefresh.refresh() },
+    undefined,
+    payload => {
+      // Host-pushed task completion: exact, no guessing. Each completed turn
+      // keeps its own notification, and generic text avoids attributing a
+      // background task to whichever session happens to be open on the phone.
+      if (document.hidden !== true) return
+      const parsed = parseTaskNotifyPayload(payload)
+      if (parsed === undefined) return
+      const language = resolveNativeMobileLanguage(
+        document.documentElement.lang,
+        navigator.languages.length > 0 ? [...navigator.languages] : [navigator.language],
+      )
+      const label = (italian: string, english: string, chinese: string): string =>
+        language === 'it' ? italian : language === 'zh' ? chinese : english
+      fireTaskNotifyEvent({
+        kind: 'done',
+        title: label('Attività completata', 'Task finished', '任务已完成'),
+        body: label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成'),
+        tag: taskCompletionTag(parsed.sessionId, parsed.turn),
+      })
+    },
+  )
   return () => { disposed = true; stopEvents(); stopRefresh(); started = false; legacyDispose?.(); legacyDispose = undefined; legacyRoot?.remove(); legacyRoot = undefined; legacyStyle.remove(); activations.dispose(); for (const node of styleNodes.values()) node.remove(); styleNodes.clear(); const layer = document.querySelector('[data-dsh-mobile-extension-layer]'); layer?.remove(); for (const host of document.querySelectorAll('[data-dsh-mobile-surface-host]')) host.remove(); if (previous === undefined) delete window.dshMobile; else window.dshMobile = previous }
 }
 

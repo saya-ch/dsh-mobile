@@ -77,6 +77,8 @@ describe('native mobile presentation', () => {
     expect(source).toContain('drawerScrimVisible(collapsed, overlayQuery.matches)')
     expect(source).toContain('overlayQuery.addEventListener("change", schedule)')
     expect(source).toContain('overlayQuery.removeEventListener("change", schedule)')
+    expect(source).toContain('disposed = true')
+    expect(source).toContain('completionFallback: false')
   })
 
   it('stacks narrow settings and conversation metadata instead of squeezing text', () => {

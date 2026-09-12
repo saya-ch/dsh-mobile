@@ -277,8 +277,46 @@ describe('gateway extension namespace', () => {
     expect(JSON.parse(customized.body)).not.toMatchObject({ legacy: JSON.parse(manifest.body).legacy })
   })
 
-  it('pushes credential-free extension changes and closes the stream when its device is revoked', async () => {
+  it('pushes task completions without user content over the same event stream', async () => {
     const upstream = createServer((_, response) => { response.writeHead(200); response.end('ok') })
+    const upstreamPort = await listen(upstream)
+    cleanups.push(async () => { upstream.closeAllConnections(); await new Promise<void>(resolve => upstream.close(() => resolve())) })
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-task-events-'))
+    cleanups.push(() => rm(directory, { recursive: true, force: true }))
+    const context = new Context(); cleanups.push(() => context.fiber.dispose())
+    const service = new MobileAccessService(context)
+    const config = parseGatewayConfig({
+      listenHost: '127.0.0.1', listenPort: 38088,
+      upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`,
+      publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'],
+      stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' },
+    })
+    const gateway = new MobileAccessGateway(config, new MemoryDeviceStore(), service)
+    await gateway.start(); cleanups.push(() => gateway.close())
+    const origin = gateway.address().origin
+    const opened = await gateway.access.openPairing()
+    const paired = await request(gateway.address().port, '/mobile-access/auth/pair', {
+      method: 'POST',
+      headers: { host: new URL(origin).host, origin, 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' },
+      body: JSON.stringify({ token: opened.token }),
+    })
+    const pairedBody = JSON.parse(paired.body) as { csrfToken: string; deviceId: string }
+    const session = cookie(paired.headers, SESSION_COOKIE)
+    const stream = await openEventStream(gateway.address().port, {
+      host: new URL(origin).host, origin, 'sec-fetch-site': 'same-origin', cookie: session,
+      accept: 'text/event-stream',
+    })
+    cleanups.push(async () => { stream.close() })
+    await stream.waitFor(': ready')
+    gateway.broadcastTaskEvent({ sessionId: 'session-9', turn: 4 })
+    const eventBody = await stream.waitFor('event: task-notify')
+    expect(eventBody).toContain('data: {"sessionId":"session-9","turn":4}')
+    expect(eventBody).not.toContain(opened.token)
+    expect(eventBody).not.toContain(pairedBody.csrfToken)
+    expect(eventBody).not.toContain(session)
+  })
+
+  it('pushes credential-free extension changes and closes the stream when its device is revoked', async () => {    const upstream = createServer((_, response) => { response.writeHead(200); response.end('ok') })
     const upstreamPort = await listen(upstream)
     cleanups.push(async () => { upstream.closeAllConnections(); await new Promise<void>(resolve => upstream.close(() => resolve())) })
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-extension-events-'))

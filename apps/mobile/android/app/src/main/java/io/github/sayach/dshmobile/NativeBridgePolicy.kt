@@ -154,4 +154,27 @@ internal object NativeBridgePolicy {
         val modified = file.lastModified()
         return modified > 0L && modified <= nowMillis - maxAgeMillis
     }
+
+    // Stable task-notification identifiers shared by the bridge and the release checker.
+    const val TASK_NOTIFICATION_CHANNEL_ID = "dsh_task_completion"
+    const val TASK_NOTIFICATION_ID = 7101
+    const val TASK_NOTIFICATION_TITLE_CHARS = 80
+    const val TASK_NOTIFICATION_BODY_CHARS = 200
+    const val TASK_NOTIFICATION_TAG_CHARS = 64
+
+    /** Bound page-supplied notification text: trimmed, single-line, control-free. */
+    fun sanitizeNotificationField(value: String, maxChars: Int): String {
+        val singleLine = value.replace(Regex("[\\r\\n]+"), " ")
+        val printable = singleLine.filter { !it.isISOControl() }
+        return printable.trim().take(maxChars)
+    }
+
+    /** Bound notification tag to lowercase slugs; unusable input falls back to a constant. */
+    fun sanitizeNotificationTag(value: String): String {
+        val slug = value.lowercase()
+            .replace(Regex("[^a-z0-9-]+"), "-")
+            .trim('-')
+            .take(TASK_NOTIFICATION_TAG_CHARS)
+        return slug.ifEmpty { "dsh-task" }
+    }
 }
