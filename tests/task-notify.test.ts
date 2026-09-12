@@ -91,8 +91,7 @@ describe('task completion tracker', () => {
     // Still busy: no completion while the run holds the composer.
     expect(tracker.evaluate(hiddenSnapshot({ composerBusy: true }))).toBeUndefined()
     tracker.markActivity()
-    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
-    advance(TASK_NOTIFY_QUIET_MS)
+    // Busy since the first observation: long enough to announce at once.
     expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
   })
 
@@ -108,6 +107,34 @@ describe('task completion tracker', () => {
     advance(6_000)
     expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
     expect(tracker.pendingAnchorDelayMs()).toBeUndefined()
+  })
+
+  it('announces a long run the moment it ends', () => {
+    const { tracker, advance } = trackerAt()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
+    advance(25_000)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
+    // Already announced: stays silent without new activity.
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+  })
+
+  it('holds a short run for the grace period instead of announcing at once', () => {
+    const { tracker, advance } = trackerAt()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
+    advance(5_000)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+    advance(9_999)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))).toBeUndefined()
+    advance(1)
+    expect(tracker.evaluate(hiddenSnapshot({ composerBusy: false }))?.kind).toBe('done')
+  })
+
+  it('prefers the waiting question over an ending run', () => {
+    const { tracker, advance } = trackerAt()
+    tracker.evaluate(hiddenSnapshot({ composerBusy: true }))
+    advance(25_000)
+    const event = tracker.evaluate(hiddenSnapshot({ composerBusy: false, pendingQuestion: true, questionKey: 'q-x' }))
+    expect(event?.kind).toBe('question')
   })
 
   it('announces completion right after the grace period without waiting out quiet', () => {    const { tracker, advance } = trackerAt()

@@ -18,6 +18,13 @@ export const TASK_NOTIFY_QUIET_MS = 90_000
  */
 export const TASK_NOTIFY_GRACE_MS = 10_000
 
+/**
+ * Minimum continuous busy time for an instant announcement. A run that held
+ * the composer this long is no flicker: announce at once instead of waiting
+ * out the grace period.
+ */
+export const TASK_NOTIFY_MIN_BUSY_MS = 20_000
+
 /** Maximum quiet period worth waiting through before giving up on a run. */
 export const TASK_NOTIFY_STALE_MS = 30 * 60_000
 
@@ -60,6 +67,7 @@ export interface TaskNotifyEvent {
 export interface TaskNotifyOptions {
   readonly quietMs?: number
   readonly graceMs?: number
+  readonly minBusyMs?: number
   readonly now?: () => number
   readonly format: (kind: TaskNotifyKind, sessionLabel: string) => { title: string; body: string }
 }
@@ -75,16 +83,19 @@ export class TaskNotifyTracker {
   private lastActivityAt: number | undefined
   private notifiedDoneAt: number | undefined
   private wasBusy = false
+  private busySince: number | undefined
   private idleAnchoredAt: number | undefined
   private readonly seenQuestionKeys = new Set<string>()
   private readonly quietMs: number
   private readonly graceMs: number
+  private readonly minBusyMs: number
   private readonly now: () => number
   private readonly format: (kind: TaskNotifyKind, sessionLabel: string) => { title: string; body: string }
 
   constructor(options: TaskNotifyOptions) {
     this.quietMs = options.quietMs ?? TASK_NOTIFY_QUIET_MS
     this.graceMs = options.graceMs ?? TASK_NOTIFY_GRACE_MS
+    this.minBusyMs = options.minBusyMs ?? TASK_NOTIFY_MIN_BUSY_MS
     this.now = options.now ?? Date.now
     this.format = options.format
   }
@@ -108,9 +119,18 @@ export class TaskNotifyTracker {
 
   evaluate(snapshot: TaskNotifySnapshot): TaskNotifyEvent | undefined {
     const now = this.now()
+    if (!this.wasBusy && snapshot.composerBusy) this.busySince = now
     if (this.wasBusy && !snapshot.composerBusy) {
-      // The run just ended: watching users have seen it, hidden users start
-      // the grace clock for a near-immediate announcement.
+      // The run just ended. A run that held the composer long enough is no
+      // flicker: announce at once when hidden, unless a question card (which
+      // has its own immediate path below) is already waiting.
+      const busyFor = this.busySince === undefined ? 0 : now - this.busySince
+      this.busySince = undefined
+      if (snapshot.pageHidden && !snapshot.pendingQuestion && busyFor >= this.minBusyMs) {
+        this.idleAnchoredAt = undefined
+        this.notifiedDoneAt = now
+        return this.event('done', snapshot.sessionLabel, undefined)
+      }
       this.idleAnchoredAt = snapshot.pageHidden ? now : undefined
       if (!snapshot.pageHidden) this.notifiedDoneAt = now
     }
