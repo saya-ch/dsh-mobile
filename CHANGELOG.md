@@ -3,12 +3,17 @@
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
 
-## Unreleased
+## 0.3.16 - 2026-09-12
 
 - Provide legacy dsh-web community pane markers and a collapsed-rail marker on the dedicated layout so DOM-mounting plugins such as `@linxin666/dsh-client-ui-task-board` can inject their sidebar entry and panel (thanks @idoall for PR #67).
 - Preserve native rightbar track/fullscreen requests while shrinking or overlaying the panel whenever docking would leave less than 400 px for the conversation. The dedicated layout no longer consumes the retired Better Sidebar width variable (thanks @idoall for PR #66).
 - Follow the active DSH WebServer port for LAN and remote proxy authentication, including managed and legacy setup files that saved an older 3080 upstream. The independently configurable Mobile HTTPS listener remains unchanged (thanks @CharlesLueng for #68).
 - Limit the full-width question and plan-review adaptations to screens at most 600 px wide so desktop remote browsers retain DSH's native card width (thanks @idoall for #64).
+
+### Contributors
+
+- @idoall contributed PRs #66 and #67 and reported #64: responsive rightbar docking, legacy dsh-web community pane compatibility, and the question-card reproduction.
+- @CharlesLueng reported #68 and identified the custom DSH Web port path that still targeted the saved default upstream.
 
 ## 0.3.15 - 2026-09-11
 
