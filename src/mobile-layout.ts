@@ -274,7 +274,7 @@ class ThemePresenter {
 export const MOBILE_LAYOUT_STYLES = `
 html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-shell{position:relative;display:grid;width:100%;height:100dvh;min-width:0;overflow:hidden;background:var(--dsw-alias-bg-base,#fff)}
-.dshm-main{grid-area:1/1;min-width:0;min-height:0;overflow:hidden}
+.dshm-main{grid-area:1/1;position:relative;min-width:0;min-height:0;overflow:hidden}
 /* Better Sidebar publishes its live fixed-panel width on the root. Reserve
    space only in the conversation cell: the composer and DSH header controls
    reflow left, while the plugin's own top-right control cluster stays on its
@@ -460,7 +460,16 @@ function MobileAppFrame(props: MobileRootProps & {
     'data-rightbar-docked': rightbarDocked,
     style: { '--dshm-rightbar-width': `${rightbarWidth}px` },
   },
-    createElement('main', { className: 'dshm-main', 'data-dsh-mobile-session': activeSessionId },
+    createElement('main', {
+      className: 'dshm-main',
+      'data-dsh-mobile-session': activeSessionId,
+      // Stock AppFrame names these columns `sidebar` / `conversation`. Third-party
+      // plugins such as `@linxin666/dsh-client-ui-task-board` scrape those pane
+      // attributes (or `*sidebarCol` / `*centerCol` class tokens) to inject a
+      // sidebar row and take over the center column. The dedicated remote layout
+      // must keep the same public anchors or those plugins mount nowhere.
+      'data-pane': 'conversation',
+    },
       props.renderSlot('main', {}, {
         entryKey: state.panelInfo.activePanelId ?? 'conversation',
         fallback: props.renderSlot('conversation', {}),
@@ -482,11 +491,16 @@ function MobileAppFrame(props: MobileRootProps & {
     createElement('aside', {
       'aria-label': messages.workspaceNavigation,
       className: 'dshm-drawer',
+      'data-pane': 'sidebar',
       'data-open': state.sidebarOpen,
       // The phone adapter promotes the whale toggle to a fixed high layer.
       // Remove that entire navigation surface while the right modal owns focus.
       'data-right-modal': state.detailsOpen && !rightbarDocked,
       ...(state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}),
+      // Task-board (and ssh) collapse their injected row when an ancestor carries
+      // this attribute; the stock frame sets it on the rail. Mirror it here so
+      // the 56px dedicated rail still shows an icon-only entry.
+      ...(state.sidebarOpen ? {} : { 'data-sidebar-collapsed': '' }),
       onClickCapture: closeDrawerAfterSessionAction,
     }, props.renderSlot('sidebar', {
       collapsed: !state.sidebarOpen,
