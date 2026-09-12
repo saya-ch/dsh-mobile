@@ -55,6 +55,8 @@ interface ThemeSnapshot {
 interface LayoutSnapshot {
   readonly sidebarOpen: boolean
   readonly detailsOpen: boolean
+  readonly rightbarTrack: boolean
+  readonly rightbarFullscreen: boolean
   readonly panelInfo: PanelInfoSnapshot
 }
 
@@ -133,6 +135,8 @@ class MobileLayoutController {
   private snapshot: LayoutSnapshot = Object.freeze({
     sidebarOpen: viewportIsWide(),
     detailsOpen: false,
+    rightbarTrack: false,
+    rightbarFullscreen: false,
     panelInfo: Object.freeze({ activePanelId: null }),
   })
   private readonly listeners = new Set<() => void>()
@@ -157,7 +161,7 @@ class MobileLayoutController {
   }
 
   closeDetails(): void {
-    this.update({ detailsOpen: false })
+    this.update({ detailsOpen: false, rightbarTrack: false, rightbarFullscreen: false })
   }
 
   closeSidebar(): void {
@@ -191,13 +195,9 @@ class MobileLayoutController {
     }
   }
 
-  /**
-   * Show the right panel. The official controller tracks a persistent column
-   * here; this layout always renders the panel as the details overlay, so both
-   * the track and fullscreen requests open the same drawer.
-   */
-  openRightbar(_track?: boolean, _fullscreen?: boolean): void {
-    this.openDetails()
+  /** Preserve the native seat's distinction between a docked track and fullscreen. */
+  openRightbar(track = true, fullscreen = false): void {
+    this.update({ detailsOpen: true, rightbarTrack: track, rightbarFullscreen: fullscreen })
   }
 
   /** Hide the right panel. */
@@ -232,6 +232,8 @@ class MobileLayoutController {
     if (
       snapshot.sidebarOpen === this.snapshot.sidebarOpen
       && snapshot.detailsOpen === this.snapshot.detailsOpen
+      && snapshot.rightbarTrack === this.snapshot.rightbarTrack
+      && snapshot.rightbarFullscreen === this.snapshot.rightbarFullscreen
       && snapshot.panelInfo === this.snapshot.panelInfo
     ) return
     this.snapshot = snapshot
@@ -273,6 +275,16 @@ export const MOBILE_LAYOUT_STYLES = `
 html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-shell{position:relative;display:grid;width:100%;height:100dvh;min-width:0;overflow:hidden;background:var(--dsw-alias-bg-base,#fff)}
 .dshm-main{grid-area:1/1;position:relative;min-width:0;min-height:0;overflow:hidden}
+/* Better Sidebar publishes its live fixed-panel width on the root. Reserve
+   space only in the conversation cell: the composer and DSH header controls
+   reflow left, while the plugin's own top-right control cluster stays on its
+   official viewport-relative geometry. */
+.dshm-main{margin-right:var(--dsh-sidebar-width,0px);transition:margin-right var(--ds-transition-duration-slow,190ms) var(--ds-ease-in-out,ease)}
+.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:calc(var(--dshm-rightbar-width) + var(--dsh-sidebar-width,0px))}
+.dshm-shell[data-rightbar-docked=true] .dshm-details{position:absolute;width:var(--dshm-rightbar-width);box-shadow:none;padding-top:0}
+/* Draw above the native absolute panel without consuming its width or
+   intercepting controls; only docked mode needs this column separator. */
+.dshm-shell[data-rightbar-docked=true] .dshm-details::after{content:"";position:absolute;inset:0 auto 0 0;width:.5px;background:var(--dsw-alias-border-l4);z-index:11;pointer-events:none}
 .dshm-main>*,.dshm-main>*>*{min-width:0}
 .dshm-drawer{position:fixed;z-index:70;inset:0 auto 0 0;box-sizing:border-box;width:56px;max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background:var(--dsw-alias-bg-layer-1,#f8fafc);box-shadow:none;will-change:width;transition:width 240ms cubic-bezier(.22,1,.36,1),box-shadow 240ms ease}
 .dshm-drawer[data-open=true]{width:min(88vw,340px);box-shadow:18px 0 46px rgb(15 23 42 / 18%)}
@@ -280,6 +292,8 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-drawer>*{width:100%!important;height:100%!important;transform:translateX(-6px);opacity:.94;transition:transform 220ms cubic-bezier(.22,1,.36,1),opacity 160ms ease-out}
 .dshm-drawer[data-open=true]>*{transform:translateX(0);opacity:1}
 .dshm-drawer[data-open=false]>*{width:56px!important}
+/* display:none also suppresses fixed descendants installed by the phone adapter. */
+.dshm-drawer[data-right-modal=true]{display:none!important}
 .dshm-details{position:fixed;z-index:80;inset:0 0 0 auto;box-sizing:border-box;width:min(94vw,460px);max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:-18px 0 46px rgb(15 23 42 / 18%);transform:translateX(104%);transition:transform 190ms cubic-bezier(.22,1,.36,1)}
 .dshm-details[data-open=true]{transform:translateX(0)}
 .dshm-details[data-open=false]{pointer-events:none;visibility:hidden;transition:transform 190ms cubic-bezier(.22,1,.36,1),visibility 0s linear 190ms}
@@ -319,7 +333,10 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-drawer[data-open=true]{width:340px;box-shadow:none}
 .dshm-drawer[data-open=false]{width:56px}
 }
-@media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*{transition:none!important}}
+/* Better Sidebar already exposes this drag-state contract. Do not animate the
+   mobile conversation edge while its panel width is being resized. */
+body[data-dsh-sidebar-dragging] .dshm-main{transition:none}
+@media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}}
 `
 
 function MobileAppFrame(props: MobileRootProps & {
@@ -329,11 +346,19 @@ function MobileAppFrame(props: MobileRootProps & {
   const state = useSyncExternalStore(props.controller.subscribe, props.controller.getSnapshot)
   const suppressKeyboardUntil = useRef(0)
   const [wideViewport, setWideViewport] = useState(viewportIsWide)
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
+  useEffect(() => {
+    const resize = (): void => { setViewportWidth(window.innerWidth) }
+    window.addEventListener('resize', resize)
+    return () => { window.removeEventListener('resize', resize) }
+  }, [])
+  const rightbarWidth = Math.min(viewportWidth * 0.45, 460)
+  const rightbarDocked = viewportWidth >= 768 && state.detailsOpen && state.rightbarTrack && !state.rightbarFullscreen
   const [documentLanguage, setDocumentLanguage] = useState(document.documentElement.lang)
   const browserLanguages = navigator.languages.length > 0 ? navigator.languages : [navigator.language]
   const language = resolveMobileLayoutLanguage(documentLanguage, browserLanguages)
   const messages = MOBILE_LAYOUT_MESSAGES[language]
-  const scrimOpen = isMobileScrimOpen(state.sidebarOpen, state.detailsOpen, wideViewport)
+  const scrimOpen = isMobileScrimOpen(state.sidebarOpen, state.detailsOpen && !rightbarDocked, wideViewport)
   const activeSessionId = props.useSessions(session => {
     const current = session.current
     return current !== undefined && session.byId[current]?.blank === false ? current : undefined
@@ -430,7 +455,11 @@ function MobileAppFrame(props: MobileRootProps & {
     }, 0)
   }
 
-  return createElement('div', { className: 'dshm-shell', lang: language },
+  return createElement('div', {
+    className: 'dshm-shell', lang: language,
+    'data-rightbar-docked': rightbarDocked,
+    style: { '--dshm-rightbar-width': `${rightbarWidth}px` },
+  },
     createElement('main', {
       className: 'dshm-main',
       'data-dsh-mobile-session': activeSessionId,
@@ -464,6 +493,10 @@ function MobileAppFrame(props: MobileRootProps & {
       className: 'dshm-drawer',
       'data-pane': 'sidebar',
       'data-open': state.sidebarOpen,
+      // The phone adapter promotes the whale toggle to a fixed high layer.
+      // Remove that entire navigation surface while the right modal owns focus.
+      'data-right-modal': state.detailsOpen && !rightbarDocked,
+      ...(state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}),
       // Task-board (and ssh) collapse their injected row when an ancestor carries
       // this attribute; the stock frame sets it on the rail. Mirror it here so
       // the 56px dedicated rail still shows an icon-only entry.
@@ -484,8 +517,8 @@ function MobileAppFrame(props: MobileRootProps & {
       // occupant must stay mounted even while no Session is selected.
       hasSession ? props.renderSlot('details', {}) : undefined,
       props.renderSlot('rightbar', {
-        width: Math.min(window.innerWidth * 0.94, 460),
-        viewportWidth: window.innerWidth,
+        width: viewportWidth >= 768 ? rightbarWidth : Math.min(viewportWidth * 0.94, 460),
+        viewportWidth,
         // The official frame reports whether a persistent column still fits
         // (normal.rightbar > 0); this layout renders the right panel in the
         // details overlay, which needs no column space. Reporting false would

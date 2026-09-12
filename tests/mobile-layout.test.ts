@@ -415,6 +415,25 @@ describe('dedicated mobile layout boot', () => {
     expect(isSidebarRightControl({ toggleExpanded: () => {} })).toBe(false)
   })
 
+  it('reserves only the conversation cell for Better Sidebar panels', () => {
+    // Preserve Better Sidebar's official viewport-relative toggle cluster:
+    // only the DSH-Mobile content cell consumes its width variable.
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-main{margin-right:var(--dsh-sidebar-width,0px)')
+    expect(MOBILE_LAYOUT_STYLES).toContain('body[data-dsh-sidebar-dragging] .dshm-main{transition:none}')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('.dshm-shell{margin-right:var(--dsh-sidebar-width,0px)')
+  })
+
+  it('draws a theme-aware docked separator without changing geometry or hit targets', () => {
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-details::after{content:"";position:absolute;inset:0 auto 0 0;width:.5px;background:var(--dsw-alias-border-l4);z-index:11;pointer-events:none}')
+  })
+
+  it('suppresses the fixed whale toggle only while the right modal is open', () => {
+    const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    expect(source).toContain("'data-right-modal': state.detailsOpen && !rightbarDocked")
+    expect(source).toContain("state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}")
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer[data-right-modal=true]{display:none!important}')
+  })
+
   it('keeps the narrow overlay drawer CSS untouched while docking the wide sidebar', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer{position:fixed')
     expect(MOBILE_LAYOUT_STYLES).toContain('@media(min-width:900px)')
@@ -429,7 +448,7 @@ describe('dedicated mobile layout boot', () => {
     expect(source).toContain('sidebarOpen: viewportIsWide()')
     expect(source).toContain('sharedController ??= new MobileLayoutController()')
     expect(source).toContain('if (viewportIsWide()) return')
-    expect(source).toContain('isMobileScrimOpen(state.sidebarOpen, state.detailsOpen, wideViewport)')
+    expect(source).toContain('isMobileScrimOpen(state.sidebarOpen, state.detailsOpen && !rightbarDocked, wideViewport)')
     expect(source).toContain("'aria-hidden': !scrimOpen")
     expect(source).toContain('tabIndex: scrimOpen ? 0 : -1')
   })
