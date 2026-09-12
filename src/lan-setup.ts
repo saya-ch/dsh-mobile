@@ -99,7 +99,7 @@ export async function prepareManagedLanSetup(options: ManagedLanSetupOptions): P
   const androidCertificate = join(tlsDirectory, 'dsh-mobile-ca.cer')
   await writeFile(androidCertificate, ca.raw, { mode: 0o600 })
   await Promise.all([
-    ...Object.values(managedTls).filter(value => value !== 'managed').map(restrictPrivateFile),
+    ...Object.values(managedTls).filter(value => value !== 'managed').map(file => restrictPrivateFile(file)),
     restrictPrivateFile(androidCertificate),
   ])
   if (options.configureFirewall) await configureWindowsFirewall(options.listenPort)

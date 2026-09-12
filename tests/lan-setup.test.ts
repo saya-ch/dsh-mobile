@@ -1,5 +1,5 @@
 import { X509Certificate } from 'node:crypto'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -41,6 +41,11 @@ describe('managed LAN setup', () => {
     expect(server.ca).toBe(false)
     expect(server.verify(ca.publicKey)).toBe(true)
     expect(await readFile(result.androidCertificate)).toEqual(ca.raw)
+    if (process.platform !== 'win32') {
+      for (const file of [...Object.values(result.setup.tls).filter(value => value !== 'managed'), result.androidCertificate, setupFile, controlFile]) {
+        expect((await stat(file)).mode & 0o777).toBe(0o600)
+      }
+    }
   })
 
   it('rejects relative state paths and invalid listener ports before writing setup', async () => {
