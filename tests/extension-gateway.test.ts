@@ -108,7 +108,7 @@ describe('gateway extension namespace', () => {
         { method: 'GET', path: 'bad-content-control', handle: async () => ({ contentType: 'text/plain\u0000', body: 'invalid' }) },
       ],
     })
-    const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 38082, upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`, publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'], stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' } })
+    const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 0, upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`, publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'], stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' } })
     const gateway = new MobileAccessGateway(config, new MemoryDeviceStore(), service)
     await gateway.start(); cleanups.push(() => gateway.close())
     const opened = await gateway.access.openPairing()
@@ -147,7 +147,7 @@ describe('gateway extension namespace', () => {
     await service.startLocal(extensionRoot, context); cleanups.push(() => service.stopLocal())
     const first = service.manifest()[0]?.generation as string
 
-    const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 38087, upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`, publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'], stateFile: join(state, 'devices.json'), tls: { mode: 'disabled' } })
+    const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 0, upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`, publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'], stateFile: join(state, 'devices.json'), tls: { mode: 'disabled' } })
     const gateway = new MobileAccessGateway(config, new MemoryDeviceStore(), service)
     await gateway.start(); cleanups.push(() => gateway.close())
     const origin = gateway.address().origin
@@ -189,7 +189,7 @@ describe('gateway extension namespace', () => {
       routes: [{ method: 'POST', path: 'echo', handle: async request => ({ contentType: 'application/octet-stream', body: request.body }) }],
     })
     const config = parseGatewayConfig({
-      listenHost: '127.0.0.1', listenPort: 38085,
+      listenHost: '127.0.0.1', listenPort: 0,
       upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`,
       publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'],
       stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' },
@@ -253,7 +253,7 @@ describe('gateway extension namespace', () => {
     const context = new Context(); cleanups.push(() => context.fiber.dispose())
     const service = new MobileAccessService(context)
     service.registerExtension({ schemaVersion: 1, id: 'hello', name: 'Hello', version: '1.0.0' })
-    const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 38084, upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`, publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'], stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' } })
+    const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 0, upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`, publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'], stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' } })
     const gateway = new MobileAccessGateway(config, new MemoryDeviceStore(), service)
     await gateway.start(); cleanups.push(() => gateway.close())
     const opened = await gateway.access.openPairing()
@@ -286,7 +286,7 @@ describe('gateway extension namespace', () => {
     const context = new Context(); cleanups.push(() => context.fiber.dispose())
     const service = new MobileAccessService(context)
     const config = parseGatewayConfig({
-      listenHost: '127.0.0.1', listenPort: 38086,
+      listenHost: '127.0.0.1', listenPort: 0,
       upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`,
       publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'],
       stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' },

@@ -90,7 +90,7 @@ async function mount(
     },
   } as never)
   await context.plugin({ Config, inject, apply }, {
-    listenPort: 38083,
+    listenPort: 0,
     stateFile: join(directory, 'devices.json'),
     controlFile: join(directory, 'control.json'),
     customCssFile: join(directory, 'mobile.css'),
