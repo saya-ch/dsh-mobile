@@ -22,6 +22,7 @@ export interface ManagedSetup {
   readonly version: 2
   readonly networkInterface: string
   readonly listenPort: number
+  /** Legacy setup snapshot retained for file compatibility; the active WebServer port wins at runtime. */
   readonly upstreamOrigin: string
   readonly tls: {
     readonly mode: 'managed'
@@ -308,7 +309,6 @@ export async function materializeManagedSetup(
   return {
     publicOrigin: `https://${network.address}:${String(setup.listenPort)}`,
     listenHost: network.address,
-    upstreamOrigin: setup.upstreamOrigin,
     allowedCidrs: [network.cidr],
     instanceId: ca.fingerprint256.replaceAll(':', '').toLowerCase(),
     pairingCaFile: setup.tls.caCertFile,

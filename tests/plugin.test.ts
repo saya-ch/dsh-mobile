@@ -2,12 +2,13 @@ import { Context } from '@deepseek-ai/cordis'
 import type { WebRoute, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import type { CommandDefinition } from '@deepseek-ai/dsh-commands'
 import { createServer, request as requestHttp } from 'node:http'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { generate } from 'selfsigned'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Config, parseGatewayConfig } from '../src/config.js'
+import { Config, parseGatewayConfig, type PluginConfig } from '../src/config.js'
 import { parseCidr, RequestTrustPolicy } from '../src/network.js'
 import { apply, inject, remoteGatewayConfig, settleCleanupSteps, upstreamAuthenticatedUrl } from '../src/plugin.js'
 import { DSH_MOBILE_VERSION, MINIMUM_ANDROID_APP_VERSION } from '../src/version.js'
@@ -57,7 +58,11 @@ async function invoke(route: WebRoute, method: 'GET' | 'POST', path: string, bod
   }
 }
 
-async function mount(initiallyEnabled = false, webServerPort = 3080): Promise<{ context: Context; route: WebRoute; command: CommandDefinition; upstreamBase: string | undefined }> {
+async function mount(
+  initiallyEnabled = false,
+  webServerPort = 3080,
+  config: Partial<PluginConfig> = {},
+): Promise<{ context: Context; route: WebRoute; command: CommandDefinition; upstreamBase: string | undefined }> {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-plugin-'))
   temporaryDirectories.push(directory)
   let route: WebRoute | undefined
@@ -92,10 +97,39 @@ async function mount(initiallyEnabled = false, webServerPort = 3080): Promise<{ 
     customScriptFile: join(directory, 'mobile.js'),
     initiallyEnabled,
     tls: { mode: 'disabled' },
+    ...config,
   })
   if (route === undefined) throw new Error('plugin did not register its control route')
   if (command === undefined) throw new Error('plugin did not register its /mobile command')
   return { context, route, command, upstreamBase }
+}
+
+async function managedSetupFile(upstreamOrigin: string): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-managed-plugin-'))
+  temporaryDirectories.push(directory)
+  const generated = await generate([{ name: 'commonName', value: 'DSH Mobile test CA' }], {
+    keyType: 'ec',
+    curve: 'P-256',
+    algorithm: 'sha256',
+    extensions: [{ name: 'basicConstraints', cA: true, critical: true }],
+  })
+  const caCertFile = join(directory, 'ca.pem')
+  await writeFile(caCertFile, generated.cert)
+  const setupFile = join(directory, 'setup.json')
+  await writeFile(setupFile, JSON.stringify({
+    version: 2,
+    networkInterface: 'unused-while-disabled',
+    listenPort: 3443,
+    upstreamOrigin,
+    tls: {
+      mode: 'managed',
+      caCertFile,
+      caKeyFile: join(directory, 'ca-key.pem'),
+      certFile: join(directory, 'server.pem'),
+      keyFile: join(directory, 'server-key.pem'),
+    },
+  }))
+  return setupFile
 }
 
 describe('upstream browser authentication', () => {
@@ -258,6 +292,21 @@ describe('stock DSH lifecycle', () => {
 
   it('follows the active WebServer port when no setup upstream is configured', async () => {
     const mounted = await mount(false, 43120)
+    expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
+  })
+
+  it('follows the active WebServer port instead of a managed setup snapshot', async () => {
+    const setupFile = await managedSetupFile('http://127.0.0.1:3080')
+    const mounted = await mount(false, 43120, { setupFile })
+    expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
+  })
+
+  it('ignores a legacy setup upstream snapshot when DSH selects another port', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-legacy-plugin-'))
+    temporaryDirectories.push(directory)
+    const setupFile = join(directory, 'setup.json')
+    await writeFile(setupFile, JSON.stringify({ version: 1, upstreamOrigin: 'http://127.0.0.1:3080' }))
+    const mounted = await mount(false, 43120, { setupFile })
     expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
   })
 
