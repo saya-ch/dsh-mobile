@@ -168,7 +168,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "~18.3.1",
     "core-js": "^3.50.0",
-    "js-yaml": "^4.3.2",
+    "js-yaml": "^5.4.2",
     "playwright": "1.63.0",
     "react": "^18.2.0",
     "tsdown": "^0.22.14",
