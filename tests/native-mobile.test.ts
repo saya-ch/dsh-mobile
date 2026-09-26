@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { applyNativeMobileLanguageMarker, bindComposerSoftEnter, createHeaderStripPanController, dispatchComposerImageDrop, drawerScrimVisible, installNativeMobileSurface, isComposerMediaOriginCurrent, isSoftKeyboardEnterLineBreak, markNativeMobileSettings, measureHeaderStripOverflow, NATIVE_MOBILE_OVERLAY_QUERY, NATIVE_MOBILE_STYLES, preflightComposerImageDrop, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier } from '../src/native-mobile.js'
+import { applyNativeMobileLanguageMarker, bindComposerSoftEnter, createHeaderStripPanController, dispatchComposerImageDrop, drawerScrimVisible, headerPanAvailable, installNativeMobileSurface, isComposerMediaOriginCurrent, isSoftKeyboardEnterLineBreak, markNativeMobileSettings, measureHeaderStripOverflow, NATIVE_MOBILE_OVERLAY_QUERY, NATIVE_MOBILE_STYLES, preflightComposerImageDrop, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier } from '../src/native-mobile.js'
 
 interface FakeElementOptions {
   readonly children?: readonly HTMLElement[]
@@ -420,6 +420,21 @@ function headerPanHarness(initialRange = 220) {
 }
 
 describe('header strip pan', () => {
+  it('does not toggle the pan button when its own column changes row width', () => {
+    const row = (width: number, right: number) => ({
+      clientWidth: width,
+      children: [{ getBoundingClientRect: () => ({ right }) }],
+      querySelector: () => null,
+      getBoundingClientRect: () => ({ left: 50 }),
+    }) as unknown as HTMLElement
+    // These are the two layouts observed in the Android WebView during the
+    // reported oscillation: both have the same 10px overflow.
+    expect(headerPanAvailable(row(294, 354), true)).toBe(true)
+    expect(headerPanAvailable(row(246, 306), true)).toBe(true)
+    expect(headerPanAvailable(row(294, 344), true)).toBe(false)
+    expect(headerPanAvailable(row(294, 354), false)).toBe(false)
+  })
+
   it('does not let an open Jobs menu invent horizontal overflow', () => {
     const box = (right: number) => ({ getBoundingClientRect: () => ({ right }) }) as unknown as Element
     const row = {
@@ -532,7 +547,7 @@ describe('header strip pan', () => {
     expect(source).not.toContain('onStripPointerCancel')
     expect(source).not.toContain('onStripPointerMove')
     expect(source).toContain('document.addEventListener("focusin", onStripFocus, true)')
-    expect(source).toContain('overlayQuery.matches && naturalRange > 1')
+    expect(source).toContain('headerPanAvailable(parts?.row, overlayQuery.matches)')
     expect(source.indexOf('document.addEventListener("click", onStripClickCapture, true)')).toBeLessThan(source.indexOf('document.addEventListener("click", onBranchClick, true)'))
   })
 })

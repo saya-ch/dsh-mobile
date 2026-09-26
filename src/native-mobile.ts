@@ -260,6 +260,11 @@ export function measureHeaderStripOverflow(row: HTMLElement): number {
   return Math.max(0, right - left - row.clientWidth)
 }
 
+/** Base the pan affordance on actual overflow, independent of its current visibility. */
+export function headerPanAvailable(row: HTMLElement | undefined, mobile: boolean): boolean {
+  return mobile && row !== undefined && measureHeaderStripOverflow(row) > 1
+}
+
 /** Touch-only pan state; browser pointer cancellation does not interrupt the touch stream. */
 export function createHeaderStripPanController(options: {
   readonly range: () => number
@@ -834,8 +839,9 @@ export function installNativeMobileSurface(): () => void {
     if (header === undefined) { panButton.remove(); pan.sync(); return }
     if (panButton.parentElement !== header) header.append(panButton)
     const parts = stripParts()
-    const naturalRange = parts === undefined ? 0 : measureHeaderStripOverflow(parts.row) - (panButton.hidden ? 0 : 48)
-    const available = overlayQuery.matches && naturalRange > 1
+    // The row width already reflects the button's grid column. Subtracting its
+    // width here makes a small overflow toggle the button on every layout pass.
+    const available = headerPanAvailable(parts?.row, overlayQuery.matches)
     if (panButton.hidden === available) panButton.hidden = !available
     if (header.dataset.dshMobilePanAvailable !== String(available)) header.dataset.dshMobilePanAvailable = String(available)
     pan.sync()
