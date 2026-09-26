@@ -17,6 +17,7 @@ export type DiagnosticReason =
   | 'firewall-ready' | 'firewall-missing' | 'firewall-unknown'
   | 'remote-off' | 'remote-ready' | 'remote-origin-ready' | 'remote-rate-limited' | 'remote-fake-ip' | 'remote-unreachable'
   | 'remote-needs-login' | 'remote-connecting' | 'remote-controller-error'
+  | 'competing-remote-channel'
   | 'phone-network-unknown'
 
 export interface DiagnosticFacts {
@@ -43,6 +44,8 @@ export interface DiagnosticCheck {
 /** Runtime facts available without exposing credentials or local file paths. */
 export interface DiagnosticSnapshot {
   readonly dshVersion: string
+  /** Another plugin injects a remote transport before the DSH client boots. */
+  readonly competingRemoteChannelBoot?: boolean
   readonly lan: {
     readonly configured?: boolean
     readonly running: boolean
@@ -91,6 +94,11 @@ export interface ConnectionDiagnostics {
   readonly summary: string
   readonly checks: readonly DiagnosticCheck[]
   readonly report: string
+}
+
+/** Recognize the active remote-web-ui boot hook without evaluating or modifying it. */
+export function hasCompetingRemoteChannelBoot(rows: readonly { readonly kind: string; readonly text?: string }[]): boolean {
+  return rows.some(row => row.kind === 'script' && row.text?.includes('__DSH_REMOTE_CHANNEL_BOOT__') === true)
 }
 
 const REMOTE_ERROR_GUIDANCE: Readonly<Record<string, string>> = Object.freeze({
@@ -505,6 +513,14 @@ export async function collectConnectionDiagnostics(
     '版本兼容',
     `插件 ${DSH_MOBILE_VERSION}，DSH ${snapshot.dshVersion}，Android App 最低 ${MINIMUM_ANDROID_APP_VERSION}。`,
   ))
+
+  if (snapshot.competingRemoteChannelBoot === true) {
+    checks.push(check(
+      'remote-plugin-conflict', 'warning', 'competing-remote-channel', '第三方远程插件',
+      '检测到另一套远程请求通道脚本；手机页面可能进入该插件自己的配对流程。',
+      '在电脑端关闭 dsh-remote-web-ui 的远程访问后刷新，再使用 DSH Mobile 当前二维码配对；不要混用两种配对码。',
+    ))
+  }
 
   if (snapshot.lan.configured === false) {
     checks.push(check('network', 'error', 'lan-setup-required', '局域网配置', '尚未完成局域网初始化。', '返回局域网页选择网卡并完成配置。'))

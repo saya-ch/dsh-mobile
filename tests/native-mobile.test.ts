@@ -61,7 +61,7 @@ describe('native mobile presentation', () => {
     // button in normal flow at the document's bottom-left, whose click still
     // collapsed the sidebar.
     const [neutral] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
-    expect(neutral).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast,[data-dsh-mobile-header-pan] { display:none; }')
+    expect(neutral).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop { display:block; position:fixed; z-index:235;')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:block; position:fixed;')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop[hidden] { display:none; }')
@@ -423,6 +423,12 @@ function headerPanHarness(initialRange = 220) {
 }
 
 describe('header strip pan', () => {
+  it('does not reserve a button column that squeezes the header actions', () => {
+    expect(NATIVE_MOBILE_STYLES).not.toContain('data-dsh-mobile-pan-available')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('data-dsh-mobile-header-pan')
+    expect(installNativeMobileSurface.toString()).not.toContain('dshMobileHeaderPan')
+  })
+
   it('does not let an open Jobs menu invent horizontal overflow', () => {
     const box = (right: number) => ({ getBoundingClientRect: () => ({ right }) }) as unknown as Element
     const row = {
@@ -495,15 +501,12 @@ describe('header strip pan', () => {
     expect(pan.suppressClick(true, 1)).toBe(false)
   })
 
-  it('re-clamps after header changes and offers tap/keyboard routes to off-screen controls', () => {
+  it('re-clamps after header changes and reveals keyboard-focused off-screen controls', () => {
     const { pan, rendered, setRange } = headerPanHarness()
-    pan.advance(200)
-    expect(rendered()).toBe(140)
     pan.reveal(300, 340, 40, 260)
-    expect(rendered()).toBe(220)
-    pan.advance(200)
-    expect(rendered()).toBe(0)
-    pan.advance(200)
+    expect(rendered()).toBe(80)
+    pan.reveal(10, 50, 40, 260)
+    expect(rendered()).toBe(50)
     setRange(20)
     pan.sync()
     expect(rendered()).toBe(20)
@@ -523,11 +526,10 @@ describe('header strip pan', () => {
     expect(rendered()).toBe(0)
   })
 
-  it('keeps touch-action scoped to the actual phone header and exposes a 48px control', () => {
+  it('keeps touch-action scoped to the actual phone header and leaves menus unclipped', () => {
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-header] :is([class*="_titleRow"],[class*="_headerLeading"]) { touch-action:pan-y; }')
     expect(NATIVE_MOBILE_STYLES).not.toContain('.dshm-shell header { touch-action: pan-y; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast,[data-dsh-mobile-header-pan] { display:none; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-header-pan] { box-sizing:border-box; grid-column:3; grid-row:1; display:flex; align-items:center; justify-content:center; width:48px; height:48px;')
+    expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-header] [class*="_headerActions"] { flex:none; min-width:max-content; overflow:visible; }')
     expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-header] [class*="_headerActions"] { max-width:42vw; }')
     const source = installNativeMobileSurface.toString()
@@ -535,7 +537,6 @@ describe('header strip pan', () => {
     expect(source).not.toContain('onStripPointerCancel')
     expect(source).not.toContain('onStripPointerMove')
     expect(source).toContain('document.addEventListener("focusin", onStripFocus, true)')
-    expect(source).toContain('overlayQuery.matches && naturalRange > 1')
     expect(source.indexOf('document.addEventListener("click", onStripClickCapture, true)')).toBeLessThan(source.indexOf('document.addEventListener("click", onBranchClick, true)'))
   })
 })

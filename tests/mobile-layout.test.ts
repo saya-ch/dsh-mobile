@@ -12,6 +12,7 @@ import {
   closeDetailsFromScrim,
   isComposerOwnedFocus,
   isMobileScrimOpen,
+  isSessionRowNavigation,
   isSidebarRightControl,
   isWideViewportLayout,
   resolveComposerImePolicy,
@@ -1165,8 +1166,27 @@ describe('composer soft-keyboard policy', () => {
     expect(source).toContain("editor.removeAttribute('inputmode')")
   })
 
-  it('never blurs the composer from a suppression window', () => {
+  it('only suppresses composer autofocus while changing Sessions on a touch device', () => {
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
-    expect(source).toContain('if (!editable || isComposerOwnedFocus(target)) return')
+    expect(source).toContain('if (performance.now() < suppressComposerUntil.current) target.blur()')
+    expect(source).toContain('isSessionRowNavigation(event.target) && window.matchMedia(TOUCH_PRIMARY_QUERY).matches')
+    expect(source).toContain("editor.setAttribute('inputmode', 'none')")
+    expect(source).toContain('if (document.activeElement === editor) editor.blur()')
+    expect(source).toContain('suppressComposerUntil.current = 0')
+    expect(source).toContain('restoreNavigationIme()')
+    expect(source).toContain('if (viewportIsWide()) return')
+    expect(source.indexOf('isSessionRowNavigation(event.target)')).toBeLessThan(source.indexOf('if (viewportIsWide()) return', source.indexOf('const closeDrawerAfterSessionAction')))
+  })
+
+  it('recognizes another Session row without treating the current row or its menu as navigation', () => {
+    const target = (selected: boolean, menu: boolean): Element => {
+      const row = { getAttribute: () => String(selected) }
+      const action = menu ? {} : null
+      return { closest: (selector: string) => selector.startsWith('[role="treeitem"]') ? row : action } as unknown as Element
+    }
+    expect(isSessionRowNavigation(target(false, false))).toBe(true)
+    expect(isSessionRowNavigation(target(true, false))).toBe(false)
+    expect(isSessionRowNavigation(target(false, true))).toBe(false)
+    expect(isSessionRowNavigation(null)).toBe(false)
   })
 })

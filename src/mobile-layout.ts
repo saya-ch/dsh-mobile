@@ -165,6 +165,19 @@ export function isComposerOwnedFocus(target: Element | null): boolean {
 }
 
 /**
+ * Whether a click opens a different Session, rather than its menu or current row.
+ * @param target - the click target in the workspace sidebar.
+ * @returns whether the Session selection can change.
+ */
+export function isSessionRowNavigation(target: Element | null): boolean {
+  if (target === null) return false
+  const row = target.closest('[role="treeitem"][aria-selected]')
+  if (row === null || row.getAttribute('aria-selected') === 'true') return false
+  const action = target.closest('button,[role="button"]')
+  return action === null || action === row
+}
+
+/**
  * Decide how one pointer event changes the composer's soft keyboard.
  *
  * The Add button's own mousedown calls `keepDraftFocus`, which focuses the draft
@@ -435,6 +448,16 @@ function MobileAppFrame(props: MobileRootProps & {
 }): ReactNode {
   const state = useSyncExternalStore(props.controller.subscribe, props.controller.getSnapshot)
   const suppressKeyboardUntil = useRef(0)
+  const suppressComposerUntil = useRef(0)
+  const navigationIme = useRef(new Map<HTMLElement, string | null>())
+  const restoreNavigationIme = (): void => {
+    for (const [editor, previous] of navigationIme.current) {
+      if (editor.getAttribute('inputmode') !== 'none') continue
+      if (previous === null) editor.removeAttribute('inputmode')
+      else editor.setAttribute('inputmode', previous)
+    }
+    navigationIme.current.clear()
+  }
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
   useEffect(() => {
     let frame: number | undefined
@@ -496,13 +519,15 @@ function MobileAppFrame(props: MobileRootProps & {
     const elementTarget = (target: EventTarget | null): Element | null =>
       target instanceof Element ? target : null
     const suppressAutofocus = (event: FocusEvent): void => {
-      if (performance.now() >= suppressKeyboardUntil.current) return
       const target = elementTarget(event.target)
       if (target === null) return
       const editable = target instanceof HTMLElement && (target.matches('input,textarea') || target.isContentEditable)
-      // The composer is the field the user actually reached, so a suppression
-      // window must not blur it out from under them.
-      if (!editable || isComposerOwnedFocus(target)) return
+      if (!editable) return
+      if (isComposerOwnedFocus(target)) {
+        if (performance.now() < suppressComposerUntil.current) target.blur()
+        return
+      }
+      if (performance.now() >= suppressKeyboardUntil.current) return
       target.blur()
     }
     const suppressBranchAutofocus = (event: MouseEvent): void => {
@@ -520,8 +545,16 @@ function MobileAppFrame(props: MobileRootProps & {
     // IME leaves the focus, the caret, and the draft exactly as stock left them;
     // any other tap restores the keyboard.
     const applyComposerImePolicy = (event: PointerEvent): void => {
+      const target = elementTarget(event.target)
+      // A deliberate tap in the composer ends the navigation-only suppression
+      // before focus can reach the editor. The Add trigger then reclaims its
+      // existing inputmode="none" policy below.
+      if (isComposerOwnedFocus(target)) {
+        suppressComposerUntil.current = 0
+        restoreNavigationIme()
+      }
       const policy = resolveComposerImePolicy(
-        elementTarget(event.target),
+        target,
         window.matchMedia(TOUCH_PRIMARY_QUERY).matches,
       )
       if (policy === 'ignore') return
@@ -539,6 +572,7 @@ function MobileAppFrame(props: MobileRootProps & {
       document.removeEventListener('focusin', suppressAutofocus, true)
       document.removeEventListener('click', suppressBranchAutofocus, true)
       document.removeEventListener('pointerdown', applyComposerImePolicy, true)
+      restoreNavigationIme()
       // A withheld editor outliving the surface would strand the composer without
       // a keyboard for the rest of the session.
       for (const editor of document.querySelectorAll<HTMLElement>(`${COMPOSER_CARD_SELECTOR} [inputmode="none"]`)) {
@@ -547,11 +581,25 @@ function MobileAppFrame(props: MobileRootProps & {
     }
   }, [])
 
-  // A persistent wide sidebar stays put: selecting a session only dismisses
-  // the narrow overlay drawer (and its soft-keyboard suppression).
+  // Session navigation on touch withholds upstream composer autofocus; only a
+  // narrow overlay drawer closes after the row's own click handler completes.
   const closeDrawerAfterSessionAction = (event: { readonly target: EventTarget | null }): void => {
-    if (viewportIsWide()) return
     if (!(event.target instanceof Element)) return
+    if (isSessionRowNavigation(event.target) && window.matchMedia(TOUCH_PRIMARY_QUERY).matches) {
+      const deadline = performance.now() + 500
+      suppressComposerUntil.current = deadline
+      for (const editor of document.querySelectorAll<HTMLElement>(COMPOSER_EDITOR_SELECTOR)) {
+        if (!navigationIme.current.has(editor)) navigationIme.current.set(editor, editor.getAttribute('inputmode'))
+        editor.setAttribute('inputmode', 'none')
+        if (document.activeElement === editor) editor.blur()
+      }
+      window.setTimeout(() => {
+        if (suppressComposerUntil.current !== deadline) return
+        suppressComposerUntil.current = 0
+        restoreNavigationIme()
+      }, 500)
+    }
+    if (viewportIsWide()) return
     const row = event.target.closest<HTMLElement>('[role="treeitem"][aria-selected]')
     const action = event.target.closest('button,[role="button"]')
     const startsSession = action?.matches('button[class*="_newSession"],button[class*="_brand"]')

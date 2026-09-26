@@ -21,6 +21,7 @@ const contexts: Context[] = []
 const temporaryDirectories: string[] = []
 
 afterEach(async () => {
+  vi.unstubAllGlobals()
   await Promise.all(contexts.splice(0).map(context => context.fiber.dispose()))
   await Promise.all(temporaryDirectories.splice(0).map(directory => rm(directory, { recursive: true, force: true })))
 })
@@ -80,6 +81,7 @@ async function mount(
   webServerPort = 3080,
   config: Partial<PluginConfig> = {},
   requestRejection: (request: IncomingMessage) => 401 | 403 | undefined = () => 401,
+  indexInjections: readonly { kind: string; text?: string }[] = [],
 ): Promise<{ context: Context; route: WebRoute; command: CommandDefinition; upstreamBase: string | undefined; directory: string }> {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-plugin-'))
   temporaryDirectories.push(directory)
@@ -90,6 +92,7 @@ async function mount(
   contexts.push(context)
   context.provide('webServer', {
     port: webServerPort,
+    collectIndexInjections: () => indexInjections,
     register(candidate: WebRoute) {
       route = candidate
       return () => { if (route === candidate) route = undefined }
@@ -394,9 +397,31 @@ describe('stock DSH lifecycle', () => {
     })
   })
 
+  it('returns a cpolar download-stage error instead of a generic 500', async () => {
+    const mounted = await mount()
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')))
+    const failed = await invoke(
+      mounted.route, 'POST', '/api/mobile-access/remote/cpolar/component/install',
+      JSON.stringify({ confirm: true }),
+    )
+    expect(failed.status).toBe(409)
+    expect(JSON.parse(failed.body)).toEqual({ error: 'cpolar_download_failed' })
+  })
+
   it('follows the active WebServer port when no setup upstream is configured', async () => {
     const mounted = await mount(false, 43120)
     expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
+  })
+
+  it('reports a live third-party remote boot conflict through the desktop diagnostic route', async () => {
+    const mounted = await mount(false, 3080, {}, undefined, [
+      { kind: 'script', text: '(function(){w["__DSH_REMOTE_CHANNEL_BOOT__"]=seat})();' },
+    ])
+    const response = await invoke(mounted.route, 'GET', '/api/mobile-access/diagnostics')
+    expect(response.status).toBe(200)
+    expect(JSON.parse(response.body)).toMatchObject({
+      checks: expect.arrayContaining([expect.objectContaining({ reason: 'competing-remote-channel', status: 'warning' })]),
+    })
   })
 
   it('allows a private LAN Host on the loopback desktop admin route', async () => {
@@ -423,6 +448,24 @@ describe('stock DSH lifecycle', () => {
     expect(allowed.status).toBe(200)
     expect(JSON.parse(allowed.body)).toMatchObject({ provider: 'cpolar' })
     expect(requestRejection).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    '/api/mobile-access/lan/pairing/open',
+    '/api/mobile-access/pairing/open',
+  ])('keeps authenticated official Desktop writes trusted through %s', async path => {
+    const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
+    const mounted = await mount(true, 3080, {}, requestRejection)
+    const invalidBody = JSON.stringify({ ttlMs: 'not a duration' })
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER }
+
+    const unmarked = await invoke(mounted.route, 'POST', path, invalidBody, '127.0.0.1', { cookie: 'dsh-session=valid' })
+    expect(unmarked.status).toBe(403)
+    const unauthenticated = await invoke(mounted.route, 'POST', path, invalidBody, '127.0.0.1', { ...marker, cookie: 'dsh-session=invalid' })
+    expect(unauthenticated.status).toBe(403)
+    const allowed = await invoke(mounted.route, 'POST', path, invalidBody, '127.0.0.1', { ...marker, cookie: 'dsh-session=valid' })
+    expect(allowed.status).toBe(400)
+    expect(JSON.parse(allowed.body)).toEqual({ error: 'bad_request' })
   })
 
   it('rejects DNS-rebinding and public Host values on the desktop admin route', async () => {

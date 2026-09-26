@@ -40,6 +40,31 @@ Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
 })
 
 Object.assign(MOBILE_CONTROL_MESSAGES.en, {
+  cpolarDownloadFailed: 'Could not download cpolar from its official site. Check this computer’s network or proxy, then retry.',
+  cpolarDownloadTimeout: 'The cpolar download timed out. Check this computer’s network or proxy, then retry.',
+  cpolarDownloadHttp: 'The official cpolar download returned HTTP {status}. Retry later or check the official download page.',
+  cpolarIntegrityFailed: 'The cpolar download did not match the pinned build, so it was not installed. Retry later or update DSH Mobile; do not bypass verification.',
+  cpolarExtractFailed: 'The cpolar download completed, but extraction failed. Check system extraction tools and security software, then retry.',
+  cpolarStorageFailed: 'Could not write the cpolar component in DSH Mobile’s private directory. Check disk space, permissions, and security software, then retry.',
+})
+Object.assign(MOBILE_CONTROL_MESSAGES.it, {
+  cpolarDownloadFailed: 'Impossibile scaricare cpolar dal sito ufficiale. Controlla rete o proxy del computer e riprova.',
+  cpolarDownloadTimeout: 'Download di cpolar scaduto. Controlla rete o proxy del computer e riprova.',
+  cpolarDownloadHttp: 'Il download ufficiale di cpolar ha restituito HTTP {status}. Riprova più tardi o controlla la pagina ufficiale.',
+  cpolarIntegrityFailed: 'Il pacchetto cpolar non corrisponde alla versione verificata e non è stato installato. Riprova più tardi o aggiorna DSH Mobile; non aggirare la verifica.',
+  cpolarExtractFailed: 'Download di cpolar completato, ma estrazione non riuscita. Controlla gli strumenti di estrazione e il software di sicurezza, poi riprova.',
+  cpolarStorageFailed: 'Impossibile scrivere cpolar nella directory privata di DSH Mobile. Controlla spazio, permessi e software di sicurezza, poi riprova.',
+})
+Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
+  cpolarDownloadFailed: '无法从 cpolar 官网下载组件。请检查这台电脑的网络或代理，然后重试。',
+  cpolarDownloadTimeout: '下载 cpolar 组件超时。请检查这台电脑的网络或代理，然后重试。',
+  cpolarDownloadHttp: 'cpolar 官网下载返回 HTTP {status}。请稍后重试，或检查官网下载页。',
+  cpolarIntegrityFailed: '下载的 cpolar 组件未通过固定版本校验，因此没有安装。请稍后重试或更新 DSH Mobile，不要跳过校验。',
+  cpolarExtractFailed: 'cpolar 下载完成，但解包失败。请检查系统解压组件和安全软件，然后重试。',
+  cpolarStorageFailed: '无法把 cpolar 写入 DSH Mobile 私有目录。请检查磁盘空间、目录权限和安全软件，然后重试。',
+})
+
+Object.assign(MOBILE_CONTROL_MESSAGES.en, {
   lanSetupTitle: 'Finish local network setup', lanSetupIntro: 'Choose the network shared by this computer and your phone. DSH Mobile creates private certificates only after you confirm.', lanSetupNetwork: 'Computer network', lanSetupChooseNetwork: 'Choose a network', lanSetupRecommended: 'Recommended', lanSetupNoNetworks: 'No private Wi-Fi or Ethernet address was found. Connect this computer to the local network, then scan again.', lanSetupRefresh: 'Scan again', lanSetupFirewallNote: 'Windows may request administrator approval for two inbound rules limited to the local subnet.', lanSetupConfigure: 'Configure local network', lanSetupConfiguring: 'Creating private certificates and local network rules…', lanSetupRequired: 'Local network setup has not been completed. Choose a network above to continue.', lanSetupRestart: 'Setup complete for {origin}. Restart DSH once to start local network access.', lanSetupFailed: 'Setup was not completed. Confirm the network selection and approve the Windows prompt, then try again.',
 })
 Object.assign(MOBILE_CONTROL_MESSAGES.it, {
@@ -536,6 +561,7 @@ export const DIAGNOSTIC_REASON_MESSAGES = {
     'remote-needs-login': ['Tailscale is waiting for login to finish.', 'Return to Remote access and continue login.'],
     'remote-connecting': ['The {provider} remote channel is still connecting.', 'Wait briefly, then check again.'],
     'remote-controller-error': ['The {provider} controller reported {controllerCode}.', 'Return to Remote access and reconnect.'],
+    'competing-remote-channel': ['Another remote plugin is injecting its own request channel; the phone may show that plugin’s pairing screen.', 'Turn off dsh-remote-web-ui remote access on the computer, refresh, and pair using the current DSH Mobile QR code. Do not mix pairing codes.'],
     'phone-network-unknown': ['The computer cannot determine whether the router isolates the phone.', 'Confirm the phone and computer use the same network, then disable guest-network or AP isolation.'],
   },
   it: {
@@ -560,6 +586,7 @@ export const DIAGNOSTIC_REASON_MESSAGES = {
     'remote-needs-login': ['Tailscale attende il completamento dell’accesso.', 'Torna ad Accesso remoto e continua l’accesso.'],
     'remote-connecting': ['Il canale remoto {provider} è ancora in connessione.', 'Attendi qualche istante e ripeti il controllo.'],
     'remote-controller-error': ['Il controller {provider} ha segnalato {controllerCode}.', 'Torna ad Accesso remoto e riconnettiti.'],
+    'competing-remote-channel': ['Un altro plugin remoto sta inserendo il proprio canale di richieste; sul telefono potrebbe apparire la sua schermata di abbinamento.', 'Disattiva l’accesso remoto di dsh-remote-web-ui sul computer, aggiorna la pagina e usa il codice QR corrente di DSH Mobile. Non mescolare i codici.'],
     'phone-network-unknown': ['Il computer non può stabilire se il router isola il telefono.', 'Verifica che telefono e computer usino la stessa rete, poi disattiva rete ospiti o isolamento AP.'],
   },
   zh: {
@@ -584,6 +611,7 @@ export const DIAGNOSTIC_REASON_MESSAGES = {
     'remote-needs-login': ['Tailscale 正在等待完成登录。', '返回远程访问并继续登录。'],
     'remote-connecting': ['{provider} 远程通道仍在连接。', '等待片刻后重新检查。'],
     'remote-controller-error': ['{provider} 控制器报告 {controllerCode}。', '返回远程访问并重新连接。'],
+    'competing-remote-channel': ['检测到另一个远程插件注入自己的请求通道；手机可能显示它的配对页面。', '在电脑端关闭 dsh-remote-web-ui 的远程访问并刷新，再用 DSH Mobile 当前二维码配对；不要混用配对码。'],
     'phone-network-unknown': ['电脑无法判断路由器是否隔离了手机。', '确认手机与电脑使用同一网络，并关闭访客网络或 AP 隔离。'],
   },
 } as const

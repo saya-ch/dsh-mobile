@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   collectConnectionDiagnostics,
   configuredProxyFor,
+  hasCompetingRemoteChannelBoot,
   probeRemoteHealth,
   remoteDiagnosticTimeoutMs,
   type DiagnosticSnapshot,
@@ -25,6 +26,25 @@ const healthy: DiagnosticSnapshot = {
 }
 
 describe('connection diagnostics', () => {
+  it('recognizes only an active third-party remote boot script row', () => {
+    expect(hasCompetingRemoteChannelBoot([{ kind: 'script', text: '(function(){w["__DSH_REMOTE_CHANNEL_BOOT__"]=seat})();' }])).toBe(true)
+    const externalScript = [{ kind: 'script-src', src: '/plugins/remote.js' }]
+    expect(hasCompetingRemoteChannelBoot(externalScript)).toBe(false)
+    expect(hasCompetingRemoteChannelBoot([{ kind: 'script', text: 'window.__DSH_TRANSPORT__={ownsHost:true}' }])).toBe(false)
+    expect(hasCompetingRemoteChannelBoot([])).toBe(false)
+  })
+
+  it('explains a competing remote pairing flow without treating its code as a DSH Mobile token', async () => {
+    const result = await collectConnectionDiagnostics({ ...healthy, competingRemoteChannelBoot: true }, {
+      firewall: async () => ({ state: 'ready' }),
+      remote: async () => ({ state: 'ready', latencyMs: 86 }),
+    })
+    expect(result.overall).toBe('attention')
+    expect(result.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'remote-plugin-conflict', status: 'warning', reason: 'competing-remote-channel', action: expect.stringContaining('不要混用两种配对码') }),
+    ]))
+  })
+
   it('reports missing LAN setup as an actionable blocking problem', async () => {
     const result = await collectConnectionDiagnostics({
       ...healthy,
