@@ -1,5 +1,7 @@
 # Cloudflare 命名隧道（固定公网域名）
 
+[English guide](CLOUDFLARE_TUNNEL.en.md)
+
 内置的 cloudflared 通道有两种模式，在面板 **移动访问 → 远程 → cloudflared → 隧道类型** 中切换：
 
 | | 快速隧道（默认） | 命名隧道 |
@@ -52,11 +54,11 @@
 >
 > 不想扫码时，完整链接（`https://你的域名/mobile-access/pair#instance=…&token=…`）可以整条复制到手机上粘贴，App 的输入框接受完整链接。
 
-设备列表里原来那条远程记录会显示「地址可能已变化 / Address may have changed」或不可达，重新配对成功后删掉即可。
+旧地址在重新配对前可能显示「地址可能已变化」或暂不可达。重新配对同一台电脑后，App 会按设备标识更新原远程记录，保留自定义名称；无需删除它。
 
 ## 安全边界
 
-- 令牌只写入 DSH Mobile 私有目录（`~/.dsh/mobile-access/remote/cloudflared/tunnel.json`，权限 0600），并且**只**通过子进程环境变量 `TUNNEL_TOKEN` 传给 `cloudflared`，不出现在命令行里（本机任何进程都能读到命令行）。
+- 令牌只写入 DSH Mobile 私有目录（默认 `$DSH_HOME/mobile-access/remote/cloudflared/tunnel.json`；Unix 权限 `0600`，Windows 使用受限 ACL），并且**只**通过子进程环境变量 `TUNNEL_TOKEN` 传给 `cloudflared`，不出现在命令行里。
 - 令牌从不回传给浏览器或手机端；面板状态里只有「是否已配置」、域名和端口。
 - 隧道背后是 DSH Mobile 自己的认证网关：公网主机名只暴露该网关，DSH 本体仍然需要配对设备凭据。
 - 插件不会创建系统服务、开机启动项、注册表项或 PATH 项；关闭通道即结束进程。
@@ -90,24 +92,17 @@
 
 ## 排错
 
-- **连接一直停在「正在连接」**：命名隧道没有横幅，只有 connector 真正注册后才算就绪。查看 DSH 日志里 cloudflared 的输出；预检表（`CONNECTIVITY PRE-CHECKS`）会指出是 DNS、UDP/QUIC 还是 TCP 不通。
+- **连接一直停在「正在连接」**：命名隧道只有在 connector 向 Cloudflare 注册后才显示就绪。检查 DSH 日志中的 cloudflared 输出，以及本机到 Cloudflare 边缘的 DNS、UDP/QUIC 和 TCP 连通性。
 - **公网访问返回 1033**：Cloudflare 认为该主机名没有健康的 connector。确认隧道在 Zero Trust 里显示 Healthy，且 ingress 指向的端口与面板一致。
 - **`cloudflared` 报 `Unauthorized` 或隧道 ID 不存在**：令牌与控制台里的隧道不匹配（例如隧道被删除后重建）。重新复制令牌。
-- **本机开着 TUN/透明代理（Clash、Mihomo、Clash Verge 等）：手机端会卡在「正在加载插件」并反复重试。** 这是实测到过的一类真实故障，症状很容易被误判成配对或插件问题：
-  - `cloudflared` 到 `region*.v2.argotunnel.com` 的连接没有任何专属规则，于是落到兜底的 `Match`/`MATCH` 规则，被送进代理节点。用内核 API 看得很清楚：
-    ```
-    cloudflared.exe -> region2.v2.argotunnel.com
-      rule=Match   chains=["<某个机场节点>","漏网之鱼"]   up/down = 103 MB / 2.1 MB
-    ```
-  - 结果下行被压到 **8–100 KB/s**。而手机端 DSH 启动要一次拉 **4.5 MB**（压缩后）的 boot bundle，加载器等不到就报 `bundle script failed to load`，App 表现为「加载 → 失败 → 重试」。
-  - 同一份文件在局域网网关上是 **0.2 秒**，加上直连规则后走隧道是 **9.9 秒 / 454 KB/s** —— 差了两个数量级。
-  - 修法：让 cloudflared 与其边缘域名走直连。Clash Verge 的**全局扩展配置**（`profiles/Merge.yaml`，订阅更新不会覆盖）：
-    ```yaml
-    prepend-rules:
-      - PROCESS-NAME,cloudflared.exe,DIRECT
-      - DOMAIN-SUFFIX,argotunnel.com,DIRECT
-      - DOMAIN-SUFFIX,trycloudflare.com,DIRECT
-    ```
-    改完要让 cloudflared **重连**才会换路由：内核热重载不会迁移已建立的长连接（面板里点重连，或开关一次提供方）。
-  - 判断方法：如果手机端一直卡在加载插件，先在**本机**用同一份会话拉一次 boot bundle 看速率。若本机也很慢，就不是手机或配对的问题。
+- **手机卡在「正在加载插件」或远程页面明显慢，而本机开着 TUN/透明代理**：先检查 `cloudflared` 到 `*.argotunnel.com` 的连接是否被兜底规则送进代理节点。曾有这种路由导致启动资源传输很慢；它不等于配对失败。以下是 Windows 上 Clash 客户端的规则示例；Linux 的进程名与具体规则语法应按所用客户端调整，并让直连规则排在兜底规则前：
+
+  ```yaml
+  prepend-rules:
+    - PROCESS-NAME,cloudflared.exe,DIRECT
+    - DOMAIN-SUFFIX,argotunnel.com,DIRECT
+    - DOMAIN-SUFFIX,trycloudflare.com,DIRECT
+  ```
+
+  改完后让 cloudflared **重连**，使已建立的连接使用新路由（面板里点重连，或开关一次提供方）。对比同一资源经局域网与远程入口的加载速度；若远程入口在电脑上也慢，优先检查电脑到 Cloudflare 的路径，若只有手机慢，再检查手机网络。
 - **域名解析还是旧地址**：改完 NS 后 Cloudflare 需要把 zone 从 Pending 变为 Active；A/CNAME 在 zone 激活前不会对外生效。

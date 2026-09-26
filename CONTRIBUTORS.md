@@ -4,7 +4,7 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed, through 2026-09-26. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
-## 已发布版本中的合并 PR / Merged PRs in released versions
+## 已合并 PR / Merged PRs
 
 | 社区成员 / Community member | 已合并 PR / Merged PRs |
 | --- | --- |
