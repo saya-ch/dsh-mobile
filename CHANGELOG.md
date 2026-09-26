@@ -2,6 +2,14 @@
 
 Notable changes to DSH Mobile are recorded here. GitHub Releases remain the source for downloadable packages and complete generated commit notes.
 
+## 0.5.0 - 2026-09-26
+
+- Recognize the official DSH Desktop `dsh-app://app` page as a Mobile administration surface, while requiring its signed DSH browser session for forwarded management requests (thanks @Sanksu for [PR #118](https://github.com/saya-ch/dsh-mobile/pull/118) and @up-and-down-0618 for [#115](https://github.com/saya-ch/dsh-mobile/issues/115)).
+- Send paired-page file uploads through the authenticated Mobile transport so PDF and other binary attachments reach DSH without bypassing the gateway's CSRF checks (thanks @ayiejosh for [PR #116](https://github.com/saya-ch/dsh-mobile/pull/116)).
+- Enable voice input on the paired page and in the Android App. App 0.5.0 asks for microphone permission on first use and grants audio-only capture to the paired HTTPS Origin (thanks @ayiejosh for [PR #119](https://github.com/saya-ch/dsh-mobile/pull/119)).
+- Let narrow phone headers reveal hidden controls by touch, tap or keyboard focus while keeping menus accessible (thanks @ayiejosh for [PR #117](https://github.com/saya-ch/dsh-mobile/pull/117)).
+- Explain cpolar download, extraction and private-storage failures more clearly and preserve the previous component if replacement fails ([#114](https://github.com/saya-ch/dsh-mobile/issues/114)). Diagnostics also flag an active, competing third-party remote pairing channel without modifying its traffic ([#111](https://github.com/saya-ch/dsh-mobile/issues/111)).
+
 ## 0.4.7 - 2026-09-25
 
 - Expose `panelInfo` on the mobile layout service for DSH `0.1.7-rc.2`, so built-in panels such as Plugin Manager can mount without breaking the dedicated mobile frontend (thanks @chintoleung for [PR #104](https://github.com/saya-ch/dsh-mobile/pull/104) and [#103](https://github.com/saya-ch/dsh-mobile/issues/103)).
