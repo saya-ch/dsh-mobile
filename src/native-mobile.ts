@@ -18,7 +18,7 @@ export const NATIVE_MOBILE_STYLES = `
    still collapsed the sidebar. Keep the neutral state explicitly invisible —
    the query restores the fixed scrim, and its more specific [hidden] rule
    keeps winning there. */
- .dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast,[data-dsh-mobile-header-pan] { display:none; }
+ .dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }
  .dsh-mobile-settings_row { display:flex; align-items:center; gap:8px; padding:16px 0; border-bottom:0.5px solid var(--dsw-alias-border-l2); }
  .dsh-mobile-settings_rowText { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; padding-right:48px; }
  .dsh-mobile-settings_title { color:var(--dsw-alias-label-primary); font-size:14px; font-weight:400; line-height:22px; }
@@ -49,14 +49,7 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] { grid-column:2 !important; width:100vw !important; min-width:0 !important; }
   [data-dsh-mobile-center] > * { min-width:0 !important; }
   [data-dsh-mobile-header] { box-sizing:border-box !important; width:calc(100% - 16px) !important; margin:0 8px !important; min-width:0; padding-top:max(4px,env(safe-area-inset-top)) !important; padding-right:8px !important; padding-left:42px !important; }
-  [data-dsh-mobile-header][data-dsh-mobile-pan-available="true"] { grid-template-columns:auto minmax(0,1fr) 48px !important; }
   [data-dsh-mobile-header] :is([class*="_titleRow"],[class*="_headerLeading"]) { touch-action:pan-y; }
-  [data-dsh-mobile-header-pan] { box-sizing:border-box; grid-column:3; grid-row:1; display:flex; align-items:center; justify-content:center; width:48px; height:48px; padding:0; border:0; border-radius:12px; background:transparent; color:var(--dsw-alias-label-primary); cursor:pointer; touch-action:manipulation; }
-  [data-dsh-mobile-header-pan][hidden] { display:none !important; }
-  [data-dsh-mobile-header-pan]:active { background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-interactive-bg-hover)); }
-  [data-dsh-mobile-header-pan]:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary,#4c82f7); outline-offset:1px; }
-  [data-dsh-mobile-header-pan] svg { width:18px; height:18px; }
-  [data-dsh-mobile-header-pan][data-at-end="true"] svg { transform:rotate(180deg); }
   [data-dsh-mobile-header] [class*="_titleRow"] { box-sizing:border-box !important; display:flex !important; align-items:center !important; min-width:0; min-height:32px !important; height:32px !important; gap:6px !important; padding:0 6px !important; }
   [data-dsh-mobile-header] [class*="_titleCluster"] { min-width:0; }
   [data-dsh-mobile-header] [class*="_crumbs"] { min-width:0; overflow:hidden; }
@@ -269,11 +262,6 @@ export function measureHeaderStripOverflow(row: HTMLElement): number {
   return Math.max(0, right - left - row.clientWidth)
 }
 
-/** Base the pan affordance on actual overflow, independent of its current visibility. */
-export function headerPanAvailable(row: HTMLElement | undefined, mobile: boolean): boolean {
-  return mobile && row !== undefined && measureHeaderStripOverflow(row) > 1
-}
-
 /** Touch-only pan state; browser pointer cancellation does not interrupt the touch stream. */
 export function createHeaderStripPanController(options: {
   readonly range: () => number
@@ -322,10 +310,6 @@ export function createHeaderStripPanController(options: {
     sync: () => {
       if (options.range() === 0) { drag = undefined; suppressUntil = 0 }
       setOffset(offset)
-    },
-    advance: (width: number) => {
-      const range = options.range()
-      setOffset(offset >= range - 1 ? 0 : offset + Math.max(80, width * 0.7))
     },
     reveal: (left: number, right: number, visibleLeft: number, visibleRight: number) => {
       if (left < visibleLeft) setOffset(offset - (visibleLeft - left))
@@ -787,23 +771,7 @@ export function installNativeMobileSurface(): () => void {
     window.setTimeout(showBranchToast, 80)
   }
   // The title row's popovers must travel with their triggers, so pan with a transform
-  // instead of an overflow scroller. An adjacent button exposes the same controls by tap.
-  const panButton = document.createElement('button')
-  panButton.type = 'button'
-  panButton.dataset.dshMobileHeaderPan = 'true'
-  panButton.hidden = true
-  const panIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  panIcon.setAttribute('viewBox', '0 0 16 16')
-  panIcon.setAttribute('aria-hidden', 'true')
-  const panPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-  panPath.setAttribute('d', 'M6 3.5 10.5 8 6 12.5')
-  panPath.setAttribute('fill', 'none')
-  panPath.setAttribute('stroke', 'currentColor')
-  panPath.setAttribute('stroke-width', '1.8')
-  panPath.setAttribute('stroke-linecap', 'round')
-  panPath.setAttribute('stroke-linejoin', 'round')
-  panIcon.append(panPath)
-  panButton.append(panIcon)
+  // instead of an overflow scroller.
   let stripHeader: HTMLElement | undefined
   const stripParts = (): { readonly row: HTMLElement; readonly lead: HTMLElement | undefined } | undefined => {
     const row = stripHeader?.querySelector<HTMLElement>('[class*="_titleRow"]')
@@ -816,51 +784,26 @@ export function installNativeMobileSurface(): () => void {
     const overflow = measureHeaderStripOverflow(parts.row)
     return overflow > 1 ? overflow : 0
   }
-  const updatePanButton = (offset: number): void => {
-    const range = stripRange()
-    const atEnd = range > 0 && offset >= range - 1
-    panButton.dataset.atEnd = String(atEnd)
-    const text = atEnd
-      ? label('Torna all’inizio della barra', 'Return to start of header', '返回标题栏开头')
-      : label('Altre azioni della barra', 'More header actions', '查看更多标题栏操作')
-    if (panButton.getAttribute('aria-label') !== text) panButton.setAttribute('aria-label', text)
-    if (panButton.title !== text) panButton.title = text
-  }
   const applyStrip = (offset: number): void => {
     const parts = stripParts()
     if (parts === undefined) return
     const value = offset === 0 ? '' : `translateX(${-offset}px)`
     if (parts.row.style.transform !== value) parts.row.style.transform = value
     if (parts.lead !== undefined && parts.lead.style.transform !== value) parts.lead.style.transform = value
-    updatePanButton(offset)
   }
   const pan = createHeaderStripPanController({
     range: stripRange,
     render: applyStrip,
     now: () => performance.now(),
   })
-  const syncPanButton = (header: HTMLElement | undefined): void => {
+  const syncPanHeader = (header: HTMLElement | undefined): void => {
     if (header !== stripHeader) {
       pan.dispose()
-      stripHeader?.removeAttribute('data-dsh-mobile-pan-available')
       stripHeader = header
     }
-    if (header === undefined) { panButton.remove(); pan.sync(); return }
-    if (panButton.parentElement !== header) header.append(panButton)
-    const parts = stripParts()
-    // The row width already reflects the button's grid column. Subtracting its
-    // width here makes a small overflow toggle the button on every layout pass.
-    const available = headerPanAvailable(parts?.row, overlayQuery.matches)
-    if (panButton.hidden === available) panButton.hidden = !available
-    if (header.dataset.dshMobilePanAvailable !== String(available)) header.dataset.dshMobilePanAvailable = String(available)
     pan.sync()
     applyStrip(pan.offset())
   }
-  const onPanClick = (): void => {
-    const header = panButton.parentElement
-    pan.advance(header?.clientWidth ?? 0)
-  }
-  panButton.addEventListener('click', onPanClick)
   let activeTouchId: number | undefined
   const onStripTouchStart = (event: TouchEvent): void => {
     if (activeTouchId !== undefined) pan.cancel()
@@ -868,7 +811,7 @@ export function installNativeMobileSurface(): () => void {
     pan.resetClickSuppression()
     if (event.touches.length !== 1) return
     if (!overlayQuery.matches) return
-    if (!(event.target instanceof Element) || event.target.closest('[data-dsh-mobile-header-pan]') !== null) return
+    if (!(event.target instanceof Element)) return
     if (event.target.closest('[data-dsh-mobile-header]') !== stripHeader) return
     if (event.target.closest('[data-dsh-mobile-header] [class*="_titleRow"],[data-dsh-mobile-header] [class*="_headerLeading"]') === null) return
     if (stripRange() === 0) return
@@ -895,12 +838,12 @@ export function installNativeMobileSurface(): () => void {
     pan.cancel()
   }
   const onStripFocus = (event: FocusEvent): void => {
-    if (!(event.target instanceof HTMLElement) || event.target === panButton) return
+    if (!(event.target instanceof HTMLElement)) return
     const header = event.target.closest<HTMLElement>('[data-dsh-mobile-header]')
     if (header === null || header !== stripHeader || stripRange() === 0 || event.target.closest('[class*="_titleRow"],[class*="_headerLeading"]') === null) return
     const focused = event.target.getBoundingClientRect()
     const visible = header.getBoundingClientRect()
-    pan.reveal(focused.left, focused.right, visible.left + 42, visible.right - 56)
+    pan.reveal(focused.left, focused.right, visible.left + 42, visible.right - 8)
   }
   const onStripClickCapture = (event: MouseEvent): void => {
     const inHeader = event.target instanceof Element && event.target.closest('[data-dsh-mobile-header]') !== null
@@ -1023,7 +966,7 @@ export function installNativeMobileSurface(): () => void {
     const handle = frame === undefined ? undefined : firstByClassSuffix(frame, '_handle')
     markNativeMobileSettings(document)
     if (center === undefined) {
-      syncPanButton(undefined)
+      syncPanHeader(undefined)
       syncComposerEnterNewline(null)
       bindHistoryScroller(undefined)
       syncMediaBinding(null)
@@ -1035,7 +978,7 @@ export function installNativeMobileSurface(): () => void {
       center.dataset.dshMobileCenter = 'true'
       const header = center.querySelector<HTMLElement>('header') ?? undefined
       header?.setAttribute('data-dsh-mobile-header', 'true')
-      syncPanButton(header)
+      syncPanHeader(header)
       viewArea = firstByClassSuffix(center, '_viewArea')
       if (viewArea !== undefined) viewArea.dataset.dshMobileView = 'true'
       const conversation = center.querySelector<HTMLElement>('[data-conversation-scroll]')
@@ -1177,9 +1120,6 @@ export function installNativeMobileSurface(): () => void {
     document.removeEventListener('click', onStripClickCapture, true)
     pan.dispose()
     applyStrip(0)
-    panButton.removeEventListener('click', onPanClick)
-    panButton.remove()
-    stripHeader?.removeAttribute('data-dsh-mobile-pan-available')
     cameraButton.removeEventListener('pointerdown', quietMediaPointer)
     cameraButton.removeEventListener('click', takePhoto)
     if (branchToastTimer !== 0) window.clearTimeout(branchToastTimer)
