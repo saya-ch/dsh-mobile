@@ -7,8 +7,9 @@ Notable changes to DSH Mobile are recorded here. GitHub Releases remain the sour
 - Recognize the official DSH Desktop `dsh-app://app` page as a Mobile administration surface, while requiring its signed DSH browser session for forwarded management requests (thanks @Sanksu for [PR #118](https://github.com/saya-ch/dsh-mobile/pull/118) and @up-and-down-0618 for [#115](https://github.com/saya-ch/dsh-mobile/issues/115)).
 - Send paired-page file uploads through the authenticated Mobile transport so PDF and other binary attachments reach DSH without bypassing the gateway's CSRF checks (thanks @ayiejosh for [PR #116](https://github.com/saya-ch/dsh-mobile/pull/116)).
 - Allow the paired page to request microphone access for DSH voice input. App 0.5.0 asks for Android microphone permission on first use and grants audio-only capture to the paired HTTPS Origin (thanks @ayiejosh for [PR #119](https://github.com/saya-ch/dsh-mobile/pull/119)).
-- Let narrow phone headers reveal hidden controls by touch, tap or keyboard focus while keeping menus accessible (thanks @ayiejosh for [PR #117](https://github.com/saya-ch/dsh-mobile/pull/117)).
+- Let narrow phone headers reveal hidden controls by horizontal drag or keyboard focus while keeping menus accessible; remove the redundant header arrow (thanks @ayiejosh for [PR #117](https://github.com/saya-ch/dsh-mobile/pull/117)).
 - Keep composer statistics readable beside the context ring on narrow screens instead of clipping the values (thanks @ayiejosh for [PR #120](https://github.com/saya-ch/dsh-mobile/pull/120)).
+- On touch devices, switching sessions no longer opens the soft keyboard automatically; tapping the composer still opens it normally.
 - Explain cpolar download, extraction and private-storage failures more clearly and preserve the previous component if replacement fails ([#114](https://github.com/saya-ch/dsh-mobile/issues/114)). Diagnostics also flag an active, competing third-party remote pairing channel without modifying its traffic ([#111](https://github.com/saya-ch/dsh-mobile/issues/111)).
 
 ## 0.4.7 - 2026-09-25
