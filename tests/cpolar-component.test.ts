@@ -1,4 +1,4 @@
-import { lstat, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -81,5 +81,32 @@ describe('managed cpolar component', () => {
       CPOLAR_COMPONENT_RELEASES['linux-x64']?.downloadUrl,
       expect.anything(),
     )
+  })
+
+  it('classifies a failed download and cleans only its staging files', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-cpolar-component-'))
+    temporaryDirectories.push(directory)
+    const manager = new CpolarComponentManager({
+      stateDirectory: directory, platform: 'win32', arch: 'x64',
+      fetchArtifact: async () => { throw new TypeError('fetch failed') },
+    })
+    await manager.initialize()
+    await expect(manager.install()).rejects.toThrow('cpolar_download_failed')
+    expect(manager.status()).toMatchObject({ installed: false, configured: false })
+    expect(await readdir(join(directory, 'staging', 'cpolar'))).toEqual([])
+    await expect(lstat(manager.executable)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('classifies an inaccessible private directory before downloading', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-cpolar-component-'))
+    temporaryDirectories.push(directory)
+    const blocked = join(directory, 'blocked')
+    await writeFile(blocked, 'not a directory')
+    const fetchArtifact = vi.fn(async () => new Uint8Array(0))
+    const manager = new CpolarComponentManager({
+      stateDirectory: blocked, platform: 'win32', arch: 'x64', fetchArtifact,
+    })
+    await expect(manager.install()).rejects.toThrow('cpolar_storage_failed')
+    expect(fetchArtifact).not.toHaveBeenCalled()
   })
 })

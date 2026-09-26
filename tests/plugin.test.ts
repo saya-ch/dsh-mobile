@@ -21,6 +21,7 @@ const contexts: Context[] = []
 const temporaryDirectories: string[] = []
 
 afterEach(async () => {
+  vi.unstubAllGlobals()
   await Promise.all(contexts.splice(0).map(context => context.fiber.dispose()))
   await Promise.all(temporaryDirectories.splice(0).map(directory => rm(directory, { recursive: true, force: true })))
 })
@@ -392,6 +393,17 @@ describe('stock DSH lifecycle', () => {
       checks: expect.any(Array),
       report: expect.stringContaining('DSH Mobile 诊断报告'),
     })
+  })
+
+  it('returns a cpolar download-stage error instead of a generic 500', async () => {
+    const mounted = await mount()
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')))
+    const failed = await invoke(
+      mounted.route, 'POST', '/api/mobile-access/remote/cpolar/component/install',
+      JSON.stringify({ confirm: true }),
+    )
+    expect(failed.status).toBe(409)
+    expect(JSON.parse(failed.body)).toEqual({ error: 'cpolar_download_failed' })
   })
 
   it('follows the active WebServer port when no setup upstream is configured', async () => {

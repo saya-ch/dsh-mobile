@@ -595,6 +595,18 @@ const REMOTE_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   control_channel_failed: 'controlChannelFailed',
   cpolar_component_missing: 'cpolarMissing',
   cpolar_component_invalid: 'cpolarInvalid',
+  cpolar_download_failed: 'cpolarDownloadFailed',
+  cpolar_download_timeout: 'cpolarDownloadTimeout',
+  cpolar_download_size_mismatch: 'cpolarIntegrityFailed',
+  cpolar_download_hash_mismatch: 'cpolarIntegrityFailed',
+  cpolar_executable_hash_mismatch: 'cpolarIntegrityFailed',
+  cpolar_download_redirect_missing: 'cpolarDownloadFailed',
+  cpolar_download_redirect_invalid: 'cpolarDownloadFailed',
+  cpolar_download_redirect_rejected: 'cpolarDownloadFailed',
+  cpolar_installer_missing: 'cpolarExtractFailed',
+  cpolar_executable_missing: 'cpolarExtractFailed',
+  cpolar_extract_failed: 'cpolarExtractFailed',
+  cpolar_storage_failed: 'cpolarStorageFailed',
   cpolar_config_missing: 'cpolarConfigMissing',
   cpolar_config_invalid: 'cpolarConfigInvalid',
   cpolar_port_unavailable: 'cpolarPortUnavailable',
@@ -703,6 +715,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
    */
   const remoteFailureTextFor = (error: unknown, fallbackKey: string): string => {
     const message = error instanceof Error ? error.message : String(error)
+    const cpolarHttpStatus = /^cpolar_download_http_(\d{3})$/u.exec(message)?.[1]
+    if (cpolarHttpStatus !== undefined) return t('cpolarDownloadHttp', { status: cpolarHttpStatus })
     const key = REMOTE_ERROR_MESSAGE_KEYS[message]
     return key === undefined ? t(fallbackKey, { error: message }) : t(key)
   }

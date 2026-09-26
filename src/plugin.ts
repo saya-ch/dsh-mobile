@@ -921,7 +921,17 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/cpolar/component/install`) {
           const body = await readJsonObject(request, 4096)
           if (body.confirm !== true) throw new HttpError(400, 'bad_request')
-          await remoteProviders.mutate(async () => cpolarComponent.install())
+          logger.info('cpolar component install started')
+          try {
+            await remoteProviders.mutate(async () => cpolarComponent.install())
+            logger.info('cpolar component install completed')
+          } catch (error) {
+            const cause = error instanceof Error && error.cause instanceof Error ? error.cause : undefined
+            logger.error('cpolar component install failed: %s%s',
+              error instanceof Error ? error.stack ?? error.message : String(error),
+              cause === undefined ? '' : `; cause: ${cause.message}`)
+            throw error
+          }
           sendJson(response, 200, remotePayload(), false)
           return
         }

@@ -133,6 +133,17 @@ async function regularFile(file: string, expectedBytes?: number): Promise<boolea
   }
 }
 
+type InstallFailureCode = 'cpolar_download_failed' | 'cpolar_extract_failed' | 'cpolar_storage_failed'
+
+async function installStep<T>(code: InstallFailureCode, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('cpolar_')) throw error
+    throw new Error(code, { cause: error })
+  }
+}
+
 async function run(file: string, args: readonly string[]): Promise<void> {
   await new Promise<void>((resolveRun, reject) => {
     execFile(file, [...args], { windowsHide: true, timeout: 120_000 }, (error) => {
@@ -281,34 +292,46 @@ export class CpolarComponentManager {
     return this.enqueue(async () => {
       const release = this.release
       if (release === undefined) throw new Error('cpolar_component_unsupported')
-      await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 })
-      const staging = await mkdtemp(join(this.stagingRoot, 'install-'))
+      const staging = await installStep('cpolar_storage_failed', async () => {
+        await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 })
+        return mkdtemp(join(this.stagingRoot, 'install-'))
+      })
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => { controller.abort() }, 120_000)
         timeout.unref()
         let bytes: Uint8Array
-        try { bytes = await this.fetchArtifact(release.downloadUrl, controller.signal) } finally { clearTimeout(timeout) }
+        try {
+          bytes = await installStep('cpolar_download_failed', () => this.fetchArtifact(release.downloadUrl, controller.signal))
+        } catch (error) {
+          if (controller.signal.aborted) throw new Error('cpolar_download_timeout', { cause: error })
+          throw error
+        } finally { clearTimeout(timeout) }
         const digest = createHash('sha256').update(bytes).digest('hex')
         if (digest !== release.downloadSha256) throw new Error('cpolar_download_hash_mismatch')
         const archive = join(staging, release.archiveKind === 'tar.gz' ? 'cpolar.tar.gz' : 'cpolar.zip')
-        await writeFile(archive, bytes, { flag: 'wx', mode: 0o600 })
-        await this.extractArtifact(archive, staging)
+        await installStep('cpolar_storage_failed', () => writeFile(archive, bytes, { flag: 'wx', mode: 0o600 }))
+        await installStep('cpolar_extract_failed', () => this.extractArtifact(archive, staging))
         const extracted = join(staging, release.executableName)
-        if (!await regularFile(extracted, release.executableBytes)
-          || await sha256(extracted) !== release.executableSha256) {
+        const valid = await installStep('cpolar_extract_failed', async () => (
+          await regularFile(extracted, release.executableBytes)
+          && await sha256(extracted) === release.executableSha256
+        ))
+        if (!valid) {
           throw new Error('cpolar_executable_hash_mismatch')
         }
         const candidate = join(this.componentRoot, `.install-${randomBytes(12).toString('hex')}`)
-        await mkdir(candidate, { recursive: true, mode: 0o700 })
-        await copyFile(extracted, join(candidate, release.executableName))
-        await chmod(join(candidate, release.executableName), 0o700)
-        await rm(this.componentStorage, { recursive: true, force: true })
-        await rename(candidate, this.componentStorage)
+        await installStep('cpolar_storage_failed', async () => {
+          await mkdir(candidate, { recursive: true, mode: 0o700 })
+          await copyFile(extracted, join(candidate, release.executableName))
+          await chmod(join(candidate, release.executableName), 0o700)
+          await rm(this.componentStorage, { recursive: true, force: true })
+          await rename(candidate, this.componentStorage)
+        })
         this.installed = true
         this.errorCode = undefined
       } finally {
-        await rm(staging, { recursive: true, force: true })
+        await installStep('cpolar_storage_failed', () => rm(staging, { recursive: true, force: true }))
       }
     })
   }
