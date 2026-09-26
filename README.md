@@ -31,9 +31,9 @@
 
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 仅支持 Android。
 >
-> **当前版本：0.5.0**。适配 DSH 官方桌面端，支持移动端文件上传与语音输入，并优化窄屏操作和远程故障提示。[更新记录](CHANGELOG.md#050---2026-09-26)。
+> **当前版本：0.5.0**。适配 DSH 官方桌面端，支持移动端文件上传与语音输入权限，并优化窄屏操作和远程故障提示。[更新记录](CHANGELOG.md#050---2026-09-26)。
 >
-> **升级提醒**：建议插件与 Android App 同步更新至 0.5.0，已有配对会保留。App 语音输入需要 0.5.0；旧版 App 的既有连接方式不受影响。[兼容说明](#兼容性)。
+> **升级提醒**：建议插件与 Android App 同步更新至 0.5.0，已有配对会保留。App 的麦克风权限适配需要 0.5.0；旧版 App 的既有连接方式不受影响。[兼容说明](#兼容性)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.5.0/dsh-mobile-android-v0.5.0.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>

@@ -31,9 +31,9 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin; the native app supports Android only.
 >
-> **Current version: 0.5.0**. It supports the official DSH Desktop, paired-page file uploads and voice input, with improved narrow-screen controls and remote diagnostics. [Release notes](CHANGELOG.md#050---2026-09-26).
+> **Current version: 0.5.0**. It supports the official DSH Desktop, paired-page file uploads and microphone permissions for voice input, with improved narrow-screen controls and remote diagnostics. [Release notes](CHANGELOG.md#050---2026-09-26).
 >
-> **Upgrade reminder**: update both the plugin and Android app to 0.5.0 when practical. Existing pairings remain intact. App voice input requires 0.5.0; older apps keep their existing connection methods. [Compatibility notes](#compatibility).
+> **Upgrade reminder**: update both the plugin and Android app to 0.5.0 when practical. Existing pairings remain intact. App microphone permission support requires 0.5.0; older apps keep their existing connection methods. [Compatibility notes](#compatibility).
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.5.0/dsh-mobile-android-v0.5.0.apk"><img src="assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
