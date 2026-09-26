@@ -19,7 +19,7 @@ import { X509Certificate } from 'node:crypto'
 import { copyFile, lstat, readFile, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedGatewayConfig } from './config.js'
-import { collectConnectionDiagnostics } from './diagnostics.js'
+import { collectConnectionDiagnostics, hasCompetingRemoteChannelBoot } from './diagnostics.js'
 import { buildMobileGuide, type MobileGuideState } from './mobile-guide.js'
 import { createVpsUninstallScript, deployVps, fetchVpsHostKeys, parseVpsDeploymentInput, uninstallVps } from './vps-deploy.js'
 import { TaskEventHub, watchTaskCompletions } from './task-events.js'
@@ -797,6 +797,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       : undefined
     return collectConnectionDiagnostics({
       dshVersion,
+      competingRemoteChannelBoot: hasCompetingRemoteChannelBoot(ctx.webServer.collectIndexInjections?.() ?? []),
       lan: {
         configured: loaded.kind !== 'unconfigured' || preparedLanSetup !== undefined,
         running: lanController.isRunning(),

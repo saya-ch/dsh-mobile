@@ -81,6 +81,7 @@ async function mount(
   webServerPort = 3080,
   config: Partial<PluginConfig> = {},
   requestRejection: (request: IncomingMessage) => 401 | 403 | undefined = () => 401,
+  indexInjections: readonly { kind: string; text?: string }[] = [],
 ): Promise<{ context: Context; route: WebRoute; command: CommandDefinition; upstreamBase: string | undefined; directory: string }> {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-plugin-'))
   temporaryDirectories.push(directory)
@@ -91,6 +92,7 @@ async function mount(
   contexts.push(context)
   context.provide('webServer', {
     port: webServerPort,
+    collectIndexInjections: () => indexInjections,
     register(candidate: WebRoute) {
       route = candidate
       return () => { if (route === candidate) route = undefined }
@@ -409,6 +411,17 @@ describe('stock DSH lifecycle', () => {
   it('follows the active WebServer port when no setup upstream is configured', async () => {
     const mounted = await mount(false, 43120)
     expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
+  })
+
+  it('reports a live third-party remote boot conflict through the desktop diagnostic route', async () => {
+    const mounted = await mount(false, 3080, {}, undefined, [
+      { kind: 'script', text: '(function(){w["__DSH_REMOTE_CHANNEL_BOOT__"]=seat})();' },
+    ])
+    const response = await invoke(mounted.route, 'GET', '/api/mobile-access/diagnostics')
+    expect(response.status).toBe(200)
+    expect(JSON.parse(response.body)).toMatchObject({
+      checks: expect.arrayContaining([expect.objectContaining({ reason: 'competing-remote-channel', status: 'warning' })]),
+    })
   })
 
   it('allows a private LAN Host on the loopback desktop admin route', async () => {

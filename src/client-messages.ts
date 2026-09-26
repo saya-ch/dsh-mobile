@@ -561,6 +561,7 @@ export const DIAGNOSTIC_REASON_MESSAGES = {
     'remote-needs-login': ['Tailscale is waiting for login to finish.', 'Return to Remote access and continue login.'],
     'remote-connecting': ['The {provider} remote channel is still connecting.', 'Wait briefly, then check again.'],
     'remote-controller-error': ['The {provider} controller reported {controllerCode}.', 'Return to Remote access and reconnect.'],
+    'competing-remote-channel': ['Another remote plugin is injecting its own request channel; the phone may show that plugin’s pairing screen.', 'Turn off dsh-remote-web-ui remote access on the computer, refresh, and pair using the current DSH Mobile QR code. Do not mix pairing codes.'],
     'phone-network-unknown': ['The computer cannot determine whether the router isolates the phone.', 'Confirm the phone and computer use the same network, then disable guest-network or AP isolation.'],
   },
   it: {
@@ -585,6 +586,7 @@ export const DIAGNOSTIC_REASON_MESSAGES = {
     'remote-needs-login': ['Tailscale attende il completamento dell’accesso.', 'Torna ad Accesso remoto e continua l’accesso.'],
     'remote-connecting': ['Il canale remoto {provider} è ancora in connessione.', 'Attendi qualche istante e ripeti il controllo.'],
     'remote-controller-error': ['Il controller {provider} ha segnalato {controllerCode}.', 'Torna ad Accesso remoto e riconnettiti.'],
+    'competing-remote-channel': ['Un altro plugin remoto sta inserendo il proprio canale di richieste; sul telefono potrebbe apparire la sua schermata di abbinamento.', 'Disattiva l’accesso remoto di dsh-remote-web-ui sul computer, aggiorna la pagina e usa il codice QR corrente di DSH Mobile. Non mescolare i codici.'],
     'phone-network-unknown': ['Il computer non può stabilire se il router isola il telefono.', 'Verifica che telefono e computer usino la stessa rete, poi disattiva rete ospiti o isolamento AP.'],
   },
   zh: {
@@ -609,6 +611,7 @@ export const DIAGNOSTIC_REASON_MESSAGES = {
     'remote-needs-login': ['Tailscale 正在等待完成登录。', '返回远程访问并继续登录。'],
     'remote-connecting': ['{provider} 远程通道仍在连接。', '等待片刻后重新检查。'],
     'remote-controller-error': ['{provider} 控制器报告 {controllerCode}。', '返回远程访问并重新连接。'],
+    'competing-remote-channel': ['检测到另一个远程插件注入自己的请求通道；手机可能显示它的配对页面。', '在电脑端关闭 dsh-remote-web-ui 的远程访问并刷新，再用 DSH Mobile 当前二维码配对；不要混用配对码。'],
     'phone-network-unknown': ['电脑无法判断路由器是否隔离了手机。', '确认手机与电脑使用同一网络，并关闭访客网络或 AP 隔离。'],
   },
 } as const
