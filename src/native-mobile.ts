@@ -149,6 +149,15 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] [data-composer-card] ~ * [class*="_root"] [class*="_sep"] { margin:0 6px !important; }
   /* Composer dock stats strip (turns/steps/tokens) reads small on phones. */
   [data-dsh-mobile-center] [data-slot="conversation.composer.dock"] [class*="_root"] { font-size:10px !important; line-height:16px !important; }
+  /* The context ring is a composer-metadata _root too, so the metadata rule
+     above stretched it across the whole dock. It cannot shrink, which left the
+     session statistics beside it a few pixels wide, every number clipped to an
+     ellipsis. Put the numbers in a wrapping left column and the ring in a right
+     column it cannot grow out of: a phone then shows every number in full, and
+     a wide screen keeps the ring beside them on one line. */
+  [data-dsh-mobile-center] [data-composer-card] ~ * [class*="_root"]:has(> [class*="_trigger"][aria-haspopup="dialog"]) { width:auto !important; max-width:none !important; flex:0 0 auto !important; }
+  [data-dsh-mobile-center] [class*="_dock"]:has([data-composer-stats]) { display:grid !important; grid-template-columns:minmax(0,1fr) max-content !important; align-items:center !important; column-gap:12px !important; }
+  [data-dsh-mobile-center] [data-composer-card] ~ * [class*="_root"][data-composer-stats] { box-sizing:border-box !important; width:auto !important; max-width:none !important; flex:0 1 auto !important; flex-wrap:wrap !important; justify-content:flex-start !important; row-gap:2px !important; }
   /* Message runtime details are inline on desktop. Give the clock/runtime
      label its own wrapping row on narrow screens so TTFT and throughput do
      not push the action buttons or clip at the viewport edge. */
