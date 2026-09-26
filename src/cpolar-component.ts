@@ -144,6 +144,103 @@ async function installStep<T>(code: InstallFailureCode, operation: () => Promise
   }
 }
 
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await lstat(path)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
+interface CpolarPublishOperations {
+  readonly move?: (from: string, to: string) => Promise<void>
+  readonly remove?: (path: string) => Promise<void>
+}
+
+/** Replace only this version's verified binary, retaining the previous directory until promotion succeeds. */
+export async function publishVerifiedCpolarExecutable(
+  extracted: string,
+  componentRoot: string,
+  componentStorage: string,
+  executableName: string,
+  operations: CpolarPublishOperations = {},
+): Promise<void> {
+  if (dirname(componentStorage) !== componentRoot || !inside(componentRoot, componentStorage)
+    || basename(executableName) !== executableName || executableName === '.' || executableName === '..') {
+    throw new Error('cpolar component storage escaped its private root')
+  }
+  const move = operations.move ?? rename
+  const remove = operations.remove ?? (path => rm(path, { recursive: true, force: true }))
+  const candidate = join(componentRoot, `.install-${randomBytes(12).toString('hex')}`)
+  const backup = join(componentRoot, `.previous-${randomBytes(12).toString('hex')}`)
+  let backupContainsPrevious = false
+  let replacementInstalled = false
+  try {
+    await mkdir(candidate, { recursive: true, mode: 0o700 })
+    await copyFile(extracted, join(candidate, executableName))
+    await chmod(join(candidate, executableName), 0o700)
+    if (await pathExists(componentStorage)) {
+      await move(componentStorage, backup)
+      backupContainsPrevious = true
+    }
+    try {
+      await move(candidate, componentStorage)
+      replacementInstalled = true
+    } catch (error) {
+      if (backupContainsPrevious) {
+        try {
+          await move(backup, componentStorage)
+          backupContainsPrevious = false
+        } catch (rollbackError) {
+          process.emitWarning(`cpolar previous component remains at ${backup}; automatic rollback failed`, {
+            code: 'DSH_MOBILE_CPOLAR_ROLLBACK_FAILED',
+          })
+          throw new Error('cpolar_storage_failed', { cause: new AggregateError([error, rollbackError]) })
+        }
+      }
+      throw error
+    }
+  } finally {
+    try {
+      await remove(candidate)
+    } catch {
+      process.emitWarning(`cpolar temporary component remains at ${candidate}; cleanup failed`, {
+        code: 'DSH_MOBILE_CPOLAR_CLEANUP_FAILED',
+      })
+    }
+    if (replacementInstalled && backupContainsPrevious) {
+      try {
+        await remove(backup)
+      } catch {
+        process.emitWarning(`cpolar previous component remains at ${backup}; cleanup failed`, {
+          code: 'DSH_MOBILE_CPOLAR_CLEANUP_FAILED',
+        })
+      }
+    }
+  }
+}
+
+/** Remove only this install's staging directory without replacing a preceding failure. */
+export async function cleanupCpolarInstallStaging(
+  staging: string,
+  installFailed: boolean,
+  remove: (path: string) => Promise<void> = path => rm(path, { recursive: true, force: true }),
+): Promise<void> {
+  try {
+    await remove(staging)
+  } catch (error) {
+    if (installFailed) {
+      process.emitWarning(`cpolar staging directory remains at ${staging}; cleanup failed`, {
+        code: 'DSH_MOBILE_CPOLAR_CLEANUP_FAILED',
+      })
+      return
+    }
+    throw new Error('cpolar_storage_failed', { cause: error })
+  }
+}
+
 async function run(file: string, args: readonly string[]): Promise<void> {
   await new Promise<void>((resolveRun, reject) => {
     execFile(file, [...args], { windowsHide: true, timeout: 120_000 }, (error) => {
@@ -296,6 +393,7 @@ export class CpolarComponentManager {
         await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 })
         return mkdtemp(join(this.stagingRoot, 'install-'))
       })
+      let installFailed = false
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => { controller.abort() }, 120_000)
@@ -320,18 +418,22 @@ export class CpolarComponentManager {
         if (!valid) {
           throw new Error('cpolar_executable_hash_mismatch')
         }
-        const candidate = join(this.componentRoot, `.install-${randomBytes(12).toString('hex')}`)
-        await installStep('cpolar_storage_failed', async () => {
-          await mkdir(candidate, { recursive: true, mode: 0o700 })
-          await copyFile(extracted, join(candidate, release.executableName))
-          await chmod(join(candidate, release.executableName), 0o700)
-          await rm(this.componentStorage, { recursive: true, force: true })
-          await rename(candidate, this.componentStorage)
-        })
+        await installStep('cpolar_storage_failed', () => publishVerifiedCpolarExecutable(
+          extracted, this.componentRoot, this.componentStorage, release.executableName,
+        ))
         this.installed = true
         this.errorCode = undefined
+      } catch (error) {
+        installFailed = true
+        try {
+          this.installed = await regularFile(this.executable, release.executableBytes)
+            && await sha256(this.executable) === release.executableSha256
+        } catch (_inspectionError) {
+          this.installed = false
+        }
+        throw error
       } finally {
-        await installStep('cpolar_storage_failed', () => rm(staging, { recursive: true, force: true }))
+        await cleanupCpolarInstallStaging(staging, installFailed)
       }
     })
   }
