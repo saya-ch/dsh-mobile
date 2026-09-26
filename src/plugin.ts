@@ -816,16 +816,19 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     }, pinnedFrpProbe === undefined ? {} : { remote: pinnedFrpProbe }) as unknown as Record<string, unknown>
   }
 
+  const authenticateDesktopAdmin = (request: IncomingMessage): boolean => {
+    const connection = (ctx as Context & { readonly connection?: BrowserAuthenticatedConnection }).connection
+    return typeof connection?.requestRejection === 'function'
+      && connection.requestRejection(request) === undefined
+  }
+
   const adminRoute: WebRoute = {
     kind: 'prefix',
     path: LOCAL_ADMIN_PREFIX,
     handler: async (request, response) => {
       try {
         const target = parseRequestTarget(request.url)
-        assertLocalAdminTrust(request, request.method === 'POST', () => {
-          const connection = (ctx as Context & { readonly connection?: BrowserAuthenticatedConnection }).connection
-          return typeof connection?.requestRejection === 'function' && connection.requestRejection(request) === undefined
-        })
+        assertLocalAdminTrust(request, request.method === 'POST', () => authenticateDesktopAdmin(request))
         if (target.search !== '') throw new HttpError(400, 'bad_request')
         const lanControl = target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/control`
           || target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/lan/control`
@@ -1189,18 +1192,18 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (target.decodedPathname.startsWith(`${LOCAL_ADMIN_PREFIX}/remote/`)) {
           const active = remoteController().gateway()
           if (active === undefined) throw new HttpError(409, 'gateway_stopped')
-          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/remote`).handler(request, response)
+          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/remote`, authenticateDesktopAdmin).handler(request, response)
           return
         }
         if (target.decodedPathname.startsWith(`${LOCAL_ADMIN_PREFIX}/lan/`)) {
           const active = lanGateway
           if (active === undefined) throw new HttpError(409, 'gateway_stopped')
-          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/lan`).handler(request, response)
+          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/lan`, authenticateDesktopAdmin).handler(request, response)
           return
         }
         const active = lanGateway
         if (active === undefined) throw new HttpError(409, 'gateway_stopped')
-        await active.localAdminRoute().handler(request, response)
+        await active.localAdminRoute(LOCAL_ADMIN_PREFIX, authenticateDesktopAdmin).handler(request, response)
       } catch (error) {
         const mapped = mapAdminError(error)
         if (response.headersSent) response.destroy()

@@ -450,6 +450,24 @@ describe('stock DSH lifecycle', () => {
     expect(requestRejection).toHaveBeenCalledTimes(2)
   })
 
+  it.each([
+    '/api/mobile-access/lan/pairing/open',
+    '/api/mobile-access/pairing/open',
+  ])('keeps authenticated official Desktop writes trusted through %s', async path => {
+    const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
+    const mounted = await mount(true, 3080, {}, requestRejection)
+    const invalidBody = JSON.stringify({ ttlMs: 'not a duration' })
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER }
+
+    const unmarked = await invoke(mounted.route, 'POST', path, invalidBody, '127.0.0.1', { cookie: 'dsh-session=valid' })
+    expect(unmarked.status).toBe(403)
+    const unauthenticated = await invoke(mounted.route, 'POST', path, invalidBody, '127.0.0.1', { ...marker, cookie: 'dsh-session=invalid' })
+    expect(unauthenticated.status).toBe(403)
+    const allowed = await invoke(mounted.route, 'POST', path, invalidBody, '127.0.0.1', { ...marker, cookie: 'dsh-session=valid' })
+    expect(allowed.status).toBe(400)
+    expect(JSON.parse(allowed.body)).toEqual({ error: 'bad_request' })
+  })
+
   it('rejects DNS-rebinding and public Host values on the desktop admin route', async () => {
     const mounted = await mount()
     const rebound = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control', '', 'evil.example')

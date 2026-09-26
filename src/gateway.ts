@@ -2942,7 +2942,10 @@ export class MobileAccessGateway {
   }
 
   /** Loopback-only DSH WebServer route for opening pairing and managing devices. */
-  localAdminRoute(prefix: string = LOCAL_ADMIN_PREFIX): WebRoute {
+  localAdminRoute(
+    prefix: string = LOCAL_ADMIN_PREFIX,
+    authenticateDesktop?: (request: IncomingMessage) => boolean,
+  ): WebRoute {
     return {
       kind: 'prefix',
       path: prefix,
@@ -2950,7 +2953,7 @@ export class MobileAccessGateway {
         try {
           const target = parseRequestTarget(request.url)
           const mutation = request.method === 'POST'
-          assertLocalAdminTrust(request, mutation)
+          assertLocalAdminTrust(request, mutation, () => authenticateDesktop?.(request) === true)
           if (target.search !== '') throw new HttpError(400, 'bad_request')
           if (request.method === 'GET' && target.decodedPathname === `${prefix}/status`) {
             sendJson(response, 200, {
