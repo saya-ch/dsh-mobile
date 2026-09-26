@@ -18,7 +18,7 @@ export const NATIVE_MOBILE_STYLES = `
    still collapsed the sidebar. Keep the neutral state explicitly invisible —
    the query restores the fixed scrim, and its more specific [hidden] rule
    keeps winning there. */
- .dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }
+ .dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast,[data-dsh-mobile-header-pan] { display:none; }
  .dsh-mobile-settings_row { display:flex; align-items:center; gap:8px; padding:16px 0; border-bottom:0.5px solid var(--dsw-alias-border-l2); }
  .dsh-mobile-settings_rowText { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; padding-right:48px; }
  .dsh-mobile-settings_title { color:var(--dsw-alias-label-primary); font-size:14px; font-weight:400; line-height:22px; }
@@ -49,12 +49,20 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] { grid-column:2 !important; width:100vw !important; min-width:0 !important; }
   [data-dsh-mobile-center] > * { min-width:0 !important; }
   [data-dsh-mobile-header] { box-sizing:border-box !important; width:calc(100% - 16px) !important; margin:0 8px !important; min-width:0; padding-top:max(4px,env(safe-area-inset-top)) !important; padding-right:8px !important; padding-left:42px !important; }
+  [data-dsh-mobile-header][data-dsh-mobile-pan-available="true"] { grid-template-columns:auto minmax(0,1fr) 48px !important; }
+  [data-dsh-mobile-header] :is([class*="_titleRow"],[class*="_headerLeading"]) { touch-action:pan-y; }
+  [data-dsh-mobile-header-pan] { box-sizing:border-box; grid-column:3; grid-row:1; display:flex; align-items:center; justify-content:center; width:48px; height:48px; padding:0; border:0; border-radius:12px; background:transparent; color:var(--dsw-alias-label-primary); cursor:pointer; touch-action:manipulation; }
+  [data-dsh-mobile-header-pan][hidden] { display:none !important; }
+  [data-dsh-mobile-header-pan]:active { background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-interactive-bg-hover)); }
+  [data-dsh-mobile-header-pan]:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary,#4c82f7); outline-offset:1px; }
+  [data-dsh-mobile-header-pan] svg { width:18px; height:18px; }
+  [data-dsh-mobile-header-pan][data-at-end="true"] svg { transform:rotate(180deg); }
   [data-dsh-mobile-header] [class*="_titleRow"] { box-sizing:border-box !important; display:flex !important; align-items:center !important; min-width:0; min-height:32px !important; height:32px !important; gap:6px !important; padding:0 6px !important; }
   [data-dsh-mobile-header] [class*="_titleCluster"] { min-width:0; }
   [data-dsh-mobile-header] [class*="_crumbs"] { min-width:0; overflow:hidden; }
   [data-dsh-mobile-header] [class*="_crumb"] { max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  [data-dsh-mobile-header] [class*="_headerActions"] { min-width:0; overflow-x:auto; scrollbar-width:none; }
-  [data-dsh-mobile-header] [class*="_headerActions"]::-webkit-scrollbar { display:none; }
+  /* Nested header actions (including the Jobs menu) must paint outside the row. */
+  [data-dsh-mobile-header] [class*="_headerActions"] { flex:none; min-width:max-content; overflow:visible; }
   [data-dsh-mobile-header] [class*="_headerUtilities"] { gap:2px !important; }
   [data-dsh-mobile-header] [class*="_sessionLogButton"] { width:40px; min-width:40px; padding:0 !important; overflow:hidden; color:transparent; font-size:0 !important; }
   [data-dsh-mobile-header] [class*="_sessionLogButton"] > * { display:none !important; }
@@ -189,7 +197,6 @@ export const NATIVE_MOBILE_STYLES = `
 @keyframes dsh-mobile-panel-in { from { opacity:.72; transform:translateY(6px); } }
 @keyframes dsh-mobile-view-in { from { opacity:.58; transform:translateY(5px); } }
 @media (max-width:420px) {
-  [data-dsh-mobile-header] [class*="_headerActions"] { max-width:42vw; }
   [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] [class*="_selector"] { align-self:stretch !important; width:100% !important; }
   [data-dsh-mobile-message-column] [data-context-fields] > * { grid-template-columns:1fr !important; }
 }
@@ -239,6 +246,87 @@ export function markNativeMobileSettings(root: ParentNode): number {
 }
 
 const AUTO_HISTORY_THRESHOLD_PX = 64
+
+/** Travel, in CSS pixels, that separates a header strip pan from a tap on a chip. */
+const STRIP_DRAG_THRESHOLD_PX = 8
+
+/** Measure flowing title controls without counting an open absolute-positioned menu. */
+export function measureHeaderStripOverflow(row: HTMLElement): number {
+  const left = row.getBoundingClientRect().left
+  const controls: Element[] = Array.from(row.children)
+  const actions = row.querySelector(':scope > [class*="_titleCluster"] [class*="_headerActions"]')
+  if (actions !== null) controls.push(actions)
+  const right = Math.max(left, ...controls.map(control => control.getBoundingClientRect().right))
+  return Math.max(0, right - left - row.clientWidth)
+}
+
+/** Touch-only pan state; browser pointer cancellation does not interrupt the touch stream. */
+export function createHeaderStripPanController(options: {
+  readonly range: () => number
+  readonly render: (offset: number) => void
+  readonly now: () => number
+}) {
+  let offset = 0
+  let drag: { readonly x: number; readonly y: number; readonly offset: number; claimed: boolean } | undefined
+  let suppressUntil = 0
+  const clamp = (value: number): number => Math.min(Math.max(0, options.range()), Math.max(0, value))
+  const setOffset = (value: number): void => {
+    const next = clamp(value)
+    if (next === offset) return
+    offset = next
+    options.render(offset)
+  }
+  const end = (): void => {
+    if (drag === undefined) return
+    if (drag.claimed) suppressUntil = options.now() + 400
+    drag = undefined
+  }
+  const cancel = (): void => {
+    if (drag?.claimed) suppressUntil = options.now() + 400
+    drag = undefined
+  }
+  return {
+    offset: () => offset,
+    start: (x: number, y: number) => {
+      drag = { x, y, offset, claimed: false }
+      suppressUntil = 0
+    },
+    move: (x: number, y: number) => {
+      if (drag === undefined) return false
+      const travel = x - drag.x
+      if (!drag.claimed) {
+        const drift = y - drag.y
+        if (Math.abs(travel) < STRIP_DRAG_THRESHOLD_PX && Math.abs(drift) < STRIP_DRAG_THRESHOLD_PX) return false
+        if (Math.abs(drift) > Math.abs(travel)) { drag = undefined; return false }
+        drag.claimed = true
+      }
+      setOffset(drag.offset - travel)
+      return true
+    },
+    end,
+    cancel,
+    sync: () => {
+      if (options.range() === 0) { drag = undefined; suppressUntil = 0 }
+      setOffset(offset)
+    },
+    advance: (width: number) => {
+      const range = options.range()
+      setOffset(offset >= range - 1 ? 0 : offset + Math.max(80, width * 0.7))
+    },
+    reveal: (left: number, right: number, visibleLeft: number, visibleRight: number) => {
+      if (left < visibleLeft) setOffset(offset - (visibleLeft - left))
+      else if (right > visibleRight) setOffset(offset + right - visibleRight)
+    },
+    resetClickSuppression: () => { suppressUntil = 0 },
+    suppressClick: (inHeader: boolean, detail: number) => {
+      if (suppressUntil === 0 || detail === 0) return false
+      const suppress = inHeader && options.now() <= suppressUntil
+      suppressUntil = 0
+      return suppress
+    },
+    dispose: () => { drag = undefined; suppressUntil = 0; setOffset(0) },
+  }
+}
 
 export type NativeMobileLanguage = 'it' | 'en' | 'zh'
 
@@ -684,6 +772,133 @@ export function installNativeMobileSurface(): () => void {
     if (branch === null || branch.hasAttribute('disabled') || branch.getAttribute('aria-disabled') === 'true') return
     window.setTimeout(showBranchToast, 80)
   }
+  // The title row's popovers must travel with their triggers, so pan with a transform
+  // instead of an overflow scroller. An adjacent button exposes the same controls by tap.
+  const panButton = document.createElement('button')
+  panButton.type = 'button'
+  panButton.dataset.dshMobileHeaderPan = 'true'
+  panButton.hidden = true
+  const panIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  panIcon.setAttribute('viewBox', '0 0 16 16')
+  panIcon.setAttribute('aria-hidden', 'true')
+  const panPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  panPath.setAttribute('d', 'M6 3.5 10.5 8 6 12.5')
+  panPath.setAttribute('fill', 'none')
+  panPath.setAttribute('stroke', 'currentColor')
+  panPath.setAttribute('stroke-width', '1.8')
+  panPath.setAttribute('stroke-linecap', 'round')
+  panPath.setAttribute('stroke-linejoin', 'round')
+  panIcon.append(panPath)
+  panButton.append(panIcon)
+  let stripHeader: HTMLElement | undefined
+  const stripParts = (): { readonly row: HTMLElement; readonly lead: HTMLElement | undefined } | undefined => {
+    const row = stripHeader?.querySelector<HTMLElement>('[class*="_titleRow"]')
+    if (row === undefined || row === null) return undefined
+    return { row, lead: stripHeader?.querySelector<HTMLElement>('[class*="_headerLeading"]') ?? undefined }
+  }
+  const stripRange = (): number => {
+    const parts = stripParts()
+    if (!overlayQuery.matches || parts === undefined) return 0
+    const overflow = measureHeaderStripOverflow(parts.row)
+    return overflow > 1 ? overflow : 0
+  }
+  const updatePanButton = (offset: number): void => {
+    const range = stripRange()
+    const atEnd = range > 0 && offset >= range - 1
+    panButton.dataset.atEnd = String(atEnd)
+    const text = atEnd
+      ? label('Torna all’inizio della barra', 'Return to start of header', '返回标题栏开头')
+      : label('Altre azioni della barra', 'More header actions', '查看更多标题栏操作')
+    if (panButton.getAttribute('aria-label') !== text) panButton.setAttribute('aria-label', text)
+    if (panButton.title !== text) panButton.title = text
+  }
+  const applyStrip = (offset: number): void => {
+    const parts = stripParts()
+    if (parts === undefined) return
+    const value = offset === 0 ? '' : `translateX(${-offset}px)`
+    if (parts.row.style.transform !== value) parts.row.style.transform = value
+    if (parts.lead !== undefined && parts.lead.style.transform !== value) parts.lead.style.transform = value
+    updatePanButton(offset)
+  }
+  const pan = createHeaderStripPanController({
+    range: stripRange,
+    render: applyStrip,
+    now: () => performance.now(),
+  })
+  const syncPanButton = (header: HTMLElement | undefined): void => {
+    if (header !== stripHeader) {
+      pan.dispose()
+      stripHeader?.removeAttribute('data-dsh-mobile-pan-available')
+      stripHeader = header
+    }
+    if (header === undefined) { panButton.remove(); pan.sync(); return }
+    if (panButton.parentElement !== header) header.append(panButton)
+    const parts = stripParts()
+    const naturalRange = parts === undefined ? 0 : measureHeaderStripOverflow(parts.row) - (panButton.hidden ? 0 : 48)
+    const available = overlayQuery.matches && naturalRange > 1
+    if (panButton.hidden === available) panButton.hidden = !available
+    if (header.dataset.dshMobilePanAvailable !== String(available)) header.dataset.dshMobilePanAvailable = String(available)
+    pan.sync()
+    applyStrip(pan.offset())
+  }
+  const onPanClick = (): void => {
+    const header = panButton.parentElement
+    pan.advance(header?.clientWidth ?? 0)
+  }
+  panButton.addEventListener('click', onPanClick)
+  let activeTouchId: number | undefined
+  const onStripTouchStart = (event: TouchEvent): void => {
+    if (activeTouchId !== undefined) pan.cancel()
+    activeTouchId = undefined
+    pan.resetClickSuppression()
+    if (event.touches.length !== 1) return
+    if (!overlayQuery.matches) return
+    if (!(event.target instanceof Element) || event.target.closest('[data-dsh-mobile-header-pan]') !== null) return
+    if (event.target.closest('[data-dsh-mobile-header]') !== stripHeader) return
+    if (event.target.closest('[data-dsh-mobile-header] [class*="_titleRow"],[data-dsh-mobile-header] [class*="_headerLeading"]') === null) return
+    if (stripRange() === 0) return
+    const touch = event.touches[0]
+    if (touch === undefined) return
+    activeTouchId = touch.identifier
+    pan.start(touch.clientX, touch.clientY)
+  }
+  const onStripTouchMove = (event: TouchEvent): void => {
+    if (activeTouchId === undefined) return
+    if (event.touches.length !== 1) { activeTouchId = undefined; pan.cancel(); return }
+    const touch = event.touches[0]
+    if (touch === undefined || touch.identifier !== activeTouchId) return
+    if (pan.move(touch.clientX, touch.clientY)) event.preventDefault()
+  }
+  const onStripTouchEnd = (event: TouchEvent): void => {
+    if (activeTouchId === undefined || !Array.from(event.changedTouches).some(touch => touch.identifier === activeTouchId)) return
+    activeTouchId = undefined
+    pan.end()
+  }
+  const onStripTouchCancel = (event: TouchEvent): void => {
+    if (activeTouchId === undefined || !Array.from(event.changedTouches).some(touch => touch.identifier === activeTouchId)) return
+    activeTouchId = undefined
+    pan.cancel()
+  }
+  const onStripFocus = (event: FocusEvent): void => {
+    if (!(event.target instanceof HTMLElement) || event.target === panButton) return
+    const header = event.target.closest<HTMLElement>('[data-dsh-mobile-header]')
+    if (header === null || header !== stripHeader || stripRange() === 0 || event.target.closest('[class*="_titleRow"],[class*="_headerLeading"]') === null) return
+    const focused = event.target.getBoundingClientRect()
+    const visible = header.getBoundingClientRect()
+    pan.reveal(focused.left, focused.right, visible.left + 42, visible.right - 56)
+  }
+  const onStripClickCapture = (event: MouseEvent): void => {
+    const inHeader = event.target instanceof Element && event.target.closest('[data-dsh-mobile-header]') !== null
+    if (!pan.suppressClick(inHeader, event.detail)) return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  document.addEventListener('touchstart', onStripTouchStart, true)
+  document.addEventListener('touchmove', onStripTouchMove, { capture: true, passive: false })
+  document.addEventListener('touchend', onStripTouchEnd, true)
+  document.addEventListener('touchcancel', onStripTouchCancel, true)
+  document.addEventListener('focusin', onStripFocus, true)
+  document.addEventListener('click', onStripClickCapture, true)
   document.addEventListener('click', onBranchClick, true)
   let frame: HTMLElement | undefined
   let sidebar: HTMLElement | undefined
@@ -793,6 +1008,7 @@ export function installNativeMobileSurface(): () => void {
     const handle = frame === undefined ? undefined : firstByClassSuffix(frame, '_handle')
     markNativeMobileSettings(document)
     if (center === undefined) {
+      syncPanButton(undefined)
       syncComposerEnterNewline(null)
       bindHistoryScroller(undefined)
       syncMediaBinding(null)
@@ -802,7 +1018,9 @@ export function installNativeMobileSurface(): () => void {
     }
     if (center !== undefined) {
       center.dataset.dshMobileCenter = 'true'
-      center.querySelector<HTMLElement>('header')?.setAttribute('data-dsh-mobile-header', 'true')
+      const header = center.querySelector<HTMLElement>('header') ?? undefined
+      header?.setAttribute('data-dsh-mobile-header', 'true')
+      syncPanButton(header)
       viewArea = firstByClassSuffix(center, '_viewArea')
       if (viewArea !== undefined) viewArea.dataset.dshMobileView = 'true'
       const conversation = center.querySelector<HTMLElement>('[data-conversation-scroll]')
@@ -936,6 +1154,17 @@ export function installNativeMobileSurface(): () => void {
     observer.disconnect()
     overlayQuery.removeEventListener('change', schedule)
     document.removeEventListener('click', onBranchClick, true)
+    document.removeEventListener('touchstart', onStripTouchStart, true)
+    document.removeEventListener('touchmove', onStripTouchMove, true)
+    document.removeEventListener('touchend', onStripTouchEnd, true)
+    document.removeEventListener('touchcancel', onStripTouchCancel, true)
+    document.removeEventListener('focusin', onStripFocus, true)
+    document.removeEventListener('click', onStripClickCapture, true)
+    pan.dispose()
+    applyStrip(0)
+    panButton.removeEventListener('click', onPanClick)
+    panButton.remove()
+    stripHeader?.removeAttribute('data-dsh-mobile-pan-available')
     cameraButton.removeEventListener('pointerdown', quietMediaPointer)
     cameraButton.removeEventListener('click', takePhoto)
     if (branchToastTimer !== 0) window.clearTimeout(branchToastTimer)

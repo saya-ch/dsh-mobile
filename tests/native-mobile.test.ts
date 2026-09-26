@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { applyNativeMobileLanguageMarker, bindComposerSoftEnter, dispatchComposerImageDrop, drawerScrimVisible, installNativeMobileSurface, isComposerMediaOriginCurrent, isSoftKeyboardEnterLineBreak, markNativeMobileSettings, NATIVE_MOBILE_OVERLAY_QUERY, NATIVE_MOBILE_STYLES, preflightComposerImageDrop, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier } from '../src/native-mobile.js'
+import { applyNativeMobileLanguageMarker, bindComposerSoftEnter, createHeaderStripPanController, dispatchComposerImageDrop, drawerScrimVisible, installNativeMobileSurface, isComposerMediaOriginCurrent, isSoftKeyboardEnterLineBreak, markNativeMobileSettings, measureHeaderStripOverflow, NATIVE_MOBILE_OVERLAY_QUERY, NATIVE_MOBILE_STYLES, preflightComposerImageDrop, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier } from '../src/native-mobile.js'
 
 interface FakeElementOptions {
   readonly children?: readonly HTMLElement[]
@@ -61,7 +61,7 @@ describe('native mobile presentation', () => {
     // button in normal flow at the document's bottom-left, whose click still
     // collapsed the sidebar.
     const [neutral] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
-    expect(neutral).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }')
+    expect(neutral).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast,[data-dsh-mobile-header-pan] { display:none; }')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop { display:block; position:fixed; z-index:235;')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:block; position:fixed;')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop[hidden] { display:none; }')
@@ -400,5 +400,139 @@ describe('composer soft-keyboard Enter', () => {
     expect(source).toContain('[data-trigger-menu],button[aria-haspopup="listbox"][aria-expanded="true"]')
     expect(source).toContain("editor.addEventListener('keydown', onKeyDown, { capture: true })")
     expect(source).not.toContain('lineBreakButton')
+  })
+})
+function headerPanHarness(initialRange = 220) {
+  let range = initialRange
+  let now = 0
+  let rendered = 0
+  const pan = createHeaderStripPanController({
+    range: () => range,
+    render: offset => { rendered = offset },
+    now: () => now,
+  })
+  return {
+    pan,
+    rendered: () => rendered,
+    setRange: (value: number) => { range = value },
+    setTime: (value: number) => { now = value },
+  }
+}
+
+describe('header strip pan', () => {
+  it('does not let an open Jobs menu invent horizontal overflow', () => {
+    const box = (right: number) => ({ getBoundingClientRect: () => ({ right }) }) as unknown as Element
+    const row = {
+      clientWidth: 309,
+      scrollWidth: 439, // Includes the absolute menu, but is not the chrome width.
+      children: [box(190), box(353)],
+      querySelector: () => box(190),
+      getBoundingClientRect: () => ({ left: 50 }),
+    } as unknown as HTMLElement
+    expect(measureHeaderStripOverflow(row)).toBe(0)
+    const overflowing = { ...row, clientWidth: 261, children: [box(800)], querySelector: () => null } as unknown as HTMLElement
+    expect(measureHeaderStripOverflow(overflowing)).toBe(489)
+  })
+
+  it('keeps taps and vertical scrolls untouched while a horizontal touch crosses the threshold', () => {
+    const { pan, rendered } = headerPanHarness()
+    pan.start(200, 20)
+    expect(pan.move(195, 20)).toBe(false)
+    expect(rendered()).toBe(0)
+    pan.end()
+    expect(pan.suppressClick(true, 1)).toBe(false)
+    pan.start(200, 20)
+    expect(pan.move(190, 40)).toBe(false)
+    expect(pan.move(170, 40)).toBe(false)
+    expect(rendered()).toBe(0)
+    pan.start(200, 20)
+    expect(pan.move(180, 22)).toBe(true)
+    expect(rendered()).toBe(20)
+  })
+
+  it('keeps following the touch stream independently of pointercancel', () => {
+    const { pan, rendered } = headerPanHarness()
+    pan.start(200, 20)
+    expect(pan.move(185, 20)).toBe(true)
+    expect(pan.move(120, 20)).toBe(true)
+    expect(pan.move(120, 20)).toBe(true)
+    expect(rendered()).toBe(80)
+    pan.end()
+    expect(pan.suppressClick(true, 1)).toBe(true)
+  })
+
+  it('ends touchcancel cleanly and permits the next touch to move the strip', () => {
+    const { pan, rendered } = headerPanHarness()
+    pan.start(200, 20)
+    pan.move(170, 20)
+    pan.cancel()
+    expect(pan.move(120, 20)).toBe(false)
+    pan.start(200, 20)
+    expect(pan.move(160, 20)).toBe(true)
+    expect(rendered()).toBe(70)
+  })
+
+  it('does not consume a later unrelated tap, a keyboard click, or a click outside the header', () => {
+    const { pan, setTime } = headerPanHarness()
+    pan.start(200, 20)
+    pan.move(150, 20)
+    pan.end()
+    expect(pan.suppressClick(true, 0)).toBe(false)
+    expect(pan.suppressClick(false, 1)).toBe(false)
+    expect(pan.suppressClick(true, 1)).toBe(false)
+    pan.start(200, 20)
+    pan.move(150, 20)
+    pan.end()
+    pan.resetClickSuppression()
+    expect(pan.suppressClick(true, 1)).toBe(false)
+    pan.start(200, 20)
+    pan.move(150, 20)
+    pan.end()
+    setTime(401)
+    expect(pan.suppressClick(true, 1)).toBe(false)
+  })
+
+  it('re-clamps after header changes and offers tap/keyboard routes to off-screen controls', () => {
+    const { pan, rendered, setRange } = headerPanHarness()
+    pan.advance(200)
+    expect(rendered()).toBe(140)
+    pan.reveal(300, 340, 40, 260)
+    expect(rendered()).toBe(220)
+    pan.advance(200)
+    expect(rendered()).toBe(0)
+    pan.advance(200)
+    setRange(20)
+    pan.sync()
+    expect(rendered()).toBe(20)
+    setRange(0)
+    pan.sync()
+    expect(rendered()).toBe(0)
+  })
+
+  it('stops immediately without inertia and resets on disposal', () => {
+    const { pan, rendered, setTime } = headerPanHarness()
+    pan.start(200, 20)
+    pan.move(150, 20)
+    pan.end()
+    setTime(1_000)
+    expect(rendered()).toBe(50)
+    pan.dispose()
+    expect(rendered()).toBe(0)
+  })
+
+  it('keeps touch-action scoped to the actual phone header and exposes a 48px control', () => {
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-header] :is([class*="_titleRow"],[class*="_headerLeading"]) { touch-action:pan-y; }')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('.dshm-shell header { touch-action: pan-y; }')
+    expect(NATIVE_MOBILE_STYLES).toContain('.dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast,[data-dsh-mobile-header-pan] { display:none; }')
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-header-pan] { box-sizing:border-box; grid-column:3; grid-row:1; display:flex; align-items:center; justify-content:center; width:48px; height:48px;')
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-header] [class*="_headerActions"] { flex:none; min-width:max-content; overflow:visible; }')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-header] [class*="_headerActions"] { max-width:42vw; }')
+    const source = installNativeMobileSurface.toString()
+    expect(source).toContain('document.addEventListener("touchmove", onStripTouchMove')
+    expect(source).not.toContain('onStripPointerCancel')
+    expect(source).not.toContain('onStripPointerMove')
+    expect(source).toContain('document.addEventListener("focusin", onStripFocus, true)')
+    expect(source).toContain('overlayQuery.matches && naturalRange > 1')
+    expect(source.indexOf('document.addEventListener("click", onStripClickCapture, true)')).toBeLessThan(source.indexOf('document.addEventListener("click", onBranchClick, true)'))
   })
 })
