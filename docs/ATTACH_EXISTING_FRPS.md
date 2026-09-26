@@ -1,5 +1,7 @@
 # 接入你既有的 frps（插件不自动改动服务器）
 
+[English guide](ATTACH_EXISTING_FRPS.en.md)
+
 > **需要 0.4.6 插件**；自签档还必须使用 0.4.6 Android App。Android App 0.3.3–0.4.5 可使用公开证书档，但不支持自签档。
 
 本文面向**已经在一台公网 VPS 上跑着 frps**的用户。插件不会安装、修改或重启你的 frps，也不会自动改动 Caddyfile；若选择公开 CA 档，你需要自行新增 Caddy 片段和 `import`。本机侧不改动 DSH 自身配置。接入前须核对既有 frps 的监听；若它不满足所选入口档的要求，插件不会代你修改。
@@ -96,3 +98,5 @@ curl -k -sS -o /dev/null -w '%{http_code}\n' https://YOUR_PUBLIC_IPV4:33080/mobi
 
 - **`origin` 自有反代通道**（默认 3444）是另一条独立路径，TLS 由**你自己的外部反代**终止，与本档互不影响。
 - **deploy 模式**（由插件安装 frps + Caddy）保持不变，仍需要 SSH；attach 模式**零 SSH**。
+
+本机的「彻底移除 FRP」只清理插件管理的 frpc、私有配置和自签入口材料，不会删除或重启 VPS 上你已有的 frps、Caddy、证书或防火墙规则。托管部署及其独立的服务器清理步骤见[自建 FRP 使用指南](SELF_HOSTED_FRP.md)。

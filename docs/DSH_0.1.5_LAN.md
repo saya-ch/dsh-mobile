@@ -1,6 +1,6 @@
 # DeepSeek Harness 0.1.5 局域网验证
 
-本页记录 DSH Mobile 0.3.15 对 DeepSeek Harness 0.1.5 的局域网兼容性证据，以及该次实测没有覆盖的远程路径。
+本页是 DSH Mobile 0.3.15 对 DeepSeek Harness 0.1.5 的历史局域网验证记录，不表示当前版本或远程通道已通过同一测试。当前支持组合见[项目兼容性表](../README.md#兼容性)。
 
 ## 验证环境
 

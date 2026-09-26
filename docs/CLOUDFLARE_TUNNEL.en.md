@@ -1,5 +1,7 @@
 # Cloudflare named tunnel (a stable public hostname)
 
+[中文指南](CLOUDFLARE_TUNNEL.md)
+
 The built-in cloudflared provider runs in one of two modes, chosen in the panel under **Mobile access → Remote → cloudflared → Tunnel type**:
 
 | | Quick tunnel (default) | Named tunnel |
@@ -52,11 +54,11 @@ Moving to a fixed hostname means **an already paired phone must pair again**: a 
 >
 > Scanning is optional: the full link (`https://your-domain/mobile-access/pair#instance=…&token=…`) can be copied to the phone and pasted, because the app accepts a complete link in its input field.
 
-The old remote entry in the device list will show **Address may have changed** or unreachable; delete it once the new pairing succeeds.
+The old address may show **Address may have changed** or temporarily unreachable before re-pairing. After pairing the same computer again, the app updates its existing remote-device record by device identity and keeps the custom name; there is no old entry to delete.
 
 ## Security boundary
 
-- The token is written only into the DSH Mobile private directory (`~/.dsh/mobile-access/remote/cloudflared/tunnel.json`, mode 0600) and is passed to `cloudflared` **only** through the `TUNNEL_TOKEN` environment variable, never on the command line, which any local process can read.
+- The token is written only into the DSH Mobile private directory (by default `$DSH_HOME/mobile-access/remote/cloudflared/tunnel.json`; Unix mode `0600`, restricted ACL on Windows) and is passed to `cloudflared` **only** through the `TUNNEL_TOKEN` environment variable, never on the command line.
 - The token is never returned to a browser or a phone. Panel status carries only whether it is configured, plus the hostname and port.
 - Behind the tunnel sits DSH Mobile's own authenticated gateway: the public hostname exposes that gateway, and DSH still requires paired-device credentials.
 - The plugin adds no system service, startup item, registry entry or PATH entry. Disabling the channel ends the process.
@@ -90,24 +92,17 @@ The old remote entry in the device list will show **Address may have changed** o
 
 ## Troubleshooting
 
-- **Stuck on "connecting"**: a named tunnel prints no banner, so it only becomes ready once the connector registers. Read the cloudflared output in the DSH log; the `CONNECTIVITY PRE-CHECKS` table says whether DNS, UDP/QUIC or TCP is the problem.
+- **Stuck on "connecting"**: the named tunnel becomes ready only after the connector registers with Cloudflare. Check cloudflared output in the DSH log and test DNS, UDP/QUIC and TCP reachability from the computer to a Cloudflare edge.
 - **Public access returns 1033**: Cloudflare believes no connector is healthy for that hostname. Check the tunnel shows Healthy in Zero Trust, and that its ingress port matches the panel.
 - **`cloudflared` reports `Unauthorized`, or the tunnel id does not exist**: the token belongs to a different tunnel, for example one that was deleted and recreated. Copy the token again.
-- **With a TUN or transparent proxy running (Clash, Mihomo, Clash Verge), the phone sticks on "Loading plugins" and retries forever.** This is a real failure that was measured, and it is easy to misread as a pairing or plugin problem:
-  - `cloudflared`'s connection to `region*.v2.argotunnel.com` has no dedicated rule, so it falls through to the catch-all `Match`/`MATCH` rule and is sent into a proxy node. The core's own API shows it plainly:
-    ```
-    cloudflared.exe -> region2.v2.argotunnel.com
-      rule=Match   chains=["<some airport node>","漏网之鱼"]   up/down = 103 MB / 2.1 MB
-    ```
-  - Downstream throughput then collapses to **8–100 KB/s**. The phone's DSH boot pulls a **4.5 MB** (compressed) boot bundle in one shot, the loader gives up, and the app shows "load, fail, retry".
-  - The same file took **0.2 s** on the LAN gateway, and **9.9 s / 454 KB/s** through the tunnel once routing was fixed — two orders of magnitude apart.
-  - Fix: route cloudflared and its edge domains directly. In Clash Verge's **global merge profile** (`profiles/Merge.yaml`, which subscription updates do not overwrite):
-    ```yaml
-    prepend-rules:
-      - PROCESS-NAME,cloudflared.exe,DIRECT
-      - DOMAIN-SUFFIX,argotunnel.com,DIRECT
-      - DOMAIN-SUFFIX,trycloudflare.com,DIRECT
-    ```
-    Then make cloudflared **reconnect**: hot-reloading the core does not migrate long-lived connections (use the panel's reconnect action, or toggle the provider off and on).
-  - To confirm it is this and not the phone: fetch the boot bundle from the computer with the same session and watch the rate. If the computer is just as slow, the phone and pairing are innocent.
+- **The phone stalls on "Loading plugins" or the remote page is slow while a TUN or transparent proxy is active**: check whether a catch-all rule sends `cloudflared` connections to `*.argotunnel.com` through a proxy node. This routing has caused slow boot-resource transfers before; it does not by itself indicate a pairing failure. This Clash-rule example is for Windows; on Linux, adapt the process name and syntax to your proxy client, and put direct-route rules before catch-all rules:
+
+  ```yaml
+  prepend-rules:
+    - PROCESS-NAME,cloudflared.exe,DIRECT
+    - DOMAIN-SUFFIX,argotunnel.com,DIRECT
+    - DOMAIN-SUFFIX,trycloudflare.com,DIRECT
+  ```
+
+  Then make cloudflared **reconnect** so existing connections take the new route (use the panel's reconnect action, or toggle the provider off and on). Compare the same resource through the LAN and remote entries. If the remote entry is also slow on the computer, inspect the computer-to-Cloudflare route first; if only the phone is slow, inspect its network.
 - **The domain still resolves to the old address**: after the nameserver change Cloudflare must move the zone from Pending to Active, and records in a pending zone are not served publicly.

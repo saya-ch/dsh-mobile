@@ -1,5 +1,7 @@
 # Attach to an existing frps
 
+[中文指南](ATTACH_EXISTING_FRPS.md)
+
 > **Requires plugin 0.4.6**; the self-signed entry also requires the 0.4.6 Android app. Android apps 0.3.3–0.4.5 can use the public-CA entry but not the self-signed entry.
 
 Use this path when you already run frps on a public VPS. The plugin does not install, edit, or restart that frps and does not automatically change your Caddyfile; public-CA mode requires **you** to add a Caddy snippet and import. Inspect the server's listeners before choosing an entry mode. The panel's **Copy attachment plan** action only produces a masked local `frpc.toml` preview and VPS instructions; it neither connects to the VPS nor writes configuration. To copy a token-bearing local config, re-enter the token and explicitly click its copy button; a saved token is never returned to the page.

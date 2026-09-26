@@ -19,10 +19,10 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [DSH 0.1.5 局域网验证记录](DSH_0.1.5_LAN.md) | DSH Mobile 0.3.15 对 DeepSeek Harness 0.1.5 的局域网兼容验证 |
+| [DSH 0.1.5 局域网验证记录](DSH_0.1.5_LAN.md) | DSH Mobile 0.3.15 的历史局域网实测；当前版本组合请看[兼容性表](../README.md#兼容性) |
 
 ## 面向维护者 / Maintainer notes
 
 维护者文档面向改代码的人，**不随 npm 包发布**，只在仓库中阅读：
 
-- `docs/HANDOFF_SELF_HOSTED_FRP.md` —— 自建 FRP 的代码地图、错误码、安全边界与真机验证记录。
+- [自建 FRP 维护记录](HANDOFF_SELF_HOSTED_FRP.md) —— 0.4.6 开发时的代码地图、安全检查点与历史真机验证；当前使用步骤以本页上方的用户指南为准。

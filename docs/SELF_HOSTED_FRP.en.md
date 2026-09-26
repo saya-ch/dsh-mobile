@@ -20,7 +20,7 @@ Android app
 - **Domain mode**: use your own public domain; Caddy obtains and renews the certificate automatically.
 - **Public IPv4 mode**: use the VPS public IPv4 address directly. The plugin uses Certbot to request a roughly six-day Let's Encrypt IP certificate and installs a daily renewal timer. Documentation ranges such as `203.0.113.10`, private addresses, and other reserved addresses are rejected; enter a real routable public IP.
 
-The publicly trusted entry in this guide requires Android app 0.3.3 or later for custom remote origins. Self-signed passthrough requires the 0.4.6 app with remote CA pinning; older apps cannot use that entry and continue to work with LAN, cpolar, and Tailscale.
+The publicly trusted entry in this guide requires Android app 0.3.3 or later for custom remote origins. The separate self-signed TCP passthrough in the [existing-frps attachment guide](ATTACH_EXISTING_FRPS.en.md) is attach-only and requires the 0.4.6 or later app with remote CA pinning; older apps cannot use that entry and continue to work with LAN, cpolar, and Tailscale.
 
 ## Manual deployment vs automatic deployment
 
@@ -53,11 +53,13 @@ Public IPv4 mode also removes the corresponding Let's Encrypt IP certificate. Do
 On the VPS:
 
 ```bash
-sudo systemctl status dsh-mobile-frps.service caddy dsh-mobile-cert-renew.timer
+sudo systemctl status dsh-mobile-frps.service caddy
 sudo journalctl -u dsh-mobile-frps.service -u caddy -n 200 --no-pager
 sudo ss -lntp
-curl -vk https://PUBLIC_HOST/
+curl -v https://PUBLIC_HOST/mobile-access/discovery
 ```
+
+Only public IPv4 mode installs `dsh-mobile-cert-renew.timer`; in that mode, also run `sudo systemctl status dsh-mobile-cert-renew.timer`. Replace `PUBLIC_HOST` with your actual domain or public IPv4 address. Do not add `-k`: verify the public certificate as well as the response. Check the same address from an independent external network and confirm discovery reports this computer's installation identifier; success on the VPS alone does not prove the phone's network can reach it.
 
 On the computer, start with the plugin log at `$DSH_HOME/mobile-access/logs/dsh-mobile.log` (JSONL, 5 MB rotation, tokens and keys redacted) and the panel diagnostic report. Windows antivirus software can quarantine frpc; if it does, create the smallest possible exception for the verified component directory only.
 
@@ -69,11 +71,6 @@ On the computer, start with the plugin log at `$DSH_HOME/mobile-access/logs/dsh-
 - VPS SSH targets currently cannot use IPv6.
 - The frps plaintext vhost must bind to `127.0.0.1`. The plugin rejects a publicly reachable plaintext port and reports readiness only after public discovery identifies the current computer.
 
-## Manual end-to-end checklist (before release)
+## Acceptance check
 
-- [x] Ubuntu IP mode: one-click redeploy on a VPS → public IPv4 ready → App discovery returned this computer (2026-09-03, Tencent Cloud).
-- [ ] Ubuntu domain mode: fresh VPS deployment → public domain ready → App pairing → send and receive messages.
-- [x] Existing Caddy coexistence: deploy into a Caddyfile containing an existing site and import line; verify user content is byte-for-byte preserved, the import occurs exactly once, and validation passes (2026-09-03, Tencent Cloud; concurrent writes use `flock`).
-- [x] Host-key change abort: an unconfirmed key set stops deployment/cleanup with `vps_host_key_mismatch` before network authentication (unit-test coverage plus full device fingerprint review).
-- [x] One-click cleanup: after deployment, services, files, timers, marked firewall rules, the owned system user, and the LE certificate were removed while the user's Caddy installation remained (2026-09-03, Tencent Cloud).
-- [x] Uninstall-script review: only DSH Mobile-owned paths and rules are touched (unit assertions plus device review).
+After deployment, check the certificate, public discovery endpoint, app pairing, and a live conversation on your own VPS and phone network. The repository's historical tests are recorded in the [self-hosted FRP handoff](HANDOFF_SELF_HOSTED_FRP.md); they cannot replace your own acceptance test.

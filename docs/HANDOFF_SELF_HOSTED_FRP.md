@@ -1,6 +1,6 @@
-# 自建 FRP 维护说明
+# 自建 FRP 历史维护记录
 
-既有 frps 接入与自签入口从 0.4.6 起提供；自签档需要 0.4.6 Android App。下文的 2026-09-03 真机记录只验证托管部署的公开证书 IP 档，不是 attach 档验收结果。
+本文保留 0.4.6 开发时的代码地图和验证记录，供维护者核对；当前用户操作以 [SELF_HOSTED_FRP.md](SELF_HOSTED_FRP.md) 和 [ATTACH_EXISTING_FRPS.md](ATTACH_EXISTING_FRPS.md) 为准。既有 frps 接入与自签入口从 0.4.6 起提供；自签档需要 0.4.6 或更新的 Android App。下文的 2026-09-03 真机记录只验证托管部署的公开证书 IP 档，不是 attach 档验收结果。
 
 面向维护者。用户文档见 [SELF_HOSTED_FRP.md](SELF_HOSTED_FRP.md)；「接入既有 frps + 自签穿透」用户指南见
 [ATTACH_EXISTING_FRPS.md](ATTACH_EXISTING_FRPS.md)。
@@ -86,7 +86,7 @@ cd apps/mobile/android
 
 - 部署 → frpc 安装 → 公网 discovery `ready` 全链路通过；`https://VPS/mobile-access/discovery` 独立验证 200，Let's Encrypt 短期 IP 证书有效。
 - 一键清理后服务端无残留：单元、配置/二进制/证书目录、续期定时器、系统用户、LE 证书均已移除；Caddy 本体与占位 Caddyfile 保留。
-- 真机发现并修复两个问题：
+- 该次真机验证记录的修复：
   1. 重部署不断开旧 frps（`enable --now` 对已运行服务是 no-op）导致 Token 失配——部署脚本现改为 `enable` + `restart`，并有回归测试锁定。
   2. 本机旧版 `ssh-keyscan` 与 OpenSSH 9.6 协商 KEX 失败——`defaultRunKeyscan` 增加 Git 版 keyscan 重试，仍无输出时回退到认证连接直读公钥（同一确认-固定管线），并有回归测试锁定。
   3. 长会话（apt/pip 分钟级无输出）曾被中间设备 reset——SSH/SCP 会话现带 `ServerAliveInterval=15` 保活。

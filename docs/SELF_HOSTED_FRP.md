@@ -24,7 +24,7 @@
 - **域名模式**：公开地址是自己的域名，Caddy 自动申请并续期证书。
 - **公网 IPv4 模式**：公开地址直接是 VPS 公网 IPv4（例如你自己的 VPS 地址），插件用 Certbot 申请约 6 天有效的 Let's Encrypt IP 证书，并安装每日自动续期定时器。注意：文档示例地址（如 `203.0.113.10`）和内网、保留地址会被拒绝，必须填写真实可路由的公网 IP。
 
-本页的公开证书入口需要 Android App 0.3.3 或更高版本（远程自定义入口）。自签穿透档需要 0.4.6 Android App 固定远程 CA；旧版 App 不支持该档，仍可使用局域网、cpolar 和 Tailscale。
+本页的公开证书入口需要 Android App 0.3.3 或更高版本（远程自定义入口）。另见[接入既有 frps](ATTACH_EXISTING_FRPS.md)中的自签 TCP 穿透档：它仅适用于接入模式，需要 0.4.6 或更新的 Android App 固定远程 CA；旧版 App 不支持该档，仍可使用局域网、cpolar 和 Tailscale。
 
 ## 手动部署 vs 自动部署
 
@@ -57,11 +57,13 @@ SSH 用户、端口和私钥路径只保存在当前浏览器的 `localStorage`�
 VPS 上：
 
 ```bash
-sudo systemctl status dsh-mobile-frps.service caddy dsh-mobile-cert-renew.timer
+sudo systemctl status dsh-mobile-frps.service caddy
 sudo journalctl -u dsh-mobile-frps.service -u caddy -n 200 --no-pager
 sudo ss -lntp
-curl -vk https://PUBLIC_HOST/
+curl -v https://PUBLIC_HOST/mobile-access/discovery
 ```
+
+只有公网 IPv4 模式会安装 `dsh-mobile-cert-renew.timer`，该模式另查 `sudo systemctl status dsh-mobile-cert-renew.timer`。将 `PUBLIC_HOST` 换成实际域名或公网 IPv4；不加 `-k`，以便同时验证公开证书。还应从独立外部网络检查同一地址，并确认 discovery 返回当前电脑的安装标识；只在 VPS 本机成功不代表手机网络可达。
 
 本机优先看插件日志（`$DSH_HOME/mobile-access/logs/dsh-mobile.log`，JSONL，超 5 MB 轮转，自动脱敏 Token 与密钥）与面板诊断报告。Windows 杀毒软件可能隔离 frpc；如确有拦截，只为已校验的组件目录设置最小范围例外。
 
@@ -73,11 +75,6 @@ curl -vk https://PUBLIC_HOST/
 - VPS 的 SSH 目前不支持 IPv6 地址。
 - frps 明文 vhost 必须只监听 `127.0.0.1`；插件会拒绝公网可达的明文端口，并在公开发现接口确认是当前电脑后才显示“已就绪”。
 
-## 手动端到端验证清单（发布前）
+## 上线前验收
 
-- [x] Ubuntu IP 模式：已部署 VPS 上一键重部署 → 公网 IP 就绪 → App 级 discovery 返回当前电脑（2026-09-03，腾讯云实测）。
-- [ ] Ubuntu 域名模式：全新 VPS 一键部署 → 公网域名就绪 → App 远程配对 → 收发消息。
-- [x] 既有 Caddy 共存：在已有自有站点 + import 行的 Caddyfile 上部署，确认自有内容逐字节保留、import 恰好一行、validate 通过（2026-09-03，腾讯云实测；并发写有 flock 互斥）。
-- [x] 指纹变更中止：未确认密钥集合部署/清理直接 `vps_host_key_mismatch` 中止且零网络碰触（单元测试锁定；真机指纹全量核对通过）。
-- [x] 一键清理：部署后执行一键清理，服务、文件、定时器、标记防火墙规则、系统用户、LE 证书均已移除，自有 Caddy 本体保留（2026-09-03，腾讯云实测）。
-- [x] 卸载脚本审阅：仅触碰 DSH Mobile 拥有的路径与规则（单元测试断言 + 真机复核）。
+部署后，请在你的实际 VPS 与手机网络上检查证书、外网发现接口、App 配对和实时对话；本仓库的历史实测记录见[自建 FRP 交接记录](HANDOFF_SELF_HOSTED_FRP.md)，不能替代你自己的验收。
