@@ -189,4 +189,8 @@
     <string name="scan_zoom_current">Zoom: %1$.1f times</string>
     <string name="scan_zoom_unavailable">Camera zoom is unavailable. You can still scan without zoom.</string>
     <string name="scan_close">Close scanner</string>
+    <string name="webview_update_title">Update your WebView</string>
+    <string name="webview_update_message">This device uses Chromium %1$s. An older engine may cause blank pages, theme issues, or unresponsive controls. Update the system WebView or the browser that provides it. You can continue using DSH.\n\nProvider: %2$s</string>
+    <string name="webview_update_action">View update options</string>
+    <string name="webview_continue">Continue</string>
 </resources>

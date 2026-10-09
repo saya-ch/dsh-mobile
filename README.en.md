@@ -33,7 +33,7 @@
 >
 > **Current stable release: 0.6.2**. Improve loading and scrolling on older WebViews, with independent plugin and app updates. [Release notes](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.6.2).
 >
-> **Upgrade reminder**: the plugin and Android app update independently. Web UI and connection fixes usually require only a plugin update; update the app for native changes or when it reports that its version is too old. [Compatibility notes](#compatibility).
+> **Version policy**: since plugin **0.6.2**, the Android app and plugin use independent version numbers and releases. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.6.1/dsh-mobile-android-v0.6.1.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
@@ -68,7 +68,7 @@ Install the plugin on the computer, then pair the Android app or a mobile browse
 
 Install and enable `dsh-mobile` from the app's **Plugins** page, then open **Mobile Access** to configure LAN or a remote channel. The app manages its Desktop profile; the `--profile web` commands below do not apply to it.
 
-After installing or updating, quit Desktop from the application menu and reopen it. If it reports `dsh-mobile-question-fixes: failed to import`, complete this restart so Desktop reads the bundled component again. You do not need to clear sessions or pairing data.
+After installing or updating, quit Desktop from the application menu and reopen it without clearing sessions or pairing data. If it still reports `dsh-mobile-question-fixes: failed to import`, check the installation log; a component-resolution failure may not be fixed by restarting alone.
 
 ### DSH Web
 

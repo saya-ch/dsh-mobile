@@ -4,7 +4,7 @@ import { lstat, mkdir, readdir, realpath, rm, unlink, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { assertBundledComponents, installPackedBundle, runPackagingCommand } from './packed-profile.mjs'
+import { assertProfileComponents, installPackedBundle, runPackagingCommand } from './packed-profile.mjs'
 
 const START_TIMEOUT_MS = 90_000
 export const CLIENT_TIMEOUT_MS = 60_000
@@ -94,7 +94,7 @@ export async function createMobileProfile(root, { tarball, dshBin, excludedClien
     name: 'dsh-profile-web',
     private: true,
     dependencies: {},
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-mobile'] } },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } },
   }, null, 2) + '\n')
   await writeFile(join(profile, 'cordis.patch.yml'), JSON.stringify([{
     id: 'mobile-access',
@@ -114,11 +114,11 @@ export async function createMobileProfile(root, { tarball, dshBin, excludedClien
     },
   }, ...extraPatches]) + '\n')
   await writeFile(join(profile, 'pnpm-workspace.yaml'), 'packages:\n  - .\n\nnodeLinker: hoisted\nautoInstallPeers: false\n')
-  await installPackedBundle(tarball, profile)
+  await installPackedBundle(tarball, profile, { dshBin })
   const installed = join(profile, 'node_modules', 'dsh-mobile')
-  await assertBundledComponents(installed)
+  await assertProfileComponents(installed)
   if (missingCompanion) {
-    const companion = join(installed, 'node_modules', 'dsh-mobile-question-fixes')
+    const companion = join(installed, 'packages', 'question-fixes')
     const metadata = await lstat(companion)
     if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error('Negative-control component is not a real directory')
     const inside = relative(await realpath(root), await realpath(companion))
@@ -126,7 +126,7 @@ export async function createMobileProfile(root, { tarball, dshBin, excludedClien
       throw new Error('Negative-control component is outside the owned temporary profile')
     }
     await rm(companion, { recursive: true })
-    await assertBundledComponents(installed)
+    await assertProfileComponents(installed)
   }
   await runPackagingCommand(process.execPath, [
     fileURLToPath(new URL('./check-packed-profile.mjs', import.meta.url)), dshBin, profile, home,

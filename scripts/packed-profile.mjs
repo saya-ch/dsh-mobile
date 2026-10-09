@@ -2,13 +2,18 @@ import { spawn } from 'node:child_process'
 import { access, readFile, realpath } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { promisify } from 'node:util'
+import { gunzip } from 'node:zlib'
+
+export const QUESTION_FIXES_PACKAGE = 'dsh-mobile-question-fixes'
 
 /** Run one owned packaging command and await its exit, including on timeout. */
-export async function runPackagingCommand(command, args, cwd) {
+export async function runPackagingCommand(command, args, cwd, overrides = {}) {
   const environment = { ...process.env, NODE_OPTIONS: '', NODE_PATH: '' }
   for (const name of Object.keys(environment)) {
     if (/(?:KEY|SECRET|TOKEN|PASSWORD)/iu.test(name)) delete environment[name]
   }
+  Object.assign(environment, overrides)
   const child = spawn(command, args, {
     cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: environment,
@@ -61,12 +66,25 @@ export async function packBundle(source, destination) {
   return join(destination, packed.filename)
 }
 
-/** Install the tarball into the profile, including its real runtime dependencies. */
-export async function installPackedBundle(tarball, profile) {
-  await runPackagingCommand(process.execPath, [
-    await npmCli(), 'install', '--ignore-scripts', '--legacy-peer-deps', '--omit=dev',
-    '--no-audit', '--no-fund', '--package-lock=false', resolve(tarball),
-  ], profile)
+/** Read an npm-owned tarball manifest without extracting executable files. */
+export async function packedManifest(tarball) {
+  const archive = await promisify(gunzip)(await readFile(tarball))
+  for (let offset = 0; offset + 512 <= archive.length;) {
+    const header = archive.subarray(offset, offset + 512)
+    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/u, '')
+    if (name === '') break
+    const size = Number.parseInt(header.subarray(124, 136).toString('ascii').replace(/\0.*$/u, '').trim(), 8)
+    if (!Number.isSafeInteger(size) || size < 0 || offset + 512 + size > archive.length) throw new Error('Malformed npm tarball')
+    if (name === 'package/package.json') return JSON.parse(archive.subarray(offset + 512, offset + 512 + size).toString('utf8'))
+    offset += 512 + Math.ceil(size / 512) * 512
+  }
+  throw new Error('npm tarball has no package/package.json')
+}
+
+/** Install through DSH's actual pnpm invocation in the owned profile. */
+export async function installPackedBundle(tarball, profile, { dshBin }) {
+  await runPackagingCommand(process.execPath, [dshBin, 'plugin', '--profile', 'web', 'add', resolve(tarball), '--ignore-scripts'], profile,
+    { DSH_HOME: dirname(dirname(profile)), DSH_TELEMETRY_DISABLED: '1' })
 }
 
 function contained(directory, file) {
@@ -74,23 +92,25 @@ function contained(directory, file) {
   return path === '' || (!isAbsolute(path) && path !== '..' && !path.startsWith(`..${sep}`))
 }
 
-/** Reject missing bundled components and workspace/global copies that mask them. */
-export async function assertBundledComponents(installed) {
+/** Require the embedded component and reject workspace or unrelated profile copies. */
+export async function assertProfileComponents(installed) {
   const manifest = JSON.parse(await readFile(join(installed, 'package.json'), 'utf8'))
-  const require = createRequire(join(installed, 'package.json'))
-  for (const name of manifest.bundledDependencies ?? []) {
-    const expected = join(installed, 'node_modules', name)
+  for (const name of [QUESTION_FIXES_PACKAGE]) {
+    const expected = join(installed, 'packages', 'question-fixes')
     let root
     try { root = await realpath(expected) } catch (error) {
-      if (error.code === 'ENOENT') throw new Error(`Packed bundle is missing nested component ${name}`)
+      if (error.code === 'ENOENT') throw new Error(`Packed bundle is missing embedded component ${name}`)
       throw error
     }
     if (!contained(await realpath(installed), root)) {
       throw new Error(`Packed component ${name} resolves outside the installed bundle: ${root}`)
     }
+    const companion = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+    if (companion.name !== name || companion.version !== manifest.version) throw new Error(`Packed component ${name} version does not match the Mobile artifact`)
+    const require = createRequire(join(root, 'package.json'))
     for (const specifier of [name, `${name}/client`, `${name}/package.json`]) {
       const file = await realpath(require.resolve(specifier))
-      if (!contained(root, file)) throw new Error(`Packed component ${specifier} resolves outside its nested package: ${file}`)
+      if (!contained(root, file)) throw new Error(`Packed component ${specifier} resolves outside its installed package: ${file}`)
     }
   }
 }

@@ -39,6 +39,13 @@ export const NATIVE_MOBILE_STYLES = `
  .dsh-mobile-settings_fontControls { display:flex; align-items:center; gap:8px; flex-shrink:0; }
  .dsh-mobile-settings_fontControls button { min-width:48px; padding:0 12px; }
  .dsh-mobile-settings_fontControls output { min-width:42px; text-align:center; font-variant-numeric:tabular-nums; }
+ .dsh-mobile-settings_fontDetails { min-width:0; padding:0 0 16px; border-bottom:0.5px solid var(--dsw-alias-border-l2); }
+ .dsh-mobile-settings_fontDetails > summary { display:list-item; min-height:48px; padding:14px 0; box-sizing:border-box; color:var(--dsw-alias-label-primary); font-size:14px; cursor:pointer; }
+ .dsh-mobile-settings_fontDetails .dsh-mobile-settings_rowText { padding-right:8px; }
+ .dsh-mobile-settings_fontFamily { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; padding:12px 0; }
+ .dsh-mobile-settings_fontFamily > span { flex:1 1 100px; }
+ .dsh-mobile-settings_fontFamily input { box-sizing:border-box; flex:1 1 180px; width:100%; min-width:0; min-height:48px; padding:8px 12px; border:0.5px solid var(--dsw-alias-border-l2); border-radius:10px; background:var(--dsw-alias-bg-module-platform); color:var(--dsw-alias-label-primary); font:inherit; }
+ .dsh-mobile-settings_fontFamily input:focus-visible,.dsh-mobile-settings_fontDetails > summary:focus-visible { outline:2px solid var(--dsw-alias-label-primary-bluish,#2563eb); outline-offset:2px; }
  /* The mobile row replaces the Host-backed font control, not the theme selector. */
  html.dsh-native-mobile-active [data-slot="settings.general.item"]:has([data-mobile-font-setting]) > :not([data-mobile-font-setting])[class*="_row"]:has([class*="_control"] > [class*="_stepper"] > [class*="_arrows"]) { display:none !important; }
  /* Landscape and wide App windows also constrain standard extension controls. */
@@ -122,6 +129,11 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] [class*="_selector"] { box-sizing:border-box !important; align-self:flex-start !important; justify-content:space-between !important; min-width:0 !important; min-height:48px !important; max-width:100% !important; }
   [data-dsh-mobile-settings-options] :is(input,select,textarea,button) { max-width:100%; }
   [data-dsh-mobile-settings-options] :is(input,select,textarea) { box-sizing:border-box; width:100%; min-width:0; }
+  /* Local steppers and native page-scale controls keep their own touch targets. */
+  [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] .dsh-mobile-settings_fontControls button { flex:0 0 auto !important; width:auto !important; min-width:48px !important; align-self:center !important; justify-content:center !important; }
+  [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] .dsh-mobile-settings_fontControls select { flex:0 0 auto !important; width:auto !important; min-width:76px !important; align-self:center !important; }
+  [data-dsh-mobile-settings-options] [data-mobile-font-setting] .dsh-mobile-settings_row { flex-wrap:wrap !important; }
+  [data-dsh-mobile-settings-options] [data-mobile-font-setting] .dsh-mobile-settings_rowText { flex:1 1 140px !important; width:auto !important; padding-right:8px !important; }
   [data-dsh-mobile-settings-options] [class*="_head"] { min-width:0; flex-wrap:wrap; }
   /* Provider names may shrink, but their edit/delete actions remain horizontal
      and retain a full touch target on narrow screens. */

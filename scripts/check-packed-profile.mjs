@@ -1,7 +1,7 @@
 import { realpath } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const [dshBin, profileDir, home] = process.argv.slice(2)
 if (dshBin === undefined || profileDir === undefined || home === undefined) {
@@ -29,18 +29,18 @@ try {
   new PluginPackages(context, { resolution })
   const internal = ModuleLoader.fromInternal()
   if (internal === undefined) throw new Error('DSH internal module resolver is unavailable')
-  const entry = resolution.entries.find(candidate => candidate.name === 'dsh-mobile-question-fixes')
-  const expected = await realpath(join(installed, 'node_modules', 'dsh-mobile-question-fixes'))
-  if (entry === undefined || await realpath(entry.packageDir) !== expected) {
-    throw new Error('DSH resolved the question-card component outside the installed Mobile bundle')
-  }
-  const node = await internal.import('dsh-mobile-question-fixes', baseUrl, {})
+  const specifier = selected.patches.flatMap(patch => patch.insert ?? []).find(row => row.id === 'dsh-ui-fixes')?.name
+  if (typeof specifier !== 'string') throw new Error('Packed Mobile bundle has no question-card component row')
+  const expected = await realpath(join(installed, 'packages', 'question-fixes'))
+  const located = internal.version === 'v2' ? internal.resolveSync(baseUrl, { specifier, attributes: {} }).url : internal.resolveSync(specifier, baseUrl, {}).url
+  if (await realpath(dirname(dirname(fileURLToPath(located)))) !== expected) throw new Error('DSH resolved question-card Host code outside the installed Mobile artifact')
+  const node = await internal.import(specifier, baseUrl, {})
   if (typeof node.apply !== 'function') throw new Error('Packed question-card component has no Host apply export')
   context.provide('loader', {
     internal,
     *entries() {
       yield {
-        options: { name: 'dsh-mobile-question-fixes' }, fiber: {}, disabled: false,
+        options: { name: specifier }, fiber: {}, disabled: false,
         parent: { tree: { ctx: { baseUrl } } },
       }
     },

@@ -6,9 +6,11 @@ import org.junit.Test
 /** Verifies safe-area union and repeat-dispatch behavior without an Android device. */
 class SafeAreaPaddingTest {
     @Test
-    fun reservesTheLargerStatusBarOrCutoutTopEdge() {
-        assertEquals(96, topSafeInset(statusBarTop = 72, displayCutoutTop = 96))
-        assertEquals(72, topSafeInset(statusBarTop = 72, displayCutoutTop = 0))
+    fun reservesThreeButtonNavigationWithoutAddingItAgainToTheKeyboard() {
+        val system = SafeAreaEdges(left = 0, top = 72, right = 0, bottom = 144)
+        val keyboard = SafeAreaEdges(left = 0, top = 0, right = 0, bottom = 840)
+        assertEquals(144, system.union(SafeAreaEdges(0, 0, 0, 0)).bottom)
+        assertEquals(840, system.union(keyboard).bottom)
     }
 
     @Test
@@ -16,6 +18,13 @@ class SafeAreaPaddingTest {
         assertEquals(0, additionalImeInset(coveredBottom = 48, webSafeBottom = 48))
         assertEquals(0, additionalImeInset(coveredBottom = 0, webSafeBottom = 48))
         assertEquals(792, additionalImeInset(coveredBottom = 840, webSafeBottom = 48))
+    }
+
+    @Test
+    fun landscapeNavigationAndCutoutReserveTheOccupiedSide() {
+        val navigation = SafeAreaEdges(left = 0, top = 0, right = 144, bottom = 0)
+        val cutout = SafeAreaEdges(left = 96, top = 0, right = 0, bottom = 0)
+        assertEquals(SafeAreaEdges(left = 96, top = 0, right = 144, bottom = 0), navigation.union(cutout))
     }
 
     @Test

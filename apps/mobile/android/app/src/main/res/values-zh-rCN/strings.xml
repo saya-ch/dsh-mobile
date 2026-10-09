@@ -188,4 +188,8 @@
     <string name="scan_zoom_current">当前放大 %1$.1f 倍</string>
     <string name="scan_zoom_unavailable">相机缩放暂不可用，仍可正常扫码。</string>
     <string name="scan_close">关闭扫码</string>
+    <string name="webview_update_title">建议更新网页内核</string>
+    <string name="webview_update_message">当前使用 Chromium %1$s，较旧的内核可能导致白屏、主题异常或操作无响应。请更新系统 WebView 或提供它的浏览器，您仍可继续使用 DSH。\n\n提供方：%2$s</string>
+    <string name="webview_update_action">查看更新选项</string>
+    <string name="webview_continue">继续使用</string>
 </resources>

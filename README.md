@@ -33,7 +33,7 @@
 >
 > **当前正式版本：0.6.2**。补齐旧 WebView 的加载与滚动兼容，插件与 App 独立更新。[更新记录](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.6.2)。
 >
-> **升级提醒**：插件与 Android App 独立更新。网页与连接修复通常只需更新插件；涉及原生功能或提示 App 版本过旧时，再更新 App。[兼容说明](#兼容性)。
+> **版本说明**：自插件 **0.6.2** 起，Android App 与插件独立编号、独立发布，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/v0.6.1/dsh-mobile-android-v0.6.1.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
@@ -68,7 +68,7 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 
 在应用的 **插件** 页面安装并启用 `dsh-mobile`，再打开 **移动访问** 配置局域网或远程通道。Desktop 的 profile 由应用管理，不适用下面的 `--profile web` 命令。
 
-安装或更新后，请从应用菜单正常退出并重新打开 Desktop。若提示 `dsh-mobile-question-fixes: failed to import`，先完成这次重启，让 Desktop 重新读取附带组件；无需清除会话或配对数据。
+安装或更新后，请从应用菜单正常退出并重新打开 Desktop，无需清除会话或配对数据。若仍提示 `dsh-mobile-question-fixes: failed to import`，请检查安装日志；这也可能是组件解析问题，单纯重启不一定能解决。
 
 ### DSH Web
 

@@ -1,7 +1,6 @@
 package io.github.sayach.dshmobile
 
 import android.graphics.Color
-import android.graphics.Insets
 import android.os.Build
 import android.view.View
 import android.view.Window
@@ -49,20 +48,8 @@ internal fun applySafeAreaInsets(root: View) {
     root.requestApplyInsets()
 }
 
-/** Returns the native top safe area reserved above the WebView. */
-@Suppress("DEPRECATION")
-internal fun resolveTopSafeInset(insets: WindowInsets): Int {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        return topSafeInset(
-            insets.getInsets(WindowInsets.Type.statusBars()).top,
-            insets.getInsets(WindowInsets.Type.displayCutout()).top,
-        )
-    }
-    return topSafeInset(
-        insets.systemWindowInsetTop,
-        insets.displayCutout?.safeInsetTop ?: 0,
-    )
-}
+/** Returns the complete native viewport exclusion for system bars, cutouts, and IME. */
+internal fun resolveWebViewSafeArea(insets: WindowInsets): SafeAreaEdges = resolveSafeArea(insets)
 
 /** Returns the keyboard overlap that must resize the WebView viewport. */
 @Suppress("DEPRECATION")
@@ -77,24 +64,10 @@ internal fun resolveWebViewImeInset(insets: WindowInsets): Int {
 }
 
 /**
- * Removes native-owned top and IME offsets before dispatching the remaining safe area to the WebView.
+ * Consumes system offsets after Android has positioned the WebView inside all safe edges.
  */
 @Suppress("DEPRECATION")
-internal fun insetsForWebContent(insets: WindowInsets, top: Int): WindowInsets {
-    val belowTop = if (top > 0) insets.inset(0, top, 0, 0) else insets
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        return WindowInsets.Builder(belowTop)
-            .setInsets(WindowInsets.Type.ime(), Insets.NONE)
-            .setVisible(WindowInsets.Type.ime(), false)
-            .build()
-    }
-    return belowTop.replaceSystemWindowInsets(
-        belowTop.systemWindowInsetLeft,
-        belowTop.systemWindowInsetTop,
-        belowTop.systemWindowInsetRight,
-        minOf(belowTop.systemWindowInsetBottom, insets.stableInsetBottom),
-    )
-}
+internal fun insetsForWebContent(insets: WindowInsets): WindowInsets = consumeSafeAreaInsets(insets)
 
 @Suppress("DEPRECATION")
 private fun resolveSafeArea(insets: WindowInsets): SafeAreaEdges {

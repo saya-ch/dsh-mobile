@@ -11,6 +11,7 @@ import { parseFrpSettings, type FrpSettings } from './frp-config.js'
 import { installNativeMobileSurface, NATIVE_MOBILE_STYLES, resolveNativeMobileLanguage } from './native-mobile.js'
 import { installVoiceSession } from './voice-session.js'
 import { installMobileFontPreference, MobileFontSizeRow } from './mobile-font.js'
+import { MobileDisplayScaleRow } from './mobile-display-scale.js'
 import { CLIENT_MODULE_STYLES, ClientModuleSettingsRow, closeClientModuleDialog, disposeClientModuleDialogs } from './client-module-ui.js'
 import { isDesktopAdminSurface, localAdminRequestHeaders } from './local-admin-host.js'
 import { fireDeviceRevoked, fireTaskNotifyEvent, isDeviceRevokedPayload, parseTaskNotifyPayload, taskCompletionTag } from './task-notify.js'
@@ -4430,6 +4431,9 @@ export function apply(ctx: ClientContext): void {
         const removeFontSize = ctx.slots.register({
           name: 'settings.general.item', id: 'font-size', order: 11, priority: -1,
         }, () => createElement(MobileFontSizeRow, { preference: localFont.preference, locale: selectedMobileControlLocale() }))
+        const removeDisplayScale = ctx.slots.register({
+          name: 'settings.general.item', id: 'dsh-mobile-display-scale', order: 12,
+        }, () => createElement(MobileDisplayScaleRow, { locale: selectedMobileControlLocale() }))
         const removeSwitchComputer = ctx.slots.register({
           name: 'settings.general.item',
           id: 'dsh-mobile-switch-computer',
@@ -4440,7 +4444,7 @@ export function apply(ctx: ClientContext): void {
           id: 'dsh-mobile-task-notifications',
           order: 110,
         }, MobileTaskNotificationRow)
-        return () => { removeTaskNotifications(); removeSwitchComputer(); removeFontSize() }
+        return () => { removeTaskNotifications(); removeSwitchComputer(); removeDisplayScale(); removeFontSize() }
       })
       const removeCustom = installCustomAssets()
       const removeSurface = installDshLanguageBoundSurface(() => installNativeMobileSurface({

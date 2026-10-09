@@ -50,11 +50,11 @@ async function setMobileFontSize(page, size) {
   const row = page.locator('[data-mobile-font-setting]')
   await row.waitFor({ state: 'visible', timeout: CLIENT_TIMEOUT_MS })
   for (let steps = 0; steps < 32; steps++) {
-    const current = Number.parseInt(await row.locator('output').textContent(), 10)
+    const current = Number.parseInt(await row.locator('[data-mobile-font-role="text"] output').textContent(), 10)
     if (current === size) break
     await row.getByRole('button', { name: current < size ? /增大移动端字号|Increase mobile font size/u : /减小移动端字号|Decrease mobile font size/u }).click()
   }
-  assert.equal(await row.locator('output').textContent(), `${size}px`)
+  assert.equal(await row.locator('[data-mobile-font-role="text"] output').textContent(), `${size}px`)
   assert.equal(await nativeBack(page), true, 'Mobile Back did not close settings')
   await row.waitFor({ state: 'hidden', timeout: CLIENT_TIMEOUT_MS })
   if (await drawer.getAttribute('data-open') === 'true') await drawer.locator('button[data-dsh-mobile-toggle]').click()

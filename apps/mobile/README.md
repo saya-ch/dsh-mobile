@@ -8,6 +8,14 @@ Android is the only supported native target. The iOS client remains an unpublish
 
 The current stable app is **0.6.1** (build 77). The app and npm plugin update independently; plugin web UI or connection fixes do not require reinstalling the APK. Install a new signed release APK for native updates or when the app reports that its version is too old. Older official APKs with the same signer retain pairing during in-place upgrades; a differently signed Debug build cannot overwrite the official app.
 
+## 0.6.2 candidate (unreleased)
+
+The local candidate is build 78. It keeps web content clear of system navigation, display cutouts and the keyboard, and adds **Settings → General → Page zoom** (80–125%, reset to 100%). Zoom is saved in this App, independently from the per-address mobile font settings, and does not reload the current conversation. The setting requires both this App and the corresponding plugin update; older Apps and browsers do not show an inactive control.
+
+WebViews reporting Chromium below 100 receive a nonblocking update reminder once per detected build. You may continue, but an obsolete WebView can still lack APIs required by DSH. Use the official WebView/Chrome update route available on your device; an unknown engine version is not treated as obsolete.
+
+These changes are not yet available in the stable APK linked above.
+
 ## 0.6.1 update
 
 The app is rebuilt with matching release metadata. Native functionality, package identity and pairing/renewal protocol are unchanged from 0.6.0, using the established release signer. This release improves the computer-side remote settings and Caddy build/test tooling; it does not enable official managed Caddy installation. See the [release notes](../../CHANGELOG.md#061---2026-10-08).
@@ -93,6 +101,8 @@ Only one file-selection or camera interaction runs at a time, with a five-minute
 From 0.4.7, the app uses plain Enter for a new draft line only when an inset-backed on-screen keyboard is visible, Android reports no hardware keyboard, and an active session composer is focused. The Send button still submits a multiline draft. Floating keyboards, unknown state, older apps, and mobile browsers retain DSH's original Enter behavior; physical keyboards can still use Shift+Enter for a line break.
 
 From 0.6.0, the main composer in touch-primary browsers uses Enter to add a line to a nonempty draft and does nothing for an empty draft. DSH retains menus, composition and modified shortcuts. An external keyboard on a touch-primary browser uses that same rule; a non-touch desktop is unchanged. General settings offers a mobile font size of 12–32px, default 16px, saved for the current address only; editable inputs retain a 16px minimum.
+
+The plugin 0.6.3 candidate adds **More font settings** for body/code fonts, with **Restore defaults**. These are webpage preferences for the current address, not computer-wide settings; they do not require the new APK. Terminal fonts remain controlled by DSH. **Page zoom** is a separate native control described in the App candidate section above.
 
 DSH records through `getUserMedia` and sends audio to the configured computer-side DSH speech provider for transcription, not browser-native SpeechRecognition or the extension bridge. The app requests microphone permission on first use and grants audio-only capture for the paired HTTPS Origin. Computer components, model and network must be available; permission does not guarantee transcription. Same-origin client plugins share the page's permissions, so grant recording only when you trust them.
 

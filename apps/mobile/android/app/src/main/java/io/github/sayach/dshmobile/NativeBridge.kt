@@ -139,6 +139,12 @@ internal class NativeBridge(
     /** Called by DSH General settings to show the Android notification permission UI. */
     var onOpenTaskNotificationSettings: (() -> Unit)? = null
 
+    /** App-local base page scale read by the paired page's General settings. */
+    var onGetDisplayScale: (() -> Int)? = null
+
+    /** Apply a validated page scale to the current paired WebView without navigation. */
+    var onSetDisplayScale: ((percent: Int) -> Unit)? = null
+
     /** Install the origin-scoped WebMessage channel and page-side Promise adapter. */
     fun install(): Boolean {
         if (installed) return true
@@ -448,6 +454,28 @@ internal class NativeBridge(
                             finishPending(requestId, successJson(requestId, JSONObject().put("ok", true)))
                         } catch (_: Exception) {
                             finishPending(requestId, errorJson("failed", "notification settings could not open", requestId))
+                        }
+                    }
+                }
+                "mobile.display-scale.get", "mobile.display-scale.set" -> activity.runOnUiThread {
+                    val getScale = onGetDisplayScale
+                    val setScale = onSetDisplayScale
+                    if (!installed || preservingForConfiguration || getScale == null || setScale == null) {
+                        finishPending(requestId, errorJson("unavailable", "display scale is unavailable", requestId))
+                    } else {
+                        val requested = (input.opt("percent") as? Number)?.toDouble() ?: Double.NaN
+                        if (action == "mobile.display-scale.set" && !NativeDisplayScalePolicy.isValid(requested)) {
+                            finishPending(requestId, errorJson("bad_message", "display scale must be an integer from 80 to 125", requestId))
+                        } else {
+                            try {
+                                if (action == "mobile.display-scale.set") setScale.invoke(requested.toInt())
+                                finishPending(requestId, successJson(requestId, JSONObject()
+                                    .put("percent", getScale.invoke())
+                                    .put("minPercent", NativeDisplayScalePolicy.MIN_PERCENT)
+                                    .put("maxPercent", NativeDisplayScalePolicy.MAX_PERCENT)))
+                            } catch (_: Exception) {
+                                finishPending(requestId, errorJson("failed", "display scale could not change", requestId))
+                            }
                         }
                     }
                 }
@@ -1091,7 +1119,7 @@ internal class NativeBridge(
           bridge.onmessage = handleReply;
           window.__DSH_MOBILE_NATIVE_STATE__ = { pending };
           window.__DSH_MOBILE_NATIVE__ = {
-            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write','notification.notify','notification.settings','mobile.switch-computer']),
+            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write','notification.notify','notification.settings','mobile.switch-computer','mobile.display-scale.get','mobile.display-scale.set']),
             invoke: (action, input = {}) => new Promise((resolve, reject) => {
               const requestId = crypto.randomUUID();
               let raw;

@@ -2218,6 +2218,35 @@ class MainActivity : Activity() {
         if (!scheduleAutomaticRecovery()) showDeviceList()
     }
 
+    private fun offerWebViewEngineUpdate(browser: WebView) {
+        val provider = WebView.getCurrentWebViewPackage()
+        val engine = inspectWebViewEngine(browser.settings.userAgentString, provider?.packageName, provider?.versionName)
+        if (!engine.needsUpdateReminder) return
+        val acknowledged = preferences.getStringSet("webview_update_reminder_engines", emptySet()).orEmpty()
+        if (engine.reminderKey in acknowledged) return
+        preferences.edit().putStringSet("webview_update_reminder_engines", acknowledged + engine.reminderKey).apply()
+        val providerLabel = listOfNotNull(engine.providerPackage, engine.providerVersion).joinToString(" ")
+        AlertDialog.Builder(this)
+            .setTitle(R.string.webview_update_title)
+            .setMessage(getString(R.string.webview_update_message, engine.chromiumVersion, providerLabel))
+            .setPositiveButton(R.string.webview_update_action) { _, _ ->
+                val providerPackage = engine.providerPackage
+                if (providerPackage == "com.google.android.webview" || providerPackage == "com.android.chrome") {
+                    openExternal(Uri.parse("https://play.google.com/store/apps/details?id=$providerPackage"))
+                } else if (providerPackage != null) {
+                    try {
+                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$providerPackage")))
+                    } catch (_: ActivityNotFoundException) {
+                        openExternal(Uri.parse("https://developer.android.com/develop/ui/views/layout/webapps/managing-webview"))
+                    }
+                } else {
+                    openExternal(Uri.parse("https://developer.android.com/develop/ui/views/layout/webapps/managing-webview"))
+                }
+            }
+            .setNegativeButton(R.string.webview_continue, null)
+            .show()
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun showBrowser(
         origin: GatewayOrigin,
@@ -2243,16 +2272,17 @@ class MainActivity : Activity() {
             .putString(PREFERENCE_LAST_ACCESS_MODE, accessMode.name)
             .apply()
 
-        // Android owns the status-bar strip. The WebView begins below it, so
-        // every DSH page and third-party overlay shares the same safe viewport.
+        // Every DSH page and third-party overlay shares the native safe viewport.
         val root = FrameLayout(this).apply {
             setBackgroundColor(getColor(R.color.app_background))
         }
         val initialChromeColor = preferences.getInt(PREFERENCE_WEB_CHROME_COLOR, getColor(R.color.app_background))
+        root.setBackgroundColor(initialChromeColor)
         applyStatusBarIconContrast(window, initialChromeColor)
         val statusBarBackdrop = View(this).apply {
             setBackgroundColor(initialChromeColor)
         }
+        window.isNavigationBarContrastEnforced = false
         val browser = WebView(this)
         configureWebViewHttpCache(browser)
         webView = browser
@@ -2269,8 +2299,14 @@ class MainActivity : Activity() {
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
+            useWideViewPort = true
             mediaPlaybackRequiresUserGesture = true
             userAgentString = "$userAgentString DSHMobile/${BuildConfig.VERSION_NAME}"
+        }
+        val displayScale = NativeDisplayScale(browser, origin,
+            preferences.getInt("web_page_scale_percent", NativeDisplayScalePolicy.DEFAULT_PERCENT))
+        browser.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) displayScale.apply()
         }
         installBrowserCompatibilityShim(browser, origin)
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -2286,12 +2322,14 @@ class MainActivity : Activity() {
             onFailure = ::showLoadFailure,
             onRendererGone = { handleRendererGone(browser) },
             onTopLevelUrlChanged = {
+                displayScale.onDocumentStarted()
                 cancelPendingWebBack()
                 pendingAudioPermission = null
                 nativeBridge?.onTopLevelNavigation(it)
             },
             onLoaded = {
                 if (webView === browser && gatewayOrigin == origin) {
+                    displayScale.onDocumentReady()
                     retryUrl = origin.serialized
                     CookieManager.getInstance().flush()
                     nativeBridge?.injectPage()
@@ -2341,6 +2379,7 @@ class MainActivity : Activity() {
         val bridgeState = restoredNativeBridgeState.also { restoredNativeBridgeState = null }
         nativeBridge = NativeBridge(this, browser, origin, bridgeState).also { bridge ->
             bridge.onPageBackgroundColor = { color ->
+                root.setBackgroundColor(color)
                 statusBarBackdrop.setBackgroundColor(color)
                 applyStatusBarIconContrast(window, color)
                 preferences.edit().putInt(PREFERENCE_WEB_CHROME_COLOR, color).apply()
@@ -2348,6 +2387,11 @@ class MainActivity : Activity() {
             bridge.onDeviceRevoked = ::handleDeviceRevoked
             bridge.onSwitchComputer = ::showDeviceList
             bridge.onOpenTaskNotificationSettings = ::openTaskNotificationSettings
+            bridge.onGetDisplayScale = { displayScale.percent }
+            bridge.onSetDisplayScale = { percent ->
+                displayScale.set(percent)
+                preferences.edit().putInt("web_page_scale_percent", percent).apply()
+            }
             bridge.install()
             deferredBridgeResult?.let { result ->
                 if (bridge.onActivityResult(result.requestCode, result.resultCode, result.data)) deferredBridgeResult = null
@@ -2363,27 +2407,31 @@ class MainActivity : Activity() {
         root.addView(statusBarBackdrop, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, Gravity.TOP))
         setContentView(root)
 
-        // Native chrome owns the status-bar strip. The WebView keeps the remaining
-        // system-bar safe area while its viewport shrinks above the keyboard.
+        // Reserve each occupied edge once. Chromium receives consumed insets,
+        // preventing safe-area CSS from adding the same navigation or IME gap.
         root.setOnApplyWindowInsetsListener { _, insets ->
-            val top = resolveTopSafeInset(insets)
+            val safeArea = resolveWebViewSafeArea(insets)
             val ime = resolveWebViewImeInset(insets)
             nativeBridge?.updateKeyboardState(resolveNativeKeyboardState(ime, resources.configuration.keyboard))
-            browser.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ).apply {
-                topMargin = top
-                bottomMargin = ime
+            val browserLayout = browser.layoutParams as FrameLayout.LayoutParams
+            if (browserLayout.leftMargin != safeArea.left || browserLayout.topMargin != safeArea.top ||
+                browserLayout.rightMargin != safeArea.right || browserLayout.bottomMargin != safeArea.bottom
+            ) {
+                browserLayout.leftMargin = safeArea.left
+                browserLayout.topMargin = safeArea.top
+                browserLayout.rightMargin = safeArea.right
+                browserLayout.bottomMargin = safeArea.bottom
+                browser.layoutParams = browserLayout
             }
-            statusBarBackdrop.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                top,
-                Gravity.TOP,
-            )
-            insetsForWebContent(insets, top)
+            val backdropLayout = statusBarBackdrop.layoutParams as FrameLayout.LayoutParams
+            if (backdropLayout.height != safeArea.top) {
+                backdropLayout.height = safeArea.top
+                statusBarBackdrop.layoutParams = backdropLayout
+            }
+            insetsForWebContent(insets)
         }
         root.requestApplyInsets()
+        root.post { if (webView === browser && !isFinishing) offerWebViewEngineUpdate(browser) }
         val initialUrl = requestedInitialUrl.takeIf { GatewayUrlPolicy.isSameOrigin(origin, it) }
             ?: origin.serialized
         retryUrl = initialUrl

@@ -23,11 +23,7 @@ internal data class SafeAreaEdges(
     )
 }
 
-/** Returns the top edge occupied by either the status bar or a display cutout. */
-internal fun topSafeInset(statusBarTop: Int, displayCutoutTop: Int): Int =
-    max(statusBarTop, displayCutoutTop)
-
-/** Returns the keyboard overlap not already represented by the web safe area. */
+/** Returns keyboard-only overlap, excluding the persistent system navigation edge. */
 internal fun additionalImeInset(coveredBottom: Int, webSafeBottom: Int): Int =
     max(0, coveredBottom - webSafeBottom)
 

@@ -2,6 +2,16 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.6.3 - Unreleased
+
+- Fix fresh installation and upgrades through DSH's plugin manager, including hoisted pnpm profiles. The question-card component remains inside the plugin package and independently switchable, without a separate package installation or user workaround. Thanks @MLYR for [#193](https://github.com/saya-ch/dsh-mobile/issues/193).
+- Follow DSH 0.2.1-alpha.2 typography: mobile General settings retain device-local body size and add collapsed body/code font controls and a reset action. Preferences do not change the computer or other devices; existing mobile font settings are retained. Terminal fonts remain owned by DSH.
+- Prepare Android App 0.6.2 (build 78), separately from plugin 0.6.3. Keep web content inside the native system-bar, cutout and keyboard area; add native-only page zoom in General settings, with 80–125% scaling and a 100% reset, without reloading the conversation. Older App versions and browsers do not show this control.
+- Add a nonblocking update reminder for WebViews reporting Chromium below 100. Users may continue; unknown engine versions are not treated as obsolete, and each detected build is warned about once. This does not promise full compatibility with unsupported old engines.
+- Improve bounded Windows retries and rollback for managed Caddy preparation while keeping official managed installation disabled. Thanks @abworks-dev for [PR #190](https://github.com/saya-ch/dsh-mobile/pull/190).
+- Hide the duplicate passive pin marker on narrow mobile session lists while retaining pin actions and desktop presentation. Thanks @chintoleung for [PR #191](https://github.com/saya-ch/dsh-mobile/pull/191).
+- Add a repository-local Agent maintenance skill and discovery entrypoint covering compatibility, packaging, runtime/ADB, collaboration and independent releases, with guidance for updating demonstrated reusable lessons.
+
 ## 0.6.2 - 2026-10-08
 
 - Supply missing `AbortSignal.throwIfAborted()` and cancellation reasons before DSH starts on older WebViews. Preserve native implementations, cancellation and the first supplied reason, fixing the reported model/provider and other client API failures caused by the missing method. Thanks @luoyangchan for [#187](https://github.com/saya-ch/dsh-mobile/issues/187).

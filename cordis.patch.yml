@@ -32,6 +32,7 @@
 
     # Keep long question titles and answer options in one card scrollport.
     # The component switch restores the upstream layout immediately.
+    # DSH anchors this file entry beside the bundle patch, independent of pnpm's linker.
     - id: dsh-ui-fixes
-      name: dsh-mobile-question-fixes
+      name: ./packages/question-fixes/lib/index.mjs
 

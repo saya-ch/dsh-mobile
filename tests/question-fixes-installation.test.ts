@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const helperUrl = new URL('../scripts/packed-profile.mjs', import.meta.url)
-const { assertBundledComponents }: { assertBundledComponents: (installed: string) => Promise<void> } = await import(helperUrl.href)
+const { assertProfileComponents }: { assertProfileComponents: (installed: string) => Promise<void> } = await import(helperUrl.href)
 const temporaryRoots: string[] = []
 
 afterEach(async () => {
@@ -15,10 +15,10 @@ afterEach(async () => {
 async function packageFiles(directory: string, component = false): Promise<void> {
   await mkdir(join(directory, 'lib'), { recursive: true })
   await writeFile(join(directory, 'package.json'), JSON.stringify(component ? {
-    name: 'dsh-mobile-question-fixes', type: 'module',
+    name: 'dsh-mobile-question-fixes', version: '0.6.3', type: 'module',
     exports: { '.': './lib/index.mjs', './client': './lib/client.js', './package.json': './package.json' },
   } : {
-    name: 'dsh-mobile', type: 'module', bundledDependencies: ['dsh-mobile-question-fixes'],
+    name: 'dsh-mobile', version: '0.6.3', type: 'module',
   }))
   if (component) {
     await writeFile(join(directory, 'lib', 'index.mjs'), 'export function apply() {}\n')
@@ -30,32 +30,33 @@ async function fixture(): Promise<{ root: string; installed: string; component: 
   const root = await mkdtemp(join(tmpdir(), 'dsh-mobile-component-installation-'))
   temporaryRoots.push(root)
   const installed = join(root, 'profile', 'node_modules', 'dsh-mobile')
-  const component = join(installed, 'node_modules', 'dsh-mobile-question-fixes')
+  const component = join(installed, 'packages', 'question-fixes')
   await packageFiles(installed)
   return { root, installed, component }
 }
 
 describe('packed question-card component ownership', () => {
-  it('accepts the bundled component without a profile-level companion', async () => {
+  it('accepts the self-contained component without a profile-level companion', async () => {
     const { installed, component } = await fixture()
     await packageFiles(component, true)
-    await expect(assertBundledComponents(installed)).resolves.toBeUndefined()
+    await expect(assertProfileComponents(installed)).resolves.toBeUndefined()
   })
 
-  it('rejects a missing bundled copy even when the profile has a resolvable companion', async () => {
+  it('rejects a missing embedded copy even when legacy and profile copies exist', async () => {
     const { root, installed } = await fixture()
+    await packageFiles(join(installed, 'node_modules', 'dsh-mobile-question-fixes'), true)
     await packageFiles(join(root, 'profile', 'node_modules', 'dsh-mobile-question-fixes'), true)
-    await expect(assertBundledComponents(installed)).rejects.toThrow('missing nested component')
+    await expect(assertProfileComponents(installed)).rejects.toThrow('Packed bundle is missing embedded component')
   })
 
   it('rejects a workspace link that resolves outside the installed bundle', async () => {
     const { root, installed, component } = await fixture()
     const workspace = join(root, 'checkout', 'question-fixes')
     await packageFiles(workspace, true)
-    await mkdir(join(installed, 'node_modules'), { recursive: true })
+    await mkdir(join(installed, 'packages'), { recursive: true })
     await symlink(workspace, component, process.platform === 'win32' ? 'junction' : 'dir')
     try {
-      await expect(assertBundledComponents(installed)).rejects.toThrow('outside the installed bundle')
+      await expect(assertProfileComponents(installed)).rejects.toThrow('outside the installed bundle')
     } finally { await unlink(component) }
     await expect(import(pathToFileURL(join(workspace, 'lib', 'index.mjs')).href)).resolves.toHaveProperty('apply')
   })
@@ -64,9 +65,16 @@ describe('packed question-card component ownership', () => {
     const { installed, component } = await fixture()
     await packageFiles(component, true)
     await writeFile(join(component, 'package.json'), JSON.stringify({
-      name: 'dsh-mobile-question-fixes', type: 'module',
+      name: 'dsh-mobile-question-fixes', version: '0.6.3', type: 'module',
       exports: { '.': './lib/index.mjs', './client': '../unpacked-client.js', './package.json': './package.json' },
     }))
-    await expect(assertBundledComponents(installed)).rejects.toThrow('Invalid "exports" target')
+    await expect(assertProfileComponents(installed)).rejects.toThrow('Invalid "exports" target')
+  })
+
+  it('rejects an embedded component from a different Mobile version', async () => {
+    const { installed, component } = await fixture()
+    await packageFiles(component, true)
+    await writeFile(join(component, 'package.json'), JSON.stringify({ name: 'dsh-mobile-question-fixes', version: '0.6.2', exports: { '.': './lib/index.mjs', './client': './lib/client.js', './package.json': './package.json' } }))
+    await expect(assertProfileComponents(installed)).rejects.toThrow('version does not match')
   })
 })

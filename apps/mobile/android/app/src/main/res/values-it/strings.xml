@@ -190,4 +190,8 @@
     <string name="scan_zoom_current">Zoom: %1$.1f volte</string>
     <string name="scan_zoom_unavailable">Zoom della fotocamera non disponibile. Puoi comunque scansionare il codice.</string>
     <string name="scan_close">Chiudi scanner</string>
+    <string name="webview_update_title">Aggiorna il motore WebView</string>
+    <string name="webview_update_message">Questo dispositivo usa Chromium %1$s. Un motore meno recente può causare pagine vuote, problemi del tema o controlli non reattivi. Aggiorna WebView di sistema o il browser che lo fornisce. Puoi continuare a usare DSH.\n\nProvider: %2$s</string>
+    <string name="webview_update_action">Opzioni di aggiornamento</string>
+    <string name="webview_continue">Continua</string>
 </resources>
