@@ -41,6 +41,21 @@ export default defineConfig([{
   clean: false,
   outputOptions: { entryFileNames: 'cli.js' },
 }, {
+  // Spike (Phase 2 de-risking): standalone worker runtime for opt-in worker
+  // execution of local extension hosts. Self-contained (schemastery bundled)
+  // because it must start from the installed artifact with no node_modules
+  // resolution of its own.
+  entry: ['src/extension-worker-runtime.ts'],
+  outDir: 'lib',
+  format: ['esm'],
+  platform: 'node',
+  target: 'node22',
+  dts: false,
+  sourcemap: true,
+  clean: false,
+  deps: { alwaysBundle: ['@deepseek-ai/schemastery'] },
+  outputOptions: { entryFileNames: 'extension-worker-runtime.mjs' },
+}, {
   // The question-fixes component. It is its own package so its bundle row can
   // name it, which is what gives it a separate entry in the dsh-mobile card's
   // Components list and its own Running toggle.
