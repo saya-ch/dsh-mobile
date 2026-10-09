@@ -62,6 +62,9 @@ export const NATIVE_MOBILE_STYLES = `
      the ellipsis action visible and give it a reliable hit target. */
   html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_rowActions"] { display:inline-flex !important; align-items:center !important; gap:8px !important; }
   html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_sessionRow"] [class*="_time"] { display:none !important; }
+  /* The always-visible pin action already conveys pinned state. Desktop only
+     hides this passive marker on hover; touch rows must hide it throughout. */
+  html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_sessionRow"] [class*="_pinIndicator"] { display:none !important; }
   html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_rowActions"] button { box-sizing:border-box !important; width:32px !important; min-width:32px !important; height:32px !important; min-height:32px !important; }
   [data-dsh-mobile-frame] { grid-template-columns:0 minmax(0,1fr) 0 !important; width:100% !important; height:100dvh !important; overflow:hidden !important; }
   [data-dsh-mobile-center] { grid-column:2 !important; width:100vw !important; min-width:0 !important; }

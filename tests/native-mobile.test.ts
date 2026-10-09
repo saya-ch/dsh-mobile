@@ -60,6 +60,12 @@ describe('native mobile presentation', () => {
     expect(NATIVE_MOBILE_STYLES).not.toContain('html.dsh-native-mobile-active :focus { outline:none')
   })
 
+  it('hides the passive pinned marker while keeping mobile sidebar actions visible', () => {
+    const [, overlay] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
+    expect(overlay).toContain('html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_sessionRow"] [class*="_pinIndicator"] { display:none !important; }')
+    expect(overlay).toContain('[class*="_rowActions"] { display:inline-flex !important;')
+  })
+
   it('uses a minimum editable font on narrow and wide native surfaces', () => {
     // The html-level class exists on every non-desktop mobile page, so it also
     // covers body-level portals (model picker search) the center column never
