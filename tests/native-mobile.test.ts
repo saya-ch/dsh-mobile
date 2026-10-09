@@ -28,8 +28,8 @@ function fakeRoot(elements: readonly HTMLElement[], dialogs: readonly HTMLElemen
 describe('native mobile presentation', () => {
   it('collapses the unfocused viewport and retains stock touch actions', () => {
     expect(NATIVE_MOBILE_STYLES).toContain('[data-composer-card]:not(:focus-within) > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-row] button { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('button[class*="_primary"] { min-width:44px !important; flex-shrink:0 !important; }')
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) button:not([role="switch"]) { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-composer-row] button { min-width:44px')
   })
 
   it('keeps touch focus quiet without removing keyboard focus globally', () => {
@@ -206,12 +206,10 @@ describe('native mobile presentation', () => {
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-mobile-settings_selector')
     expect(NATIVE_MOBILE_STYLES).toContain('.dsh-mobile-settings_selector:focus-visible')
     expect(NATIVE_MOBILE_STYLES).toContain('min-height:48px !important')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-row] { display:flex !important; flex-wrap:wrap !important')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-tools]:not([hidden]) { display:flex !important; flex:0 1 auto !important; flex-wrap:wrap !important; width:auto !important')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-trailing] { display:flex !important; flex:1 0 100px !important; flex-wrap:nowrap !important; width:auto !important')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-trailing]:has(> button[class*="_primary"] ~ button[class*="_primary"]) { flex-basis:144px !important; min-width:min(100%,144px) !important; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-model] { flex:0 1 auto !important')
-    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-model-label] { flex:1 1 auto !important; max-width:none !important')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('grid-template-columns:44px 44px')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('grid-column:4 / 6')
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout])')
+    expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-composer-model-label] { min-width:0 !important; overflow:hidden !important; text-overflow:ellipsis !important; white-space:nowrap !important; }')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-history-loader] button:not(:disabled)')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-history-loader] button:disabled')
     expect(NATIVE_MOBILE_STYLES).toContain('[class*="_rowHead"]:has(> [class*="_rowIdentity"]) { flex-wrap:nowrap !important')

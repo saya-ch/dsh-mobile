@@ -238,23 +238,12 @@ export const NATIVE_MOBILE_STYLES = `
   /* Collapse the scroll viewport only; the editor, draft and attachments stay
      owned by DSH. Toolbar focus keeps the card expanded during menu taps. */
   [data-dsh-mobile-center] [data-composer-card]:not(:focus-within) > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }
-  /* Stock Send/Queue/Steer and Stop keep their handlers and disabled state. */
-  [data-dsh-mobile-composer-row] button { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }
-  [data-dsh-mobile-composer-row] button[class*="_primary"] { min-width:44px !important; flex-shrink:0 !important; }
-  /* Keep ordinary controls on one row. The trailing group reserves room for
-     its model and primary buttons; extra tools wrap only when space is short. */
-  [data-dsh-mobile-composer-row] { display:flex !important; flex-wrap:wrap !important; align-items:center !important; gap:4px 8px !important; min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-tools]:not([hidden]) { display:flex !important; flex:0 1 auto !important; flex-wrap:wrap !important; width:auto !important; min-width:0 !important; max-width:100% !important; gap:6px !important; }
-  [data-dsh-mobile-composer-tools] > *,[data-dsh-mobile-composer-tools] > [data-slot] > * { min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-tools] button { white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-composer-trailing] { display:flex !important; flex:1 0 100px !important; flex-wrap:nowrap !important; width:auto !important; min-width:min(100%,100px) !important; max-width:100% !important; gap:6px !important; margin-left:0 !important; justify-content:flex-end !important; }
-  [data-dsh-mobile-composer-trailing]:has(> button[class*="_primary"] ~ button[class*="_primary"]) { flex-basis:144px !important; min-width:min(100%,144px) !important; }
-  [data-dsh-mobile-composer-controls]:not([hidden]) { display:flex !important; flex:1 1 0 !important; flex-wrap:wrap !important; justify-content:flex-end !important; min-width:0 !important; max-width:100% !important; gap:6px !important; }
-  [data-dsh-mobile-composer-controls] > *,[data-dsh-mobile-composer-controls] > [data-slot] > * { min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-controls] button { white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-composer-model] { flex:0 1 auto !important; width:auto !important; min-width:44px !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-model-trigger] { box-sizing:border-box !important; width:100% !important; max-width:100% !important; min-width:0 !important; padding-left:6px !important; padding-right:4px !important; }
-  [data-dsh-mobile-composer-model-label] { flex:1 1 auto !important; max-width:none !important; min-width:0 !important; overflow:hidden !important; text-overflow:ellipsis !important; white-space:nowrap !important; }
+  /* Stock frontend retains its native grouping; the dedicated presenter
+     owns its own toolbar sizing and never scales switches like action buttons. */
+  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) button:not([role="switch"]) { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }
+  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) { flex-wrap:wrap !important; min-width:0 !important; max-width:100% !important; }
+  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) [data-dsh-mobile-composer-trailing] { flex:1 1 0 !important; min-width:0 !important; }
+  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) [data-dsh-mobile-composer-model-label] { min-width:0 !important; overflow:hidden !important; text-overflow:ellipsis !important; white-space:nowrap !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) { box-sizing:border-box !important; width:100% !important; padding:0 0 8px !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) > [class=""]:last-child { display:none !important; }
 }
@@ -1491,7 +1480,8 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
         wrapper.append(table)
       }
       const composerCard = center.querySelector<HTMLElement>('[data-composer-card]')
-      const composerRow = composerCard?.querySelector<HTMLElement>(':scope > [data-input-scroll]')?.nextElementSibling
+      const composerSeat = composerCard?.querySelector<HTMLElement>(':scope > [data-input-scroll]')?.nextElementSibling
+      const composerRow = composerSeat?.matches('[data-slot="conversation.input.toolbar"]') ? composerSeat.firstElementChild : composerSeat
       if (!(composerRow instanceof HTMLElement)) {
         syncComposerEnterNewline(null)
         syncMediaBinding(null)
@@ -1501,8 +1491,8 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       if (composerRow instanceof HTMLElement) {
         composerRow.dataset.dshMobileComposerRow = 'true'
         const groups = Array.from(composerRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
-        const composerTools = groups[0]
-        const composerTrailing = groups.at(-1)
+        const composerTools = composerRow.querySelector<HTMLElement>('[data-dsh-mobile-core-leading]') ?? groups[0]
+        const composerTrailing = composerRow.querySelector<HTMLElement>('[data-dsh-mobile-core-trailing]') ?? groups.at(-1)
         if (composerTools !== undefined) {
           composerTools.dataset.dshMobileComposerTools = 'true'
           syncMediaBinding(composerCard ?? null)
