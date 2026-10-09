@@ -211,7 +211,9 @@ export const LOCALIZED_DIAGNOSTIC_COPY = {
 Object.assign(MOBILE_CONTROL_MESSAGES.en, {
   selfHostedDescription: "Use your own VPS or HTTPS reverse proxy without a public tunnel service.",
   originName: "Own reverse proxy",
-  originDescription: "You manage HTTPS. DSH Mobile provides a private, authenticated HTTP backend; no tunnel component is installed.",
+  caddyName: "Managed Caddy",
+  caddyModePreviewNote: "HTTPS form preview differs from the current connection.",
+  originDescription: "Use managed Caddy or your existing HTTPS reverse proxy with DSH Mobile’s private, authenticated backend.",
   prepareOrigin: "Connect your HTTPS reverse proxy",
   originPublicOrigin: "Public HTTPS address",
   originListenHost: "Private listen IPv4",
@@ -269,7 +271,9 @@ Object.assign(MOBILE_CONTROL_MESSAGES.en, {
 Object.assign(MOBILE_CONTROL_MESSAGES.it, {
   selfHostedDescription: "Usa il tuo VPS o reverse proxy HTTPS senza un servizio di tunnel pubblico.",
   originName: "Reverse proxy proprio",
-  originDescription: "Gestisci tu HTTPS. DSH Mobile offre un backend HTTP privato con autenticazione; non installa componenti tunnel.",
+  caddyName: "Caddy gestito",
+  caddyModePreviewNote: "L’anteprima del modulo HTTPS differisce dalla connessione attuale.",
+  originDescription: "Usa Caddy gestito o il tuo reverse proxy HTTPS con il backend privato autenticato di DSH Mobile.",
   prepareOrigin: "Collega il tuo reverse proxy HTTPS",
   originPublicOrigin: "Indirizzo HTTPS pubblico",
   originListenHost: "IPv4 privato di ascolto",
@@ -327,7 +331,9 @@ Object.assign(MOBILE_CONTROL_MESSAGES.it, {
 Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
   selfHostedDescription: "使用自己的 VPS 或 HTTPS 反向代理，不依赖公共隧道服务。",
   originName: "自有反向代理",
-  originDescription: "HTTPS 由你管理，插件提供带认证的私有 HTTP 后端，无需安装隧道组件。",
+  caddyName: "托管 Caddy",
+  caddyModePreviewNote: "HTTPS 表单预览与当前连接不同。",
+  originDescription: "使用托管 Caddy 或已有 HTTPS 反向代理，接入 DSH Mobile 带认证的私有后端。",
   prepareOrigin: "接入自有 HTTPS 反向代理",
   originPublicOrigin: "公网 HTTPS 地址",
   originListenHost: "私有监听 IPv4",

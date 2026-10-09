@@ -1,11 +1,13 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
-import { buildLockSha256, readArtifact, reviewTag, sha256 } from './caddy-component-artifacts.mjs'
+import { buildLockSha256, readArtifact, releaseIdentity, sha256 } from './caddy-component-artifacts.mjs'
 
 const args = process.argv.slice(2)
+let channel = 'review'
+if (args.length === 16 && args[14] === '--channel') channel = args.splice(14, 2)[1]
 const flags = ['--input-dir', '--output-dir', '--repository', '--tag', '--commit', '--run-id', '--run-attempt']
 if (args.length !== flags.length * 2 || flags.some((flag, index) => args[index * 2] !== flag)) {
-  throw new Error('Usage: node scripts/prepare-caddy-release.mjs --input-dir <absolute-dir> --output-dir <new-absolute-dir> --repository <owner/repo> --tag <review-tag> --commit <sha40> --run-id <id> --run-attempt <attempt>')
+  throw new Error('Usage: node scripts/prepare-caddy-release.mjs --input-dir <absolute-dir> --output-dir <new-absolute-dir> --repository <owner/repo> --tag <component-tag> --commit <sha40> --run-id <id> --run-attempt <attempt> [--channel review|official]')
 }
 const [input, output, repository, tag, commit, runId, runAttempt] = flags.map((_, index) => args[index * 2 + 1])
 if (!isAbsolute(input) || !isAbsolute(output)
@@ -13,7 +15,7 @@ if (!isAbsolute(input) || !isAbsolute(output)
   || !/^[a-f0-9]{40}$/u.test(commit) || !/^[1-9][0-9]*$/u.test(runId) || !/^[1-9][0-9]*$/u.test(runAttempt)) {
   throw new Error('Invalid Caddy release identity')
 }
-reviewTag(tag)
+const identity = releaseIdentity(repository, tag, channel)
 const targets = ['linux-x64', 'win32-x64']
 const expectedDirectories = targets.map(target => 'managed-caddy-review-' + target).sort()
 if (JSON.stringify((await readdir(input)).sort()) !== JSON.stringify(expectedDirectories)) {
@@ -35,7 +37,7 @@ for (const target of targets) {
       downloadSha256: sha256(bytes), executableSha256: sha256(bytes) }
   }
 }
-const index = { schemaVersion: 1, kind: 'managed-caddy-component-review', repository, tag, sourceCommit: commit,
+const index = { schemaVersion: 1, kind: identity.kind, repository, tag, sourceCommit: commit,
   runId, runAttempt, buildLockSha256: buildLockSha256(), productionCatalogEnabled: false,
   binaryAssets, assets: Object.fromEntries([...prepared].sort(([a], [b]) => a.localeCompare(b, 'en'))
     .map(([name, bytes]) => [name, { bytes: bytes.length, sha256: sha256(bytes) }])) }

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { lstat, mkdir, readdir, rename, rm, rmdir, unlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readdir, rename, rmdir, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { restrictPrivateFile } from './private-file.js'
 
@@ -24,6 +24,32 @@ export async function assertCaddyParents(root: string, target: string): Promise<
   }
 }
 
+/** Windows may briefly keep inspected executables busy after their process exits.
+ * Retry only EPERM/EBUSY mutations, never other errors or safety checks.
+ * Eight attempts wait at most 1,950ms; exhaustion retains the first OS error.
+ */
+async function mutateCaddyPath(validate: () => Promise<void>, mutate: () => Promise<void>): Promise<void> {
+  let original: unknown
+  for (let attempt = 0; ; attempt++) {
+    await validate()
+    try { await mutate(); return } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (process.platform !== 'win32' || (code !== 'EPERM' && code !== 'EBUSY')) throw error
+      if (attempt === 0) original = error
+      if (attempt === 7) throw original
+      await new Promise<void>(resolve => setTimeout(resolve, Math.min(50 * 2 ** attempt, 400)))
+    }
+  }
+}
+
+/** Atomically move an owned path, rechecking both real parent chains on every attempt. */
+export async function renameCaddyPath(root: string, source: string, destination: string): Promise<void> {
+  await mutateCaddyPath(async () => {
+    await assertCaddyParents(root, source)
+    await assertCaddyParents(root, destination)
+  }, () => rename(source, destination))
+}
+
 /** Create a private real directory, never traversing a link owned by the component. */
 export async function ensureCaddyDirectory(root: string, directory: string): Promise<void> {
   await assertCaddyParents(root, directory)
@@ -43,11 +69,14 @@ export async function writeCaddyPrivateFile(root: string, file: string, body: st
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
   const temporary = join(dirname(file), '.' + basename(file) + '.' + randomBytes(12).toString('hex') + '.tmp')
+  let failed = false
   try {
     await writeFile(temporary, body, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
     await restrictPrivateFile(temporary)
-    await rename(temporary, file)
-  } finally { await rm(temporary, { force: true }) }
+    await renameCaddyPath(root, temporary, file)
+  } catch (error) { failed = true; throw error } finally {
+    try { await removeCaddyTree(root, temporary) } catch (error) { if (!failed) throw error }
+  }
 }
 
 /** Delete only owned entries; junctions and symlinks are unlinked, never descended into. */
@@ -58,8 +87,10 @@ export async function removeCaddyTree(root: string, target: string): Promise<voi
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
     throw error
   }
-  if (entry.isSymbolicLink()) { await unlink(target); return }
-  if (!entry.isDirectory()) { await unlink(target); return }
+  if (entry.isSymbolicLink() || !entry.isDirectory()) {
+    await mutateCaddyPath(() => assertCaddyParents(root, target), () => unlink(target))
+    return
+  }
   for (const name of await readdir(target)) await removeCaddyTree(root, join(target, name))
-  await rmdir(target)
+  await mutateCaddyPath(() => assertCaddyParents(root, target), () => rmdir(target))
 }

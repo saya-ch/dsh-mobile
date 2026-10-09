@@ -8,6 +8,11 @@ on:
         type: boolean
         required: true
         default: false
+      publish_official_release:
+        description: 'Publish maintainer-authorized official component distribution only; never enables installation'
+        type: boolean
+        required: true
+        default: false
   pull_request:
     paths:
       - 'scripts/*caddy*.mjs'
@@ -41,6 +46,17 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
+      - name: Validate publication request before native builds
+        shell: bash
+        env:
+          PUBLICATION_EVENT: ${{ github.event_name }}
+          PUBLICATION_REF: ${{ github.ref }}
+          GH_REPO: ${{ github.repository }}
+          PUBLISH_REVIEW: ${{ inputs.publish_review_prerelease }}
+          PUBLISH_OFFICIAL: ${{ inputs.publish_official_release }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          node --input-type=module -e 'import { publicationRequest } from "./scripts/caddy-component-artifacts.mjs"; publicationRequest({ event: process.env.PUBLICATION_EVENT, repository: process.env.GH_REPO, ref: process.env.PUBLICATION_REF, review: process.env.PUBLISH_REVIEW, official: process.env.PUBLISH_OFFICIAL, nativeResult: process.env.NATIVE_RESULT, repositoryPrivate: process.env.REPOSITORY_PRIVATE });'
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.6'
@@ -81,16 +97,28 @@ jobs:
 
   publish-review-prerelease:
     needs: caddy-review-artifact
-    # Explicit fork-only authorization; never PR events, branch dispatches, or official plugin tags.
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_review_prerelease && github.repository == 'abworks-dev/dsh-mobile' && startsWith(github.ref, 'refs/tags/caddy-component-')
+    # Exact grammar is validated by native gates and rechecked before any publication mutation.
+    if: >-
+      github.event_name == 'workflow_dispatch' && needs.caddy-review-artifact.result == 'success' &&
+      ((inputs.publish_review_prerelease && !inputs.publish_official_release && github.repository == 'abworks-dev/dsh-mobile' && startsWith(github.ref, 'refs/tags/caddy-component-2.11.6-tencentcloud-0.4.3-review.')) ||
+      (inputs.publish_official_release && !inputs.publish_review_prerelease && toJSON(github.event.repository.private) == 'false' && github.repository == 'saya-ch/dsh-mobile' && github.ref == 'refs/tags/caddy-component-2.11.6-tencentcloud-0.4.3'))
+    environment:
+      name: ${{ inputs.publish_official_release && 'caddy-component-release' || 'caddy-component-review' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
       contents: write
     concurrency:
-      group: managed-caddy-review-${{ github.ref }}
+      group: managed-caddy-component-${{ github.ref }}
       cancel-in-progress: false
     env:
+      PUBLICATION_EVENT: ${{ github.event_name }}
+      PUBLICATION_REF: ${{ github.ref }}
+      PUBLISH_REVIEW: ${{ inputs.publish_review_prerelease }}
+      PUBLISH_OFFICIAL: ${{ inputs.publish_official_release }}
+      REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      NATIVE_RESULT: ${{ needs.caddy-review-artifact.result }}
+      RELEASE_CHANNEL: ${{ inputs.publish_official_release && 'official' || 'review' }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       COMPONENT_TAG: ${{ github.ref_name }}
@@ -109,34 +137,51 @@ jobs:
           pattern: managed-caddy-review-*
           path: ${{ runner.temp }}/native-inputs
       - name: Prepare exact reviewed raw binaries, metadata and SHA256SUMS
-        run: node scripts/prepare-caddy-release.mjs --input-dir "$RUNNER_TEMP/native-inputs" --output-dir "$RUNNER_TEMP/component-release" --repository "$GH_REPO" --tag "$COMPONENT_TAG" --commit "$SOURCE_COMMIT" --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT"
-      - name: Create new draft component prerelease without overwriting releases or assets
+        run: node scripts/prepare-caddy-release.mjs --input-dir "$RUNNER_TEMP/native-inputs" --output-dir "$RUNNER_TEMP/component-release" --repository "$GH_REPO" --tag "$COMPONENT_TAG" --commit "$SOURCE_COMMIT" --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --channel "$RELEASE_CHANNEL"
+      - name: Create new draft component distribution without overwriting releases or assets
         shell: bash
         run: |
           set -euo pipefail
+          node --input-type=module -e 'import { publicationRequest } from "./scripts/caddy-component-artifacts.mjs"; const request = publicationRequest({ event: process.env.PUBLICATION_EVENT, repository: process.env.GH_REPO, ref: process.env.PUBLICATION_REF, review: process.env.PUBLISH_REVIEW, official: process.env.PUBLISH_OFFICIAL, nativeResult: process.env.NATIVE_RESULT, repositoryPrivate: process.env.REPOSITORY_PRIVATE }); if (!request || request.channel !== process.env.RELEASE_CHANNEL || process.env.PUBLICATION_REF !== "refs/tags/" + process.env.COMPONENT_TAG) throw new Error("Publisher identity mismatch");'
           test "$(gh api "repos/$GH_REPO/commits/$COMPONENT_TAG" --jq '.sha')" = "$SOURCE_COMMIT"
+          if [[ "$RELEASE_CHANNEL" == official ]]; then
+            # Policy read uses only GITHUB_TOKEN. Any permission/API/network failure is fatal; no fallback or elevation.
+            gh api "repos/$GH_REPO/environments/caddy-component-release" > "$RUNNER_TEMP/component-environment.json"
+            node --input-type=module -e 'import { readFileSync } from "node:fs"; import { verifyOfficialEnvironment } from "./scripts/caddy-component-artifacts.mjs"; verifyOfficialEnvironment(JSON.parse(readFileSync(process.env.RUNNER_TEMP + "/component-environment.json", "utf8")));'
+            ancestry=$(gh api "repos/$GH_REPO/compare/main...$SOURCE_COMMIT" --jq '.status')
+            [[ "$ancestry" == identical || "$ancestry" == behind ]] || { echo 'Source commit is not on main'; exit 1; }
+          fi
           # A successful lookup means occupied. Lookup failure is checked explicitly through the API.
           status=$(gh api --include "repos/$GH_REPO/releases/tags/$COMPONENT_TAG" 2>&1) && { echo 'Release already exists; refusing overwrite'; exit 1; }
           [[ "$status" =~ HTTP/[0-9.]+[[:space:]]+404[[:space:]] ]] || { echo 'Release availability lookup failed'; exit 1; }
-          printf '%s\n' 'TEST PRERELEASE — not an official dsh-mobile or Caddy release.' \
+          if [[ "$RELEASE_CHANNEL" == official ]]; then
+            prerelease_flag=--prerelease=false
+            label='OFFICIAL managed component distribution — NOT an enabled plugin installation or a Caddy upstream release.'
+          else
+            prerelease_flag=--prerelease
+            label='TEST PRERELEASE — not an official dsh-mobile or Caddy release.'
+          fi
+          printf '%s\n' "$label" \
             'Pinned Go/Caddy/Tencent DNS module. Windows and Linux x64 each built twice in private caches and passed isolated installer/TLS/API/WSS/restart/purge tests.' \
             'TLS tests use a private internal CA without installing trust. Public DNS-01/ACME issuance and public ingress have NOT been tested.' \
             'Production CADDY_COMPONENT_RELEASES remains disabled. SHA256SUMS and source/build/license evidence accompany the raw binaries.' \
             'Versioned GitHub URLs are content-pinned, not a guarantee that repository owners cannot replace release assets.' \
             "Source commit: $SOURCE_COMMIT; Actions run: $RUN_ID; attempt: $RUN_ATTEMPT." > "$RUNNER_TEMP/component-notes.md"
-          gh release create "$COMPONENT_TAG" --verify-tag --draft --prerelease --latest=false --title "Managed Caddy component TEST $COMPONENT_TAG" --notes-file "$RUNNER_TEMP/component-notes.md"
+          gh release create "$COMPONENT_TAG" --verify-tag --draft "$prerelease_flag" --latest=false --title "Managed Caddy component $RELEASE_CHANNEL $COMPONENT_TAG" --notes-file "$RUNNER_TEMP/component-notes.md"
           gh release upload "$COMPONENT_TAG" "$RUNNER_TEMP/component-release/"*
           gh release download "$COMPONENT_TAG" --dir "$RUNNER_TEMP/draft-download"
           diff -rq "$RUNNER_TEMP/component-release" "$RUNNER_TEMP/draft-download"
-      - name: Publish prerelease then verify actual installer HTTPS downloads and emit review-only catalog
+      - name: Publish component then verify all public HTTPS assets and emit non-production candidate
         shell: bash
         run: |
           set -euo pipefail
-          gh release edit "$COMPONENT_TAG" --draft=false --prerelease --latest=false
-          node scripts/verify-caddy-release.mjs --directory "$RUNNER_TEMP/draft-download" --repository "$GH_REPO" --tag "$COMPONENT_TAG" --commit "$SOURCE_COMMIT" --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --candidate-output "$RUNNER_TEMP/caddy-review-catalog.json"
+          node --input-type=module -e 'import { publicationRequest } from "./scripts/caddy-component-artifacts.mjs"; publicationRequest({ event: process.env.PUBLICATION_EVENT, repository: process.env.GH_REPO, ref: process.env.PUBLICATION_REF, review: process.env.PUBLISH_REVIEW, official: process.env.PUBLISH_OFFICIAL, nativeResult: process.env.NATIVE_RESULT, repositoryPrivate: process.env.REPOSITORY_PRIVATE });'
+          if [[ "$RELEASE_CHANNEL" == official ]]; then prerelease_flag=--prerelease=false; else prerelease_flag=--prerelease; fi
+          gh release edit "$COMPONENT_TAG" --draft=false "$prerelease_flag" --latest=false
+          node scripts/verify-caddy-release.mjs --directory "$RUNNER_TEMP/draft-download" --repository "$GH_REPO" --tag "$COMPONENT_TAG" --commit "$SOURCE_COMMIT" --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT" --candidate-output "$RUNNER_TEMP/caddy-review-catalog.json" --channel "$RELEASE_CHANNEL"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: managed-caddy-published-review-catalog
+          name: managed-caddy-published-${{ env.RELEASE_CHANNEL }}-candidate
           path: ${{ runner.temp }}/caddy-review-catalog.json
           if-no-files-found: error
           retention-days: 14

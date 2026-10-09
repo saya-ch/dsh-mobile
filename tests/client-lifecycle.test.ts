@@ -796,6 +796,23 @@ describe('mobile-control localization', () => {
     }
   })
 
+  it('keeps managed connection copy distinct from external backend and form preview', () => {
+    const source = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8')
+    expect(source).toContain("const managedOrigin = origin && data.originMode === 'managed'")
+    expect(source).toContain("t(managedOrigin ? 'caddyName' : 'originName')")
+    expect(source).toContain("ready: origin ? t(managedOrigin ? 'caddyVerified' : 'originReady')")
+    expect(source).toContain("origin && !managedOrigin ? t('originBackendReady') : t('ready')")
+    expect(source).toContain('caddyModeManagedSelected === managedOrigin')
+    // The preview remains a form draft: only clean modes follow controller reads.
+    expect(source).toContain("if (!caddyModePreviewDirty) caddyModeManagedSelected = data.originMode === 'managed'")
+    for (const catalog of Object.values(MOBILE_CONTROL_MESSAGES)) {
+      const copy = catalog as Record<string, string>
+      expect(copy.caddyName?.length).toBeGreaterThan(0)
+      expect(copy.caddyModePreviewNote?.length).toBeGreaterThan(0)
+    }
+    expect((MOBILE_CONTROL_MESSAGES.en as Record<string, string>).originDescription).toContain('managed Caddy')
+  })
+
   it('keeps every origin validation and runtime error translated in all locales', () => {
     const source = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8')
     const mapping = source.match(/const ORIGIN_ERROR_MESSAGE_KEYS[^=]*= \{([\s\S]*?)\n\}/u)?.[1] ?? ''

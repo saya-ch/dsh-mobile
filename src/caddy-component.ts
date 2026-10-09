@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { chmod, lstat, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import { assertCaddyParents, ensureCaddyDirectory, removeCaddyTree } from './caddy-files.js'
+import { assertCaddyParents, ensureCaddyDirectory, removeCaddyTree, renameCaddyPath } from './caddy-files.js'
 import { downloadPinnedArtifact } from './component-download.js'
 import { execFileText } from './exec-file.js'
 
@@ -106,7 +106,7 @@ export class CaddyComponentManager {
     this.stagingRoot = join(this.stateDirectory, 'staging', 'caddy')
     this.fetchArtifact = options.fetchArtifact ?? ((url, signal) => downloadPinnedArtifact({ url, signal, expectedBytes: artifact?.downloadBytes ?? 0, errorPrefix: 'caddy' }))
     this.inspectExecutable = options.inspectExecutable ?? inspect
-    this.promote = options.promoteDirectory ?? rename
+    this.promote = options.promoteDirectory ?? ((source, destination) => renameCaddyPath(this.stateDirectory, source, destination))
   }
 
   /** Recheck a pinned executable before launching; no unverified local binary can run. */
@@ -150,6 +150,7 @@ export class CaddyComponentManager {
       const backup = join(this.componentRoot, '.previous-' + randomBytes(12).toString('hex'))
       let previous = false
       let promoted = false
+      let failed = false
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => { controller.abort() }, 600_000)
@@ -167,17 +168,26 @@ export class CaddyComponentManager {
         try {
           const entry = await lstat(this.componentStorage)
           if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error('caddy_path_invalid')
-          await rename(this.componentStorage, backup); previous = true
+          await renameCaddyPath(this.stateDirectory, this.componentStorage, backup); previous = true
         } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
         try { await this.promote(candidate, this.componentStorage); promoted = true } catch (error) {
-          if (previous) { await rename(backup, this.componentStorage); previous = false }
+          if (previous) {
+            try { await renameCaddyPath(this.stateDirectory, backup, this.componentStorage); previous = false } catch (rollbackError) {
+              this.installed = false; this.errorCode = 'caddy_component_invalid'
+              // Keep the only old bytes in backup and expose both failures without claiming a usable installation.
+              throw new AggregateError([error, rollbackError], 'caddy_component_rollback_failed', { cause: error })
+            }
+          }
           throw error
         }
         this.installed = true; this.errorCode = undefined
-      } finally {
-        await removeCaddyTree(this.stateDirectory, staging)
-        await removeCaddyTree(this.stateDirectory, candidate)
-        if (previous && promoted) await removeCaddyTree(this.stateDirectory, backup)
+      } catch (error) { failed = true; throw error } finally {
+        // A busy cleanup must not replace the original verification/promotion error.
+        let cleanupError: unknown
+        for (const path of [staging, candidate, ...(previous && promoted ? [backup] : [])]) {
+          try { await removeCaddyTree(this.stateDirectory, path) } catch (error) { cleanupError ??= error }
+        }
+        if (!failed && cleanupError !== undefined) throw cleanupError
       }
     })
   }

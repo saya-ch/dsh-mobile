@@ -1,16 +1,18 @@
 import { lstat, readFile, readdir, writeFile } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
-import { buildLockSha256, reviewTag, sha256, verifyArtifactFiles } from './caddy-component-artifacts.mjs'
+import { buildLockSha256, releaseIdentity, sha256, verifyArtifactFiles } from './caddy-component-artifacts.mjs'
 import { CADDY_BUILD_LOCK as lock } from './caddy-component-build-inputs.mjs'
 import { downloadPinnedArtifact } from '../src/component-download.ts'
 
 const args = process.argv.slice(2)
+let channel = 'review'
+if (args.length === 16 && args[14] === '--channel') channel = args.splice(14, 2)[1]
 const flags = ['--directory', '--repository', '--tag', '--commit', '--run-id', '--run-attempt', '--candidate-output']
 if (args.length !== flags.length * 2 || flags.some((flag, index) => args[index * 2] !== flag)) throw new Error('Expected exact Caddy release verification arguments')
 const [directory, repository, tag, commit, runId, runAttempt, output] = flags.map((_, index) => args[index * 2 + 1])
 if (!isAbsolute(directory) || !isAbsolute(output) || !/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(repository)
   || !/^[a-f0-9]{40}$/u.test(commit) || !/^[1-9][0-9]*$/u.test(runId) || !/^[1-9][0-9]*$/u.test(runAttempt)) throw new Error('Invalid release verification identity')
-reviewTag(tag)
+const identity = releaseIdentity(repository, tag, channel)
 const bytes = async name => {
   const path = join(directory, name)
   const stat = await lstat(path)
@@ -19,7 +21,7 @@ const bytes = async name => {
 }
 const indexBytes = await bytes('COMPONENT-RELEASE.json')
 const index = JSON.parse(indexBytes.toString('utf8'))
-if (index.schemaVersion !== 1 || index.kind !== 'managed-caddy-component-review' || index.repository !== repository || index.tag !== tag
+if (index.schemaVersion !== 1 || index.kind !== identity.kind || index.repository !== repository || index.tag !== tag
   || index.sourceCommit !== commit || index.runId !== runId || index.runAttempt !== runAttempt
   || index.productionCatalogEnabled !== false || index.buildLockSha256 !== buildLockSha256()) throw new Error('Downloaded release identity mismatch')
 const targets = ['linux-x64', 'win32-x64']
@@ -61,17 +63,22 @@ for (const target of targets) {
 
 const headers = { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28',
   ...(process.env.GH_TOKEN ? { authorization: 'Bearer ' + process.env.GH_TOKEN } : {}) }
-const api = async path => {
+const api = async (path, allowMissing = false) => {
   const response = await fetch('https://api.github.com/repos/' + repository + path, { headers, redirect: 'error', signal: AbortSignal.timeout(30_000) })
+  if (allowMissing && response.status === 404) return undefined
   if (!response.ok) throw new Error('GitHub release identity lookup failed: ' + response.status)
   return response.json()
 }
 const release = await api('/releases/tags/' + encodeURIComponent(tag))
 const source = await api('/commits/' + encodeURIComponent(tag))
-if (release.draft !== false || release.prerelease !== true || release.tag_name !== tag || source.sha !== commit
+if (release.draft !== false || release.prerelease !== (channel === 'review') || release.tag_name !== tag || source.sha !== commit
   || !Array.isArray(release.assets) || release.assets.length !== expectedNames.length
   || new Set(release.assets.map(asset => asset.name)).size !== expectedNames.length
   || release.assets.some(asset => !expectedNames.includes(asset.name))) throw new Error('Published prerelease identity mismatch')
+if (channel === 'official') {
+  const latest = await api('/releases/latest', true)
+  if (latest !== undefined && (typeof latest?.tag_name !== 'string' || latest.tag_name.length === 0 || latest.tag_name.startsWith('caddy-component-') || latest.draft !== false || latest.prerelease !== false)) throw new Error('Official component must not be latest')
+}
 for (const name of expectedNames) {
   const trustedBytes = await bytes(name)
   const expectedHash = sha256(trustedBytes)
@@ -96,7 +103,7 @@ for (const target of targets) {
     downloadUrl: url, downloadBytes: pin.bytes, executableBytes: pin.bytes, downloadSha256: pin.sha256, executableSha256: pin.sha256,
     executableName: entry.executableName }
 }
-// A review candidate only: never edits src/caddy-component.ts or enables the production catalog.
-await writeFile(output, JSON.stringify({ schemaVersion: 1, kind: 'review-candidate-not-production', repository, tag, sourceCommit: commit,
+// A non-production candidate only: never edits src/caddy-component.ts or enables the production catalog.
+await writeFile(output, JSON.stringify({ schemaVersion: 1, kind: channel + '-candidate-not-production', repository, tag, sourceCommit: commit,
   runId, runAttempt, productionCatalogEnabled: false, artifacts: catalog }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
-console.log(JSON.stringify({ verifiedPublishedPrerelease: true, targets, productionCatalogEnabled: false }))
+console.log(JSON.stringify({ ...(channel === 'review' ? { verifiedPublishedPrerelease: true } : { verifiedPublishedOfficialComponent: true }), targets, productionCatalogEnabled: false }))

@@ -1237,6 +1237,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   caddyModeManagedLabel.append(caddyModeManaged, caddyManagedText)
   caddyModeExternalLabel.append(caddyModeExternal, caddyExternalText)
   caddyModeRow.append(caddyModeLegend, caddyModeExternalLabel, caddyModeManagedLabel)
+  const caddyModePreviewNote = element('p', 'dsh-mobile-control__component-note'); caddyModePreviewNote.textContent = t('caddyModePreviewNote'); caddyModePreviewNote.hidden = true
   const caddyForm = element('div', 'dsh-mobile-control__caddy-form'); caddyForm.hidden = true
   const caddyFields = element('div', 'dsh-mobile-control__origin-fields')
   const caddyDomainLabel = element('label', 'dsh-mobile-control__field dsh-mobile-control__field--full'); caddyDomainLabel.textContent = t('caddyDomain')
@@ -1262,7 +1263,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const caddyActions = element('div', 'dsh-mobile-control__actions dsh-mobile-control__caddy-actions')
   caddyActions.append(caddyInstall, caddySave, caddyPurgeButton)
   caddyForm.append(caddyFields, caddyInstallNote, caddyStatus, caddyActions, caddyFeedback)
-  originSetup.append(originSetupTitle, caddyModeRow, originHelp, originWarning, originFields, originFeedback, originFormActions, caddyForm, originBackend)
+  originSetup.append(originSetupTitle, caddyModeRow, caddyModePreviewNote, originHelp, originWarning, originFields, originFeedback, originFormActions, caddyForm, originBackend)
   const tailscaleInfo = element('details', 'dsh-mobile-control__details')
   const tailscaleInfoSummary = element('summary'); tailscaleInfoSummary.textContent = t('tailscaleHelp')
   const tailscaleInfoBody = element('div', 'dsh-mobile-control__details-body')
@@ -1781,6 +1782,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     const cloudflared = remoteProvider === 'cloudflared'
     const frp = remoteProvider === 'frp'
     const origin = remoteProvider === 'origin'
+    // Current-connection copy follows the controller, never the unsaved form mode.
+    const managedOrigin = origin && data.originMode === 'managed'
     const tailscale = remoteProvider === 'tailscale'
     tailscaleChoice.classList.toggle('is-selected', tailscale)
     cpolarChoice.classList.toggle('is-selected', cpolar)
@@ -1796,7 +1799,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     cloudflaredChoice.tabIndex = cloudflared ? 0 : -1
     frpChoice.setAttribute('aria-pressed', String(frp))
     originChoice.setAttribute('aria-pressed', String(origin))
-    providerSetupName.textContent = cpolar ? 'cpolar' : cloudflared ? 'cloudflared' : frp ? t('frpName') : origin ? t('originName') : 'Tailscale Funnel'
+    providerSetupName.textContent = cpolar ? 'cpolar' : cloudflared ? 'cloudflared' : frp ? t('frpName') : origin ? t(managedOrigin ? 'caddyName' : 'originName') : 'Tailscale Funnel'
     tailscaleChoice.disabled = remoteProviderBusy
     cpolarChoice.disabled = remoteProviderBusy
     cloudflaredChoice.disabled = remoteProviderBusy
@@ -2048,6 +2051,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     const caddySupported = caddyComponentInfo !== undefined && caddyComponentInfo.supported === true
     if (!caddyModePreviewDirty) caddyModeManagedSelected = data.originMode === 'managed'
     const showManaged = origin && caddyModeManagedSelected
+    caddyModePreviewNote.hidden = !origin || !caddyModePreviewDirty || caddyModeManagedSelected === managedOrigin
     const caddyConfiguration = typeof data.caddyConfiguration === 'object' && data.caddyConfiguration !== null ? data.caddyConfiguration as Record<string, unknown> : {}
     const caddyState = typeof data.caddyState === 'object' && data.caddyState !== null ? data.caddyState as Record<string, unknown> : {}
     caddyModeRow.hidden = !origin
@@ -2078,9 +2082,6 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     caddySave.disabled = remoteProviderBusy || !caddySupported || !caddyInstalled
     caddyPurgeButton.disabled = remoteProviderBusy
     for (const input of [caddyDomain, caddyProvider, caddySecretId, caddySecretKey, caddyPort]) input.disabled = remoteProviderBusy || !caddySupported
-    selfHostedBadge.textContent = origin
-      ? originListening ? t('originBackendReady') : t('advanced')
-      : frpConfigured && frpInstalled ? t('ready') : t('advanced')
     const state = typeof data.state === 'string' ? data.state : 'error'
     const errorCode = typeof data.errorCode === 'string' ? data.errorCode : ''
     const remoteOrigin = typeof data.origin === 'string' ? data.origin : ''
@@ -2094,11 +2095,14 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     remoteSetupUrl = candidateSetupUrl !== '' ? candidateSetupUrl : (fallbackSetupUrls[errorCode] ?? '')
     const needsFunnelSetup = state === 'error' && remoteSetupUrl !== ''
     remoteReady = remoteRunning && state === 'ready' && remoteOrigin !== ''
+    selfHostedBadge.textContent = origin
+      ? managedOrigin ? t(remoteReady ? 'ready' : 'advanced') : originListening ? t('originBackendReady') : t('advanced')
+      : frpConfigured && frpInstalled ? t('ready') : t('advanced')
     remoteStateBadge.classList.toggle('is-ready', remoteReady)
     remoteStateBadge.classList.toggle('is-busy', state === 'starting' || state === 'connecting' || state === 'needs-login')
     remoteStateBadge.classList.toggle('is-attention', state === 'error' || state === 'unavailable')
     remoteStateBadge.textContent = remoteReady
-      ? origin ? t('originBackendReady') : t('ready')
+      ? origin && !managedOrigin ? t('originBackendReady') : t('ready')
       : state === 'starting' || state === 'connecting' || state === 'needs-login'
         ? t('remoteStateConnecting')
         : state === 'error' || state === 'unavailable'
@@ -2121,7 +2125,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       connecting: cpolar ? t('remoteConnectingCpolar')
         : cloudflared ? t('remoteConnectingCloudflared')
           : frp ? t('remoteConnectingFrp') : t('remoteConnectingTailscale'),
-      ready: origin ? t('originReady') : t('remoteReady'),
+      ready: origin ? t(managedOrigin ? 'caddyVerified' : 'originReady') : t('remoteReady'),
       error: t('remoteError'),
     }
     const errorLabels: Record<string, string> = translatedRemoteErrors()

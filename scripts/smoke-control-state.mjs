@@ -58,6 +58,14 @@ async function withControl(browser, name, options, run) {
     holdMode: options.holdMode === true,
     holdNextRemote: false,
   }
+  if (options.managedReady) {
+    Object.assign(state.remote, {
+      running: true, state: 'ready', origin: 'https://saved-caddy.example.com:8443',
+      backendOrigin: 'http://127.0.0.1:49954',
+      caddyState: { enabled: true, state: 'ready', origin: 'https://saved-caddy.example.com:8443', backendOrigin: 'http://127.0.0.1:49954' },
+    })
+    Object.assign(state.remote.providers.origin, { running: true, state: 'ready' })
+  }
   if (options.layoutFixture) {
     Object.assign(state.remote.providers.origin, { running: true, state: 'ready' })
     state.remote.providers.origin.configuration.backendOrigin = 'http://127.0.0.1:3444'
@@ -283,6 +291,92 @@ async function withControl(browser, name, options, run) {
 const browser = await chromium.launch({ headless: true })
 let cases = 0
 try {
+  await withControl(browser, 'managed readiness uses server truth, not the HTTPS form preview', { managedReady: true }, async ({ page, state, ui, count, openRemote, pollRemote }) => {
+    const heading = page.locator('.dsh-mobile-control__stage-value')
+    const badge = page.locator('.dsh-mobile-control__state-badge')
+    const notice = page.locator('.dsh-mobile-control__remote-workspace .dsh-mobile-control__status[aria-live="polite"]')
+    const selfHostedBadge = page.locator('.dsh-mobile-control__provider-badge.is-frp')
+    const assertManaged = async () => {
+      assert.equal(await heading.textContent(), 'Managed Caddy')
+      assert.equal(await badge.textContent(), 'Ready')
+      assert.equal(await selfHostedBadge.textContent(), 'Ready')
+      assert.equal(await notice.textContent(), 'Managed HTTPS entry verified for this computer.')
+    }
+    await assertManaged() // initial mount, before opening the remote tab
+    await openRemote()
+    assert.equal(await ui.managed.isChecked(), true)
+    await assertManaged()
+    await pollRemote()
+    assert.equal(await ui.managed.isChecked(), true)
+    await page.locator('.dsh-mobile-control__trigger').click()
+    await page.locator('.dsh-mobile-control__trigger').click()
+    await assertManaged()
+    // A different controller changes the server mode; a clean form follows it.
+    state.remote.originMode = 'external'
+    state.remote.caddyState = { enabled: false, state: 'off' }
+    state.remote.origin = state.remote.providers.origin.configuration.publicOrigin
+    await pollRemote()
+    assert.equal(await ui.external.isChecked(), true)
+    assert.equal(await heading.textContent(), 'Own reverse proxy')
+    assert.equal(await badge.textContent(), 'Backend listening')
+    assert.match(await notice.textContent(), /have NOT been verified/u)
+    state.remote.originMode = 'managed'
+    state.remote.caddyState = { enabled: true, state: 'ready' }
+    await pollRemote()
+    assert.equal(await ui.managed.isChecked(), true, 'Clean external form did not follow the server back to managed')
+    await assertManaged()
+    state.remote.originMode = 'external'
+    state.remote.caddyState = { enabled: false, state: 'off' }
+    await pollRemote()
+    // Selecting managed only previews the form, not the current connection.
+    await ui.managed.check()
+    await ui.caddyDomain.fill('https://unsaved-caddy.example.com:9443')
+    await pollRemote()
+    assert.equal(await ui.managed.isChecked(), true)
+    assert.equal(await heading.textContent(), 'Own reverse proxy')
+    assert.equal(await badge.textContent(), 'Backend listening')
+    assert.equal(await page.getByText('HTTPS form preview differs from the current connection.', { exact: true }).isVisible(), true)
+    // Another server mode change updates the summary without discarding edits.
+    state.remote.originMode = 'managed'
+    state.remote.caddyState = { enabled: true, state: 'ready' }
+    state.remote.origin = 'https://saved-caddy.example.com:8443'
+    await pollRemote()
+    await assertManaged()
+    assert.equal(await ui.caddyDomain.inputValue(), 'https://unsaved-caddy.example.com:9443')
+    assert.equal(count('POST', modePath), 0)
+    assert.equal(count('POST', caddyPath), 0)
+  })
+  cases++
+
+  await withControl(browser, 'retained external preview cannot mislabel a server-managed connection', { managedReady: true }, async ({ page, state, ui, count, openRemote, pollRemote }) => {
+    await openRemote()
+    // First follow an external server mode, then explicitly stage and return to
+    // its external form. This exercises the existing retained-preview policy.
+    state.remote.originMode = 'external'
+    state.remote.caddyState = { enabled: false, state: 'off' }
+    await pollRemote()
+    await ui.originPublic.fill('https://unsaved-proxy.example.com:8816')
+    await ui.managed.check()
+    await ui.external.check()
+    state.remote.originMode = 'managed'
+    state.remote.caddyState = { enabled: true, state: 'ready' }
+    await pollRemote()
+    assert.equal(await ui.external.isChecked(), true, 'Server change discarded the intentional external preview')
+    assert.equal(await ui.originPublic.inputValue(), 'https://unsaved-proxy.example.com:8816')
+    assert.equal(await page.locator('.dsh-mobile-control__stage-value').textContent(), 'Managed Caddy')
+    assert.equal(await page.locator('.dsh-mobile-control__state-badge').textContent(), 'Ready')
+    assert.equal(await page.locator('.dsh-mobile-control__remote-workspace .dsh-mobile-control__status[aria-live="polite"]').textContent(), 'Managed HTTPS entry verified for this computer.')
+    assert.equal(await page.getByText('HTTPS form preview differs from the current connection.', { exact: true }).isVisible(), true)
+    await page.locator('.dsh-mobile-control__trigger').click()
+    await page.locator('.dsh-mobile-control__trigger').click()
+    await pollRemote()
+    assert.equal(await ui.external.isChecked(), true, 'Reopening discarded the intentional preview')
+    assert.equal(count('POST', modePath), 0, 'Server snapshot/preview replay mutated the origin mode')
+    assert.equal(count('POST', caddyPath), 0)
+    assert.equal(count('POST', `${prefix}/remote/origin/configure`), 0)
+  })
+  cases++
+
   // Render the real client/CSS: a hidden attribute alone does not prove a
   // display:grid form is hidden, and jsdom cannot measure radio geometry.
   for (const language of ['en', 'zh', 'it']) for (const width of [320, 360, 1100]) {
