@@ -2,7 +2,7 @@
 
 [English](EXTENSION_WORKERS.en.md) · [返回定制功能](../README.md#扩展与自定义)
 
-> 插件 0.6.3 候选功能，尚未发布。此功能由电脑端插件实现，不要求 App 同步版本或重新配对。
+> 插件 0.6.3 新增功能，由电脑端插件实现，不要求 App 同步版本或重新配对。
 
 Worker 模式把选中的本地 `host.mjs` 放到独立工作线程，使同步 JavaScript 循环不再占住网关主线程。默认仍使用 `in-process`；已有扩展和普通 Cordis 插件不会被自动迁移。
 

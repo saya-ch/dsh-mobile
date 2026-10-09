@@ -27,7 +27,7 @@
 
 ## 开发与安全 / Development and security
 
-0.6.3 未发布候选的 [扩展 Worker 指南](EXTENSION_WORKERS.md)／[Worker guide](EXTENSION_WORKERS.en.md) 介绍按扩展启用、预算与显式恢复；此功能不迁移普通 Cordis 插件，也不是权限沙箱。
+0.6.3 的 [扩展 Worker 指南](EXTENSION_WORKERS.md)／[Worker guide](EXTENSION_WORKERS.en.md) 介绍按扩展启用、预算与显式恢复；此功能不迁移普通 Cordis 插件，也不是权限沙箱。
 
 - [贡献指南](../CONTRIBUTING.md)：本地检查、浏览器与 Android 验证、发布要求。
 - [安全说明](../SECURITY.md)：配对授权、TLS、组件清理与私密漏洞反馈。

@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## 0.6.3 - Unreleased
+## 0.6.3 - 2026-10-10
 
 - Add opt-in, per-local-extension Worker execution with bounded threads/V8/IPC, cooperative cancellation followed by termination, fair streaming credit and explicit recovery without replay. The default remains in-process; Workers expose a logger-only context and are not a security sandbox. Retain @chintoleung's three original prototype commits from [#189](https://github.com/saya-ch/dsh-mobile/issues/189), with integration and lifecycle corrections. [Guide](docs/EXTENSION_WORKERS.en.md).
 - Integrate @abworks-dev's [PR #192](https://github.com/saya-ch/dsh-mobile/pull/192) with plugin-only compact/overflow corrections. Keep native InputBar ownership, model width observation, original handlers, menus and live activity nodes; Send/Stop remain reachable. This is not the proposed shared upper scrollport, which still requires an upstream parent-toolbar seam. [Layout scope](docs/MOBILE_COMPOSER_TOOLBAR.en.md).
@@ -10,7 +10,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Correct audit regressions: preserve third-party HTML/iframe routes, reject unknown raw TLS modes, guard managed parent links and cleanup ownership, retain rollback backups, contain file-log failures and stop unverified authenticated SSH fallback before fingerprint confirmation. Await owned process/cleanup completion and align the guides with actual logging, permissions and independent versioning.
 - Fix fresh installation and upgrades through DSH's plugin manager, including hoisted pnpm profiles. The question-card component remains inside the plugin package and independently switchable, without a separate package installation or user workaround. Thanks @MLYR for [#193](https://github.com/saya-ch/dsh-mobile/issues/193).
 - Follow DSH 0.2.1-alpha.2 typography: mobile General settings retain device-local body size and add collapsed body/code font controls and a reset action. Preferences do not change the computer or other devices; existing mobile font settings are retained. Terminal fonts remain owned by DSH.
-- Prepare Android App 0.6.2 (build 78), separately from plugin 0.6.3. Keep web content inside the native system-bar, cutout and keyboard area; add native-only page zoom in General settings, with 80–125% scaling and a 100% reset, without reloading the conversation. Older App versions and browsers do not show this control.
+- Add Android App 0.6.2 (build 78), separately from plugin 0.6.3. Keep web content inside the native system-bar, cutout and keyboard area; add native-only page zoom in General settings, with 80–125% scaling and a 100% reset, without reloading the conversation. Older App versions and browsers do not show this control.
 - Add a nonblocking update reminder for WebViews reporting Chromium below 100. Users may continue; unknown engine versions are not treated as obsolete, and each detected build is warned about once. This does not promise full compatibility with unsupported old engines.
 - Improve bounded Windows retries and rollback for managed Caddy preparation while keeping official managed installation disabled. Thanks @abworks-dev for [PR #190](https://github.com/saya-ch/dsh-mobile/pull/190).
 - Hide the duplicate passive pin marker on narrow mobile session lists while retaining pin actions and desktop presentation. Thanks @chintoleung for [PR #191](https://github.com/saya-ch/dsh-mobile/pull/191).

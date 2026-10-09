@@ -2,7 +2,7 @@
 
 [简体中文](EXTENSION_WORKERS.md) · [Customization](../README.en.md#extend-and-customize)
 
-> Plugin 0.6.3 candidate feature, not yet released. This computer-side feature does not require a matching App version or new pairing.
+> Added in plugin 0.6.3. This computer-side feature does not require a matching App version or new pairing.
 
 Worker mode runs selected local `host.mjs` files in separate threads so synchronous JavaScript does not occupy the gateway's event loop. The default remains `in-process`; existing extensions and ordinary Cordis plugins are not automatically migrated.
 

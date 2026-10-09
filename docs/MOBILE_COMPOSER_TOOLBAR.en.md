@@ -2,7 +2,7 @@
 
 [简体中文](MOBILE_COMPOSER_TOOLBAR.md) · [Third-party compatibility](../README.en.md#third-party-plugin-compatibility)
 
-> Layout changes in the unreleased 0.6.3 candidate. Android and mobile browsers use the same plugin-served page; this change does not require reinstalling the App.
+> Layout changes in plugin 0.6.3. Android and mobile browsers use the same plugin-served page; this change does not require reinstalling the App.
 
 The narrow-screen composer preserves DSH's native structure and handlers. Model names truncate when space is limited, additional controls wrap, and Send/Stop retain touch dimensions. Entire native groups wrap according to their actual width. Switches are not stretched into action buttons, and inline dialogs, menus and lists do not receive compact toolbar sizing.
 
