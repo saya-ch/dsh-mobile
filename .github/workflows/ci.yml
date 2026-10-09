@@ -38,6 +38,8 @@ jobs:
         with:
           node-version: 24.x
           cache: npm
+      - name: Install pnpm for the live DSH plugin manager
+        run: npm install --global pnpm@10.10.0
       - run: npm ci
       - run: npm run build
       - name: Install DSH and pack the Mobile bundle
