@@ -14,7 +14,7 @@ import {
 } from '../src/release-update.js'
 
 const temporaryDirectories: string[] = []
-const bundledApp = JSON.parse(readFileSync(new URL('../apps/mobile/release.json', import.meta.url), 'utf8')) as { readonly version: string; readonly releaseTag: string }
+const bundledApp = JSON.parse(readFileSync(new URL('../apps/mobile/release.json', import.meta.url), 'utf8')) as { readonly version: string; readonly versionCode: number; readonly releaseTag: string }
 const bundledApkUrl = `https://github.com/saya-ch/dsh-mobile/releases/download/${bundledApp.releaseTag}/dsh-mobile-android-v${bundledApp.version}.apk`
 
 afterEach(async () => {
@@ -28,7 +28,7 @@ async function profileDirectory(spec: string): Promise<string> {
   return directory
 }
 
-function releaseFetch(version: string, appVersion = bundledApp.version, releaseTag = `v${appVersion}`): typeof globalThis.fetch {
+function releaseFetch(version: string, appVersion = bundledApp.version, releaseTag = appVersion === bundledApp.version ? bundledApp.releaseTag : `v${appVersion}`): typeof globalThis.fetch {
   return vi.fn(async input => {
     const url = String(input)
     if (url === 'https://registry.npmjs.org/dsh-mobile/latest') {
@@ -38,7 +38,7 @@ function releaseFetch(version: string, appVersion = bundledApp.version, releaseT
       })
     }
     if (url === 'https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/apps/mobile/release.json') {
-      return Response.json({ version: appVersion, versionCode: 77, releaseTag })
+      return Response.json({ version: appVersion, versionCode: bundledApp.versionCode, releaseTag })
     }
     return new Response('', { status: 503 })
   })
@@ -57,7 +57,7 @@ function notesFetch(version: string): typeof globalThis.fetch {
       })
     }
     if (url === 'https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/apps/mobile/release.json') {
-      return Response.json({ version, versionCode: 77, releaseTag: `v${version}` })
+      return Response.json({ version, versionCode: bundledApp.versionCode, releaseTag: `v${version}` })
     }
     return new Response('', { status: 503 })
   })
@@ -121,16 +121,18 @@ describe('profile-local release updates', () => {
     expect(runUpdate).toHaveBeenCalledWith(directory, '0.3.3')
   })
 
-  it.each(['v0.6.1', 'android-v0.6.1'])('keeps the published App separate from a newer plugin for tag %s', async releaseTag => {
+  it.each([`v${bundledApp.version}`, `android-v${bundledApp.version}`])('keeps the published App separate from a newer plugin for tag %s', async releaseTag => {
+    const [major, minor, patch] = bundledApp.version.split('.').map(Number)
+    const newerPluginVersion = `${major}.${minor}.${patch! + 1}`
     const manager = new PluginReleaseManager({
       profileDirectory: undefined,
-      installedVersion: '0.6.1',
-      fetch: releaseFetch('0.6.2', '0.6.1', releaseTag),
+      installedVersion: bundledApp.version,
+      fetch: releaseFetch(newerPluginVersion, bundledApp.version, releaseTag),
     })
     await expect(manager.status()).resolves.toMatchObject({
-      latestVersion: '0.6.2',
-      androidVersion: '0.6.1',
-      androidDownloadUrl: `https://github.com/saya-ch/dsh-mobile/releases/download/${releaseTag}/dsh-mobile-android-v0.6.1.apk`,
+      latestVersion: newerPluginVersion,
+      androidVersion: bundledApp.version,
+      androidDownloadUrl: `https://github.com/saya-ch/dsh-mobile/releases/download/${releaseTag}/dsh-mobile-android-v${bundledApp.version}.apk`,
     })
   })
 
