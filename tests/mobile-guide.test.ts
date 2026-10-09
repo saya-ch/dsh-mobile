@@ -34,6 +34,20 @@ describe('buildMobileGuide', () => {
     expect(guide()).toContain('已安装扩展：\n（无）')
   })
 
+  it('reports actual execution and recovery status without describing every Host as a Worker', () => {
+    const text = guide({ extensions: [
+      { id: 'plain', name: 'Plain', version: '1', executionMode: 'in-process', executionState: 'ready' },
+      { id: 'isolated', name: 'Worker', version: '1', executionMode: 'worker', executionState: 'unavailable' },
+      { id: 'plugin-host', name: 'Plugin', version: '1' },
+    ] })
+    expect(text).toContain('plain（Plain v1） · in-process')
+    expect(text).toContain('isolated（Worker v1） · worker · 当前不可用，需要显式重启扩展')
+    expect(text).toContain('plugin-host（Plugin v1）\n')
+    expect(text).toContain('Worker 中 api.context 只有 logger')
+    expect(text).toContain('Desktop 请在上方实际定制目录创建文件')
+    expect(text).toContain('不要通过无意义改文件或自动重放原动作实现恢复')
+  })
+
   it('warns about failed hosts only when present', () => {
     const warned = guide({ failedExtensionCount: 1 })
     expect(warned).toContain('host 激活失败')

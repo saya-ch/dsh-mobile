@@ -7,8 +7,8 @@ import android.webkit.PermissionRequest
  *
  * DSH's voice-input plugin records through `getUserMedia`, which Chromium routes
  * to `WebChromeClient.onPermissionRequest`. Only the microphone of the trusted
- * gateway page is granted: every other resource, and any other frame that asks
- * for one, stays denied.
+ * gateway origin is granted; other origins and resources stay denied.
+ * Android PermissionRequest does not identify whether its frame is top-level.
  */
 internal object WebViewPermissionPolicy {
     /**

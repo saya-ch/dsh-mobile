@@ -7,12 +7,11 @@ import {
   mkdir,
   mkdtemp,
   readFile,
-  rename,
-  rm,
   stat,
   writeFile,
 } from 'node:fs/promises'
-import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
+import { assertManagedParents, ensureManagedDirectory, removeManagedPaths, removeManagedTree, replaceManagedDirectory } from './managed-files.js'
 
 const FRP_VERSION = '0.70.1'
 const MAX_ARCHIVE_ENTRIES = 128
@@ -106,32 +105,6 @@ async function regularFile(file: string): Promise<boolean> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
-  }
-}
-
-async function replaceDirectory(target: string, candidate: string): Promise<void> {
-  const backup = `${target}.previous-${randomBytes(12).toString('hex')}`
-  let previous = false
-  try {
-    try {
-      await rename(target, backup)
-      previous = true
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    }
-    try {
-      await rename(candidate, target)
-    } catch (error) {
-      if (previous) {
-        try { await rename(backup, target) } catch (restoreError) {
-          throw new AggregateError([error, restoreError], 'frp_component_replace_failed')
-        }
-      }
-      throw error
-    }
-    if (previous) await rm(backup, { recursive: true, force: true })
-  } finally {
-    await rm(candidate, { recursive: true, force: true })
   }
 }
 
@@ -239,6 +212,7 @@ export class FrpComponentManager {
   readonly componentStorage: string
   readonly logRoot: string
   private readonly stagingRoot: string
+  private readonly stateDirectory: string
   private readonly artifact: FrpArtifact | undefined
   private readonly fetchArtifact: (artifact: FrpArtifact, signal: AbortSignal) => Promise<Uint8Array>
   private readonly extractArtifact: (archive: string, destination: string, executableName: string) => Promise<void>
@@ -249,8 +223,9 @@ export class FrpComponentManager {
   private queue: Promise<void> = Promise.resolve()
 
   constructor(options: FrpComponentManagerOptions) {
+    if (!isAbsolute(options.stateDirectory)) throw new Error('frp state directory must be absolute')
     const stateDirectory = resolve(options.stateDirectory)
-    if (!isAbsolute(stateDirectory)) throw new Error('frp state directory must be absolute')
+    this.stateDirectory = stateDirectory
     const platform = options.platform ?? process.platform
     const arch = options.arch ?? process.arch
     this.artifact = FRP_COMPONENT_RELEASES[`${platform}-${arch}`]
@@ -269,17 +244,21 @@ export class FrpComponentManager {
 
   /** Inspect the managed executable without relying on global FRP installations. */
   async initialize(): Promise<void> {
-    this.installed = await regularFile(this.executable)
-    this.installedBytes = this.installed ? (await stat(this.executable)).size : 0
-    if (this.installed) {
-      try {
+    this.installed = false
+    this.installedBytes = 0
+    this.errorCode = undefined
+    try {
+      await assertManagedParents(this.stateDirectory, this.executable, 'frp')
+      this.installed = await regularFile(this.executable)
+      this.installedBytes = this.installed ? (await stat(this.executable)).size : 0
+      if (this.installed) {
         const version = await this.inspectExecutable(this.executable)
         if (version !== FRP_VERSION) throw new Error('frp_component_version_mismatch')
-        this.errorCode = undefined
-      } catch {
-        this.installed = false
-        this.errorCode = 'frp_component_invalid'
       }
+    } catch (_error) {
+      this.installed = false
+      this.installedBytes = 0
+      this.errorCode = 'frp_component_invalid'
     }
   }
 
@@ -303,7 +282,8 @@ export class FrpComponentManager {
     return this.enqueue(async () => {
       const artifact = this.artifact
       if (artifact === undefined) throw new Error('frp_component_unsupported')
-      await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 })
+      await assertManagedParents(this.stateDirectory, this.executable, 'frp')
+      await ensureManagedDirectory(this.stateDirectory, this.stagingRoot, 'frp')
       const staging = await mkdtemp(join(this.stagingRoot, 'install-'))
       try {
         const controller = new AbortController()
@@ -322,16 +302,23 @@ export class FrpComponentManager {
         const version = await this.inspectExecutable(extracted)
         if (version !== FRP_VERSION) throw new Error('frp_component_version_mismatch')
         const candidate = join(this.componentRoot, `.install-${randomBytes(12).toString('hex')}`)
-        await mkdir(candidate, { recursive: true, mode: 0o700 })
-        const candidateExecutable = join(candidate, artifact.executableName)
-        await copyFile(extracted, candidateExecutable)
-        await chmod(candidateExecutable, 0o700)
-        await replaceDirectory(this.componentStorage, candidate)
+        await ensureManagedDirectory(this.stateDirectory, candidate, 'frp')
+        try {
+          const candidateExecutable = join(candidate, artifact.executableName)
+          await copyFile(extracted, candidateExecutable)
+          await chmod(candidateExecutable, 0o700)
+          await replaceManagedDirectory(this.stateDirectory, this.componentStorage, candidate, 'frp')
+        } catch (error) {
+          try { await removeManagedTree(this.stateDirectory, candidate, 'frp') } catch (_cleanupError) {
+            process.emitWarning('FRP candidate cleanup failed', { code: 'DSH_MOBILE_COMPONENT_CLEANUP_FAILED' })
+          }
+          throw error
+        }
         this.installed = true
         this.installedBytes = (await stat(this.executable)).size
         this.errorCode = undefined
       } finally {
-        await rm(staging, { recursive: true, force: true })
+        await removeManagedTree(this.stateDirectory, staging, 'frp')
       }
     })
   }
@@ -339,11 +326,7 @@ export class FrpComponentManager {
   /** Remove all FRP executable, staging, and log files owned by DSH Mobile. */
   purge(): Promise<FrpComponentStatus> {
     return this.enqueue(async () => {
-      await Promise.all([
-        rm(this.componentRoot, { recursive: true, force: true }),
-        rm(this.logRoot, { recursive: true, force: true }),
-        rm(this.stagingRoot, { recursive: true, force: true }),
-      ])
+      await removeManagedPaths(this.stateDirectory, [this.componentRoot, this.logRoot, this.stagingRoot], 'frp')
       this.installed = false
       this.installedBytes = 0
       this.errorCode = undefined

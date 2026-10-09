@@ -14,6 +14,8 @@ export type {
   SessionEndReason,
 } from './access.js'
 export { Config, parseControlFile, parseGatewayConfig } from './config.js'
+export { resolveHostExecution } from './extension-worker-config.js'
+export type { HostExecutionConfig, ResolvedHostExecutionConfig } from './extension-worker-config.js'
 export { ClientModulePreferenceStore } from './client-module-preferences.js'
 export type { ClientModuleEntry, ClientModulePreferenceView, ClientModulePreferenceSelection } from './client-module-preferences.js'
 export type {
@@ -52,6 +54,7 @@ export type {
   MobileExtensionStatus,
   MobileHostAction,
   MobileHostRoute,
+  MobileWorkerHostApi,
   MobileRouteRequest,
   MobileRouteResponse,
 } from './extensions.js'

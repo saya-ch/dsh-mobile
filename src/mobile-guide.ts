@@ -13,6 +13,10 @@ export interface MobileGuideExtensionState {
   readonly id: string
   readonly name: string
   readonly version: string
+  /** Current local Host execution, omitted for ordinary Cordis-provided extensions. */
+  readonly executionMode?: 'in-process' | 'worker'
+  /** A stopped Worker needs explicit recovery; editing files is not a recovery action. */
+  readonly executionState?: 'ready' | 'unavailable'
 }
 
 /** Customization facts collected before steering the agent. */
@@ -35,7 +39,7 @@ export function buildMobileGuide(state: MobileGuideState): string {
   const scriptLine = state.hasCustomJs ? '存在（当前生效的自定义脚本）' : '不存在（无自定义脚本）'
   const extensionLines = state.extensions.length === 0
     ? '（无）'
-    : state.extensions.map(entry => `- ${entry.id}（${entry.name} v${entry.version}）`).join('\n')
+    : state.extensions.map(entry => `- ${entry.id}（${entry.name} v${entry.version}）${entry.executionMode === undefined ? '' : ` · ${entry.executionMode}${entry.executionState === 'unavailable' ? ' · 当前不可用，需要显式重启扩展' : ''}`}`).join('\n')
   const failureLine = state.failedExtensionCount > 0
     ? `注意：${state.failedExtensionCount} 个扩展的电脑端 host 激活失败，如改动相关扩展请先检查其 host.mjs 与 extension.json。`
     : ''
@@ -74,16 +78,18 @@ const MOBILE_CUSTOMIZATION_GUIDE_BODY = `你在为用户定制 DSH Mobile 的手
    - 目录：$DSH_HOME/mobile-access/extensions/<id>/，id 用小写字母数字和连字符（如 media-remote）
    - extension.json：{"schemaVersion":1,"id":"<id>","name":"显示名","version":"0.1.0","description":"说明"}
    - host.mjs：电脑端 Node.js 代码（可信本地代码，可读写文件、执行命令）。导出默认函数 (api) => { ... }，用 api.action('名称', { input, run }) 注册动作、api.route({ method, path, handle }) 注册路由、api.effect(fn) 注册清理。input 可以直接使用 api.schema.object(...) 等 Schemastery schema，也可以传入带 parse(value) 的适配器；两种形式都会在动作执行前校验并规范化输入。
+   - 执行方式见上方实际状态。默认 in-process；插件配置可按扩展选择 worker。Worker 中 api.context 只有 logger，不能调用 Cordis 服务；api.manifest、schema、action、route、effect 仍可用。不要把需要 Cordis 的扩展偷偷改成 Worker，也不要在 extension.json 中添加执行模式字段。
    - 动作与路由的执行有时间预算：默认 30 秒（输入校验也计入），可用 api.action('名称', { input, run, timeoutMs }) 或 api.route({ ..., timeoutMs }) 按操作覆盖（1–300000 的整数毫秒）。超时或调用方取消后，调用方收到 500 extension_action_timeout / extension_route_timeout（或取消原因）；这只表示调用方不再等待，底层代码可能仍在运行并已产生副作用，请在 run / handle 中响应 signal 实现协作式取消。路由的预算到 handle() 返回响应为止，不影响已返回流的存活。若某扩展存在调用方已离开（超时或取消）但仍未结束的操作，后续对该扩展的新调用会收到 503 extension_busy，直到该操作真正结束。
    - mobile.js：手机端脚本，用 window.dshMobile.define({ apiVersion:1, id:'<id>', activate(api) { ... } })，activate 返回清理函数
    - mobile.css：手机端样式（可选）
    - assets/：手机端静态资源（可选）
    - mobile.js 里用 api.host.invoke('动作名', 输入) 调 host.mjs 的 action（请求会按 application/json 发送），api.host.fetch('/路由路径') 调 route，api.host.assetUrl('相对路径') 生成与当前版本绑定的资源地址
-   - 也可以先用命令生成模板：dsh plugin --profile web exec dsh-mobile extension create <id> --name "<名称>"，再在模板上改
+   - DSH Web 可先用命令生成模板：dsh plugin --profile web exec dsh-mobile extension create <id> --name "<名称>"，再在模板上改；Desktop 请在上方实际定制目录创建文件，不要误改 Web profile
 
 安全约束：
 - host.mjs 拥有电脑用户的完整权限，绝不能放入不可信代码，也不要让手机端无条件执行任意命令
-- host.mjs 的同步阻塞（如 while (true) {} 或长时间同步循环）会卡死整个电脑端网关进程，超时与取消机制都无法打断；绝不编写同步阻塞代码
+- in-process 的同步阻塞会卡住网关事件循环，超时不能打断；Worker 可约束 JavaScript 阻塞，但不是安全沙箱，不约束全部原生内存，也不回滚副作用。两种模式都应响应 signal，避免编写不可取消的同步循环
+- Worker 终止后其他未完成调用会失败，已开始的操作不会自动重试。相同内容的停止实例需要操作者在电脑端“移动访问 → 扩展需要重启”中确认恢复；不要通过无意义改文件或自动重放原动作实现恢复
 - 所有改动只限 $DSH_HOME/mobile-access/，不要动 DeepSeek Harness 源码
 
 完成前请自检：

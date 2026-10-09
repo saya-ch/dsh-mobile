@@ -7,12 +7,12 @@ import {
   mkdir,
   mkdtemp,
   readFile,
-  rename,
   rm,
   writeFile,
 } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { downloadPinnedArtifact } from './component-download.js'
+import { assertManagedParents, ensureManagedDirectory, removeManagedPaths, removeManagedTree, replaceManagedDirectory } from './managed-files.js'
 
 /**
  * Pinned cloudflared components fetched only after an explicit user action.
@@ -262,6 +262,7 @@ export class CloudflaredComponentManager {
   readonly stateRoot: string
   readonly logRoot: string
   private readonly stagingRoot: string
+  private readonly stateDirectory: string
   private readonly platform: NodeJS.Platform
   private readonly arch: string
   private readonly release: CloudflaredArtifact | undefined
@@ -272,8 +273,9 @@ export class CloudflaredComponentManager {
   private queue: Promise<void> = Promise.resolve()
 
   constructor(options: CloudflaredComponentManagerOptions) {
+    if (!isAbsolute(options.stateDirectory)) throw new Error('cloudflared state directory must be absolute')
     const stateDirectory = resolve(options.stateDirectory)
-    if (!isAbsolute(stateDirectory)) throw new Error('cloudflared state directory must be absolute')
+    this.stateDirectory = stateDirectory
     this.platform = options.platform ?? process.platform
     this.arch = options.arch ?? process.arch
     this.release = lookupRelease(this.platform, this.arch)
@@ -295,9 +297,16 @@ export class CloudflaredComponentManager {
   /** Inspect the managed binary without using any global cloudflared state. */
   async initialize(): Promise<void> {
     const release = this.release
+    this.installed = false
     this.errorCode = undefined
-    this.installed = release !== undefined && await regularFile(this.executable, release.executableBytes)
-    if (this.installed && release !== undefined && await sha256(this.executable) !== release.executableSha256) {
+    try {
+      await assertManagedParents(this.stateDirectory, this.executable, 'cloudflared')
+      this.installed = release !== undefined && await regularFile(this.executable, release.executableBytes)
+      if (this.installed && release !== undefined && await sha256(this.executable) !== release.executableSha256) {
+        this.installed = false
+        this.errorCode = 'cloudflared_component_invalid'
+      }
+    } catch (_error) {
       this.installed = false
       this.errorCode = 'cloudflared_component_invalid'
     }
@@ -327,7 +336,8 @@ export class CloudflaredComponentManager {
     return this.enqueue(async () => {
       const release = this.release
       if (release === undefined) throw new Error('cloudflared_component_unsupported')
-      await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 })
+      await assertManagedParents(this.stateDirectory, this.executable, 'cloudflared')
+      await ensureManagedDirectory(this.stateDirectory, this.stagingRoot, 'cloudflared')
       const staging = await mkdtemp(join(this.stagingRoot, 'install-'))
       try {
         const controller = new AbortController()
@@ -363,15 +373,28 @@ export class CloudflaredComponentManager {
           throw new Error('cloudflared_executable_hash_mismatch')
         }
         const candidate = join(this.componentRoot, `.install-${randomBytes(12).toString('hex')}`)
-        await mkdir(candidate, { recursive: true, mode: 0o700 })
-        await copyFile(staged, join(candidate, release.executableName))
-        await chmod(join(candidate, release.executableName), 0o700)
-        await rm(this.componentStorage, { recursive: true, force: true })
-        await rename(candidate, this.componentStorage)
+        await ensureManagedDirectory(this.stateDirectory, candidate, 'cloudflared')
+        try {
+          await copyFile(staged, join(candidate, release.executableName))
+          await chmod(join(candidate, release.executableName), 0o700)
+          await replaceManagedDirectory(this.stateDirectory, this.componentStorage, candidate, 'cloudflared')
+        } catch (error) {
+          try { await removeManagedTree(this.stateDirectory, candidate, 'cloudflared') } catch (_cleanupError) {
+            process.emitWarning('cloudflared candidate cleanup failed', { code: 'DSH_MOBILE_COMPONENT_CLEANUP_FAILED' })
+          }
+          throw error
+        }
         this.installed = true
         this.errorCode = undefined
+      } catch (error) {
+        try {
+          await assertManagedParents(this.stateDirectory, this.executable, 'cloudflared')
+          this.installed = await regularFile(this.executable, release.executableBytes)
+            && await sha256(this.executable) === release.executableSha256
+        } catch (_inspectionError) { this.installed = false }
+        throw error
       } finally {
-        await rm(staging, { recursive: true, force: true })
+        await removeManagedTree(this.stateDirectory, staging, 'cloudflared')
       }
     })
   }
@@ -379,12 +402,7 @@ export class CloudflaredComponentManager {
   /** Remove every cloudflared file owned by DSH Mobile without touching global state. */
   purge(): Promise<CloudflaredComponentStatus> {
     return this.enqueue(async () => {
-      await Promise.all([
-        rm(this.componentRoot, { recursive: true, force: true }),
-        rm(this.stateRoot, { recursive: true, force: true }),
-        rm(this.logRoot, { recursive: true, force: true }),
-        rm(this.stagingRoot, { recursive: true, force: true }),
-      ])
+      await removeManagedPaths(this.stateDirectory, [this.componentRoot, this.stateRoot, this.logRoot, this.stagingRoot], 'cloudflared')
       this.installed = false
       this.errorCode = undefined
     })

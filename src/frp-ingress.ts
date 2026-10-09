@@ -1,6 +1,6 @@
-import { randomBytes, X509Certificate } from 'node:crypto'
-import { lstat, mkdir, readFile, rename, rmdir, unlink, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { X509Certificate } from 'node:crypto'
+import { lstat, readFile, rmdir, unlink, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { readCertificateRenewal, type CertRenewalStatus } from './cert-renewal.js'
 import {
   frpEntryOrigin,
@@ -13,6 +13,7 @@ import {
 } from './frp-config.js'
 import { ensureManagedCa, issueServerCertificate, readManagedCa } from './managed-setup.js'
 import { restrictPrivateFile } from './private-file.js'
+import { assertManagedParents, ensureManagedDirectory, writeManagedPrivateFile } from './managed-files.js'
 
 /** Private files owned by the self-signed FRP ingress. */
 export interface FrpIngressPaths {
@@ -90,17 +91,8 @@ async function readIngressIdentity(file: string): Promise<string | undefined> {
   }
 }
 
-async function writeIngressIdentity(file: string, fingerprint: string): Promise<void> {
-  const temporary = join(dirname(file), `.${basename(file)}.${randomBytes(12).toString('hex')}.tmp`)
-  try {
-    await writeFile(temporary, `${JSON.stringify({ version: 1, caFingerprint: fingerprint })}\n`, { flag: 'wx', mode: 0o600 })
-    await rename(temporary, file)
-    await restrictPrivateFile(file)
-  } finally {
-    try { await unlink(temporary) } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    }
-  }
+async function writeIngressIdentity(file: string, fingerprint: string, ownedRoot: string): Promise<void> {
+  await writeManagedPrivateFile(ownedRoot, file, `${JSON.stringify({ version: 1, caFingerprint: fingerprint })}\n`, 'frp_ingress')
 }
 
 function coversPublicIp(certificate: X509Certificate, address: string): boolean {
@@ -120,11 +112,14 @@ export async function ensureFrpIngressCertificate(
   stateFile: string,
   now: number = Date.now(),
   expectedCaFingerprint?: string,
+  ownedRoot: string = dirname(stateFile),
 ): Promise<FrpIngressCertificate> {
   if (resolveFrpMode(settings) !== 'attach' || !isFrpSelfSignedIngress(settings)) {
     throw new Error('frp_entry_tls_invalid')
   }
   const paths = frpIngressPaths(stateFile)
+  await assertManagedParents(ownedRoot, paths.statusFile, 'frp_ingress')
+  await assertManagedParents(ownedRoot, paths.caCertFile, 'frp_ingress')
   try {
     const directory = await lstat(paths.directory)
     if (!directory.isDirectory() || directory.isSymbolicLink()) throw new Error('frp_ingress_directory_invalid')
@@ -143,7 +138,7 @@ export async function ensureFrpIngressCertificate(
     throw new Error('frp_ingress_ca_expired')
   }
   if (previousFingerprint === undefined) {
-    await mkdir(dirname(paths.statusFile), { recursive: true, mode: 0o700 })
+    await ensureManagedDirectory(ownedRoot, dirname(paths.statusFile), 'frp_ingress')
     try {
       await writeFile(paths.statusFile, '{"version":1,"pending":true}\n', { flag: 'wx', mode: 0o600 })
       await restrictPrivateFile(paths.statusFile)
@@ -160,6 +155,7 @@ export async function ensureFrpIngressCertificate(
   } as const
   let ca: X509Certificate
   try {
+    await assertManagedParents(ownedRoot, paths.caCertFile, 'frp_ingress')
     ca = expectedCaFingerprint === undefined ? await ensureManagedCa(caFiles) : await readManagedCa(caFiles)
   } catch (error) {
     throw new Error('frp_ingress_ca_invalid', { cause: error })
@@ -171,7 +167,7 @@ export async function ensureFrpIngressCertificate(
   if (expectedCaFingerprint !== undefined && caFingerprint !== expectedCaFingerprint) {
     throw new Error('frp_ingress_ca_changed')
   }
-  if (previousFingerprint === undefined) await writeIngressIdentity(paths.statusFile, caFingerprint)
+  if (previousFingerprint === undefined) await writeIngressIdentity(paths.statusFile, caFingerprint, ownedRoot)
   const publicHost = new URL(settings.publicOrigin).hostname
   let leaf: X509Certificate | undefined
   try {
@@ -184,6 +180,7 @@ export async function ensureFrpIngressCertificate(
     && coversPublicIp(leaf, publicHost)
     && leaf.verify(ca.publicKey)
   if (!reusable) {
+    await assertManagedParents(ownedRoot, paths.certFile, 'frp_ingress')
     await issueServerCertificate(
       { caCertFile: paths.caCertFile, caKeyFile: paths.caKeyFile },
       { commonName: 'DSH Mobile FRP ingress', ipAddresses: [publicHost] },
@@ -207,7 +204,7 @@ export async function ensureFrpIngressCertificate(
  * No secret ever leaves this function: the CA is reported by fingerprint only,
  * and the token is never read.
  */
-export async function frpIngressSelfCheck(settings: FrpSettings, stateFile: string): Promise<FrpIngressSelfCheck> {
+export async function frpIngressSelfCheck(settings: FrpSettings, stateFile: string, ownedRoot: string = dirname(stateFile)): Promise<FrpIngressSelfCheck> {
   const paths = frpIngressPaths(stateFile)
   const base = {
     mode: resolveFrpMode(settings),
@@ -224,6 +221,8 @@ export async function frpIngressSelfCheck(settings: FrpSettings, stateFile: stri
     // The public-CA entry keeps its certificate on the VPS; nothing local to read.
     return Object.freeze(base)
   }
+  await assertManagedParents(ownedRoot, paths.caCertFile, 'frp_ingress')
+  await assertManagedParents(ownedRoot, paths.certFile, 'frp_ingress')
   let caFingerprint: string | undefined
   try {
     caFingerprint = new X509Certificate(await readFile(paths.caCertFile)).fingerprint256.replaceAll(':', '').toLowerCase()
@@ -239,8 +238,10 @@ export async function frpIngressSelfCheck(settings: FrpSettings, stateFile: stri
 }
 
 /** Remove only the five files owned by the local self-signed FRP entry. */
-export async function purgeFrpIngressCertificates(stateFile: string): Promise<void> {
+export async function purgeFrpIngressCertificates(stateFile: string, ownedRoot: string = dirname(stateFile)): Promise<void> {
   const paths = frpIngressPaths(stateFile)
+  await assertManagedParents(ownedRoot, paths.statusFile, 'frp_ingress')
+  await assertManagedParents(ownedRoot, paths.directory, 'frp_ingress')
   try {
     const marker = await lstat(paths.statusFile)
     if (!marker.isFile() && !marker.isSymbolicLink()) throw new Error('frp_ingress_file_invalid')
@@ -259,6 +260,7 @@ export async function purgeFrpIngressCertificates(stateFile: string): Promise<vo
   }
   if (!directory.isDirectory()) throw new Error('frp_ingress_directory_invalid')
   for (const file of [paths.caCertFile, paths.caKeyFile, paths.certFile, paths.keyFile]) {
+    await assertManagedParents(ownedRoot, file, 'frp_ingress')
     let entry
     try { entry = await lstat(file) } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
@@ -267,7 +269,10 @@ export async function purgeFrpIngressCertificates(stateFile: string): Promise<vo
     if (!entry.isFile() && !entry.isSymbolicLink()) throw new Error('frp_ingress_file_invalid')
     await unlink(file)
   }
-  try { await rmdir(paths.directory) } catch (error) {
+  try {
+    await assertManagedParents(ownedRoot, paths.directory, 'frp_ingress')
+    await rmdir(paths.directory)
+  } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
     throw error
   }

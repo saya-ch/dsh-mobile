@@ -15,6 +15,24 @@ const stateFile = join(tmpdir(), 'dsh-mobile-access-config-test.json')
 const controlFile = join(tmpdir(), 'dsh-mobile-access-control-test.json')
 
 describe('gateway configuration', () => {
+  it.each(['typo', 'http', '', null, 0, 1, true, false, [], {}])('rejects unknown TLS mode %j instead of selecting a plaintext public listener', mode => {
+    expect(() => parseGatewayConfig({
+      stateFile, listenHost: '0.0.0.0', publicAuthorities: ['gateway.example.com'], allowedCidrs: ['127.0.0.0/8'],
+      tls: { mode, certFile: join(tmpdir(), 'cert.pem'), keyFile: join(tmpdir(), 'key.pem') },
+    })).toThrow('tls.mode must be provided or disabled')
+  })
+
+  it.each([null, 'provided', false, []])('rejects a non-object TLS configuration %j', tls => {
+    expect(() => parseGatewayConfig({ stateFile, tls })).toThrow('tls must be an object')
+  })
+
+  it('keeps provided TLS as the sole omitted-mode default and still requires its certificate files', () => {
+    const files = { certFile: join(tmpdir(), 'cert.pem'), keyFile: join(tmpdir(), 'key.pem') }
+    expect(parseGatewayConfig({ stateFile, tls: files }).tls).toMatchObject({ mode: 'provided', ...files })
+    expect(() => parseGatewayConfig({ stateFile, tls: { mode: 'provided' } })).toThrow('tls.certFile must be an absolute file path')
+    expect(() => parseGatewayConfig({ stateFile, listenHost: '0.0.0.0', tls: { mode: 'disabled' } })).toThrow('TLS may be disabled only on an IP loopback listener')
+  })
+
   it('separates transport timeouts from optional authenticated API response timeouts', () => {
     const base = { stateFile, controlFile, initiallyEnabled: false, tls: { mode: 'disabled' as const } }
     expect(parseGatewayConfig(base)).toMatchObject({ upstreamTimeoutMs: 30_000, upstreamApiTimeoutMs: 0 })

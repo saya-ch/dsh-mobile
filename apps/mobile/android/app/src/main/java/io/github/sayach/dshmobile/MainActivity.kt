@@ -117,6 +117,7 @@ class MainActivity : Activity() {
     private val lanCredentialStore by lazy { DeviceCredentialStore(this, "lan") }
     private val remoteCredentialStore by lazy { DeviceCredentialStore(this, "remote") }
     private val pairedDeviceStore by lazy { PairedDeviceStore(this) }
+    private var legacyStorageUnavailable = false
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private val restoreExecutor = Executors.newFixedThreadPool(3)
     private val recoveryHandler = Handler(Looper.getMainLooper())
@@ -355,27 +356,49 @@ class MainActivity : Activity() {
     }
 
     /** Convert the legacy one-LAN/one-remote stores into the encrypted device list once. */
-    private fun migrateLegacyDeviceSlots() {
-        if (pairedDeviceStore.isMigrationComplete()) return
-        val rows = AccessMode.entries.mapNotNull { mode ->
-            val origin = GatewayOrigin.parse(preferences.getString(originPreference(mode), "").orEmpty())
-            val credential = credentialStore(mode).load()
-            if (origin == null || credential == null || credential.expiresAt <= 0L) return@mapNotNull null
-            PairedDeviceRecord(
-                instanceId = credential.instanceId,
-                deviceId = "",
-                displayName = localizedDefaultDeviceName(mode),
+    private fun migrateLegacyDeviceSlots(): Boolean = try {
+        pairedDeviceStore.requireReadable()
+        if (!pairedDeviceStore.isMigrationComplete()) {
+            val slots = AccessMode.entries.map { mode -> LegacyDeviceSlot(
                 mode = mode,
-                origin = origin,
-                deviceToken = credential.deviceToken,
-                expiresAt = credential.expiresAt,
-                caCertificate = credential.caCertificate,
+                origin = GatewayOrigin.parse(preferences.getString(originPreference(mode), "").orEmpty()),
+                credential = credentialStore(mode).read(),
+                displayName = localizedDefaultDeviceName(mode),
                 lastConnectedAt = preferences.getLong(lastConnectedPreference(mode), 0L).takeIf { it > 0L },
-                lastReachableAt = null,
-                status = if (credential.expiresAt > System.currentTimeMillis()) PairedDeviceStatus.UNKNOWN else PairedDeviceStatus.EXPIRED,
-            )
+            ) }
+            migrateLegacyPairedDevices(pairedDeviceStore, slots, System.currentTimeMillis())
         }
-        pairedDeviceStore.migrateLegacy(rows)
+        legacyStorageUnavailable = false
+        true
+    } catch (_: CredentialStorageUnavailable) {
+        legacyStorageUnavailable = true
+        false
+    } catch (_: ClassCastException) {
+        legacyStorageUnavailable = true
+        false
+    }
+
+    private fun showCredentialStorageFailure() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread { if (!isFinishing && !isDestroyed) showCredentialStorageFailure() }
+            return
+        }
+        toastError(R.string.device_storage_unavailable)
+        (deviceListStatus ?: connectionCenterStatus)?.apply {
+            setText(R.string.device_storage_unavailable)
+            visibility = View.VISIBLE
+        }
+    }
+
+    private fun <T> withCredentialStorage(block: () -> T): T? = try { block() } catch (_: CredentialStorageUnavailable) {
+        showCredentialStorageFailure()
+        null
+    }
+
+    private fun prepareCredentialStorage(): Boolean {
+        if (migrateLegacyDeviceSlots()) return true
+        showCredentialStorageFailure()
+        return false
     }
 
     private fun lastConnectedPreference(mode: AccessMode): String = when (mode) {
@@ -403,6 +426,13 @@ class MainActivity : Activity() {
         AccessMode.REMOTE -> remoteCredentialStore
     }
 
+    private fun legacyCredentialForRestore(mode: AccessMode = accessMode): DeviceCredential? =
+        when (val current = readLegacyCredentialForRestore(pairedDeviceStore) { credentialStore(mode).read() }) {
+            CredentialRead.Absent -> null
+            CredentialRead.Unreadable -> { legacyStorageUnavailable = true; null }
+            is CredentialRead.Loaded -> current.value
+        }
+
     private fun originPreference(mode: AccessMode = accessMode): String = when (mode) {
         AccessMode.LAN -> PREFERENCE_LAN_ORIGIN
         AccessMode.REMOTE -> PREFERENCE_REMOTE_ORIGIN
@@ -410,6 +440,11 @@ class MainActivity : Activity() {
 
     private fun restoreColdStartConnection(preferredMode: AccessMode?) {
         val devices = pairedDeviceStore.load()
+        if (legacyStorageUnavailable || pairedDeviceStore.storageUnavailable) {
+            showConnectionCenter()
+            showCredentialStorageFailure()
+            return
+        }
         if (devices.isEmpty() || launchBehavior() == LaunchBehavior.DEVICE_LIST) {
             showConnectionCenter()
             return
@@ -637,7 +672,7 @@ class MainActivity : Activity() {
                 val probe = result.getOrNull()
                 runOnUiThread {
                     if (generation != deviceListGeneration || isFinishing || isDestroyed) return@runOnUiThread
-                    val updated = pairedDeviceStore.update(device.key) { current ->
+                    val updated = withCredentialStorage { pairedDeviceStore.update(device.key) { current ->
                         PairedDeviceStatusPolicy.applyProbe(
                             current,
                             device,
@@ -645,7 +680,7 @@ class MainActivity : Activity() {
                             (result.exceptionOrNull() as? NativeAuthFailure)?.kind,
                             System.currentTimeMillis(),
                         )
-                    }
+                    } }
                     updated?.let { setDeviceStatusText(deviceStatusViews[device.key] ?: return@let, it) }
                 }
             }
@@ -669,6 +704,7 @@ class MainActivity : Activity() {
     }
 
     private fun showDeviceActions(snapshot: PairedDeviceRecord) {
+        if (!prepareCredentialStorage()) return
         val devices = pairedDeviceStore.load()
         val device = devices.firstOrNull { it.key == snapshot.key } ?: return
         val needsRepair = device.status == PairedDeviceStatus.REVOKED
@@ -682,19 +718,19 @@ class MainActivity : Activity() {
             if (needsRepair) repairPairedDevice(device) else connectPairedDevice(device)
         })
         actions.add(getString(R.string.device_action_edit) to { editDeviceName(device) })
-        actions.add(getString(R.string.device_action_check) to {
-            pairedDeviceStore.update(device.key, PairedDeviceStatusPolicy::beginCheck)
+        actions.add(getString(R.string.device_action_check) to check@ {
+            if (withCredentialStorage { pairedDeviceStore.update(device.key, PairedDeviceStatusPolicy::beginCheck) } == null) return@check
             showDeviceList()
         })
         if (PairedDeviceOrderPolicy.canMoveUp(devices, device.key)) {
-            actions.add(getString(R.string.device_action_move_up) to {
-                pairedDeviceStore.moveUp(device.key)
+            actions.add(getString(R.string.device_action_move_up) to move@ {
+                if (withCredentialStorage { pairedDeviceStore.moveUp(device.key) } != true) return@move
                 showDeviceList()
             })
         }
         if (PairedDeviceOrderPolicy.canMoveToTop(devices, device.key)) {
-            actions.add(getString(R.string.device_action_move_top) to {
-                pairedDeviceStore.moveToTop(device.key)
+            actions.add(getString(R.string.device_action_move_top) to move@ {
+                if (withCredentialStorage { pairedDeviceStore.moveToTop(device.key) } != true) return@move
                 showDeviceList()
             })
         }
@@ -730,7 +766,7 @@ class MainActivity : Activity() {
                 if (name.length !in 1..32 || Regex("[\\u0000-\\u001f\\u007f]").containsMatchIn(name)) {
                     Toast.makeText(this, R.string.invalid_device_name, Toast.LENGTH_SHORT).show()
                 } else {
-                    pairedDeviceStore.update(device.key) { it.copy(displayName = name) }
+                    if (withCredentialStorage { pairedDeviceStore.update(device.key) { it.copy(displayName = name) } } == null) return@setPositiveButton
                     showDeviceList()
                 }
             }
@@ -743,20 +779,22 @@ class MainActivity : Activity() {
             .setMessage(R.string.delete_device_message)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.delete) { _, _ ->
+                if (!prepareCredentialStorage()) return@setPositiveButton
                 val legacyCredential = credentialStore(device.mode).load()
                     ?.takeIf { it.instanceId == device.instanceId }
                 val legacyOrigin = preferences.getString(originPreference(device.mode), null)
+                if (withCredentialStorage { pairedDeviceStore.remove(device.key) } != true) return@setPositiveButton
                 if (activeDeviceKey == device.key) {
                     activeDeviceKey = null
                     destroyWebView()
                 }
-                pairedDeviceStore.remove(device.key)
-                if (legacyCredential != null) credentialStore(device.mode).clear()
+                val legacyCleared = legacyCredential == null || withCredentialStorage { credentialStore(device.mode).clear() } != null
                 if (legacyCredential != null && legacyOrigin == device.origin.serialized) {
                     preferences.edit().remove(originPreference(device.mode)).apply()
                 }
                 showConnectionCenter()
                 showDeviceUndo(device, legacyCredential, legacyOrigin)
+                if (!legacyCleared) showCredentialStorageFailure()
             }
             .show()
     }
@@ -801,8 +839,10 @@ class MainActivity : Activity() {
             backgroundTintList = null
             background = roundedRipple(getColor(R.color.app_surface), 12)
             setOnClickListener {
-                pairedDeviceStore.upsert(record)
-                if (legacyCredential != null) credentialStore(record.mode).save(legacyCredential)
+                if (withCredentialStorage { pairedDeviceStore.upsert(record) } == null) return@setOnClickListener
+                if (legacyCredential != null && withCredentialStorage {
+                        if (!pairedDeviceStore.isMigrationComplete()) credentialStore(record.mode).save(legacyCredential)
+                    } == null) return@setOnClickListener
                 if (legacyCredential != null && legacyOrigin != null) {
                     preferences.edit().putString(originPreference(record.mode), legacyOrigin).apply()
                 }
@@ -909,6 +949,7 @@ class MainActivity : Activity() {
             .show()
     }
     private fun connectPairedDevice(snapshot: PairedDeviceRecord) {
+        if (!prepareCredentialStorage()) return
         val device = pairedDeviceStore.load().firstOrNull { it.key == snapshot.key } ?: return
         if (device.status == PairedDeviceStatus.REVOKED
             || device.status == PairedDeviceStatus.EXPIRED
@@ -925,11 +966,12 @@ class MainActivity : Activity() {
         }
         restoreTrustedDevice(device.origin, device.credential(), device.mode, beginRestoreAttempt(), deviceKey = device.key) { disposition ->
             if (disposition != RestoreFailureDisposition.RETRY_TRANSIENT) {
-                pairedDeviceStore.update(device.key) {
+                withCredentialStorage { pairedDeviceStore.update(device.key) {
                     if (it.status == PairedDeviceStatus.REVOKED
                         || it.status == PairedDeviceStatus.EXPIRED
                         || it.status == PairedDeviceStatus.ADDRESS_CHANGED
                     ) it else it.copy(status = PairedDeviceStatus.UNREACHABLE)
+                }
                 }
                 showDeviceList()
             }
@@ -970,7 +1012,7 @@ class MainActivity : Activity() {
         card.addView(accessChoice(
             R.string.lan_access_title,
             R.string.lan_access_description,
-            lanCredentialStore.load()?.expiresAt?.let { it > System.currentTimeMillis() } == true,
+            legacyCredentialForRestore(AccessMode.LAN)?.expiresAt?.let { it > System.currentTimeMillis() } == true,
             action = { openAccessMode(AccessMode.LAN, restoreSaved = pairedDeviceStore.load().isEmpty()) },
             configure = { openAccessMode(AccessMode.LAN, restoreSaved = false) },
         ))
@@ -978,7 +1020,7 @@ class MainActivity : Activity() {
         card.addView(accessChoice(
             R.string.remote_access_title,
             R.string.remote_access_description,
-            remoteCredentialStore.load()?.expiresAt?.let { it > System.currentTimeMillis() } == true,
+            legacyCredentialForRestore(AccessMode.REMOTE)?.expiresAt?.let { it > System.currentTimeMillis() } == true,
             action = { openAccessMode(AccessMode.REMOTE, restoreSaved = pairedDeviceStore.load().isEmpty()) },
             configure = { openAccessMode(AccessMode.REMOTE, restoreSaved = false) },
         ))
@@ -1027,7 +1069,7 @@ class MainActivity : Activity() {
         connectionCenterStatus = null
         accessMode = mode
         val origin = GatewayOrigin.parse(preferences.getString(originPreference(), "").orEmpty())
-        val credential = credentialStore().load()
+        val credential = legacyCredentialForRestore()
         if (restoreSaved && origin != null && credential != null && credential.expiresAt > System.currentTimeMillis()) {
             showRestoringTrust()
             restoreTrustedDevice(origin, credential) {
@@ -1402,7 +1444,7 @@ class MainActivity : Activity() {
             status.visibility = View.VISIBLE
             return
         }
-        val credential = credentialStore().load()
+        val credential = legacyCredentialForRestore()
         if (credential != null) {
             showRestoringTrust()
             restoreTrustedDevice(origin, credential) { showPairing(manualHarness(origin)) }
@@ -1426,6 +1468,11 @@ class MainActivity : Activity() {
         DiscoveredHarness(deviceName = "DeepSeek Harness", origin = origin, instanceId = "")
 
     private fun connect(harness: DiscoveredHarness, pairing: EditText, status: TextView, button: Button) {
+        if (!prepareCredentialStorage()) {
+            status.setText(R.string.device_storage_unavailable)
+            status.visibility = View.VISIBLE
+            return
+        }
         val input = pairing.text.toString().trim()
         val directKey = PairingKey.parse(input)
         val connection = if (directKey == null) GatewayConnection.parse(input) else null
@@ -1471,7 +1518,7 @@ class MainActivity : Activity() {
             }
             if (generation != pairingGeneration) return@execute
             val existingRecord = pairedDeviceStore.load().firstOrNull { it.mode == mode && it.instanceId == key.instanceId }
-            val savedCredential = store.load()
+            val savedCredential = legacyCredentialForRestore(mode)
             val savedCa = existingRecord?.caCertificate
                 ?: savedCredential?.takeIf { it.instanceId == key.instanceId }?.caCertificate
             val trustKey = PairingTrust.preserveRemotePin(mode, key, savedCa)
@@ -1537,7 +1584,10 @@ class MainActivity : Activity() {
                             status.setText(R.string.pairing_failed)
                             button.isEnabled = true
                         } else {
-                            savePairedDevice(mode, origin, renewed, existingCredential)
+                            if (savePairedDevice(mode, origin, renewed, existingCredential) == null) {
+                                status.setText(R.string.device_storage_unavailable); button.isEnabled = true
+                                return@runOnUiThread
+                            }
                             installNativeSession(
                                 origin = origin,
                                 session = renewed,
@@ -1557,7 +1607,17 @@ class MainActivity : Activity() {
                     }
                     return@execute
                 }
-                store.clear()
+                try {
+                    store.clear()
+                } catch (_: CredentialStorageUnavailable) {
+                    runOnUiThread {
+                        if (generation != pairingGeneration) return@runOnUiThread
+                        status.setTextColor(getColor(R.color.app_error))
+                        status.setText(R.string.device_storage_unavailable)
+                        button.isEnabled = true
+                    }
+                    return@execute
+                }
             }
             if (generation != pairingGeneration) return@execute
             runCatching { NativeAuthClient.pair(origin, key.token, certificate, key.instanceId) }
@@ -1571,10 +1631,13 @@ class MainActivity : Activity() {
                         status.setText(R.string.pairing_failed)
                         button.isEnabled = true
                     } else if (!runCatching {
-                            store.save(DeviceCredential(session.instanceId, deviceToken, expiresAt, certificate))
+                            pairedDeviceStore.requireReadable()
+                            if (!pairedDeviceStore.isMigrationComplete()) {
+                                store.save(DeviceCredential(session.instanceId, deviceToken, expiresAt, certificate))
+                            }
                         }.isSuccess) {
                         status.setTextColor(getColor(R.color.app_error))
-                        status.setText(R.string.pairing_failed)
+                        status.setText(R.string.device_storage_unavailable)
                         button.isEnabled = true
                     } else {
                         val record = savePairedDevice(
@@ -1582,7 +1645,10 @@ class MainActivity : Activity() {
                             origin = origin,
                             session = session,
                             credential = DeviceCredential(session.instanceId, deviceToken, expiresAt, certificate),
-                        )
+                        ) ?: run {
+                            status.setText(R.string.device_storage_unavailable); button.isEnabled = true
+                            return@runOnUiThread
+                        }
                         installNativeSession(
                             origin = origin,
                             session = session,
@@ -1692,7 +1758,7 @@ class MainActivity : Activity() {
                         val trustedCredential = pairedDeviceStore.load()
                             .firstOrNull { it.mode == AccessMode.LAN && it.instanceId == harness.instanceId && it.expiresAt > System.currentTimeMillis() }
                             ?.credential()
-                            ?: lanCredentialStore.load()?.takeIf {
+                            ?: legacyCredentialForRestore(AccessMode.LAN)?.takeIf {
                                 it.expiresAt > System.currentTimeMillis() && it.instanceId == harness.instanceId
                             }
                         val trusted = trustedCredential != null
@@ -1829,7 +1895,7 @@ class MainActivity : Activity() {
         origin: GatewayOrigin,
         session: NativeSession,
         credential: DeviceCredential,
-    ): PairedDeviceRecord {
+    ): PairedDeviceRecord? {
         dismissDeviceUndo()
         val key = "${mode.name.lowercase()}:${session.instanceId}"
         val existing = pairedDeviceStore.load().firstOrNull { it.key == key }
@@ -1850,7 +1916,7 @@ class MainActivity : Activity() {
                 lastReachableAt = now,
                 status = PairedDeviceStatus.REACHABLE,
         )
-        pairedDeviceStore.upsert(record)
+        if (withCredentialStorage { pairedDeviceStore.upsert(record) } == null) return null
         activeDeviceKey = key
         preferences.edit()
             .putString(PREFERENCE_LAST_DEVICE_KEY, key)
@@ -1881,7 +1947,7 @@ class MainActivity : Activity() {
                 if (name.length !in 1..32 || Regex("[\\u0000-\\u001f\\u007f]").containsMatchIn(name)) {
                     Toast.makeText(this, R.string.invalid_device_name, Toast.LENGTH_SHORT).show()
                 } else {
-                    pairedDeviceStore.update(record.key) { it.copy(displayName = name) }
+                    if (withCredentialStorage { pairedDeviceStore.update(record.key) { it.copy(displayName = name) } } == null) return@setOnClickListener
                     dialog.dismiss()
                     complete()
                 }
@@ -1893,7 +1959,7 @@ class MainActivity : Activity() {
 
     private fun handleDeviceRevoked() {
         val key = activeDeviceKey ?: return
-        pairedDeviceStore.update(key) { it.copy(status = PairedDeviceStatus.REVOKED) }
+        withCredentialStorage { pairedDeviceStore.update(key) { it.copy(status = PairedDeviceStatus.REVOKED) } }
         runOnUiThread {
             if (activeDeviceKey != key || isFinishing || isDestroyed) return@runOnUiThread
             activeDeviceKey = null
@@ -1934,9 +2000,9 @@ class MainActivity : Activity() {
             return
         }
         val mode = accessMode
-        val credential = credentialStore(mode).load() ?: return
+        val credential = legacyCredentialForRestore(mode) ?: return
         if (credential.expiresAt <= System.currentTimeMillis()) {
-            credentialStore(mode).clear()
+            withCredentialStorage { credentialStore(mode).clear() }
             return
         }
         val preferred = gatewayOrigin
@@ -1960,7 +2026,7 @@ class MainActivity : Activity() {
                 && paired.status != PairedDeviceStatus.ADDRESS_CHANGED
                 && paired.expiresAt > System.currentTimeMillis()
         }
-        return credentialStore().load()?.expiresAt?.let { it > System.currentTimeMillis() } == true
+        return legacyCredentialForRestore()?.expiresAt?.let { it > System.currentTimeMillis() } == true
     }
 
     private fun scheduleAutomaticRecovery(): Boolean {
@@ -2035,12 +2101,13 @@ class MainActivity : Activity() {
             return
         }
         if (!RemoteHostPolicy.isAllowed(mode, preferredOrigin.host)) {
-            if (deviceKey != null) pairedDeviceStore.update(deviceKey) {
+            if (deviceKey != null) withCredentialStorage { pairedDeviceStore.update(deviceKey) {
                 if (it.status == PairedDeviceStatus.REVOKED) it else it.copy(status = PairedDeviceStatus.ADDRESS_CHANGED)
             }
-            else {
-                preferences.edit().remove(originPreference(mode)).apply()
-                credentialStore(mode).clear()
+            } else {
+                if (withCredentialStorage { credentialStore(mode).clear() } != null) {
+                    preferences.edit().remove(originPreference(mode)).apply()
+                }
             }
             if (generation == restoreGeneration) onFailure(RestoreFailureDisposition.REQUIRE_USER_ACTION)
             return
@@ -2103,15 +2170,18 @@ class MainActivity : Activity() {
                                 -> PairedDeviceStatus.EXPIRED
                                 else -> if (instanceMismatch) PairedDeviceStatus.ADDRESS_CHANGED else PairedDeviceStatus.UNREACHABLE
                             }
-                            pairedDeviceStore.update(deviceKey) { it.copy(status = status) }
+                            withCredentialStorage { pairedDeviceStore.update(deviceKey) { it.copy(status = status) } }
                         } else if (failureKind == NativeAuthFailureKind.PAIRING_EXPIRED) {
-                            credentialStore(mode).clear()
+                            withCredentialStorage { credentialStore(mode).clear() }
                         }
                         onFailure(finalDisposition)
                     } else {
                         if (!claimSuccess()) return@runOnUiThread
                         accessMode = mode
-                        savePairedDevice(mode, selectedOrigin, renewed, credential)
+                        if (savePairedDevice(mode, selectedOrigin, renewed, credential) == null) {
+                            onFailure(RestoreFailureDisposition.REQUIRE_USER_ACTION)
+                            return@runOnUiThread
+                        }
                         warnIfTailscale(selectedOrigin)
                         cancelAutomaticRecovery()
                         installNativeSession(
@@ -2218,6 +2288,35 @@ class MainActivity : Activity() {
         if (!scheduleAutomaticRecovery()) showDeviceList()
     }
 
+    private fun offerWebViewEngineUpdate(browser: WebView) {
+        val provider = WebView.getCurrentWebViewPackage()
+        val engine = inspectWebViewEngine(browser.settings.userAgentString, provider?.packageName, provider?.versionName)
+        if (!engine.needsUpdateReminder) return
+        val acknowledged = preferences.getStringSet("webview_update_reminder_engines", emptySet()).orEmpty()
+        if (engine.reminderKey in acknowledged) return
+        preferences.edit().putStringSet("webview_update_reminder_engines", acknowledged + engine.reminderKey).apply()
+        val providerLabel = listOfNotNull(engine.providerPackage, engine.providerVersion).joinToString(" ")
+        AlertDialog.Builder(this)
+            .setTitle(R.string.webview_update_title)
+            .setMessage(getString(R.string.webview_update_message, engine.chromiumVersion, providerLabel))
+            .setPositiveButton(R.string.webview_update_action) { _, _ ->
+                val providerPackage = engine.providerPackage
+                if (providerPackage == "com.google.android.webview" || providerPackage == "com.android.chrome") {
+                    openExternal(Uri.parse("https://play.google.com/store/apps/details?id=$providerPackage"))
+                } else if (providerPackage != null) {
+                    try {
+                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$providerPackage")))
+                    } catch (_: ActivityNotFoundException) {
+                        openExternal(Uri.parse("https://developer.android.com/develop/ui/views/layout/webapps/managing-webview"))
+                    }
+                } else {
+                    openExternal(Uri.parse("https://developer.android.com/develop/ui/views/layout/webapps/managing-webview"))
+                }
+            }
+            .setNegativeButton(R.string.webview_continue, null)
+            .show()
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun showBrowser(
         origin: GatewayOrigin,
@@ -2226,9 +2325,10 @@ class MainActivity : Activity() {
     ) {
         cancelRestoreEscape()
         if (!isOriginAllowedForAccessMode(origin)) {
-            preferences.edit().remove(originPreference()).apply()
-            credentialStore().clear()
+            val cleared = withCredentialStorage { credentialStore().clear() } != null
+            if (cleared) preferences.edit().remove(originPreference()).apply()
             showConnectionCenter()
+            if (!cleared) showCredentialStorageFailure()
             return
         }
         destroyWebView()
@@ -2243,16 +2343,17 @@ class MainActivity : Activity() {
             .putString(PREFERENCE_LAST_ACCESS_MODE, accessMode.name)
             .apply()
 
-        // Android owns the status-bar strip. The WebView begins below it, so
-        // every DSH page and third-party overlay shares the same safe viewport.
+        // Every DSH page and third-party overlay shares the native safe viewport.
         val root = FrameLayout(this).apply {
             setBackgroundColor(getColor(R.color.app_background))
         }
         val initialChromeColor = preferences.getInt(PREFERENCE_WEB_CHROME_COLOR, getColor(R.color.app_background))
+        root.setBackgroundColor(initialChromeColor)
         applyStatusBarIconContrast(window, initialChromeColor)
         val statusBarBackdrop = View(this).apply {
             setBackgroundColor(initialChromeColor)
         }
+        window.isNavigationBarContrastEnforced = false
         val browser = WebView(this)
         configureWebViewHttpCache(browser)
         webView = browser
@@ -2269,8 +2370,14 @@ class MainActivity : Activity() {
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
+            useWideViewPort = true
             mediaPlaybackRequiresUserGesture = true
             userAgentString = "$userAgentString DSHMobile/${BuildConfig.VERSION_NAME}"
+        }
+        val displayScale = NativeDisplayScale(browser, origin,
+            preferences.getInt("web_page_scale_percent", NativeDisplayScalePolicy.DEFAULT_PERCENT))
+        browser.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) displayScale.apply()
         }
         installBrowserCompatibilityShim(browser, origin)
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -2286,12 +2393,14 @@ class MainActivity : Activity() {
             onFailure = ::showLoadFailure,
             onRendererGone = { handleRendererGone(browser) },
             onTopLevelUrlChanged = {
+                displayScale.onDocumentStarted()
                 cancelPendingWebBack()
                 pendingAudioPermission = null
                 nativeBridge?.onTopLevelNavigation(it)
             },
             onLoaded = {
                 if (webView === browser && gatewayOrigin == origin) {
+                    displayScale.onDocumentReady()
                     retryUrl = origin.serialized
                     CookieManager.getInstance().flush()
                     nativeBridge?.injectPage()
@@ -2341,6 +2450,7 @@ class MainActivity : Activity() {
         val bridgeState = restoredNativeBridgeState.also { restoredNativeBridgeState = null }
         nativeBridge = NativeBridge(this, browser, origin, bridgeState).also { bridge ->
             bridge.onPageBackgroundColor = { color ->
+                root.setBackgroundColor(color)
                 statusBarBackdrop.setBackgroundColor(color)
                 applyStatusBarIconContrast(window, color)
                 preferences.edit().putInt(PREFERENCE_WEB_CHROME_COLOR, color).apply()
@@ -2348,6 +2458,11 @@ class MainActivity : Activity() {
             bridge.onDeviceRevoked = ::handleDeviceRevoked
             bridge.onSwitchComputer = ::showDeviceList
             bridge.onOpenTaskNotificationSettings = ::openTaskNotificationSettings
+            bridge.onGetDisplayScale = { displayScale.percent }
+            bridge.onSetDisplayScale = { percent ->
+                displayScale.set(percent)
+                preferences.edit().putInt("web_page_scale_percent", percent).apply()
+            }
             bridge.install()
             deferredBridgeResult?.let { result ->
                 if (bridge.onActivityResult(result.requestCode, result.resultCode, result.data)) deferredBridgeResult = null
@@ -2363,27 +2478,31 @@ class MainActivity : Activity() {
         root.addView(statusBarBackdrop, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, Gravity.TOP))
         setContentView(root)
 
-        // Native chrome owns the status-bar strip. The WebView keeps the remaining
-        // system-bar safe area while its viewport shrinks above the keyboard.
+        // Reserve each occupied edge once. Chromium receives consumed insets,
+        // preventing safe-area CSS from adding the same navigation or IME gap.
         root.setOnApplyWindowInsetsListener { _, insets ->
-            val top = resolveTopSafeInset(insets)
+            val safeArea = resolveWebViewSafeArea(insets)
             val ime = resolveWebViewImeInset(insets)
             nativeBridge?.updateKeyboardState(resolveNativeKeyboardState(ime, resources.configuration.keyboard))
-            browser.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ).apply {
-                topMargin = top
-                bottomMargin = ime
+            val browserLayout = browser.layoutParams as FrameLayout.LayoutParams
+            if (browserLayout.leftMargin != safeArea.left || browserLayout.topMargin != safeArea.top ||
+                browserLayout.rightMargin != safeArea.right || browserLayout.bottomMargin != safeArea.bottom
+            ) {
+                browserLayout.leftMargin = safeArea.left
+                browserLayout.topMargin = safeArea.top
+                browserLayout.rightMargin = safeArea.right
+                browserLayout.bottomMargin = safeArea.bottom
+                browser.layoutParams = browserLayout
             }
-            statusBarBackdrop.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                top,
-                Gravity.TOP,
-            )
-            insetsForWebContent(insets, top)
+            val backdropLayout = statusBarBackdrop.layoutParams as FrameLayout.LayoutParams
+            if (backdropLayout.height != safeArea.top) {
+                backdropLayout.height = safeArea.top
+                statusBarBackdrop.layoutParams = backdropLayout
+            }
+            insetsForWebContent(insets)
         }
         root.requestApplyInsets()
+        root.post { if (webView === browser && !isFinishing) offerWebViewEngineUpdate(browser) }
         val initialUrl = requestedInitialUrl.takeIf { GatewayUrlPolicy.isSameOrigin(origin, it) }
             ?: origin.serialized
         retryUrl = initialUrl
@@ -2540,6 +2659,11 @@ class MainActivity : Activity() {
     }
 
     private fun clearSiteData() {
+        if (withCredentialStorage {
+                lanCredentialStore.clear()
+                remoteCredentialStore.clear()
+                pairedDeviceStore.clear()
+            } == null) return
         webView?.apply {
             stopLoading()
             clearHistory()
@@ -2552,9 +2676,6 @@ class MainActivity : Activity() {
         }
         WebView.clearClientCertPreferences(null)
         preferences.edit().clear().apply()
-        lanCredentialStore.clear()
-        remoteCredentialStore.clear()
-        pairedDeviceStore.clear()
         CookieManager.getInstance().removeAllCookies {
             CookieManager.getInstance().flush()
             if (!isFinishing && !isDestroyed) runOnUiThread { showConnectionCenter() }

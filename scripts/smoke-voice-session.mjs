@@ -254,5 +254,22 @@ try {
     await phase('transcribing')
     assert.equal(await focused(), 'editor-first', 'Active phase changes prevented deliberate composer focus')
   })
+  for (const replacement of [false, true]) {
+    await withClient(native, async ({ page }) => {
+      await page.evaluate(replacement => {
+        window.queuedNativeCalls = []
+        window.__DSH_MOBILE_NATIVE__ = { capabilities: () => [], invoke: async action => { window.queuedNativeCalls.push(action); return { ok: true } } }
+        window.dshMobile.define({ apiVersion: 1, id: 'queued-native-owner', activate(api) {
+          const call = api.native.invoke('clipboard.write', { text: 'must not reach native' })
+          window.queuedNativeResult = call.then(() => 'resolved', error => error.name)
+          if (replacement) window.__DSH_MOBILE_NATIVE__ = { capabilities: () => [], invoke: async action => { window.queuedNativeCalls.push('replacement:' + action); return { ok: true } } }
+          else window.disposeClient()
+        } })
+      }, replacement)
+      await page.waitForFunction(() => window.queuedNativeResult !== undefined)
+      assert.equal(await page.evaluate(() => window.queuedNativeResult), 'AbortError', 'Disposed/replaced native call was not cancelled')
+      assert.deepEqual(await page.evaluate(() => window.queuedNativeCalls), [], 'Cancelled queued SDK call still started a native side effect')
+    })
+  }
   console.log(`Voice-session browser smoke passed (${cases} cases; Wake Lock API simulated).`)
 } finally { await browser.close() }

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { createServer, request as httpRequest, type IncomingHttpHeaders } from 'node:http'
+import { createServer, request as httpRequest, type IncomingHttpHeaders, type IncomingMessage } from 'node:http'
+import { channel } from 'node:diagnostics_channel'
 import { request } from 'node:https'
 import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -17,7 +18,7 @@ import { JsonDeviceStore } from '../src/storage.js'
 import { installedCaddyFixture } from './helpers/caddy-component-fixture.js'
 import { remoteGatewayConfig } from '../src/plugin.js'
 import { terminateRemoteProcess } from '../src/remote.js'
-import { DEVICE_COOKIE, SESSION_COOKIE, parseCookies } from '../src/http-security.js'
+import { CSRF_COOKIE, CSRF_HEADER, DEVICE_COOKIE, SESSION_COOKIE, parseCookies } from '../src/http-security.js'
 
 const inputExecutable = process.env.DSH_CADDY_TEST_EXECUTABLE
 const manifestFile = process.env.DSH_CADDY_TEST_MANIFEST
@@ -66,7 +67,7 @@ function exchange(signal: AbortSignal, port: number, ca: string, path: string, m
       incoming.once('end', () => { const rawBody = Buffer.concat(chunks); resolve({ status: incoming.statusCode ?? 0, headers: incoming.headers, body: rawBody.toString(), rawBody }) })
       incoming.once('error', reject)
     })
-    outgoing.setTimeout(10_000, () => outgoing.destroy(new Error('TLS request timeout')))
+    outgoing.setTimeout(10_000, () => outgoing.destroy(new Error('TLS request timeout: ' + method + ' ' + path.split('?', 1)[0])))
     outgoing.once('error', reject); outgoing.end(body)
   })
 }
@@ -136,8 +137,36 @@ it.runIf(inputExecutable !== undefined || manifestFile !== undefined)('runs opti
   signal.throwIfAborted()
   const fixture = manifestFile === undefined ? undefined : await step(() => installedCaddyFixture(root, inputExecutable, manifestFile, fn => cleanups.push(fn), signal))
   const executable = fixture?.executable ?? inputExecutable
+  const upstreamRequests = new Map<string, number>()
+  const upstreamSockets = new Map<string, IncomingMessage['socket']>()
+  const upstreamConnections = new Map<string, string | undefined>()
+  const consumedBodies = new Map<string, Buffer>()
+  const gatewayRequests = new Map<string, number>()
+  const gatewaySockets = new Map<string, IncomingMessage['socket']>()
+  const gatewayVersions = new Map<string, string>()
   const upstream = createServer((incoming, outgoing) => {
-    if (incoming.url === '/api/caddy-test-resource') { outgoing.writeHead(200, { 'content-type': 'application/octet-stream' }); outgoing.end(Buffer.from([0, 1, 2, 250])); return }
+    const target = new URL(incoming.url!, 'http://owned-fixture')
+    const id = target.searchParams.get('requestId')
+    if (id !== null) {
+      upstreamRequests.set(id, (upstreamRequests.get(id) ?? 0) + 1)
+      upstreamSockets.set(id, incoming.socket)
+      upstreamConnections.set(id, incoming.headers.connection)
+    }
+    if (target.pathname === '/api/caddy-test-reset' || target.pathname === '/api/caddy-test-gateway-reset') {
+      const chunks: Buffer[] = []
+      incoming.on('error', () => undefined)
+      incoming.on('data', (chunk: Buffer) => chunks.push(chunk))
+      incoming.once('end', () => {
+        consumedBodies.set(id!, Buffer.concat(chunks))
+        if (target.pathname === '/api/caddy-test-gateway-reset') {
+          // Simulate a first-hop failure AFTER the upstream has committed its side effect.
+          gatewaySockets.get(id!)!.resetAndDestroy()
+          outgoing.end('side-effect-committed')
+        } else incoming.socket.destroy()
+      })
+      return
+    }
+    if (target.pathname === '/api/caddy-test-resource') { outgoing.writeHead(200, { 'content-type': 'application/octet-stream' }); outgoing.end(Buffer.from([0, 1, 2, 250])); return }
     outgoing.writeHead(404); outgoing.end()
   })
   const webSockets = new WebSocketServer({ noServer: true })
@@ -156,6 +185,19 @@ it.runIf(inputExecutable !== undefined || manifestFile !== undefined)('runs opti
   const gateway = new MobileAccessGateway(gatewayConfig, store)
   cleanups.push(() => gateway.close())
   await step(() => gateway.start())
+  const gatewayPort = gateway.address().port
+  const requestStarts = channel('http.server.request.start')
+  const observeGatewayRequest = (message: unknown): void => {
+    const incoming = (message as { request: IncomingMessage }).request
+    if (incoming.socket.localPort !== gatewayPort) return
+    const id = new URL(incoming.url!, 'http://owned-fixture').searchParams.get('requestId')
+    if (id === null) return
+    gatewayRequests.set(id, (gatewayRequests.get(id) ?? 0) + 1)
+    gatewaySockets.set(id, incoming.socket)
+    gatewayVersions.set(id, incoming.httpVersion)
+  }
+  requestStarts.subscribe(observeGatewayRequest)
+  cleanups.push(async () => { requestStarts.unsubscribe(observeGatewayRequest) })
   const settings = parseCaddySettings({ publicOrigin: 'https://phone.example.com', dnsProvider: 'tencentcloud', listenPort: 8443 })
   const config = new CaddyConfigStore(root)
   await step(() => config.configure(settings, { secretId: 'fake-id', secretKey: 'fake-key' }))
@@ -180,6 +222,19 @@ it.runIf(inputExecutable !== undefined || manifestFile !== undefined)('runs opti
   const adapted = JSON.parse((await step(() => execFileText(executable, ['adapt', '--config', testConfig, '--adapter', 'caddyfile'], { env: environment, timeout: 15_000 }))).stdout)
   expect(adapted.apps.tls.automation.policies[0].issuers).toEqual([{ module: 'internal' }])
   expect(adapted.apps.http.servers.srv0.listen).toEqual(['127.0.0.1:0'])
+  const proxyHandlers: { transport?: { protocol?: string; keep_alive?: { enabled?: boolean; max_idle_conns_per_host?: number }; versions?: string[] } }[] = []
+  const findProxyHandlers = (value: unknown): void => {
+    if (typeof value !== 'object' || value === null) return
+    const row = value as Record<string, unknown>
+    if (row.handler === 'reverse_proxy') proxyHandlers.push(row)
+    for (const child of Object.values(row)) findProxyHandlers(child)
+  }
+  findProxyHandlers(adapted)
+  expect(proxyHandlers).toHaveLength(1)
+  expect(proxyHandlers[0]!.transport?.protocol).toBe('http')
+  expect(proxyHandlers[0]!.transport?.keep_alive?.max_idle_conns_per_host).toBeUndefined()
+  expect(proxyHandlers[0]!.transport?.keep_alive?.enabled).toBe(false)
+  expect(proxyHandlers[0]!.transport?.versions ?? []).not.toContain('h2c')
   signal.throwIfAborted()
   const child = spawn(executable, ['run', '--config', testConfig, '--adapter', 'caddyfile'], { env: environment, shell: false, windowsHide: true, stdio: 'pipe' })
   const stopChild = ownChild(child)
@@ -220,6 +275,46 @@ it.runIf(inputExecutable !== undefined || manifestFile !== undefined)('runs opti
   expect(typeof deviceToken === 'string' && deviceToken.length > 0).toBe(true)
   const resource = await step(() => exchange(signal, port, ca, '/api/caddy-test-resource', 'GET', { cookie: cookie! }))
   expect(resource.status).toBe(200); expect(resource.rawBody).toEqual(Buffer.from([0, 1, 2, 250]))
+  // Count both hops: success must not be explained by reused sockets or hidden API replay.
+  const requestIds = Array.from({ length: 12 }, (_, index) => 'single-use-' + String(index))
+  const readResource = async (id: string): Promise<void> => {
+    const result = await step(() => exchange(signal, port, ca, '/api/caddy-test-resource?requestId=' + id, 'GET', { cookie: cookie! }))
+    expect(result.status).toBe(200)
+    expect(result.rawBody).toEqual(Buffer.from([0, 1, 2, 250]))
+  }
+  for (const id of requestIds.slice(0, 4)) await readResource(id)
+  await Promise.all(requestIds.slice(4).map(readResource))
+  for (const id of requestIds) {
+    expect(gatewayRequests.get(id)).toBe(1)
+    expect(upstreamRequests.get(id)).toBe(1)
+    expect(upstreamConnections.get(id)).toBe('close')
+    expect(gatewayVersions.get(id)).toBe('1.1')
+  }
+  expect(new Set(requestIds.map(id => gatewaySockets.get(id))).size).toBe(requestIds.length)
+  expect(new Set(requestIds.map(id => upstreamSockets.get(id))).size).toBe(requestIds.length)
+  const csrfCookie = paired.headers['set-cookie']?.find(value => value.startsWith(CSRF_COOKIE + '='))?.split(';')[0]
+  const csrf = parseCookies(csrfCookie)?.get(CSRF_COOKIE)
+  expect(csrf).toBeDefined()
+  for (const method of ['GET', 'POST']) {
+    const id = 'reset-after-consumption-' + method
+    const failed = await step(() => exchange(signal, port, ca, '/api/caddy-test-reset?requestId=' + id, method,
+      { cookie: cookie!, [CSRF_HEADER]: csrf!, 'content-type': 'application/json' }, method === 'POST' ? '{"sideEffect":true}' : ''))
+    expect(failed.status).toBe(502)
+    expect(JSON.parse(failed.body)).toEqual({ error: 'upstream_unavailable' })
+    expect(gatewayRequests.get(id)).toBe(1)
+    expect(upstreamRequests.get(id)).toBe(1)
+    expect(consumedBodies.get(id)).toEqual(Buffer.from(method === 'POST' ? '{"sideEffect":true}' : ''))
+  }
+  for (const method of ['GET', 'POST']) {
+    const id = 'gateway-reset-after-side-effect-' + method
+    const failed = await step(() => exchange(signal, port, ca, '/api/caddy-test-gateway-reset?requestId=' + id, method,
+      { cookie: cookie!, [CSRF_HEADER]: csrf!, 'content-type': 'application/json' }, method === 'POST' ? '{"sideEffect":true}' : ''))
+    expect(failed.status).toBe(502)
+    expect(gatewayRequests.get(id)).toBe(1)
+    expect(upstreamRequests.get(id)).toBe(1)
+    expect(consumedBodies.get(id)).toEqual(Buffer.from(method === 'POST' ? '{"sideEffect":true}' : ''))
+    expect(gatewayVersions.get(id)).toBe('1.1')
+  }
   const socketOptions: WebSocket.ClientOptions & { servername: string } = { ca, servername: 'phone.example.com',
     headers: { host: 'phone.example.com', origin: 'https://phone.example.com', cookie: cookie! },
   }

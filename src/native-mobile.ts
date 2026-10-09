@@ -6,6 +6,7 @@
  * style it.
  */
 import { installTaskCompletionWatcher, type TaskNotifyKind } from './task-notify.js'
+import { MOBILE_COMPOSER_TOOLBAR_STYLES } from './mobile-composer-toolbar.js'
 
 export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
@@ -39,13 +40,15 @@ export const NATIVE_MOBILE_STYLES = `
  .dsh-mobile-settings_fontControls { display:flex; align-items:center; gap:8px; flex-shrink:0; }
  .dsh-mobile-settings_fontControls button { min-width:48px; padding:0 12px; }
  .dsh-mobile-settings_fontControls output { min-width:42px; text-align:center; font-variant-numeric:tabular-nums; }
+ .dsh-mobile-settings_fontDetails { min-width:0; padding:0 0 16px; border-bottom:0.5px solid var(--dsw-alias-border-l2); }
+ .dsh-mobile-settings_fontDetails > summary { display:list-item; min-height:48px; padding:14px 0; box-sizing:border-box; color:var(--dsw-alias-label-primary); font-size:14px; cursor:pointer; }
+ .dsh-mobile-settings_fontDetails .dsh-mobile-settings_rowText { padding-right:8px; }
+ .dsh-mobile-settings_fontFamily { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; padding:12px 0; }
+ .dsh-mobile-settings_fontFamily > span { flex:1 1 100px; }
+ .dsh-mobile-settings_fontFamily input { box-sizing:border-box; flex:1 1 180px; width:100%; min-width:0; min-height:48px; padding:8px 12px; border:0.5px solid var(--dsw-alias-border-l2); border-radius:10px; background:var(--dsw-alias-bg-module-platform); color:var(--dsw-alias-label-primary); font:inherit; }
+ .dsh-mobile-settings_fontFamily input:focus-visible,.dsh-mobile-settings_fontDetails > summary:focus-visible { outline:2px solid var(--dsw-alias-label-primary-bluish,#2563eb); outline-offset:2px; }
  /* The mobile row replaces the Host-backed font control, not the theme selector. */
  html.dsh-native-mobile-active [data-slot="settings.general.item"]:has([data-mobile-font-setting]) > :not([data-mobile-font-setting])[class*="_row"]:has([class*="_control"] > [class*="_stepper"] > [class*="_arrows"]) { display:none !important; }
- /* Landscape and wide App windows also constrain standard extension controls. */
- [data-dsh-mobile-composer-row] { min-width:0 !important; max-width:100% !important; }
- [data-dsh-mobile-composer-tools]:not([hidden]),[data-dsh-mobile-composer-controls]:not([hidden]) { flex-wrap:wrap !important; min-width:0 !important; max-width:100% !important; }
- [data-dsh-mobile-composer-tools] > *,[data-dsh-mobile-composer-tools] > [data-slot] > *,[data-dsh-mobile-composer-controls] > *,[data-dsh-mobile-composer-controls] > [data-slot] > * { min-width:0 !important; max-width:100% !important; }
- [data-dsh-mobile-composer-tools] button,[data-dsh-mobile-composer-controls] button { white-space:normal !important; overflow-wrap:anywhere !important; }
 @media ${NATIVE_MOBILE_OVERLAY_QUERY} {
   html.dsh-native-mobile-active,html.dsh-native-mobile-active body { width:100%; height:100%; overflow:hidden; }
   html.dsh-native-mobile-active { --dsh-mobile-motion-duration:200ms; --dsh-mobile-motion-ease:cubic-bezier(.22,1,.36,1); }
@@ -62,6 +65,9 @@ export const NATIVE_MOBILE_STYLES = `
      the ellipsis action visible and give it a reliable hit target. */
   html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_rowActions"] { display:inline-flex !important; align-items:center !important; gap:8px !important; }
   html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_sessionRow"] [class*="_time"] { display:none !important; }
+  /* The always-visible pin action already conveys pinned state. Desktop only
+     hides this passive marker on hover; touch rows must hide it throughout. */
+  html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_sessionRow"] [class*="_pinIndicator"] { display:none !important; }
   html.dsh-native-mobile-active [data-dsh-mobile-sidebar] [class*="_rowActions"] button { box-sizing:border-box !important; width:32px !important; min-width:32px !important; height:32px !important; min-height:32px !important; }
   [data-dsh-mobile-frame] { grid-template-columns:0 minmax(0,1fr) 0 !important; width:100% !important; height:100dvh !important; overflow:hidden !important; }
   [data-dsh-mobile-center] { grid-column:2 !important; width:100vw !important; min-width:0 !important; }
@@ -119,6 +125,11 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] [class*="_selector"] { box-sizing:border-box !important; align-self:flex-start !important; justify-content:space-between !important; min-width:0 !important; min-height:48px !important; max-width:100% !important; }
   [data-dsh-mobile-settings-options] :is(input,select,textarea,button) { max-width:100%; }
   [data-dsh-mobile-settings-options] :is(input,select,textarea) { box-sizing:border-box; width:100%; min-width:0; }
+  /* Local steppers and native page-scale controls keep their own touch targets. */
+  [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] .dsh-mobile-settings_fontControls button { flex:0 0 auto !important; width:auto !important; min-width:48px !important; align-self:center !important; justify-content:center !important; }
+  [data-dsh-mobile-settings-options] [data-slot="settings.general.item"] .dsh-mobile-settings_fontControls select { flex:0 0 auto !important; width:auto !important; min-width:76px !important; align-self:center !important; }
+  [data-dsh-mobile-settings-options] [data-mobile-font-setting] .dsh-mobile-settings_row { flex-wrap:wrap !important; }
+  [data-dsh-mobile-settings-options] [data-mobile-font-setting] .dsh-mobile-settings_rowText { flex:1 1 140px !important; width:auto !important; padding-right:8px !important; }
   [data-dsh-mobile-settings-options] [class*="_head"] { min-width:0; flex-wrap:wrap; }
   /* Provider names may shrink, but their edit/delete actions remain horizontal
      and retain a full touch target on narrow screens. */
@@ -223,23 +234,6 @@ export const NATIVE_MOBILE_STYLES = `
   /* Collapse the scroll viewport only; the editor, draft and attachments stay
      owned by DSH. Toolbar focus keeps the card expanded during menu taps. */
   [data-dsh-mobile-center] [data-composer-card]:not(:focus-within) > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }
-  /* Stock Send/Queue/Steer and Stop keep their handlers and disabled state. */
-  [data-dsh-mobile-composer-row] button { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }
-  [data-dsh-mobile-composer-row] button[class*="_primary"] { min-width:44px !important; flex-shrink:0 !important; }
-  /* Keep ordinary controls on one row. The trailing group reserves room for
-     its model and primary buttons; extra tools wrap only when space is short. */
-  [data-dsh-mobile-composer-row] { display:flex !important; flex-wrap:wrap !important; align-items:center !important; gap:4px 8px !important; min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-tools]:not([hidden]) { display:flex !important; flex:0 1 auto !important; flex-wrap:wrap !important; width:auto !important; min-width:0 !important; max-width:100% !important; gap:6px !important; }
-  [data-dsh-mobile-composer-tools] > *,[data-dsh-mobile-composer-tools] > [data-slot] > * { min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-tools] button { white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-composer-trailing] { display:flex !important; flex:1 0 100px !important; flex-wrap:nowrap !important; width:auto !important; min-width:min(100%,100px) !important; max-width:100% !important; gap:6px !important; margin-left:0 !important; justify-content:flex-end !important; }
-  [data-dsh-mobile-composer-trailing]:has(> button[class*="_primary"] ~ button[class*="_primary"]) { flex-basis:144px !important; min-width:min(100%,144px) !important; }
-  [data-dsh-mobile-composer-controls]:not([hidden]) { display:flex !important; flex:1 1 0 !important; flex-wrap:wrap !important; justify-content:flex-end !important; min-width:0 !important; max-width:100% !important; gap:6px !important; }
-  [data-dsh-mobile-composer-controls] > *,[data-dsh-mobile-composer-controls] > [data-slot] > * { min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-controls] button { white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-composer-model] { flex:0 1 auto !important; width:auto !important; min-width:44px !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-model-trigger] { box-sizing:border-box !important; width:100% !important; max-width:100% !important; min-width:0 !important; padding-left:6px !important; padding-right:4px !important; }
-  [data-dsh-mobile-composer-model-label] { flex:1 1 auto !important; max-width:none !important; min-width:0 !important; overflow:hidden !important; text-overflow:ellipsis !important; white-space:nowrap !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) { box-sizing:border-box !important; width:100% !important; padding:0 0 8px !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) > [class=""]:last-child { display:none !important; }
 }
@@ -264,7 +258,7 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-settings-content][data-dsh-mobile-view-transition="true"],
   [data-dsh-mobile-view][data-dsh-mobile-view-transition="true"] { animation:none !important; }
 }
-`
+` + MOBILE_COMPOSER_TOOLBAR_STYLES
 
 function classToken(element: Element, suffix: string): boolean {
   return Array.from(element.classList).some(value => value.endsWith(suffix))

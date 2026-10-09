@@ -1,9 +1,12 @@
 {
   "name": "dsh-mobile",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": false,
   "description": "DeepSeek Harness 移动端适配与安全访问插件，支持局域网、远程连接、Android App 和手机浏览器。",
   "type": "module",
+  "workspaces": [
+    "packages/question-fixes"
+  ],
   "bin": {
     "dsh-mobile": "lib/cli.js"
   },
@@ -32,6 +35,7 @@
     "bin/dsh-mobile-funnel-linux-arm64",
     "packages/question-fixes/package.json",
     "packages/question-fixes/lib/**",
+    "packages/question-fixes/LICENSE",
     "apps/mobile/release.json",
     "cordis.patch.yml",
     "README.md",
@@ -56,6 +60,10 @@
     "docs/TRUSTED_NETWORKS.en.md",
     "docs/SLOW_CONNECTIONS.md",
     "docs/SLOW_CONNECTIONS.en.md",
+    "docs/EXTENSION_WORKERS.md",
+    "docs/EXTENSION_WORKERS.en.md",
+    "docs/MOBILE_COMPOSER_TOOLBAR.md",
+    "docs/MOBILE_COMPOSER_TOOLBAR.en.md",
     "LICENSE",
     "FUNNEL_THIRD_PARTY_LICENSES.txt",
     "SECURITY.md",
@@ -82,7 +90,9 @@
     "check:mobile-release": "node ./scripts/check-mobile-release.mjs",
     "check:dsh-compatibility": "node ./scripts/check-dsh-compatibility.mjs",
     "smoke:dsh-boot": "node ./scripts/smoke-dsh-mobile-boot.mjs",
+    "smoke:plugin-installation": "node ./scripts/smoke-plugin-installation.mjs",
     "smoke:dsh-composer": "node ./scripts/smoke-dsh-composer.mjs",
+    "smoke:mobile-settings": "node ./scripts/smoke-mobile-settings.mjs",
     "smoke:cloudflared-component": "node ./scripts/smoke-cloudflared-component.mjs",
     "smoke:question-fixes": "node ./scripts/smoke-question-fixes.mjs",
     "smoke:native-layout": "node ./scripts/smoke-native-mobile-layout.mjs",
@@ -90,6 +100,8 @@
     "smoke:composer-keyboard": "node ./scripts/smoke-composer-keyboard.mjs",
     "smoke:mobile-compat": "node ./scripts/smoke-mobile-compat.mjs",
     "smoke:composer-overflow": "node ./scripts/smoke-composer-overflow.mjs",
+    "smoke:composer-toolbar": "node ./scripts/smoke-composer-toolbar.mjs",
+    "smoke:extension-workers": "node ./scripts/smoke-extension-workers.mjs",
     "smoke:control-state": "node ./scripts/smoke-control-state.mjs",
     "smoke:module-recovery": "node ./scripts/smoke-client-module-recovery.mjs",
     "smoke:browser-auth-cookies": "node ./scripts/smoke-browser-auth-cookies.mjs",
@@ -97,6 +109,7 @@
     "check:release-tag": "node ./scripts/check-release-version.mjs --tag-env",
     "check:android-release-tag": "node ./scripts/check-release-version.mjs --android-tag-env",
     "check:version": "node ./scripts/check-release-version.mjs",
+    "check:companion-package": "node ./scripts/check-companion-package.mjs",
     "check:docs": "node ./scripts/check-docs.mjs",
     "clean": "node ./scripts/clean.mjs",
     "generate:funnel-licenses": "node ./scripts/funnel-third-party-licenses.mjs --write",
@@ -105,7 +118,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run check:version && npm run check:docs && npm run check:funnel-licenses && npm run build",
-    "verify": "npm run check:version && npm run check:docs && npm run check:funnel-licenses && npm run check:mobile-release && npm run typecheck && npm run test && npm run build && npm pack --dry-run"
+    "verify": "npm run check:version && npm run check:docs && npm run check:companion-package && npm run check:funnel-licenses && npm run check:mobile-release && npm run typecheck && npm run test && npm run build && npm pack --dry-run"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
@@ -169,14 +182,10 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1",
     "bonjour-service": "1.4.4",
-    "dsh-mobile-question-fixes": "file:packages/question-fixes",
     "qrcode": "^1.5.4",
     "selfsigned": "^5.5.0",
     "ws": "8.22.0"
   },
-  "bundledDependencies": [
-    "dsh-mobile-question-fixes"
-  ],
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/cordis-plugin-include": "1.0.9",

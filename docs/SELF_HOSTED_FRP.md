@@ -65,7 +65,7 @@ curl -v https://PUBLIC_HOST/mobile-access/discovery
 
 只有公网 IPv4 模式会安装 `dsh-mobile-cert-renew.timer`，该模式另查 `sudo systemctl status dsh-mobile-cert-renew.timer`。将 `PUBLIC_HOST` 换成实际域名或公网 IPv4；不加 `-k`，以便同时验证公开证书。还应从独立外部网络检查同一地址，并确认 discovery 返回当前电脑的安装标识；只在 VPS 本机成功不代表手机网络可达。
 
-本机优先看插件日志（`$DSH_HOME/mobile-access/logs/dsh-mobile.log`，JSONL，超 5 MB 轮转，自动脱敏 Token 与密钥）与面板诊断报告。Windows 杀毒软件可能隔离 frpc；如确有拦截，只为已校验的组件目录设置最小范围例外。
+本机优先看插件日志（`$DSH_HOME/mobile-access/logs/dsh-mobile.log`，JSONL，启动时检查并轮转达到 5 MB 的已有日志）与面板诊断报告。自定义扩展不要输出令牌或密钥；分享日志前检查并移除敏感内容，文件日志不是通用秘密脱敏器。Windows 杀毒软件可能隔离 frpc；如确有拦截，只为已校验的组件目录设置最小范围例外。
 
 一台 frps 被多台电脑共用时，代理名在整台服务器内唯一，公网入口端口也不能重复。插件使用 `dsh-mobile-<安装标识前 12 位>` 作为代理名。报代理名已使用时，检查另一台电脑或尚未过期的旧连接；报入口端口已占用时，为本机选择另一个入口端口。frpc 仍在运行并不表示入口已发布，应以公网验证结果为准。
 

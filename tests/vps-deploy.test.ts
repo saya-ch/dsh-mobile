@@ -1,5 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildPinnedKnownHosts,
   createVpsUninstallScript,
@@ -10,8 +14,22 @@ import {
   uninstallVps,
   vpsDeploymentScriptForTesting,
   VpsSshError,
+  runVpsProcess,
 } from '../src/vps-deploy.js'
 import { parseFrpSettings } from '../src/frp-config.js'
+
+const sshFixture=vi.hoisted(()=>({enabled:false,calls:[] as {args:string[];pins:string}[]}))
+vi.mock('node:child_process',async()=>{
+  const actual=await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  return {...actual,spawn(command:string,args:readonly string[]=[],options:import('node:child_process').SpawnOptions={}){
+    if(sshFixture.enabled&&/^ssh(?:\.exe)?$/u.test(command)){
+      const pin=args.find(arg=>arg.startsWith('-o UserKnownHostsFile='))?.slice('-o UserKnownHostsFile='.length)
+      sshFixture.calls.push({args:[...args],pins:pin===undefined?'':readFileSync(pin,'utf8')})
+      return actual.spawn(process.execPath,['-e','process.stdin.resume();process.stdin.on("end",()=>{process.stdout.write("DSH_MOBILE_CHECK services ok removed\\nDSH_MOBILE_UNINSTALL_OK\\n")})'],options)
+    }
+    return actual.spawn(command,[...args],options)
+  }}
+})
 
 const settings = parseFrpSettings({
   serverAddress: 'frp.example.com',
@@ -30,6 +48,28 @@ const keyscanOutput = `# frp.example.com:22 SSH-2.0-OpenSSH_9.6\nfrp.example.com
 function sshInput(fingerprints: readonly string[] = [fingerprintA, fingerprintB]) {
   return { sshUser: 'root', sshPort: 22, hostFingerprints: [...fingerprints] }
 }
+
+const processDirectories:string[]=[]
+afterEach(async()=>{sshFixture.enabled=false;sshFixture.calls.length=0;for(const directory of processDirectories.splice(0)) await rm(directory,{recursive:true,force:true})})
+
+describe('owned VPS utility lifecycle',()=>{
+  it('contains early stdin closure and waits for the owned process to close',async()=>{
+    const root=await mkdtemp(join(tmpdir(),'dsh-vps-process-'));processDirectories.push(root)
+    const marker=join(root,'closed')
+    await expect(runVpsProcess(process.execPath,['-e',`process.stdin.destroy();setTimeout(()=>{require('node:fs').writeFileSync(${JSON.stringify(marker)},'done');process.exit(0)},50)`],'x'.repeat(8*1024*1024),5000)).rejects.toMatchObject({message:'vps_ssh_input_failed',timedOut:false})
+  })
+  it('keeps timeout distinct when a terminated child exits successfully',async()=>{
+    const script = process.platform === 'win32' ? 'setInterval(()=>{},1000)' : 'process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},1000)'
+    const result=await runVpsProcess(process.execPath,['-e',script],undefined,200).catch((error:unknown)=>error)
+    expect(result).toBeInstanceOf(VpsSshError)
+    expect(result).toMatchObject({message:'vps_ssh_timeout',timedOut:true})
+    if(process.platform!=='win32')expect(result).toMatchObject({exitCode:0,signal:null})
+  })
+  it('reports unavailable utilities without leaving a pending timer',async()=>{
+    const root=await mkdtemp(join(tmpdir(),'dsh-vps-missing-'));processDirectories.push(root)
+    await expect(runVpsProcess(join(root,'missing-utility'),[],undefined,5000)).rejects.toMatchObject({message:'vps_ssh_unavailable',timedOut:false})
+  })
+})
 
 describe('VPS deployment', () => {
   // validSshKeyPath requires a platform-absolute path; a Windows literal is
@@ -83,32 +123,31 @@ describe('VPS deployment', () => {
     ])
     await expect(fetchVpsHostKeys('frp.example.com', { sshUser: 'root', sshPort: 22 }, {
       runKeyscan: async () => '# nothing here\n',
-      runSshFetch: async () => '# nothing here either\n',
     })).rejects.toThrow('vps_host_key_unavailable')
   })
 
-  it('falls back to an authenticated host-key read when keyscan negotiates nothing', async () => {
-    const catOutput = `ssh-ed25519 ${keyA}\nssh-ed25519 ${keyB} comment-ignored\n`
-    let fetched = false
-    const keys = await fetchVpsHostKeys('frp.example.com', { sshUser: 'root', sshPort: 22 }, {
-      runKeyscan: async () => '# old binary negotiated nothing\n',
-      runSshFetch: async () => { fetched = true; return catOutput },
-    })
-    expect(fetched).toBe(true)
-    expect(keys).toEqual([
-      { keyType: 'ssh-ed25519', fingerprint: fingerprintA },
-      { keyType: 'ssh-ed25519', fingerprint: fingerprintB },
-    ])
+  it('fails scan errors, empty and malformed output before any authenticated operation', async () => {
+    sshFixture.enabled=true
+    for (const scan of [async () => {throw new Error('old keyscan')}, async () => '', async () => '# no keys\n', async () => 'malformed key', async () => 'host ssh-ed25519 bad']) {
+      let connected = false
+      const options = {runKeyscan: scan, runSsh: async () => {connected=true; return {stdout:'DSH_MOBILE_DEPLOYMENT_OK',stderr:''}}, runRemoteScript: async () => {connected=true;return {stdout:'DSH_MOBILE_UNINSTALL_OK',stderr:''}}}
+      await expect(fetchVpsHostKeys('frp.example.com', {sshUser:'root',sshPort:22,sshKeyPath:keyFixture}, options)).rejects.toThrow(/vps_host_key_(?:unavailable|invalid)/u)
+      await expect(deployVps(settings, sshInput(), options)).rejects.toThrow(/vps_host_key_(?:unavailable|invalid)/u)
+      await expect(uninstallVps('frp.example.com', {serverPort:7000}, sshInput(), options)).rejects.toThrow(/vps_host_key_(?:unavailable|invalid)/u)
+      expect(connected).toBe(false)
+      expect(sshFixture.calls).toEqual([])
+    }
   })
 
-  it('falls back when keyscan itself rejects instead of returning empty text', async () => {
-    let fetched = false
-    const keys = await fetchVpsHostKeys('frp.example.com', { sshUser: 'root', sshPort: 22 }, {
-      runKeyscan: async () => { throw new Error('kex negotiation failed') },
-      runSshFetch: async () => { fetched = true; return `frp.example.com ssh-ed25519 ${keyA}\n` },
-    })
-    expect(fetched).toBe(true)
-    expect(keys).toEqual([{ keyType: 'ssh-ed25519', fingerprint: fingerprintA }])
+  it('pins the confirmed host identity in the actual SSH argv before server cleanup',async()=>{
+    sshFixture.enabled=true
+    const result=await uninstallVps('frp.example.com',{serverPort:7000},sshInput(),{runKeyscan:async()=>keyscanOutput})
+    expect(result.removed).toBe(true)
+    expect(sshFixture.calls).toHaveLength(1)
+    const call=sshFixture.calls[0]!
+    expect(call.args).toContain('StrictHostKeyChecking=yes')
+    expect(call.args).not.toContain('StrictHostKeyChecking=no')
+    expect(call.pins).toBe(buildPinnedKnownHosts('frp.example.com',22,keyscanOutput,[fingerprintA,fingerprintB]))
   })
 
   it('pins only fully confirmed host keys and fails closed on rotation', () => {

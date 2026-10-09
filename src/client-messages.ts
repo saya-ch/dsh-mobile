@@ -1,5 +1,36 @@
 export type MobileControlLocale = 'it' | 'en' | 'zh'
 
+const storageMessages = {
+  en: { funnelStateInvalid: 'The private Tailscale state folder cannot be accessed safely. Check its permissions or directory links; reinstalling the component is not required.', componentPathUnsafe: 'The component folder contains an unsafe link or cannot be accessed. Check the directory and permissions, then retry.' },
+  zh: { funnelStateInvalid: 'Tailscale 私有登录目录无法安全访问。请检查目录权限或链接，不必重新安装组件。', componentPathUnsafe: '组件目录包含不安全的链接或无法访问。请检查目录和权限后重试。' },
+  it: { funnelStateInvalid: 'La cartella privata Tailscale non è accessibile in sicurezza. Controlla permessi o collegamenti; non occorre reinstallare il componente.', componentPathUnsafe: 'La cartella del componente contiene un collegamento non sicuro o non è accessibile. Controlla directory e permessi, poi riprova.' },
+}
+
+/** Desktop-only stopped-worker recovery, independent of remote provider state. */
+export const EXTENSION_RECOVERY_MESSAGES = {
+  en: {
+    extensionRecoveryTitle: 'An extension needs a restart', extensionRecoveryHelp: 'Only the stopped extension restarts. Unfinished actions are not retried.',
+    extensionRecoveryRestart: 'Restart', extensionRecoveryRestarting: 'Restarting…', extensionRecoveryRestartAria: 'Restart extension {name}',
+    extensionRecoveryConfirm: 'Restart extension “{name}”? Unfinished actions will not be retried. Previously completed changes will not be undone.',
+    extensionRecoveryRefresh: 'Check again', extensionRecoveryLoadFailed: 'Could not check the extension status. Check again before restarting.',
+    extensionRecoveryFailed: 'The extension did not restart. Check its configuration, then retry.', extensionRecoveryChanged: 'The extension files changed. Review the changes and reload the extension before trying again.',
+  },
+  it: {
+    extensionRecoveryTitle: 'Un’estensione richiede un riavvio', extensionRecoveryHelp: 'Si riavvia solo l’estensione arrestata. Le azioni incompiute non vengono ripetute.',
+    extensionRecoveryRestart: 'Riavvia', extensionRecoveryRestarting: 'Riavvio…', extensionRecoveryRestartAria: 'Riavvia l’estensione {name}',
+    extensionRecoveryConfirm: 'Riavviare l’estensione “{name}”? Le azioni incompiute non verranno ripetute. Le modifiche già completate non saranno annullate.',
+    extensionRecoveryRefresh: 'Controlla di nuovo', extensionRecoveryLoadFailed: 'Impossibile verificare lo stato. Controlla di nuovo prima di riavviare.',
+    extensionRecoveryFailed: 'L’estensione non si è riavviata. Controlla la configurazione e riprova.', extensionRecoveryChanged: 'I file dell’estensione sono cambiati. Verifica le modifiche e ricarica l’estensione prima di riprovare.',
+  },
+  zh: {
+    extensionRecoveryTitle: '扩展需要重启', extensionRecoveryHelp: '仅重启已停止的扩展，不会重新执行未完成的操作。',
+    extensionRecoveryRestart: '重启扩展', extensionRecoveryRestarting: '正在重启…', extensionRecoveryRestartAria: '重启扩展 {name}',
+    extensionRecoveryConfirm: '要重启扩展“{name}”吗？未完成的操作不会重新执行，已经完成的修改也不会撤销。',
+    extensionRecoveryRefresh: '重新检测', extensionRecoveryLoadFailed: '暂时无法检查扩展状态，请重新检测后再操作。',
+    extensionRecoveryFailed: '扩展没有重启成功，请检查配置后重试。', extensionRecoveryChanged: '扩展文件已经变化，请核对修改并重新加载扩展后再操作。',
+  },
+} satisfies Record<MobileControlLocale, Record<string, string>>
+
 export const MOBILE_CONTROL_MESSAGES = {
   en: {
     mobileAccess: 'Mobile access', collapseMobileAccess: 'Collapse Mobile access', downloadAndroid: 'Download latest Android app', downloadAndroidVersion: 'Download latest Android app · v{version}', downloadAndroidAria: 'Download the latest Android app from GitHub Releases', downloadAndroidVersionAria: 'Download Android app v{version} from GitHub Releases', updatePlugin: 'Update plugin', updatePluginAria: 'Update DSH Mobile to v{version}', updatingPlugin: 'Updating…', pluginUpdatedRestart: 'Updated to v{version}. Restart DSH to apply it.', pluginUpdateFailed: 'Update failed: {error}', updateTo: 'Update to v{version}', updateNotice: 'Restart DSH after installing. Existing apps and paired devices need no re-pairing; unsure about the desktop version? Check the README compatibility table.', updateNotesEmpty: 'No release notes fetched — updating is still fine; full details on the GitHub Release page.', updateNow: 'Update now', updateLater: 'Not now',
@@ -28,6 +59,10 @@ export const MOBILE_CONTROL_MESSAGES = {
   },
   zh: {} as Record<string, string>,
 } satisfies Record<MobileControlLocale, Record<string, string>>
+
+for (const locale of ['en', 'it', 'zh'] as const) Object.assign(MOBILE_CONTROL_MESSAGES[locale], EXTENSION_RECOVERY_MESSAGES[locale])
+
+for (const locale of ['en', 'it', 'zh'] as const) Object.assign(MOBILE_CONTROL_MESSAGES[locale], storageMessages[locale])
 
 Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
   mobileAccess: '移动访问', collapseMobileAccess: '收起移动访问', downloadAndroid: '下载最新 Android App', downloadAndroidVersion: '下载最新 Android App · v{version}', downloadAndroidAria: '从 GitHub Releases 下载最新版 Android App', downloadAndroidVersionAria: '从 GitHub Releases 下载 Android App v{version}', updatePlugin: '更新插件', updatePluginAria: '将 DSH Mobile 更新至 v{version}', updatingPlugin: '正在更新…', pluginUpdatedRestart: '插件已更新至 v{version}，重启 DSH 后生效。', pluginUpdateFailed: '更新失败：{error}', updateTo: '更新到 v{version}', updateNotice: '安装后需重启 DSH。现有 App 与已配对设备无需重新配对；电脑端版本不确定时，先对照 README 兼容表。', updateNotesEmpty: '未取到最新版更新说明，仍可继续更新；详情见 GitHub Release 页。', updateNow: '立即更新', updateLater: '暂不', lan: '局域网', remote: '远程', lanAccess: '局域网访问', remoteAccess: '远程访问', browserAccess: '浏览器访问', remoteAddress: '远程地址', loadingStatus: '正在读取状态…', loadingRemoteStatus: '正在读取远程状态…',
@@ -211,7 +246,9 @@ export const LOCALIZED_DIAGNOSTIC_COPY = {
 Object.assign(MOBILE_CONTROL_MESSAGES.en, {
   selfHostedDescription: "Use your own VPS or HTTPS reverse proxy without a public tunnel service.",
   originName: "Own reverse proxy",
-  originDescription: "You manage HTTPS. DSH Mobile provides a private, authenticated HTTP backend; no tunnel component is installed.",
+  caddyName: "Managed Caddy",
+  caddyModePreviewNote: "HTTPS form preview differs from the current connection.",
+  originDescription: "Use managed Caddy or your existing HTTPS reverse proxy with DSH Mobile’s private, authenticated backend.",
   prepareOrigin: "Connect your HTTPS reverse proxy",
   originPublicOrigin: "Public HTTPS address",
   originListenHost: "Private listen IPv4",
@@ -269,7 +306,9 @@ Object.assign(MOBILE_CONTROL_MESSAGES.en, {
 Object.assign(MOBILE_CONTROL_MESSAGES.it, {
   selfHostedDescription: "Usa il tuo VPS o reverse proxy HTTPS senza un servizio di tunnel pubblico.",
   originName: "Reverse proxy proprio",
-  originDescription: "Gestisci tu HTTPS. DSH Mobile offre un backend HTTP privato con autenticazione; non installa componenti tunnel.",
+  caddyName: "Caddy gestito",
+  caddyModePreviewNote: "L’anteprima del modulo HTTPS differisce dalla connessione attuale.",
+  originDescription: "Usa Caddy gestito o il tuo reverse proxy HTTPS con il backend privato autenticato di DSH Mobile.",
   prepareOrigin: "Collega il tuo reverse proxy HTTPS",
   originPublicOrigin: "Indirizzo HTTPS pubblico",
   originListenHost: "IPv4 privato di ascolto",
@@ -327,7 +366,9 @@ Object.assign(MOBILE_CONTROL_MESSAGES.it, {
 Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
   selfHostedDescription: "使用自己的 VPS 或 HTTPS 反向代理，不依赖公共隧道服务。",
   originName: "自有反向代理",
-  originDescription: "HTTPS 由你管理，插件提供带认证的私有 HTTP 后端，无需安装隧道组件。",
+  caddyName: "托管 Caddy",
+  caddyModePreviewNote: "HTTPS 表单预览与当前连接不同。",
+  originDescription: "使用托管 Caddy 或已有 HTTPS 反向代理，接入 DSH Mobile 带认证的私有后端。",
   prepareOrigin: "接入自有 HTTPS 反向代理",
   originPublicOrigin: "公网 HTTPS 地址",
   originListenHost: "私有监听 IPv4",

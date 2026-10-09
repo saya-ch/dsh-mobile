@@ -76,6 +76,7 @@ import {
   type MobileRouteRequest,
   type MobileRouteResponse,
 } from './extensions.js'
+import { isPreparedJson } from './extension-worker.js'
 import {
   renderLoginPage,
   renderLoginScript,
@@ -1962,7 +1963,11 @@ export class MobileAccessGateway {
     }
     const stockFrontend = new URL(target.raw, this.address().origin).searchParams.get('frontend') === 'stock'
     const acceptsHtml = request.headers.accept?.split(',').some(value => value.trim().split(';', 1)[0] === 'text/html') ?? false
-    if (request.method === 'GET' && acceptsHtml && !stockFrontend) {
+    // DSH's frontend-static owner renders its boot document only at these
+    // entry points. An HTML Accept header also belongs to plugin previews,
+    // iframe documents and downloads; those must retain their own route.
+    const frontendDocument = target.decodedPathname === '/' || target.decodedPathname === '/index.html'
+    if (request.method === 'GET' && frontendDocument && acceptsHtml && !stockFrontend) {
       await this.proxyMobileIndex(request, response, authorization)
       return
     }
@@ -2062,10 +2067,23 @@ export class MobileAccessGateway {
       try {
         const body = await readJsonObject(request, maximum)
         const result = await extensions.invoke(targetInfo.id, targetInfo.action, body, { signal: abort.signal, deviceId: authorization.deviceId }, generation)
-        let serialized: Buffer
-        try { serialized = Buffer.from(JSON.stringify(result)) } catch { throw new MobileExtensionError('extension_failed', 'extension action failed', 500) }
-        if (serialized.byteLength > 4 * 1024 * 1024) throw new MobileExtensionError('extension_result_too_large', 'extension result is too large', 500)
-        sendJson(response, 200, result, this.tlsEnabled)
+        if (isPreparedJson(result)) {
+          // Worker mode: the extension result already crossed as worker-generated,
+          // size-checked JSON bytes. The gateway never serializes extension data;
+          // framing (guards, trailing newline) mirrors sendJson exactly.
+          if (result.bytes.byteLength > 4 * 1024 * 1024) throw new MobileExtensionError('extension_result_too_large', 'extension result is too large', 500)
+          if (!response.headersSent && !response.destroyed) {
+            const body = Buffer.concat([result.bytes, Buffer.from('\n')])
+            setSecurityHeaders(response, this.tlsEnabled)
+            response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': body.byteLength })
+            response.end(body)
+          }
+        } else {
+          let serialized: Buffer
+          try { serialized = Buffer.from(JSON.stringify(result)) } catch { throw new MobileExtensionError('extension_failed', 'extension action failed', 500) }
+          if (serialized.byteLength > 4 * 1024 * 1024) throw new MobileExtensionError('extension_result_too_large', 'extension result is too large', 500)
+          sendJson(response, 200, result, this.tlsEnabled)
+        }
       } finally {
         generationSignal?.removeEventListener('abort', onGenerationAbort)
         abort.abort(); operation.release()
@@ -2309,7 +2327,7 @@ export class MobileAccessGateway {
       const proxied = await new Promise<IncomingMessage>((resolve, reject) => {
         upstreamRequest = requestHttp({
           protocol: 'http:', hostname: stripIpv6Brackets(this.config.upstreamOrigin.hostname),
-          port: Number(this.config.upstreamOrigin.port), method: 'GET', path: '/', headers, agent: false,
+          port: Number(this.config.upstreamOrigin.port), method: 'GET', path: incoming?.url ?? '/', headers, agent: false,
         })
         upstreamRequest.setTimeout(this.config.upstreamTimeoutMs, () => { upstreamRequest?.destroy(new HttpError(504, 'upstream_timeout')) })
         upstreamRequest.once('response', resolve)

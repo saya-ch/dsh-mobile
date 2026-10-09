@@ -17,6 +17,8 @@ import { parseFrpSettings } from '../src/frp-config.js'
 import { ensureFrpIngressCertificate } from '../src/frp-ingress.js'
 import { DSH_MOBILE_VERSION, MINIMUM_ANDROID_APP_VERSION } from '../src/version.js'
 import { DESKTOP_ADMIN_HEADER, DESKTOP_ADMIN_MARKER } from '../src/local-admin-host.js'
+import { buildExtensionWorkerEntry } from './helpers/extension-worker-build.js'
+import { parseUnavailableExtensionHosts } from '../src/extension-recovery-ui.js'
 
 const contexts: Context[] = []
 const temporaryDirectories: string[] = []
@@ -764,6 +766,38 @@ describe('stock DSH lifecycle', () => {
       form: 'notice',
       summary: '/mobile 把手机端改成深色主题',
     })
+  })
+})
+
+describe('local worker recovery control routes', () => {
+  it('uses authenticated exact-origin admin routes and recovers an unchanged stopped worker', async () => {
+    const mounted = await mount(false, 3080, { hostExecution: { mode: 'worker', extensions: ['recoverable'], maxWorkers: 2 } })
+    const extensionRoot = join(mounted.directory, 'extensions')
+    const directory = join(extensionRoot, 'recoverable'); await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, 'extension.json'), JSON.stringify({ schemaVersion: 1, id: 'recoverable', name: 'Recoverable', version: '1' }))
+    await writeFile(join(directory, 'host.mjs'), 'export default api => { api.action("probe", {run: () => ({ok:true})}) }')
+    await mounted.context.mobileAccess.startLocal(extensionRoot, mounted.context, { hostExecution: { mode: 'worker', extensions: ['recoverable'], maxWorkers: 2, workerModule: await buildExtensionWorkerEntry() } })
+    const active = mounted.context.mobileAccess.extension('recoverable') as { readonly worker: {terminate(reason: string): Promise<void>} }
+    const running = await invoke(mounted.route, 'GET', '/api/mobile-access/extensions/hosts')
+    expect(running.status).toBe(200)
+    expect(JSON.parse(running.body)).toMatchObject({hosts:[{id:'recoverable', mode:'worker', state:'ready'}], limits:{workers:1,maxWorkers:2}})
+    expect(parseUnavailableExtensionHosts(JSON.parse(running.body))).toEqual([])
+    expect(running.body).not.toContain(directory)
+    const ready = await invoke(mounted.route, 'POST', '/api/mobile-access/extensions/recover', JSON.stringify({id:'recoverable',confirm:true}))
+    expect(ready.status).toBe(409)
+    expect(JSON.parse(ready.body)).toEqual({error:'extension_host_running'})
+    await active.worker.terminate('test-offline')
+    const stopped = await invoke(mounted.route, 'GET', '/api/mobile-access/extensions/hosts')
+    expect(parseUnavailableExtensionHosts(JSON.parse(stopped.body))).toEqual([{ id: 'recoverable', name: 'Recoverable', generation: expect.stringMatching(/^[a-f\d]{64}$/u) }])
+    const blocked = await invoke(mounted.route, 'POST', '/api/mobile-access/extensions/recover', JSON.stringify({id:'recoverable',confirm:true}), '127.0.0.1', {origin:'https://evil.example','sec-fetch-site':'cross-site'})
+    expect(blocked.status).toBe(403)
+    expect(mounted.context.mobileAccess.hostStatus().hosts[0]?.state).toBe('unavailable')
+    const noConfirmation = await invoke(mounted.route, 'POST', '/api/mobile-access/extensions/recover', JSON.stringify({id:'recoverable'}))
+    expect(noConfirmation.status).toBe(400)
+    const recovered = await invoke(mounted.route, 'POST', '/api/mobile-access/extensions/recover', JSON.stringify({id:'recoverable',confirm:true}))
+    expect(recovered.status).toBe(200)
+    expect(JSON.parse(recovered.body)).toMatchObject({hosts:[{id:'recoverable',state:'ready'}]})
+    expect(parseUnavailableExtensionHosts(JSON.parse(recovered.body))).toEqual([])
   })
 })
 

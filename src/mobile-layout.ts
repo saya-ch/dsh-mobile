@@ -33,7 +33,7 @@ interface MobileClientContext {
   readonly on: (event: string, listener: (value: ThemeSnapshot) => void) => () => void
   readonly reflect: { provide: (name: string, value: unknown) => () => void | Promise<void> }
   readonly slots: {
-    register: (options: Record<string, unknown>, component: (props: MobileRootProps) => ReactNode) => () => void
+    register: <Props>(options: Record<string, unknown>, component: (props: Props) => ReactNode) => () => void
     entries: (name: string) => readonly { readonly options: { readonly key?: string } }[]
     subscribe: (name: string, listener: () => void) => () => void
     /**
@@ -893,7 +893,7 @@ export function apply(ctx: MobileClientContext): void {
     const requestDetailsClose = (): void => {
       closeDetailsFromScrim(ctx.get('sidebarRight'), () => { controller.closeDetails() })
     }
-    const disposeRoot = ctx.slots.register({
+    const disposeRoot = ctx.slots.register<MobileRootProps>({
       name: 'root',
       children: {
         sidebar: { kind: 'single', scope: 'root' },

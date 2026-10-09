@@ -31,13 +31,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2]
+        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24.x
           cache: npm
+      - name: Install pnpm for the live DSH plugin manager
+        run: npm install --global pnpm@10.10.0
       - run: npm ci
       - run: npm run build
       - name: Install DSH and pack the Mobile bundle
@@ -49,10 +51,34 @@ jobs:
           echo "DSH_BOOT_SMOKE_BIN=$RUNNER_TEMP/dsh-runtime/node_modules/@deepseek-ai/dsh/lib/bin.js" >> "$GITHUB_ENV"
           echo "DSH_BOOT_SMOKE_MOBILE_TARBALL=$RUNNER_TEMP/plugin-package/dsh-mobile-$mobile_version.tgz" >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium --only-shell
+      - name: Verify live installation through the DSH plugin manager
+        run: npm run smoke:plugin-installation
+      - name: Verify registry installation with isolated pnpm
+        if: matrix.dsh == '0.2.0-rc.2' || matrix.dsh == '0.2.1-alpha.2'
+        env:
+          DSH_BOOT_SMOKE_INSTALL_SOURCE: registry
+          DSH_BOOT_SMOKE_NODE_LINKER: isolated
+        run: npm run smoke:plugin-installation
+      - name: Verify upgrading the published 0.6.2 bundle
+        if: matrix.dsh == '0.2.0-rc.2' || matrix.dsh == '0.2.1-alpha.2'
+        shell: bash
+        run: |
+          previous_dir="$(mktemp -d "$RUNNER_TEMP/mobile-previous.XXXXXX")"
+          npm pack dsh-mobile@0.6.2 --ignore-scripts --pack-destination "$previous_dir"
+          DSH_BOOT_SMOKE_PREVIOUS_MOBILE_TARBALL="$previous_dir/dsh-mobile-0.6.2.tgz" npm run smoke:plugin-installation
       - run: npm run smoke:native-layout
       - run: npm run smoke:voice-session
       - run: npm run smoke:composer-keyboard
       - run: npm run smoke:composer-overflow
+      - name: Verify the real stock composer with optional plugin controls
+        if: matrix.dsh == '0.2.0-rc.2' || matrix.dsh == '0.2.1-alpha.2'
+        run: npm run smoke:composer-toolbar
+      - name: Verify packed Worker execution and explicit recovery
+        if: matrix.dsh == '0.2.0-rc.2' || matrix.dsh == '0.2.1-alpha.2'
+        run: npm run smoke:extension-workers
+      - name: Verify mobile typography and native page-zoom settings
+        if: matrix.dsh == '0.2.1-alpha.2'
+        run: npm run smoke:mobile-settings
       - name: Verify module settings, trusted network and remote form lifetimes
         if: matrix.dsh == '0.2.0-rc.2'
         run: npm run smoke:control-state
@@ -106,7 +132,7 @@ jobs:
             cat "$RUNNER_TEMP/companion-negative.log"
             exit 1
           fi
-          node -e "const fs=require('node:fs'); const text=fs.readFileSync(process.env.RUNNER_TEMP+'/companion-negative.log','utf8'); if(!text.includes('Packed bundle is missing nested component dsh-mobile-question-fixes')) { console.error(text); process.exit(1); }"
+          node -e "const fs=require('node:fs'); const text=fs.readFileSync(process.env.RUNNER_TEMP+'/companion-negative.log','utf8'); if(!text.includes('Packed bundle is missing embedded component dsh-mobile-question-fixes')) { console.error(text); process.exit(1); }"
 
   gateway:
     name: Gateway (${{ matrix.os }}, Node ${{ matrix.node }})

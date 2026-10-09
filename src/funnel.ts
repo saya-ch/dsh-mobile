@@ -1,10 +1,11 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { lstat, rm } from 'node:fs/promises'
-import { isAbsolute, resolve } from 'node:path'
+import { lstat } from 'node:fs/promises'
+import { dirname, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MobileAccessControlStore } from './control.js'
 import type { MobileAccessGateway } from './gateway.js'
 import { settleRemoteResources, terminateRemoteProcess, type RemoteProviderController } from './remote.js'
+import { assertManagedParents, ensureManagedDirectory, removeManagedTree } from './managed-files.js'
 
 const MAX_PROTOCOL_LINE_BYTES = 16 * 1024
 const FUNNEL_START_TIMEOUT_MS = 45_000
@@ -35,6 +36,8 @@ export interface FunnelControllerOptions {
   readonly store: MobileAccessControlStore
   readonly executable: string
   readonly stateDirectory: string
+  /** The plugin's owned Mobile state root; direct callers own the explicit state-directory parent. */
+  readonly ownedRoot?: string
   readonly hostname: string
   readonly createGateway: (origin: string) => Promise<MobileAccessGateway>
   readonly onStatus?: (status: FunnelStatus) => void
@@ -123,15 +126,24 @@ export class FunnelController implements RemoteProviderController {
   private latest: FunnelStatus = publicStatus({ enabled: false, state: 'off' })
   private queue: Promise<void> = Promise.resolve()
   private startTimer: NodeJS.Timeout | undefined
+  private readonly ownedRoot: string
 
   constructor(private readonly options: FunnelControllerOptions) {
     if (!isAbsolute(options.executable) || !isAbsolute(options.stateDirectory)) {
       throw new Error('Funnel paths must be absolute')
     }
+    this.ownedRoot = options.ownedRoot ?? dirname(resolve(options.stateDirectory))
+    if (!isAbsolute(this.ownedRoot) || resolve(this.ownedRoot) === resolve(options.stateDirectory)) throw new Error('Funnel state must be a child of its owned root')
   }
 
   /** Restore the remote switch without coupling it to LAN availability. */
   async initialize(): Promise<void> {
+    try { await this.assertStateParents() } catch (_error) {
+      this.enabled = false
+      this.initialized = true
+      this.publish({ enabled: false, state: 'unavailable', errorCode: 'funnel_state_invalid' })
+      return
+    }
     const state = await this.options.store.load()
     this.enabled = state.enabled
     this.initialized = true
@@ -155,6 +167,11 @@ export class FunnelController implements RemoteProviderController {
     await this.enqueue(async () => {
       if (this.enabled === enabled && (enabled === false || this.child !== undefined)) return
       if (!enabled) await this.stop()
+      try { await this.assertStateParents() } catch (error) {
+        this.enabled = false
+        this.publish({ enabled: false, state: 'unavailable', errorCode: 'funnel_state_invalid' })
+        throw error
+      }
       this.enabled = enabled
       await this.options.store.save({ version: 1, enabled })
       if (enabled) await this.start()
@@ -167,11 +184,15 @@ export class FunnelController implements RemoteProviderController {
   async reconnect(): Promise<FunnelStatus> {
     if (!this.initialized || this.disposed) throw new Error('Funnel controller is unavailable')
     await this.enqueue(async () => {
+      await this.stop()
+      try { await this.assertStateParents() } catch (error) {
+        this.publish({ enabled: this.enabled, state: 'unavailable', errorCode: 'funnel_state_invalid' })
+        throw error
+      }
       if (!this.enabled) {
         this.enabled = true
         await this.options.store.save({ version: 1, enabled: true })
       }
-      await this.stop()
       await this.start()
     })
     return this.status()
@@ -183,8 +204,14 @@ export class FunnelController implements RemoteProviderController {
     await this.enqueue(async () => {
       await this.stop()
       this.enabled = false
-      await this.options.store.save({ version: 1, enabled: false })
-      await rm(resolve(this.options.stateDirectory), { recursive: true, force: true })
+      try {
+        await removeManagedTree(this.ownedRoot, this.options.stateDirectory, 'funnel')
+        await this.assertStateParents()
+        await this.options.store.save({ version: 1, enabled: false })
+      } catch (error) {
+        this.publish({ enabled: false, state: 'off', errorCode: 'funnel_state_invalid' })
+        throw error
+      }
       this.publish({ enabled: false, state: 'off' })
     })
     return this.status()
@@ -208,6 +235,16 @@ export class FunnelController implements RemoteProviderController {
     try { this.options.onStatus?.(this.status()) } catch { /* UI observation cannot own runtime state. */ }
   }
 
+  private async assertStateParents(): Promise<void> {
+    await assertManagedParents(this.ownedRoot, this.options.stateDirectory, 'funnel')
+    try {
+      const entry = await lstat(this.options.stateDirectory)
+      if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error('funnel_path_invalid')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+  }
+
   private async start(): Promise<void> {
     const generation = ++this.generation
     let entry
@@ -217,6 +254,13 @@ export class FunnelController implements RemoteProviderController {
     }
     if (!entry.isFile() || entry.isSymbolicLink()) {
       this.publish({ enabled: true, state: 'unavailable', errorCode: 'component_invalid' })
+      return
+    }
+    try {
+      await this.assertStateParents()
+      await ensureManagedDirectory(this.ownedRoot, this.options.stateDirectory, 'funnel')
+    } catch (_error) {
+      this.publish({ enabled: true, state: 'unavailable', errorCode: 'funnel_state_invalid' })
       return
     }
     this.buffer = ''

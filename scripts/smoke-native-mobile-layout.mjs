@@ -89,6 +89,58 @@ try {
     })
   } finally { await bootstrap.close() }
 
+  // Match stock row semantics: a passive pinned marker plus a pin/unpin action.
+  // Desktop swaps them on hover; mobile keeps actions visible without hover.
+  for (const width of [393, 720, 900]) {
+    for (const native of [true, false]) {
+      const context = await browser.newContext({ viewport: { width, height: 844 }, hasTouch: true })
+      try {
+        const page = await context.newPage()
+        await page.setContent(`<!doctype html><html class="${native ? 'dsh-native-mobile-active' : ''}"><head><style>
+          .Rows_fixture_sessionRow{display:flex;align-items:center;height:40px}
+          .Rows_fixture_pinIndicator{display:inline-flex;width:16px;height:20px}
+          .Rows_fixture_rowActions{display:none}
+          .Rows_fixture_sessionRow:hover .Rows_fixture_rowActions{display:inline-flex}
+          .Rows_fixture_sessionRow:hover .Rows_fixture_pinIndicator{display:none}
+        </style></head><body>
+          <aside data-dsh-mobile-sidebar data-open="true"><div data-dsh-mobile-sidebar-root><div class="Rows_fixture_sessionRow" id="pinned-row">
+            <span>Pinned session</span><span id="pin-marker" class="Rows_fixture_pinIndicator" aria-label="Pinned">${icon}</span>
+            <span class="Rows_fixture_rowActions"><button id="unpin" aria-label="Unpin session">${icon}</button></span>
+          </div><div class="Rows_fixture_sessionRow" id="unpinned-row"><span>Other session</span>
+            <span class="Rows_fixture_rowActions"><button id="pin" aria-label="Pin session">${icon}</button></span>
+          </div></div></aside>
+          <div class="Rows_fixture_sessionRow"><span id="outside-marker" class="Rows_fixture_pinIndicator">${icon}</span></div>
+        </body></html>`)
+        await page.addStyleTag({ content: nativeStyles })
+        const mobile = native && width <= 720
+        const display = selector => page.locator(selector).evaluate(node => getComputedStyle(node).display)
+        assert.equal(await display('#pin-marker'), mobile ? 'none' : 'flex', `${width}/${native}: passive pinned marker`)
+        assert.equal(await display('#outside-marker'), 'flex', `${width}/${native}: unrelated row changed`)
+        for (const selector of ['#unpin', '#pin']) {
+          assert.equal(await page.locator(selector).isVisible(), mobile, `${width}/${native}: action visibility`)
+        }
+        if (mobile) {
+          await page.evaluate(() => {
+            document.querySelector('#unpin').addEventListener('click', () => {
+              document.querySelector('#unpin').setAttribute('aria-label', 'Pin session')
+              document.querySelector('#pin-marker').remove()
+              document.querySelector('#pinned-row').dataset.unpinned = 'true'
+            })
+          })
+          await page.locator('#unpin').tap()
+          assert.equal(await page.locator('#pinned-row').getAttribute('data-unpinned'), 'true')
+          assert.equal(await page.locator('#unpin').getAttribute('aria-label'), 'Pin session')
+          assert.equal(await page.locator('#unpin').isVisible(), true)
+        } else {
+          await page.locator('#pinned-row').hover()
+          assert.equal(await display('#pin-marker'), 'none', `${width}/${native}: desktop hover marker`)
+          assert.equal(await page.locator('#unpin').isVisible(), true, `${width}/${native}: desktop hover action`)
+        }
+        cases++
+      } finally { await context.close() }
+    }
+  }
+
   for (const viewport of [
     { width: 320, height: 844 }, { width: 375, height: 812 }, { width: 393, height: 844 },
     { width: 720, height: 900 }, { width: 900, height: 720 }, { width: 844, height: 393 },
