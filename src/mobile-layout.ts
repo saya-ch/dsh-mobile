@@ -1,7 +1,6 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { MOBILE_LAYOUT_MESSAGES, type MobileLayoutLanguage } from './mobile-layout-messages.js'
-import { MobileComposerToolbar, MOBILE_COMPOSER_TOOLBAR_STYLES, type MobileComposerToolbarProps } from './mobile-composer-toolbar.js'
 
 export { MOBILE_LAYOUT_MESSAGES } from './mobile-layout-messages.js'
 export type { MobileLayoutLanguage } from './mobile-layout-messages.js'
@@ -35,7 +34,6 @@ interface MobileClientContext {
   readonly reflect: { provide: (name: string, value: unknown) => () => void | Promise<void> }
   readonly slots: {
     register: <Props>(options: Record<string, unknown>, component: (props: Props) => ReactNode) => () => void
-    inject: (name: string, initialize: () => () => void) => () => void
     entries: (name: string) => readonly { readonly options: { readonly key?: string } }[]
     subscribe: (name: string, listener: () => void) => () => void
     /**
@@ -879,7 +877,7 @@ export function apply(ctx: MobileClientContext): void {
   ctx.effect(() => {
     const style = document.createElement('style')
     style.dataset.plugin = 'dsh-mobile-layout'
-    style.textContent = MOBILE_LAYOUT_STYLES + MOBILE_COMPOSER_TOOLBAR_STYLES
+    style.textContent = MOBILE_LAYOUT_STYLES
     document.head.append(style)
     const disposeMainPanelRegistry = controller.bindMainPanelRegistry(id =>
       ctx.slots.entries('main').some(entry => entry.options.key === id))
@@ -895,9 +893,6 @@ export function apply(ctx: MobileClientContext): void {
     const requestDetailsClose = (): void => {
       closeDetailsFromScrim(ctx.get('sidebarRight'), () => { controller.closeDetails() })
     }
-    const disposeToolbar = ctx.slots.inject('conversation.input.toolbar', () => ctx.slots.register<MobileComposerToolbarProps>({
-      name: 'conversation.input.toolbar', id: 'dsh-mobile-toolbar',
-    }, MobileComposerToolbar))
     const disposeRoot = ctx.slots.register<MobileRootProps>({
       name: 'root',
       children: {
@@ -942,7 +937,6 @@ export function apply(ctx: MobileClientContext): void {
       window.removeEventListener('dsh-mobile:native-back', onNativeBack)
       controller.dispose()
       disposePanels()
-      disposeToolbar()
       disposeRoot()
       disposePanelInfo()
       void disposeService()

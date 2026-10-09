@@ -1,8 +1,8 @@
-import { randomBytes } from 'node:crypto'
-import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, readFile } from 'node:fs/promises'
 import { isIP } from './ip.js'
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { restrictPrivateFile } from './private-file.js'
+import { assertManagedParents, removeManagedTree, writeManagedPrivateFile } from './managed-files.js'
 
 const MAX_CONFIG_BYTES = 8 * 1024
 const QUICK_TUNNEL_SUFFIX = '.trycloudflare.com'
@@ -172,26 +172,6 @@ export function mergeSavedCloudflaredTunnelSettings(
   return parseCloudflaredTunnelSettings({ version: 1, mode: 'named', token, hostname, port })
 }
 
-async function atomicPrivateWrite(file: string, body: string): Promise<void> {
-  const directory = dirname(file)
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  try {
-    const current = await lstat(file)
-    if (!current.isFile() || current.isSymbolicLink()) throw new Error('cloudflared_tunnel_target_invalid')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-  }
-  const temporary = join(directory, `.${basename(file)}.${randomBytes(12).toString('hex')}.tmp`)
-  try {
-    await writeFile(temporary, body, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
-    await rename(temporary, file)
-    await restrictPrivateFile(file)
-  } catch (error) {
-    await rm(temporary, { force: true })
-    throw error
-  }
-}
-
 /** Owns the private cloudflared tunnel configuration for one DSH installation. */
 export class CloudflaredTunnelStore {
   readonly stateRoot: string
@@ -199,7 +179,7 @@ export class CloudflaredTunnelStore {
   private settingsValue: CloudflaredTunnelSettings = Object.freeze({ version: 1, mode: 'quick' })
   private errorCode: string | undefined
 
-  constructor(stateDirectory: string) {
+  constructor(stateDirectory: string, private readonly ownedRoot = stateDirectory) {
     if (!isAbsolute(stateDirectory)) throw new Error('cloudflared tunnel state directory must be absolute')
     this.stateRoot = resolve(stateDirectory)
     this.settingsFile = join(this.stateRoot, 'tunnel.json')
@@ -207,6 +187,12 @@ export class CloudflaredTunnelStore {
 
   /** Load private settings while rejecting links, oversized files and unknown fields. */
   async initialize(): Promise<void> {
+    this.settingsValue = Object.freeze({ version: 1, mode: 'quick' })
+    this.errorCode = undefined
+    try { await assertManagedParents(this.ownedRoot, this.settingsFile, 'cloudflared') } catch (_error) {
+      this.errorCode = 'cloudflared_tunnel_config_invalid'
+      return
+    }
     let entry
     try { entry = await lstat(this.settingsFile) } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
@@ -246,8 +232,16 @@ export class CloudflaredTunnelStore {
   /** Atomically replace the tunnel configuration. */
   async configure(value: unknown): Promise<CloudflaredTunnelStatus> {
     const settings = parseCloudflaredTunnelSettings(value)
-    if (settings.mode === 'quick') await rm(this.settingsFile, { force: true })
-    else await atomicPrivateWrite(this.settingsFile, `${JSON.stringify(settings)}\n`)
+    if (settings.mode === 'quick') await removeManagedTree(this.ownedRoot, this.settingsFile, 'cloudflared')
+    else {
+      try { await writeManagedPrivateFile(this.ownedRoot, this.settingsFile, `${JSON.stringify(settings)}\n`, 'cloudflared') }
+      catch (error) {
+        if (error instanceof Error && error.message === 'cloudflared_config_target_invalid') {
+          throw new Error('cloudflared_tunnel_target_invalid', { cause: error })
+        }
+        throw error
+      }
+    }
     this.settingsValue = settings
     this.errorCode = undefined
     return this.status()
@@ -255,7 +249,7 @@ export class CloudflaredTunnelStore {
 
   /** Forget a named tunnel and its connector token. */
   async purge(): Promise<CloudflaredTunnelStatus> {
-    await rm(this.settingsFile, { force: true })
+    await removeManagedTree(this.ownedRoot, this.settingsFile, 'cloudflared')
     this.settingsValue = Object.freeze({ version: 1, mode: 'quick' })
     this.errorCode = undefined
     return this.status()

@@ -1,78 +1,59 @@
-import { execFile, spawn } from 'node:child_process'
-import { mkdtemp, readFile, rm, rename, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { build } from 'tsdown'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildExtensionWorkerArtifacts } from './helpers/extension-worker-build.js'
-
+import type { Context } from '@deepseek-ai/cordis'
+import type { MobileAccessService } from '../src/extensions.js'
 const run = promisify(execFile)
 
-/**
- * Packaged-installation smoke (spike deliverable): the worker must start from
- * the installed npm artifact. tsdown entries are an explicit list — a new
- * source file ships nowhere without an entry, and this test proves the entry
- * made it into the tarball and actually boots.
- */
-describe('packaged extension worker artifact', () => {
-  let packed: { readonly tarball: string; readonly extracted: string } | undefined
-
+/** Owner-local compiled package smoke: does not write the repository's lib/ or run another full build. */
+describe('installed default extension worker entry', () => {
+  let root: string
+  let extracted: string
   beforeAll(async () => {
-    const staging = await mkdtemp(join(tmpdir(), 'dsh-mobile-worker-pack-'))
-    const repo = fileURLToPath(new URL('..', import.meta.url))
-    await run('npm', ['run', 'build'], { cwd: repo })
-    const { stdout } = await run('npm', ['pack', '--ignore-scripts'], { cwd: repo })
-    const tarballName = stdout.trim().split('\n').at(-1)
-    if (tarballName === undefined) throw new Error('npm pack produced no tarball name')
-    await rename(join(repo, tarballName), join(staging, tarballName))
-    const extracted = join(staging, 'package')
-    const { mkdir } = await import('node:fs/promises')
-    await mkdir(extracted, { recursive: true })
-    await run('tar', ['-xzf', join(staging, tarballName), '-C', extracted, '--strip-components', '1'])
-    packed = { tarball: join(staging, tarballName), extracted }
-  }, 240_000)
-
-  it('ships the worker entry in the npm artifact', async () => {
-    expect(packed).toBeDefined()
-    const entry = join(packed!.extracted, 'lib', 'extension-worker-runtime.mjs')
-    const body = await readFile(entry, 'utf8')
-    // Self-contained: no bare package imports that would need node_modules.
-    expect(body).not.toMatch(/from "@deepseek-ai\//u)
-    expect(body).toContain('extension-worker-runtime must run inside a Worker')
-  })
-
-  it('boots the worker from the installed artifact and terminates it', async () => {
-    expect(packed).toBeDefined()
+    root = await mkdtemp(join(tmpdir(), 'dsh-mobile-worker-pack-'))
     const artifacts = await buildExtensionWorkerArtifacts()
-    const root = await mkdtemp(join(tmpdir(), 'dsh-mobile-worker-installed-'))
+    const staging = join(root, 'staging'); await mkdir(join(staging, 'lib'), { recursive: true })
+    const manifest = JSON.parse(await readFile(join(process.cwd(), 'package.json'), 'utf8')) as Record<string, unknown>
+    // Keep the actual package identity, exports and file inclusion rules; this fixture bundles only the Host seam under test.
+    await writeFile(join(staging, 'package.json'), JSON.stringify({ ...manifest, scripts: {}, workspaces: undefined, peerDependencies: {}, peerDependenciesMeta: {}, dependencies: {} }))
+    await cp(artifacts.runtimeEntry, join(staging, 'lib', 'extension-worker-runtime.mjs'))
+    await build({ config: false, entry: { index: join(process.cwd(), 'src', 'extensions.ts') }, outDir: join(staging, 'lib'), format: ['esm'], platform: 'node', target: 'node22', clean: false, dts: false, deps: { alwaysBundle: ['@deepseek-ai/cordis', '@deepseek-ai/cosmokit', '@deepseek-ai/schemastery'] } } as Parameters<typeof build>[0])
+    const npmCli = process.env.npm_execpath
+    if (npmCli === undefined) throw new Error('run the package smoke through npm so npm_execpath identifies the CLI')
+    const packed = await run(process.execPath, [npmCli, 'pack', '--ignore-scripts', '--json', '--pack-destination', root], { cwd: staging })
+    const filename = (JSON.parse(packed.stdout) as { filename: string }[])[0]?.filename
+    if (filename === undefined) throw new Error('npm pack did not return a filename')
+    const installRoot = join(root, 'installed'); await mkdir(installRoot)
+    await run(process.execPath, [npmCli, 'install', '--prefix', installRoot, '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', join(root, filename)])
+    extracted = join(installRoot, 'node_modules', 'dsh-mobile')
+  })
+  afterAll(async () => { if (root !== undefined) await rm(root, { recursive: true, force: true }) })
+
+  it('ships a self-contained runtime and activates a worker through the installed default resolver', async () => {
+    const body = await readFile(join(extracted, 'lib', 'extension-worker-runtime.mjs'), 'utf8')
+    expect(body).not.toMatch(/from ["']@deepseek-ai\//u)
+    const module = await import(pathToFileURL(join(extracted, 'lib', 'index.mjs')).href) as { MobileAccessService: typeof MobileAccessService }
+    // The bundled Cordis service accepts the real test Context through its ordinary public methods.
+    const { Context: CordisContext } = await import('@deepseek-ai/cordis')
+    const context: Context = new CordisContext()
+    const extensions = join(root, 'extensions'); const directory = join(extensions, 'packaged')
+    await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, 'extension.json'), JSON.stringify({ schemaVersion: 1, id: 'packaged', name: 'packaged', version: '1' }))
+    await writeFile(join(directory, 'host.mjs'), 'export default api => { api.action("probe", { run: () => ({ ok: true }) }); api.action("spin", { timeoutMs: 100, run: () => { while (true) {} } }) }')
+    const service = new module.MobileAccessService(context)
     try {
-      await writeFile(join(root, 'extension.json'), JSON.stringify({ schemaVersion: 1, id: 'smoke', name: 'smoke', version: '1.0.0' }))
-      await writeFile(join(root, 'host.mjs'), `
-export default (api) => {
-  api.action('spin', { timeoutMs: 200, run: () => { while (true) {} } })
-  api.action('probe', { run: async () => ({ ok: true }) })
-}
-`)
-      const supervisorModule = await import(artifacts.supervisorBundle) as typeof import('../src/extension-worker.js')
-      const ExtensionWorkerHost = supervisorModule.ExtensionWorkerHost
-      const host = new ExtensionWorkerHost({
-        // THE point of the smoke: the worker file comes from the npm artifact.
-        workerModule: join(packed!.extracted, 'lib', 'extension-worker-runtime.mjs'),
-        hostFile: join(root, 'host.mjs'),
-        manifest: { schemaVersion: 1, id: 'smoke', name: 'smoke', version: '1.0.0' },
-        generation: 'pack-smoke',
-        logger: { debug() {}, info() {}, warn() {}, error() {} },
-      })
-      const activated = await host.activate()
-      expect(activated.actions.map(action => action.name)).toEqual(['spin', 'probe'])
-      const blocked = host.invoke('spin', {}, { signal: new AbortController().signal, deviceId: 'device' })
-      await expect(blocked).rejects.toMatchObject({ code: 'extension_action_timeout' })
-      await expect(Promise.race([host.whenExited().then(() => true), new Promise(resolve => { setTimeout(() => resolve(false), 4_000) })])).resolves.toBe(true)
-      await rm(root, { recursive: true, force: true })
-    } catch (error) {
-      await rm(root, { recursive: true, force: true })
-      throw error
-    }
-  }, 30_000)
+      // No workerModule override: import.meta.url in the installed artifact must find its adjacent entry.
+      await service.startLocal(extensions, context, { hostExecution: { mode: 'worker', cancelGraceMs: 100 } })
+      expect(service.hostStatus().hosts[0]?.state).toBe('ready')
+      const result = await service.invoke('packaged', 'probe', {}, { signal: new AbortController().signal, deviceId: 'device' }) as { readonly bytes: Buffer }
+      expect(result.bytes.toString()).toBe('{"ok":true}')
+      await expect(service.invoke('packaged', 'spin', {}, { signal: new AbortController().signal, deviceId: 'device' })).rejects.toMatchObject({ code: 'extension_action_timeout' })
+    } finally { await service.stopLocal(); await context.fiber.dispose() }
+  })
 })

@@ -1,15 +1,18 @@
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'tsdown'
+import { afterAll } from 'vitest'
 
 /**
- * Spike helper: build the standalone worker-runtime entry into a temp dir.
+ * Build standalone worker artifacts in owned temporary directories.
  *
  * The production artifact comes from the tsdown entry (packaged install smoke
  * covers that path); tests must not depend on a prior full `npm run build`.
  */
 let cached: Promise<{ readonly runtimeEntry: string; readonly supervisorBundle: string }> | undefined
+const ownedDirectories: string[] = []
+afterAll(async () => { for (const directory of ownedDirectories.splice(0)) await rm(directory, { recursive: true, force: true }) })
 
 export interface ExtensionWorkerBuild {
   readonly runtimeEntry: string
@@ -23,6 +26,7 @@ export function buildExtensionWorkerEntry(): Promise<string> {
 export function buildExtensionWorkerArtifacts(): Promise<ExtensionWorkerBuild> {
   cached ??= (async (): Promise<ExtensionWorkerBuild> => {
     const outDir = await mkdtemp(join(tmpdir(), 'dsh-mobile-worker-entry-'))
+    ownedDirectories.push(outDir)
     const shared = {
       // Isolate from tsdown.config.ts (its multi-entry defaults externalize deps).
       // `config: false` is accepted at runtime but absent from UserConfig's type.

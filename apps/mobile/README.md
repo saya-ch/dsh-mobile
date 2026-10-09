@@ -16,6 +16,8 @@ WebViews reporting Chromium below 100 receive a nonblocking update reminder once
 
 These changes are not yet available in the stable APK linked above.
 
+The candidate also protects paired records and legacy migration when encrypted data is temporarily unreadable: it does not treat failed reads as an empty list or replace existing credentials. Storage errors are reported without clearing pairings.
+
 ## 0.6.1 update
 
 The app is rebuilt with matching release metadata. Native functionality, package identity and pairing/renewal protocol are unchanged from 0.6.0, using the established release signer. This release improves the computer-side remote settings and Caddy build/test tooling; it does not enable official managed Caddy installation. See the [release notes](../../CHANGELOG.md#061---2026-10-08).
@@ -73,6 +75,8 @@ On WebView 151 or later, the app gives its own HTTP cache a 64 MiB minimum quota
 
 To remove one computer, delete its row from the device list. A full reset uses Android system app information → clear app data (labels vary by system). It deletes all pairings, cookies, cache and Web storage and requires pairing again; do not use it as the first response to an ordinary reconnection failure.
 
+Deleting a row removes the App's saved device token and pinned certificate, not computer-side authorization. WebView's short-lived site cookies are separate; revoke the device on the computer when access must end immediately. A full App reset clears all sites, so do not use it to remove only one computer.
+
 ## Security properties
 
 | Control | Android behavior |
@@ -98,7 +102,7 @@ Task reminders use Host completion events and explicit pending-input cards while
 
 Only one file-selection or camera interaction runs at a time, with a five-minute deadline. Cancellation, WebView destruction, timeout and stale-session results are cleaned up or rejected. Browsers use corresponding Web APIs and return `unsupported` when unavailable.
 
-From 0.4.7, the app uses plain Enter for a new draft line only when an inset-backed on-screen keyboard is visible, Android reports no hardware keyboard, and an active session composer is focused. The Send button still submits a multiline draft. Floating keyboards, unknown state, older apps, and mobile browsers retain DSH's original Enter behavior; physical keyboards can still use Shift+Enter for a line break.
+From App 0.4.7, its native keyboard adapter uses plain Enter for a new draft line when an inset-backed on-screen keyboard is visible, Android reports no hardware keyboard, and an active session composer is focused. The Send button still submits a multiline draft. Floating keyboards, unknown state and older Apps do not use this native rule; the plugin's touch-browser rule below can still apply. Physical keyboards can use Shift+Enter for a line break.
 
 From 0.6.0, the main composer in touch-primary browsers uses Enter to add a line to a nonempty draft and does nothing for an empty draft. DSH retains menus, composition and modified shortcuts. An external keyboard on a touch-primary browser uses that same rule; a non-touch desktop is unchanged. General settings offers a mobile font size of 12–32px, default 16px, saved for the current address only; editable inputs retain a 16px minimum.
 

@@ -126,7 +126,7 @@ describe('managed cpolar component', () => {
     const manager = new CpolarComponentManager({
       stateDirectory: blocked, platform: 'win32', arch: 'x64', fetchArtifact,
     })
-    await expect(manager.install()).rejects.toThrow('cpolar_storage_failed')
+    await expect(manager.install()).rejects.toThrow('cpolar_path_invalid')
     expect(fetchArtifact).not.toHaveBeenCalled()
   })
 

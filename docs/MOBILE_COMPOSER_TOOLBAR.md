@@ -1,97 +1,19 @@
-# Unified mobile composer toolbar
+# 移动输入栏布局
 
-## Status: requires a coordinated DSH core change
+[English](MOBILE_COMPOSER_TOOLBAR.en.md) · [第三方插件适配](../README.md#第三方插件适配)
 
-This presenter consumes a proposed optional `conversation.input.toolbar` slot.
-The slot is not shipped by this repository. Do not release the unified toolbar
-as working on an unmodified DSH host until the core declaration, renderer props,
-and control-row observer lifecycle are implemented and tested upstream.
+> 0.6.3 候选中的布局调整，尚未发布。Android App 与手机浏览器共用插件提供的页面，不需要为此重装 App。
 
-When the slot is absent, the registration waits for it and the stock composer
-continues to render. That fallback does **not** provide the unified plugin row.
-Desktop hosts do not load the dedicated mobile layout. A wide dedicated mobile
-viewport returns the supplied stock element, except that a live recording holds
-its current layout until it finishes to avoid remounting the recorder.
+窄屏输入栏保留 DSH 原生结构和事件处理。模型名称在空间不足时截断，附加控件正常换行，发送／停止保持触摸尺寸，整组放不下时按实际宽度换行。插件开关不会被拉成操作按钮；内联弹窗、菜单和列表不会套用工具栏的紧凑尺寸。
 
-## Core-owned contract
+## 与 PR 原稿的区别
 
-Declare the optional child on the existing composer entry:
+原稿提出把所有插件合入一个上层横向滚动条，并把原生操作固定在下层。当前 DSH 没有公开父级 `conversation.input.toolbar` 入口，左右插件属于不同 React 父节点；核心宽度观察器还要测量这两个父组。因此本版不提供共同滚动上栏，也不搬动 DOM、复制原生回调或用 `display:contents` 绕过核心布局。
 
-```ts
-'conversation.input.toolbar': { kind: 'single', scope: 'session-maybe' }
-```
+本版采用现有公共插槽能实现的紧凑与溢出修正，保留原稿作者提交并追加维护者调整。若上游以后提供父级工具栏能力，可再评估统一滚动方案，不预先登记一个不会渲染的控件。
 
-The original InputBar must remain the owner of handlers, draft/file state,
-permission checks, session scope, and the activity callback. Render the slot
-with the original toolbar as its fallback and these layout-only props:
+## 验证范围
 
-| Prop | Meaning |
-| --- | --- |
-| `stock` | Original complete toolbar React element, with its original ref |
-| `rowRef` | Original core control-row ref, attached to the horizontal bottom row |
-| `rowClassName` | Original control-row class, including model-collapse CSS |
-| `leading` | Original upload/file input/permission/plan grouping, excluding left plugins |
-| `model` | Original model grouping, excluding right plugins |
-| `actions` | Original send/stop/queue/steer button elements |
-| `pluginsLeft` | Original authorized `conversation.input.left` outlet node |
-| `pluginsRight` | Original authorized `conversation.input.right` outlet node |
-| `activity` | Original activity wrapper/outlet, with the original `onActiveChange` |
-| `activityActive` | Whether the core activity panel is expanded |
+真实 DSH 输入栏与通过公共 left／right／activity 插槽注册的测试扩展共同运行，检查小屏、横屏、较大字号、明暗主题、模型紧凑状态、弹窗、开关以及发送／停止可达性。编辑器、草稿和活跃 activity 的节点保持，不因此重载页面。
 
-Construct the original elements once per core render. Recompose only the core's
-own unmounted grouping elements; do not clone plugin components, relocate DOM,
-redeclare the original child slots, or duplicate send/recording callbacks.
-Pass the original hidden/disabled props through unchanged.
-
-The core observer must bind to the *actual* horizontal leading/trailing row,
-not the vertical presenter root. It must rebind when the row is replaced across
-the wide/phone breakpoint. For example, use a stable callback ref and a layout
-effect keyed by the resulting element, retaining the existing observer:
-
-```tsx
-const [controlRow, setControlRow] = useState<HTMLDivElement | null>(null)
-const rowRef = useCallback((row: HTMLDivElement | null) => {
-  setControlRow(row)
-}, [])
-useLayoutEffect(() => {
-  if (controlRow === null) return
-  return observeControlRow(controlRow)
-}, [controlRow])
-```
-
-## Mobile ownership
-
-- One shared upper horizontal scrollport contains left, right, and idle voice
-  controls; upload/permission/model/actions stay in the fixed bottom row.
-- Preserve natural switch dimensions rather than applying action-button sizes.
-- Keep the activity subtree at the same React path when recording expands.
-- Hold the current presentation while recording crosses the 720px breakpoint.
-  At 721–899px the dedicated shell's closed 56px navigation rail requires an
-  activity-frame left inset; at 900px the shell docks the rail and the inset ends.
-- Do not apply intrinsic toolbar widths or compact button sizing to native
-  dialogs/popovers/menu roots. Non-portaled custom popups still require review.
-- Unwrap the new display-contents SlotOutlet before the native adapter marks
-  the actual stock/dedicated row; otherwise stock sizing leaks into plugins.
-
-## Verification and limitations
-
-Repository checks: typecheck and the presenter/native/layout focused tests.
-The presenter unit tests mock hooks: they establish composition and style
-contracts, **not** mounted recording continuity or full SDK integration.
-
-A local integration experiment used the real DSH slot renderer and original
-AutoContinue, CodexConnect, and voice components with substituted candidate
-module responses. It covered 320/390/430px, one shared horizontal scrollport,
-no vertical or page overflow, 36x20 switches, fixed 44px single/dual actions,
-upload/model menus and the original native task dialog. The task control's
-unavailable response and dual-action flags were UI-only fixtures, not changes
-to live user/session state. A browser-generated silent stream exercised the
-original voice recorder and cancellation at 760px, unchanged mount counters,
-899/900px inset boundary, and stock/mobile observer rebinding.
-
-Those local integration scripts and runtime-specific archive patches are not
-part of this portable repository change. Repeat the SDK integration checks
-against the canonical upstream core implementation before release. Hardware
-microphone permissions, provider transcription, Android touch gestures,
-session changes, and administrative plugin unload remain acceptance checks;
-do not infer them from the mocked tests or the silent-stream experiment.
+activity 夹具只验证插槽和挂载连续性，不代表真实麦克风或语音识别。任意社区插件组合仍可能有自己的布局问题；可使用[移动页面模块](CLIENT_MODULES.md)关闭不需要的可选模块。

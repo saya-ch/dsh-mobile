@@ -1,538 +1,397 @@
-/**
- * Spike (Phase 2 de-risking): parent-side supervisor for one extension worker.
- *
- * One ExtensionWorkerHost owns one worker per live extension generation. It
- * activates the worker (receiving metadata-only registration), proxies action
- * and route invocations over request IDs, forwards bounded logger traffic, and
- * can cancel and terminate a worker even when the worker is synchronously
- * blocked. Replies from obsolete runtimes are ignored.
- */
+/** Supervise opt-in local hosts without executing extension code on the DSH thread. */
 import { randomUUID } from 'node:crypto'
 import { Worker } from 'node:worker_threads'
 import { Readable } from 'node:stream'
 import { MobileExtensionError, type LocalExtensionManifest, type MobileRouteRequest, type MobileRouteResponse } from './extensions.js'
-import {
-  WORKER_DEADLINE_GRACE_MS,
-  WORKER_OPERATION_TIMEOUT_MS,
-  WORKER_STREAM_CANCEL_GRACE_MS,
-  type ParentMessage,
-  type WorkerActionMetadata,
-  type WorkerRouteMetadata,
-  type WorkerMessage,
-} from './extension-worker-protocol.js'
+import { resolveHostExecution, type HostExecutionConfig, type ResolvedHostExecutionConfig } from './extension-worker-config.js'
+import { WORKER_RESPONSE_METADATA_MAX_BYTES, type ParentMessage, type WorkerActionMetadata, type WorkerRouteMetadata } from './extension-worker-protocol.js'
 
-/** An action result that crossed the boundary as worker-serialized JSON bytes. */
-export class PreparedJsonResult {
-  constructor(readonly bytes: Buffer) {}
-}
-
-/** Type guard for prepared worker results at the gateway boundary. */
-export function isPreparedJson(value: unknown): value is PreparedJsonResult {
-  return value instanceof PreparedJsonResult
-}
-
-/**
- * Resolve the packaged worker entry next to this module (lib/ adjacency) as a
- * URL object — `new Worker()` accepts a URL object, but a stringified file:
- * URL is treated as a filesystem path and fails with ERR_WORKER_PATH.
- */
-export function defaultExtensionWorkerModule(): URL {
-  return new URL('./extension-worker-runtime.mjs', import.meta.url)
-}
-
-/** Parent logger shape forwarded from the worker's logger-only context adapter. */
+/** JSON bytes serialized and size-checked inside the worker. */
+export class PreparedJsonResult { constructor(readonly bytes: Buffer) {} }
+/** Identify worker results without invoking an extension serializer in the gateway. */
+export function isPreparedJson(value: unknown): value is PreparedJsonResult { return value instanceof PreparedJsonResult }
+/** Resolve the installed standalone entry adjacent to the plugin bundle. */
+export function defaultExtensionWorkerModule(): URL { return new URL('./extension-worker-runtime.mjs', import.meta.url) }
+/** Worker context is logger-only, never a Cordis Context or service proxy. */
 export type WorkerParentLogger = Record<'debug' | 'info' | 'warn' | 'error', (...args: unknown[]) => void>
 
+/** Every thread counts until actual exit, including activation, retirement and termination. */
+export class ExtensionWorkerBudget {
+  private count = 0
+  constructor(readonly maximum: number) {}
+  get current(): number { return this.count }
+  reserve(): () => void {
+    if (this.count >= this.maximum) throw new MobileExtensionError('extension_worker_limit', 'local extension worker limit reached', 503)
+    this.count += 1
+    let released = false
+    return () => { if (!released) { released = true; this.count -= 1 } }
+  }
+}
 export interface ExtensionWorkerHostOptions {
-  /** Path or URL object of the standalone worker entry (lib/extension-worker-runtime.mjs or a test build). */
   readonly workerModule: string | URL
   readonly hostFile: string
   readonly manifest: LocalExtensionManifest
   readonly generation: string
   readonly logger: WorkerParentLogger
   readonly activationTimeoutMs?: number
+  readonly limits?: HostExecutionConfig
+  readonly budget?: ExtensionWorkerBudget
+  readonly onUnavailable?: (error: MobileExtensionError) => void
 }
-
 export interface ExtensionWorkerActivation {
   readonly runtimeId: string
   readonly actions: readonly WorkerActionMetadata[]
   readonly routes: readonly WorkerRouteMetadata[]
 }
-
-interface PendingRpc {
-  readonly resolve: (value: PreparedJsonResult) => void
-  readonly reject: (reason: Error) => void
-}
-
-const ACTIVATION_TIMEOUT_MS = 5_000
-const DISPOSE_GRACE_MS = 2_000
-
-/** Marker used for the activation RPC and the dispose handshake. */
+interface PendingRpc<T> { readonly resolve: (value: T) => void; readonly reject: (error: Error) => void; readonly cleanup: () => void }
+interface LiveStream { readonly bridge: WorkerStreamBridge; unacked: number; ended: boolean; cancelTimer?: NodeJS.Timeout }
+/** Diagnostic count; production admission uses an instance-owned budget. */
+export const activeWorkerCount = { current: 0 }
 const LIFECYCLE_ID = 'lifecycle'
 
-/** Live worker threads across all supervisors — leak evidence for tests. */
-export const activeWorkerCount = { current: 0 }
+/** Node accepts quoted NODE_OPTIONS words; inspect option names without exposing their values. */
+function nodeOptionWords(value: string): string[] {
+  const words:string[]=[]
+  let word='';let quoted=false;let escaped=false
+  for(const character of value){
+    if(escaped){word+=character;escaped=false;continue}
+    if(character==='\\'){escaped=true;continue}
+    if(character==='"'){quoted=!quoted;continue}
+    if(/\s/u.test(character)&&!quoted){if(word!==''){words.push(word);word=''};continue}
+    word+=character
+  }
+  if(word!=='')words.push(word)
+  return words
+}
+
+/** Known parent V8 heap flags take precedence over Worker resourceLimits. */
+export function parentWorkerHeapOverrides(argv:readonly string[],nodeOptions:string|undefined):readonly string[]{
+  const heapFlags=new Set(['--max-old-space-size','--max-semi-space-size','--max-heap-size','--max-old-space-size-percentage'])
+  const found=new Set<string>()
+  for(const argument of [...argv,...nodeOptionWords(nodeOptions??'')]){
+    const name=argument.split('=',1)[0]!.replaceAll('_','-')
+    if(heapFlags.has(name))found.add(name)
+  }
+  return Object.freeze([...found])
+}
+const initialNodeOptions=process.env.NODE_OPTIONS
 
 export class ExtensionWorkerHost {
-  private readonly options: ExtensionWorkerHostOptions
-  private readonly pending = new Map<string, PendingRpc>()
-  private readonly routePending = new Map<string, { readonly resolve: (value: MobileRouteResponse) => void; readonly reject: (reason: Error) => void }>()
+  private readonly limits: ResolvedHostExecutionConfig
+  private readonly worker: Worker
+  private readonly pending = new Map<string, PendingRpc<PreparedJsonResult>>()
+  private readonly routePending = new Map<string, PendingRpc<MobileRouteResponse>>()
   private readonly streams = new Map<string, LiveStream>()
+  private readonly detachedRoutes = new Set<string>()
+  private readonly executionGrace = new Map<string, NodeJS.Timeout>()
+  private readonly exited: Promise<void>
+  private readonly unavailableController = new AbortController()
+  private termination: Promise<void> | undefined
+  private activation: ExtensionWorkerActivation | undefined
+  private dead = false
+  private disposed = false
   private maxBufferedBytes = 0
   private cancelledStreams = 0
-  private readonly worker: Worker
-  private runtimeId: string | undefined
-  private dead = false
-  private readonly exited: Promise<void>
-  private disposed = false
-  /** Deadline-detached routes whose late responses need cancel supervision. */
-  private readonly detachedRoutes = new Set<string>()
-  /** Per-request cleanup-grace timers; fire only if the work is still live. */
-  private readonly executionGrace = new Map<string, NodeJS.Timeout>()
+  private logWindowStart = Date.now()
+  private logCount = 0
+  private stdioBytes = 0
+  private stdioResume: NodeJS.Timeout | undefined
 
-  constructor(options: ExtensionWorkerHostOptions) {
-    this.options = options
-    this.worker = new Worker(options.workerModule, { type: 'module' } as ConstructorParameters<typeof Worker>[1])
+  constructor(private readonly options: ExtensionWorkerHostOptions) {
+    this.limits = resolveHostExecution(options.limits)
+    const overrides=new Set(parentWorkerHeapOverrides(process.execArgv,initialNodeOptions))
+    for(const flag of parentWorkerHeapOverrides([],process.env.NODE_OPTIONS))overrides.add(flag)
+    if(overrides.size>0)throw new MobileExtensionError('extension_worker_heap_override',`worker heap limits require launching DSH without ${[...overrides].join(', ')}`,503)
+    const release = options.budget?.reserve() ?? (() => undefined)
+    try {
+      this.worker = new Worker(options.workerModule, {
+        workerData: { limits: this.limits }, stdout: true, stderr: true,
+        resourceLimits: { maxOldGenerationSizeMb: this.limits.maxOldGenerationSizeMb, maxYoungGenerationSizeMb: this.limits.maxYoungGenerationSizeMb, stackSizeMb: this.limits.stackSizeMb },
+      })
+    } catch (error) { release(); throw error }
+    // Extension console output has no ambient parent stdout; only the bounded logger adapter is forwarded.
+    const drainConsole = (chunk: Buffer): void => {
+      this.stdioBytes += chunk.byteLength
+      if (this.stdioBytes < this.limits.logMessageBytes * this.limits.logMessagesPerWindow || this.stdioResume !== undefined) return
+      this.worker.stdout?.pause(); this.worker.stderr?.pause()
+      this.stdioResume = setTimeout(() => {
+        this.stdioResume = undefined; this.stdioBytes = 0
+        if (!this.dead) { this.worker.stdout?.resume(); this.worker.stderr?.resume() }
+      }, this.limits.logWindowMs)
+      this.stdioResume.unref()
+    }
+    this.worker.stdout?.on('data', drainConsole); this.worker.stderr?.on('data', drainConsole)
     this.worker.unref()
     activeWorkerCount.current += 1
     this.exited = new Promise<void>(resolve => {
       this.worker.once('exit', () => {
         this.dead = true
-        activeWorkerCount.current -= 1
-        this.rejectPending(new MobileExtensionError('extension_host_unavailable', `extension ${options.manifest.id} worker exited`, 503))
-        for (const stream of this.streams.values()) stream.bridge.destroy()
+        if (this.stdioResume !== undefined) clearTimeout(this.stdioResume)
+        this.markUnavailable()
+        release(); activeWorkerCount.current -= 1
+        for (const timer of this.executionGrace.values()) clearTimeout(timer)
+        this.executionGrace.clear()
+        const error = this.unavailable()
+        for (const entry of this.pending.values()) { entry.cleanup(); entry.reject(error) }
+        for (const entry of this.routePending.values()) { entry.cleanup(); entry.reject(error) }
+        this.pending.clear(); this.routePending.clear(); this.detachedRoutes.clear()
+        for (const live of this.streams.values()) {
+          if (live.cancelTimer !== undefined) clearTimeout(live.cancelTimer)
+          live.bridge.destroy(error)
+        }
         this.streams.clear()
         resolve()
       })
     })
     this.worker.on('message', (raw: unknown) => {
-      // A malformed or hostile worker message must never crash the parent.
-      try { this.handleMessage(raw) } catch { /* dropped */ }
+      try { this.handleMessage(raw) } catch (error) { void error; void this.terminate('invalid-worker-message') }
     })
-    this.worker.on('error', () => {
-      // Uncaught worker exception: force termination so pending callers settle.
-      void this.terminate('worker-error')
-    })
+    this.worker.on('error', () => { void this.terminate('worker-error') })
   }
-
-  /** Activate the generation inside the worker and receive metadata-only registration. */
+  /** A stopped generation never silently respawns. */
+  available(): boolean { return !this.dead && this.termination === undefined && !this.disposed && !this.unavailableController.signal.aborted }
+  /** Activate once and receive executable-free registration metadata. */
   async activate(): Promise<ExtensionWorkerActivation> {
-    await this.rpc(LIFECYCLE_ID, {
-      kind: 'activate',
-      id: LIFECYCLE_ID,
-      hostFile: this.options.hostFile,
-      generation: this.options.generation,
-      manifest: this.options.manifest,
-    }, this.options.activationTimeoutMs ?? ACTIVATION_TIMEOUT_MS, new AbortController().signal)
-    if (this.activation === undefined) throw new MobileExtensionError('host_activation_failed', `extension ${this.options.manifest.id} worker activation failed`, 500)
-    return this.activation
-  }
-
-  private activation: ExtensionWorkerActivation | undefined
-
-  /** Metadata-only registration received at activation; empty before activation. */
-  actionMetadata(): readonly WorkerActionMetadata[] {
-    return this.activation?.actions ?? []
-  }
-
-  /** Route metadata received at activation; empty before activation. */
-  routeMetadata(): readonly WorkerRouteMetadata[] {
-    return this.activation?.routes ?? []
-  }
-
-  /** Invoke one action; the result crosses as worker-serialized JSON bytes. */
-  async invoke(action: string, input: unknown, caller: { readonly signal: AbortSignal; readonly deviceId: string }): Promise<PreparedJsonResult> {
-    if (this.dead) throw new MobileExtensionError('extension_host_unavailable', `extension ${this.options.manifest.id} worker is not running`, 503)
-    const id = randomUUID()
-    const timeoutMs = this.activation?.actions.find(entry => entry.name === action)?.timeoutMs ?? WORKER_OPERATION_TIMEOUT_MS
-    const onAbort = (): void => { this.post({ kind: 'cancel', id }) }
-    if (caller.signal.aborted) throw caller.signal.reason ?? new MobileExtensionError('extension_action_cancelled', 'caller detached', 409)
-    caller.signal.addEventListener('abort', onAbort, { once: true })
-    // The RPC outlives the caller: settlement must observe the underlying work.
-    // A deadline-detached request posts cooperative cancellation first, then
-    // arms the cleanup grace; an unresponsive worker is terminated when the
-    // grace expires with the work still unresolved.
-    const reply = this.rpc(id, { kind: 'invoke', id, action, deviceId: caller.deviceId, input }, 0, caller.signal)
-    void reply.then(() => { this.settleExecutionGrace(id) }, () => { this.settleExecutionGrace(id) })
-    let deadlineTimer: NodeJS.Timeout | undefined
+    let timer: NodeJS.Timeout | undefined
     try {
-      return await Promise.race([
-        reply,
-        new Promise<never>((_, reject) => {
-          deadlineTimer = setTimeout(() => {
-            this.post({ kind: 'cancel', id })
-            this.armExecutionGrace(id, 'deadline-unresponsive')
-            reject(new MobileExtensionError('extension_action_timeout', `extension ${this.options.manifest.id} action ${action} timed out`, 500))
-          }, timeoutMs)
-          deadlineTimer.unref?.()
-        }),
-      ])
-    } finally {
-      if (deadlineTimer !== undefined) clearTimeout(deadlineTimer)
-      caller.signal.removeEventListener('abort', onAbort)
-    }
-  }
-
-  /** Invoke one route; streams arrive as credit-controlled chunks over a bridge Readable. */
-  async handleRoute(routeIndex: number, request: MobileRouteRequest): Promise<MobileRouteResponse> {
-    if (this.dead) throw new MobileExtensionError('extension_host_unavailable', `extension ${this.options.manifest.id} worker is not running`, 503)
-    const id = randomUUID()
-    // Handler deadline (until the response or stream-start crosses); the stream
-    // itself has no handler deadline — cancellation initiates bounded cleanup.
-    const timeoutMs = this.activation?.routes[routeIndex]?.timeoutMs ?? WORKER_OPERATION_TIMEOUT_MS
-    const onAbort = (): void => {
-      this.post({ kind: 'cancel', id })
-      this.cancelStream(id, 'caller-abort')
-    }
-    if (request.signal.aborted) throw request.signal.reason ?? new MobileExtensionError('extension_route_cancelled', 'caller detached', 409)
-    request.signal.addEventListener('abort', onAbort, { once: true })
-    const reply = new Promise<MobileRouteResponse>((resolve, reject) => {
-      this.routePending.set(id, { resolve, reject })
-      this.post({
-        kind: 'route', id, routeIndex,
-        method: request.method, path: request.pathname,
-        query: [...request.query.entries()].map(([key, value]) => [key, value] as const),
-        headers: request.headers, body: new Uint8Array(request.body), deviceId: request.deviceId,
+      const reply = new Promise<PreparedJsonResult>((resolve, reject) => {
+        this.pending.set(LIFECYCLE_ID, { resolve, reject, cleanup: () => undefined })
+        this.post({ kind: 'activate', id: LIFECYCLE_ID, hostFile: this.options.hostFile, generation: this.options.generation, manifest: this.options.manifest })
       })
+      await Promise.race([reply, new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new MobileExtensionError('host_load_timeout', 'extension worker activation timed out', 500)), this.options.activationTimeoutMs ?? this.limits.activationTimeoutMs)
+      })])
+      if (this.activation === undefined) throw new MobileExtensionError('host_activation_failed', 'extension worker activation failed', 500)
+      return this.activation
+    } catch (error) { await this.terminate('activation-failed'); throw error }
+    finally { if (timer !== undefined) clearTimeout(timer) }
+  }
+  actionMetadata(): readonly WorkerActionMetadata[] { return this.activation?.actions ?? [] }
+  routeMetadata(): readonly WorkerRouteMetadata[] { return this.activation?.routes ?? [] }
+
+  /** Underlying action: settles only when execution completes or the thread exits. */
+  invokeExecution(action: string, input: unknown, caller: { readonly signal: AbortSignal; readonly deviceId: string }): Promise<PreparedJsonResult> {
+    if (!this.available()) return Promise.reject(this.unavailable())
+    if (caller.signal.aborted) return Promise.reject(caller.signal.reason)
+    const id = randomUUID()
+    return new Promise<PreparedJsonResult>((resolve, reject) => {
+      const onAbort = (): void => { this.post({ kind: 'cancel', id }); this.armExecutionGrace(id) }
+      caller.signal.addEventListener('abort', onAbort, { once: true })
+      this.pending.set(id, { resolve, reject, cleanup: () => { caller.signal.removeEventListener('abort', onAbort); this.settleExecutionGrace(id) } })
+      try { this.post({ kind: 'invoke', id, action, deviceId: caller.deviceId, input }) }
+      catch (error) { this.pending.get(id)?.cleanup(); this.pending.delete(id); reject(error instanceof Error ? error : new Error(String(error))) }
     })
-    // The reply promise outlives the caller. A late stream response for a
-    // detached caller is intercepted (cancelled and supervised to an end)
-    // instead of resolving into a bridge nobody consumes.
-    void reply.then(() => { this.settleExecutionGrace(id) }, () => { this.settleExecutionGrace(id) })
-    let deadlineTimer: NodeJS.Timeout | undefined
+  }
+  /** Direct caller budget; service dispatch observes invokeExecution separately. */
+  invoke(action: string, input: unknown, caller: { readonly signal: AbortSignal; readonly deviceId: string }): Promise<PreparedJsonResult> {
+    return this.callerBudget(signal => this.invokeExecution(action, input, { ...caller, signal }), caller.signal,
+      this.actionMetadata().find(entry => entry.name === action)?.timeoutMs ?? this.limits.operationTimeoutMs, 'extension_action_timeout')
+  }
+  /** Underlying route: late streams are cancelled and observed to confirmed end. */
+  handleRouteExecution(routeIndex: number, request: MobileRouteRequest): Promise<MobileRouteResponse> {
+    if (!this.available()) return Promise.reject(this.unavailable())
+    if (request.signal.aborted) return Promise.reject(request.signal.reason)
+    const id = randomUUID()
+    return new Promise<MobileRouteResponse>((resolve, reject) => {
+      const onAbort = (): void => {
+        this.post({ kind: 'cancel', id })
+        if (this.routePending.has(id)) { this.detachedRoutes.add(id); this.armExecutionGrace(id) }
+        this.cancelStream(id)
+      }
+      request.signal.addEventListener('abort', onAbort, { once: true })
+      this.routePending.set(id, { resolve, reject, cleanup: () => { request.signal.removeEventListener('abort', onAbort); this.settleExecutionGrace(id) } })
+      try { this.post({ kind: 'route', id, routeIndex, method: request.method, path: request.pathname, query: [...request.query.entries()], headers: request.headers, body: new Uint8Array(request.body), deviceId: request.deviceId }) }
+      catch (error) { this.routePending.get(id)?.cleanup(); this.routePending.delete(id); reject(error instanceof Error ? error : new Error(String(error))) }
+    })
+  }
+  /** Handler budget ends at stream-start; stream lifetime remains cancellation-bound. */
+  handleRoute(routeIndex: number, request: MobileRouteRequest): Promise<MobileRouteResponse> {
+    return this.callerBudget(signal => this.handleRouteExecution(routeIndex, { ...request, signal }), request.signal,
+      this.routeMetadata()[routeIndex]?.timeoutMs ?? this.limits.operationTimeoutMs, 'extension_route_timeout', true)
+  }
+  private async callerBudget<T>(start: (signal: AbortSignal) => Promise<T>, external: AbortSignal, timeoutMs: number, code: string, holdForStream = false): Promise<T> {
+    const controller = new AbortController()
+    let timer: NodeJS.Timeout | undefined
+    let detach: ((error: unknown) => void) | undefined
+    const onAbort = (): void => { controller.abort(external.reason); detach?.(external.reason ?? new MobileExtensionError('extension_cancelled', 'caller cancelled', 409)) }
+    const onUnavailable = (): void => { detach?.(this.unavailableController.signal.reason) }
+    if (external.aborted) throw external.reason
+    if (!this.available()) throw this.unavailable()
+    external.addEventListener('abort', onAbort, { once: true }); this.unavailableController.signal.addEventListener('abort', onUnavailable, { once: true })
+    const release = (): void => { external.removeEventListener('abort', onAbort); this.unavailableController.signal.removeEventListener('abort', onUnavailable); if (timer !== undefined) clearTimeout(timer) }
+    let retained = false
     try {
-      return await Promise.race([
-        reply,
-        new Promise<never>((_, reject) => {
-          deadlineTimer = setTimeout(() => {
-            this.post({ kind: 'cancel', id })
-            if (this.routePending.has(id)) this.detachedRoutes.add(id)
-            this.armExecutionGrace(id, 'route-deadline-unresponsive')
-            reject(new MobileExtensionError('extension_route_timeout', `extension ${this.options.manifest.id} route ${request.method} ${request.pathname} timed out`, 500))
-          }, timeoutMs)
-          deadlineTimer.unref?.()
-        }),
-      ])
-    } finally {
-      if (deadlineTimer !== undefined) clearTimeout(deadlineTimer)
-      request.signal.removeEventListener('abort', onAbort)
-    }
+      const result = await Promise.race([start(controller.signal), new Promise<never>((_, reject) => {
+        detach = reject
+        timer = setTimeout(() => { const error = new MobileExtensionError(code, 'extension operation timed out', 500); controller.abort(error); reject(error) }, timeoutMs)
+      })])
+      if (holdForStream && result !== null && typeof result === 'object' && 'body' in result && result.body instanceof Readable) {
+        retained = true
+        result.body.once('close', release); result.body.once('end', release)
+      }
+      return result
+    } finally { if (timer !== undefined) clearTimeout(timer); if (!retained) release() }
   }
-
-  /** Observable stream-flow stats for tests and evidence. */
-  streamStats(): { readonly activeStreams: number; readonly maxBufferedBytes: number; readonly cancelledStreams: number } {
-    return { activeStreams: this.streams.size, maxBufferedBytes: this.maxBufferedBytes, cancelledStreams: this.cancelledStreams }
+  streamStats(): { readonly activeStreams: number; readonly maxBufferedBytes: number; readonly cancelledStreams: number; readonly bufferedBytes: number } {
+    return { activeStreams: [...this.streams.values()].filter(live => !live.ended).length, maxBufferedBytes: this.maxBufferedBytes, cancelledStreams: this.cancelledStreams, bufferedBytes: this.totalUnacked() }
   }
-
-  /** Stop the generation inside the worker, bounded, then hard-terminate. */
+  /** Graceful effects cleanup followed by termination; completion requires actual exit. */
   async dispose(): Promise<void> {
-    if (this.disposed || this.dead) { await this.terminate('dispose-skipped'); return }
+    if (!this.available()) { await this.terminate('dispose-unavailable'); return }
     this.disposed = true
+    let timer: NodeJS.Timeout | undefined
     try {
-      await this.rpc(LIFECYCLE_ID, { kind: 'dispose', id: LIFECYCLE_ID }, DISPOSE_GRACE_MS, new AbortController().signal)
-    } catch { /* grace expiry falls through to termination */ }
-    await this.terminate('disposed')
+      const reply = new Promise<PreparedJsonResult>((resolve, reject) => { this.pending.set(LIFECYCLE_ID, { resolve, reject, cleanup: () => undefined }); this.post({ kind: 'dispose', id: LIFECYCLE_ID }) })
+      await Promise.race([reply, new Promise<void>(resolve => { timer = setTimeout(resolve, this.limits.disposeGraceMs) })])
+    } finally { if (timer !== undefined) clearTimeout(timer); await this.terminate('disposed') }
   }
-
-  /** Resolve when the worker thread has exited (used by supervised tests). */
-  whenExited(): Promise<void> {
-    return this.exited
-  }
-
-  /**
-   * Arm the cleanup grace for one request: terminate the worker only if the
-   * request's underlying execution is still unresolved when the grace expires.
-   */
-  private armExecutionGrace(id: string, reason: string): void {
-    if (this.dead || this.executionGrace.has(id)) return
-    const timer = setTimeout(() => {
-      this.executionGrace.delete(id)
-      if (this.pending.has(id) || this.routePending.has(id) || this.streams.has(id) || this.detachedRoutes.has(id)) {
-        void this.terminate(reason)
-      }
-    }, WORKER_DEADLINE_GRACE_MS)
-    timer.unref?.()
-    this.executionGrace.set(id, timer)
-  }
-
-  /** Disarm the cleanup grace: the request's execution has been confirmed ended. */
-  private settleExecutionGrace(id: string): void {
-    const timer = this.executionGrace.get(id)
-    if (timer !== undefined) {
-      clearTimeout(timer)
-      this.executionGrace.delete(id)
-    }
-  }
-
-  /** Hard-terminate the worker now; every pending RPC settles unavailable. */
-  async terminate(reason: string): Promise<void> {
-    for (const timer of this.executionGrace.values()) clearTimeout(timer)
-    this.executionGrace.clear()
-    this.detachedRoutes.clear()
-    if (!this.dead) await this.worker.terminate().catch(() => undefined)
+  whenExited(): Promise<void> { return this.exited }
+  /** Stop admission now, retain execution/budget ownership until confirmed thread exit. */
+  terminate(reason: string): Promise<void> {
+    this.markUnavailable()
+    this.termination ??= (async () => { if (!this.dead) await this.worker.terminate(); await this.exited })()
+    // Callers may initiate termination from a listener; the lifecycle owner still awaits and reports failures.
+    void this.termination.catch(() => undefined)
     void reason
-    await this.exited
+    return this.termination
   }
-
-  private async rpc(id: string, message: ParentMessage, timeoutMs: number, signal: AbortSignal): Promise<PreparedJsonResult> {
-    if (this.dead) throw new MobileExtensionError('extension_host_unavailable', `extension ${this.options.manifest.id} worker is not running`, 503)
-    return await new Promise<PreparedJsonResult>((resolve, reject) => {
-      let timer: NodeJS.Timeout | undefined
-      if (timeoutMs > 0) {
-        timer = setTimeout(() => {
-          this.pending.delete(id)
-          reject(new MobileExtensionError('host_load_timeout', `extension ${this.options.manifest.id} worker did not answer`, 500))
-        }, timeoutMs)
-        timer.unref?.()
-      }
-      const settle = (): void => { if (timer !== undefined) clearTimeout(timer) }
-      // The RPC stays pending past caller abort: settlement observes the
-      // underlying work, never the caller's lifetime.
-      void signal.aborted
-      this.pending.set(id, { resolve: value => { settle(); resolve(value) }, reject: reason => { settle(); reject(reason) } })
-      this.post(message)
-    })
+  private unavailable(): MobileExtensionError { return new MobileExtensionError('extension_host_unavailable', `extension ${this.options.manifest.id} worker is unavailable; explicit recovery is required`, 503) }
+  private markUnavailable(): void {
+    if (this.unavailableController.signal.aborted) return
+    const error = this.unavailable(); this.unavailableController.abort(error)
+    try { this.options.onUnavailable?.(error) } catch (cause) { void cause /* Observer failures cannot prevent thread termination. */ }
   }
-
-  private post(message: ParentMessage): void {
-    if (!this.dead) this.worker.postMessage(message)
+  private armExecutionGrace(id: string): void {
+    if (this.executionGrace.has(id) || !this.available()) return
+    const timer = setTimeout(() => { this.executionGrace.delete(id); if (this.pending.has(id) || this.routePending.has(id)) void this.terminate('cancel-unresponsive') }, this.limits.cancelGraceMs)
+    timer.unref(); this.executionGrace.set(id, timer)
   }
-
+  private settleExecutionGrace(id: string): void { const timer = this.executionGrace.get(id); if (timer !== undefined) clearTimeout(timer); this.executionGrace.delete(id) }
+  private post(message: ParentMessage): void { if (!this.dead && this.termination === undefined) this.worker.postMessage(message) }
   private handleMessage(raw: unknown): void {
-    // Envelope validation: worker traffic is semi-trusted at best.
-    if (raw === null || typeof raw !== 'object') return
-    const message = raw as { readonly kind?: unknown }
-    if (typeof message.kind !== 'string') return
+    if (this.dead || raw === null || typeof raw !== 'object') return
+    const message = raw as Record<string, unknown>
     if (message.kind === 'log') {
-      const log = raw as { readonly level?: unknown; readonly args?: unknown }
-      if (log.level !== 'debug' && log.level !== 'info' && log.level !== 'warn' && log.level !== 'error') return
-      if (!Array.isArray(log.args)) return
-      this.options.logger[log.level]?.(...(log.args as readonly unknown[]))
+      if (message.level !== 'debug' && message.level !== 'info' && message.level !== 'warn' && message.level !== 'error') return
+      if (!Array.isArray(message.args) || message.args.some(arg => typeof arg !== 'string')) return
+      if (Date.now() - this.logWindowStart >= this.limits.logWindowMs) { this.logWindowStart = Date.now(); this.logCount = 0 }
+      if (++this.logCount > this.limits.logMessagesPerWindow || Buffer.byteLength(message.args.join('')) > this.limits.logMessageBytes) return
+      try { this.options.logger[message.level](...message.args) } catch (error) { void error /* Logger failures do not change an extension outcome. */ }
       return
     }
-    const tagged = raw as { readonly runtimeId?: unknown; readonly id?: unknown }
-    if (typeof tagged.runtimeId !== 'string') return
+    if (typeof message.runtimeId !== 'string') return
+    if (this.activation !== undefined && message.runtimeId !== this.activation.runtimeId) return
     if (message.kind === 'activated') {
-      const activated = raw as WorkerMessage & { readonly kind: 'activated' }
-      // Replies from obsolete runtimes are ignored.
-      if (this.runtimeId !== undefined && activated.runtimeId !== this.runtimeId) return
-      this.runtimeId = activated.runtimeId
-      this.activation = { runtimeId: activated.runtimeId, actions: activated.actions, routes: activated.routes }
-      this.pending.get(LIFECYCLE_ID)?.resolve(new PreparedJsonResult(Buffer.alloc(0)))
-      this.pending.delete(LIFECYCLE_ID)
+      if (this.activation !== undefined || !Array.isArray(message.actions) || !Array.isArray(message.routes)) throw new Error('invalid activation metadata')
+      const actions = message.actions as WorkerActionMetadata[]
+      const routes = message.routes as WorkerRouteMetadata[]
+      if (actions.length + routes.length > this.limits.maxRegistrations) throw new Error('worker registration limit exceeded')
+      for (const action of actions) if (typeof action?.name !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(action.name)) throw new Error('invalid action metadata')
+      for (const route of routes) if (typeof route?.method !== 'string' || typeof route.path !== 'string') throw new Error('invalid route metadata')
+      this.activation = Object.freeze({ runtimeId: message.runtimeId, actions: Object.freeze(actions), routes: Object.freeze(routes) })
+      const pending = this.pending.get(LIFECYCLE_ID); this.pending.delete(LIFECYCLE_ID); pending?.cleanup(); pending?.resolve(new PreparedJsonResult(Buffer.alloc(0)))
       return
     }
-    if (typeof tagged.id !== 'string') return
-    if (this.runtimeId !== undefined && tagged.runtimeId !== this.runtimeId) return
-    if (message.kind === 'result') {
-      const result = raw as { readonly kind: 'result'; readonly bytes?: unknown }
-      if (!(result.bytes instanceof Uint8Array)) return
-      const pending = this.pending.get(tagged.id)
-      this.pending.delete(tagged.id)
-      pending?.resolve(new PreparedJsonResult(Buffer.from(result.bytes)))
-      return
-    }
-    if (message.kind === 'error') {
-      const failure = raw as { readonly kind: 'error'; readonly code?: unknown; readonly message?: unknown; readonly status?: unknown }
-      if (typeof failure.code !== 'string' || typeof failure.message !== 'string') return
-      const status = Number.isInteger(failure.status) && (failure.status as number) >= 400 && (failure.status as number) <= 599 ? failure.status as number : 500
-      const error = new MobileExtensionError(failure.code, failure.message, status)
-      const pending = this.pending.get(tagged.id)
-      this.pending.delete(tagged.id)
-      pending?.reject(error)
-      const route = this.routePending.get(tagged.id)
-      this.routePending.delete(tagged.id)
-      route?.reject(error)
-      return
-    }
-    if (message.kind === 'route-response') {
-      const response = raw as { readonly kind: 'route-response'; readonly status?: unknown; readonly contentType?: unknown; readonly headers?: unknown; readonly bytes?: unknown }
-      const route = this.routePending.get(tagged.id)
-      if (route === undefined) return
-      // Validate the payload BEFORE taking ownership away: a malformed reply
-      // must reject the caller (and keep cleanup supervision coherent), never
-      // silently orphan the RPC until the default deadline.
-      if (response.bytes !== undefined && !(response.bytes instanceof Uint8Array)) {
-        this.routePending.delete(tagged.id)
-        this.detachedRoutes.delete(tagged.id)
-        route.reject(new MobileExtensionError('extension_failed', 'extension route failed', 500))
-        return
+    if (typeof message.id !== 'string') return
+    const id = message.id
+    if (message.kind === 'result' || message.kind === 'error') {
+      const pending = this.pending.get(id); this.pending.delete(id); pending?.cleanup()
+      if (message.kind === 'result') {
+        if (!(message.bytes instanceof Uint8Array) || message.bytes.byteLength > this.limits.resultMaxBytes) { pending?.reject(new MobileExtensionError('extension_failed', 'invalid worker result', 500)); return }
+        pending?.resolve(new PreparedJsonResult(Buffer.from(message.bytes)))
+      } else {
+        const error = new MobileExtensionError(typeof message.code === 'string' ? message.code.slice(0, 64) : 'extension_failed', typeof message.message === 'string' ? message.message.slice(0, 500) : 'extension failed', typeof message.status === 'number' && Number.isInteger(message.status) && message.status >= 400 && message.status <= 599 ? message.status : 500)
+        pending?.reject(error)
+        const route = this.routePending.get(id); this.routePending.delete(id); this.detachedRoutes.delete(id); route?.cleanup(); route?.reject(error)
       }
-      this.routePending.delete(tagged.id)
-      this.detachedRoutes.delete(tagged.id)
-      route.resolve({
-        ...(typeof response.status === 'number' ? { status: response.status } : {}),
-        ...(typeof response.contentType === 'string' ? { contentType: response.contentType } : {}),
-        ...(typeof response.headers === 'object' && response.headers !== null ? { headers: response.headers as Record<string, string> } : {}),
-        body: response.bytes === undefined ? Buffer.alloc(0) : Buffer.from(response.bytes),
-      })
       return
     }
-    if (message.kind === 'stream-start') {
-      const start = raw as { readonly kind: 'stream-start'; readonly status?: unknown; readonly contentType?: unknown; readonly headers?: unknown }
-      const route = this.routePending.get(tagged.id)
-      if (route === undefined) return
-      // A stream that arrives after its caller timed out belongs to cleanup:
-      // cancel it and supervise until the confirmed end — never open a bridge
-      // nobody consumes.
-      if (this.detachedRoutes.has(tagged.id)) {
-        this.routePending.delete(tagged.id)
-        this.cancelledStreams += 1
-        this.post({ kind: 'stream-cancel', id: tagged.id })
-        return
+    if (message.kind === 'route-response' || message.kind === 'stream-start') {
+      const route = this.routePending.get(id)
+      if (route === undefined) { if (message.kind === 'stream-start') this.post({ kind: 'stream-cancel', id }); return }
+      if (message.kind === 'stream-start' && this.detachedRoutes.has(id)) { this.cancelledStreams += 1; this.post({ kind: 'stream-cancel', id }); return }
+      const response = responseMetadata(message)
+      this.routePending.delete(id); this.detachedRoutes.delete(id)
+      if (message.kind === 'route-response') {
+        route.cleanup()
+        if (!(message.bytes instanceof Uint8Array) || message.bytes.byteLength > this.limits.resultMaxBytes) { route.reject(new MobileExtensionError('invalid_route_response', 'invalid worker route response', 500)); return }
+        route.resolve({ ...response, body: Buffer.from(message.bytes) })
+      } else {
+        this.settleExecutionGrace(id)
+        const live = this.openStream(id, route.cleanup)
+        route.resolve({ ...response, body: live.bridge })
       }
-      this.routePending.delete(tagged.id)
-      const live = this.openStream(tagged.id)
-      route.resolve({
-        ...(typeof start.status === 'number' ? { status: start.status } : {}),
-        ...(typeof start.contentType === 'string' ? { contentType: start.contentType } : {}),
-        ...(typeof start.headers === 'object' && start.headers !== null ? { headers: start.headers as Record<string, string> } : {}),
-        body: live.bridge,
-      })
       return
     }
     if (message.kind === 'stream-chunk') {
-      const chunk = raw as { readonly kind: 'stream-chunk'; readonly bytes?: unknown }
-      if (!(chunk.bytes instanceof Uint8Array)) return
-      const live = this.streams.get(tagged.id)
-      if (live === undefined) return
-      live.unacked += chunk.bytes.byteLength
+      const live = this.streams.get(id)
+      if (live === undefined || live.ended || live.bridge.destroyed) return
+      if (!(message.bytes instanceof Uint8Array) || message.bytes.byteLength > this.limits.streamChunkBytes || live.unacked + message.bytes.byteLength > this.limits.streamWindowBytes || this.totalUnacked() + message.bytes.byteLength > this.limits.streamAggregateBytes) throw new Error('worker exceeded stream credit')
+      live.unacked += message.bytes.byteLength
       this.maxBufferedBytes = Math.max(this.maxBufferedBytes, this.totalUnacked())
-      live.bridge.pushChunk(Buffer.from(chunk.bytes))
+      live.bridge.push(Buffer.from(message.bytes))
       return
     }
-    if (message.kind === 'stream-end') {
-      this.detachedRoutes.delete(tagged.id)
-      this.settleExecutionGrace(tagged.id)
-      this.closeStream(tagged.id)
-      return
-    }
-    if (message.kind === 'stream-error') {
-      const failure = raw as { readonly kind: 'stream-error'; readonly message?: unknown }
-      const live = this.streams.get(tagged.id)
-      this.detachedRoutes.delete(tagged.id)
-      this.settleExecutionGrace(tagged.id)
-      this.closeStream(tagged.id)
-      live?.bridge.destroy(new Error(typeof failure.message === 'string' ? failure.message : 'worker stream failed'))
+    if (message.kind === 'stream-end' || message.kind === 'stream-error') {
+      this.settleExecutionGrace(id)
+      const detached = this.routePending.get(id)
+      if (this.detachedRoutes.delete(id)) { this.routePending.delete(id); detached?.cleanup(); detached?.reject(new MobileExtensionError('extension_cancelled', 'caller detached', 409)) }
+      const live = this.streams.get(id)
+      if (live === undefined) return
+      live.ended = true
+      if (live.cancelTimer !== undefined) clearTimeout(live.cancelTimer)
+      if (message.kind === 'stream-error') live.bridge.destroy(new Error(typeof message.message === 'string' ? message.message.slice(0, 500) : 'worker stream failed'))
+      else if (live.bridge.destroyed) this.streams.delete(id)
+      else live.bridge.push(null)
     }
   }
-
-  /** Aggregate unacknowledged bytes across all live streams (per-worker bound). */
-  private totalUnacked(): number {
-    let total = 0
-    for (const live of this.streams.values()) total += live.unacked
-    return total
-  }
-
-  private openStream(id: string): LiveStream {
-    const live: LiveStream = {
-      bridge: new WorkerStreamBridge(bytes => {
-        live.unacked = Math.max(0, live.unacked - bytes)
-        // Consumed bytes flow back as credit: the worker's window refills.
-        this.post({ kind: 'stream-ack', id, bytes })
-      }),
-      unacked: 0,
-      cancelTimer: undefined,
-      ended: false,
+  private totalUnacked(): number { let total = 0; for (const live of this.streams.values()) total += live.unacked; return total }
+  private openStream(id: string, cleanup: () => void): LiveStream {
+    const live: LiveStream = { bridge: new WorkerStreamBridge(bytes => { live.unacked -= bytes; this.post({ kind: 'stream-ack', id, bytes }) }), unacked: 0, ended: false }
+    live.bridge.on('error', () => undefined)
+    const settle = (): void => {
+      cleanup()
+      if (live.ended) { if (live.unacked > 0) this.post({ kind: 'stream-cancel', id }); this.streams.delete(id) }
+      else this.cancelStream(id)
     }
-    live.bridge.once('close', () => {
-      if (!live.ended) this.cancelStream(id, 'consumer-gone')
-    })
+    live.bridge.once('end', settle); live.bridge.once('close', settle)
     this.streams.set(id, live)
     return live
   }
-
-  private closeStream(id: string): void {
+  private cancelStream(id: string): void {
     const live = this.streams.get(id)
-    if (live === undefined) return
-    live.ended = true
-    if (live.cancelTimer !== undefined) clearTimeout(live.cancelTimer)
-    this.streams.delete(id)
-    live.bridge.pushEnd()
-  }
-
-  /** The consumer is gone: stop the stream, and terminate an unresponsive worker. */
-  private cancelStream(id: string, reason: string): void {
-    void reason
-    const live = this.streams.get(id)
-    if (live === undefined || live.cancelTimer !== undefined) return
-    this.cancelledStreams += 1
-    this.post({ kind: 'stream-cancel', id })
-    live.cancelTimer = setTimeout(() => {
-      if (this.streams.has(id)) void this.terminate('stream-cancel-unresponsive')
-    }, WORKER_STREAM_CANCEL_GRACE_MS)
-    live.cancelTimer.unref?.()
-  }
-
-  private rejectPending(reason: Error): void {
-    for (const pending of this.pending.values()) pending.reject(reason)
-    this.pending.clear()
-    for (const route of this.routePending.values()) route.reject(reason)
-    this.routePending.clear()
+    if (live === undefined || live.ended || live.cancelTimer !== undefined) return
+    this.cancelledStreams += 1; this.post({ kind: 'stream-cancel', id })
+    // Mark the timer before destroying: close listeners may run synchronously in custom consumers.
+    live.cancelTimer = setTimeout(() => { if (!live.ended) void this.terminate('stream-cancel-unresponsive') }, this.limits.streamCancelGraceMs)
+    live.cancelTimer.unref(); live.bridge.destroy()
   }
 }
 
-interface LiveStream {
-  readonly bridge: WorkerStreamBridge
-  unacked: number
-  cancelTimer: NodeJS.Timeout | undefined
-  ended: boolean
+function responseMetadata(message: Record<string, unknown>): Omit<MobileRouteResponse, 'body'> {
+  const headers: Record<string, string> = {}
+  let bytes = typeof message.contentType === 'string' ? Buffer.byteLength(message.contentType) : 0
+  if (message.headers !== undefined) {
+    if (message.headers === null || typeof message.headers !== 'object' || Array.isArray(message.headers)) throw new Error('invalid response headers')
+    const entries = Object.entries(message.headers)
+    if (entries.length > 3) throw new Error('invalid response header count')
+    for (const [key, value] of entries) {
+      if (typeof value !== 'string' || !/^(?:content-disposition|cache-control|etag)$/iu.test(key)) throw new Error('invalid response header')
+      bytes += Buffer.byteLength(key) + Buffer.byteLength(value)
+      if (bytes > WORKER_RESPONSE_METADATA_MAX_BYTES) throw new Error('invalid response header bytes')
+      headers[key] = value
+    }
+  }
+  return { ...(typeof message.status === 'number' ? { status: message.status } : {}), ...(typeof message.contentType === 'string' ? { contentType: message.contentType } : {}), ...(message.headers === undefined ? {} : { headers }) }
 }
-
-/**
- * Parent-side stream bridge: chunks arrive under worker credit control and
- * are acknowledged only as the consumer takes them.
- */
+/** Credit belongs to bytes actually removed by the consumer, including reads after source EOF. */
 class WorkerStreamBridge extends Readable {
-  private readonly queue: Buffer[] = []
-  private readonly consume: (bytes: number) => void
-  private awaiting = false
-
-  constructor(consume: (bytes: number) => void) {
-    super({ highWaterMark: 16 * 1024 })
-    this.consume = consume
-  }
-
-  pushChunk(chunk: Buffer): void {
-    if (this.destroyed) return
-    if (this.awaiting) {
-      this.awaiting = false
-      this.push(chunk)
-      this.consume(chunk.byteLength)
-      return
-    }
-    this.queue.push(chunk)
-  }
-
-  pushEnd(): void {
-    if (this.destroyed) return
-    // Deliver everything already received before signaling EOF: Node will not
-    // call _read again after the stream ends, so queued chunks must be pushed
-    // now or they are lost.
-    while (this.queue.length > 0) {
-      const chunk = this.queue.shift()
-      if (chunk === undefined) break
-      this.push(chunk)
-      this.consume(chunk.byteLength)
-    }
-    this.awaiting = false
-    this.push(null)
-  }
-
-  override _destroy(error: Error | null, callback: (error?: Error | null) => void): void {
-    // A destroyed consumer owns nothing: drop undelivered chunks.
-    this.queue.length = 0
-    this.awaiting = false
-    callback(error)
-  }
-
-  override _read(): void {
-    const next = this.queue.shift()
-    if (next === undefined) {
-      this.awaiting = true
-      return
-    }
-    this.push(next)
-    this.consume(next.byteLength)
+  constructor(private readonly consume: (bytes: number) => void) { super({ highWaterMark: 16 * 1024 }) }
+  override _read(): void { /* The worker's credit window bounds incoming bytes. */ }
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
+    // Node emits data both for explicit read() and for a push() into a flowing pipeline.
+    // Observing read() alone misses the latter and can permanently exhaust stream credit.
+    if (event === 'data' && Buffer.isBuffer(args[0])) this.consume(args[0].byteLength)
+    return super.emit(event, ...args)
   }
 }

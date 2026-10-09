@@ -1,5 +1,5 @@
 /**
- * Supervised runner for the blocking extension-worker scenarios (spike).
+ * Supervised runner for synchronously blocking extension-worker scenarios.
  *
  * Plain ESM on purpose: no TypeScript imports, no vitest. It drives the REAL
  * bundled ExtensionWorkerHost against the REAL worker runtime entry while the
@@ -10,6 +10,7 @@ import { createServer } from 'node:http'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const runtimeEntry = process.argv[2]
 const supervisorBundle = process.argv[3]
@@ -18,7 +19,7 @@ if (runtimeEntry === undefined || supervisorBundle === undefined) {
   process.exit(2)
 }
 
-const { ExtensionWorkerHost } = await import(supervisorBundle)
+const { ExtensionWorkerHost } = await import(pathToFileURL(supervisorBundle).href)
 const noopLogger = { debug() {}, info() {}, warn() {}, error() {} }
 const manifest = { schemaVersion: 1, id: 'blocked', name: 'blocked', version: '1.0.0' }
 

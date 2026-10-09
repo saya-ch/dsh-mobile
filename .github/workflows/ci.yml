@@ -68,6 +68,12 @@ jobs:
       - run: npm run smoke:voice-session
       - run: npm run smoke:composer-keyboard
       - run: npm run smoke:composer-overflow
+      - name: Verify the real stock composer with optional plugin controls
+        if: matrix.dsh == '0.2.0-rc.2' || matrix.dsh == '0.2.1-alpha.2'
+        run: npm run smoke:composer-toolbar
+      - name: Verify packed Worker execution and explicit recovery
+        if: matrix.dsh == '0.2.0-rc.2' || matrix.dsh == '0.2.1-alpha.2'
+        run: npm run smoke:extension-workers
       - name: Verify mobile typography and native page-zoom settings
         if: matrix.dsh == '0.2.1-alpha.2'
         run: npm run smoke:mobile-settings

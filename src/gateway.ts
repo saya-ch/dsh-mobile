@@ -1963,7 +1963,11 @@ export class MobileAccessGateway {
     }
     const stockFrontend = new URL(target.raw, this.address().origin).searchParams.get('frontend') === 'stock'
     const acceptsHtml = request.headers.accept?.split(',').some(value => value.trim().split(';', 1)[0] === 'text/html') ?? false
-    if (request.method === 'GET' && acceptsHtml && !stockFrontend) {
+    // DSH's frontend-static owner renders its boot document only at these
+    // entry points. An HTML Accept header also belongs to plugin previews,
+    // iframe documents and downloads; those must retain their own route.
+    const frontendDocument = target.decodedPathname === '/' || target.decodedPathname === '/index.html'
+    if (request.method === 'GET' && frontendDocument && acceptsHtml && !stockFrontend) {
       await this.proxyMobileIndex(request, response, authorization)
       return
     }
@@ -2323,7 +2327,7 @@ export class MobileAccessGateway {
       const proxied = await new Promise<IncomingMessage>((resolve, reject) => {
         upstreamRequest = requestHttp({
           protocol: 'http:', hostname: stripIpv6Brackets(this.config.upstreamOrigin.hostname),
-          port: Number(this.config.upstreamOrigin.port), method: 'GET', path: '/', headers, agent: false,
+          port: Number(this.config.upstreamOrigin.port), method: 'GET', path: incoming?.url ?? '/', headers, agent: false,
         })
         upstreamRequest.setTimeout(this.config.upstreamTimeoutMs, () => { upstreamRequest?.destroy(new HttpError(504, 'upstream_timeout')) })
         upstreamRequest.once('response', resolve)

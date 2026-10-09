@@ -8,13 +8,12 @@ import {
   mkdtemp,
   readFile,
   readdir,
-  rename,
-  rm,
   writeFile,
 } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { downloadPinnedArtifact } from './component-download.js'
 import { restrictPrivateFile } from './private-file.js'
+import { assertManagedParents, ensureManagedDirectory, removeManagedPaths, removeManagedTree, renameManagedPath, writeManagedPrivateFile } from './managed-files.js'
 
 /** Pinned cpolar components fetched only after an explicit user action. */
 interface CpolarArtifact {
@@ -171,14 +170,19 @@ export async function publishVerifiedCpolarExecutable(
     || basename(executableName) !== executableName || executableName === '.' || executableName === '..') {
     throw new Error('cpolar component storage escaped its private root')
   }
-  const move = operations.move ?? rename
-  const remove = operations.remove ?? (path => rm(path, { recursive: true, force: true }))
+  const move = async (from: string, to: string): Promise<void> => {
+    await assertManagedParents(componentRoot, from, 'cpolar')
+    await assertManagedParents(componentRoot, to, 'cpolar')
+    if (operations.move === undefined) await renameManagedPath(componentRoot, from, to, 'cpolar')
+    else await operations.move(from, to)
+  }
+  const remove = operations.remove ?? (path => removeManagedTree(componentRoot, path, 'cpolar'))
   const candidate = join(componentRoot, `.install-${randomBytes(12).toString('hex')}`)
   const backup = join(componentRoot, `.previous-${randomBytes(12).toString('hex')}`)
   let backupContainsPrevious = false
   let replacementInstalled = false
   try {
-    await mkdir(candidate, { recursive: true, mode: 0o700 })
+    await ensureManagedDirectory(componentRoot, candidate, 'cpolar')
     await copyFile(extracted, join(candidate, executableName))
     await chmod(join(candidate, executableName), 0o700)
     if (await pathExists(componentStorage)) {
@@ -226,7 +230,7 @@ export async function publishVerifiedCpolarExecutable(
 export async function cleanupCpolarInstallStaging(
   staging: string,
   installFailed: boolean,
-  remove: (path: string) => Promise<void> = path => rm(path, { recursive: true, force: true }),
+  remove: (path: string) => Promise<void> = path => removeManagedTree(dirname(path), path, 'cpolar'),
 ): Promise<void> {
   try {
     await remove(staging)
@@ -314,6 +318,7 @@ export class CpolarComponentManager {
   readonly stateRoot: string
   readonly logRoot: string
   private readonly stagingRoot: string
+  private readonly stateDirectory: string
   private readonly platform: NodeJS.Platform
   private readonly arch: string
   private readonly release: CpolarArtifact | undefined
@@ -325,8 +330,9 @@ export class CpolarComponentManager {
   private queue: Promise<void> = Promise.resolve()
 
   constructor(options: CpolarComponentManagerOptions) {
+    if (!isAbsolute(options.stateDirectory)) throw new Error('cpolar state directory must be absolute')
     const stateDirectory = resolve(options.stateDirectory)
-    if (!isAbsolute(stateDirectory)) throw new Error('cpolar state directory must be absolute')
+    this.stateDirectory = stateDirectory
     this.platform = options.platform ?? process.platform
     this.arch = options.arch ?? process.arch
     this.release = CPOLAR_COMPONENT_RELEASES[`${this.platform}-${this.arch}`]
@@ -353,13 +359,24 @@ export class CpolarComponentManager {
   /** Inspect the managed binary and configuration without using global cpolar state. */
   async initialize(): Promise<void> {
     const release = this.release
-    this.installed = release !== undefined && await regularFile(this.executable, release.executableBytes)
-    if (this.installed && release !== undefined && await sha256(this.executable) !== release.executableSha256) {
+    this.installed = false
+    this.configured = false
+    this.errorCode = undefined
+    try {
+      await assertManagedParents(this.stateDirectory, this.executable, 'cpolar')
+      await assertManagedParents(this.stateDirectory, this.configFile, 'cpolar')
+      this.installed = release !== undefined && await regularFile(this.executable, release.executableBytes)
+      if (this.installed && release !== undefined && await sha256(this.executable) !== release.executableSha256) {
+        this.installed = false
+        this.errorCode = 'cpolar_component_invalid'
+      }
+      this.configured = await regularFile(this.configFile)
+      if (this.configured) await restrictPrivateFile(this.configFile)
+    } catch (_error) {
       this.installed = false
+      this.configured = false
       this.errorCode = 'cpolar_component_invalid'
     }
-    this.configured = await regularFile(this.configFile)
-    if (this.configured) await restrictPrivateFile(this.configFile)
   }
 
   /** Return a safe status that never includes the account token. */
@@ -389,8 +406,9 @@ export class CpolarComponentManager {
     return this.enqueue(async () => {
       const release = this.release
       if (release === undefined) throw new Error('cpolar_component_unsupported')
+      await assertManagedParents(this.stateDirectory, this.executable, 'cpolar')
       const staging = await installStep('cpolar_storage_failed', async () => {
-        await mkdir(this.stagingRoot, { recursive: true, mode: 0o700 })
+        await ensureManagedDirectory(this.stateDirectory, this.stagingRoot, 'cpolar')
         return mkdtemp(join(this.stagingRoot, 'install-'))
       })
       let installFailed = false
@@ -418,14 +436,17 @@ export class CpolarComponentManager {
         if (!valid) {
           throw new Error('cpolar_executable_hash_mismatch')
         }
-        await installStep('cpolar_storage_failed', () => publishVerifiedCpolarExecutable(
-          extracted, this.componentRoot, this.componentStorage, release.executableName,
-        ))
+        await installStep('cpolar_storage_failed', async () => {
+          await ensureManagedDirectory(this.stateDirectory, this.componentRoot, 'cpolar')
+          await assertManagedParents(this.stateDirectory, this.executable, 'cpolar')
+          await publishVerifiedCpolarExecutable(extracted, this.componentRoot, this.componentStorage, release.executableName)
+        })
         this.installed = true
         this.errorCode = undefined
       } catch (error) {
         installFailed = true
         try {
+          await assertManagedParents(this.stateDirectory, this.executable, 'cpolar')
           this.installed = await regularFile(this.executable, release.executableBytes)
             && await sha256(this.executable) === release.executableSha256
         } catch (_inspectionError) {
@@ -433,7 +454,7 @@ export class CpolarComponentManager {
         }
         throw error
       } finally {
-        await cleanupCpolarInstallStaging(staging, installFailed)
+        await cleanupCpolarInstallStaging(staging, installFailed, path => removeManagedTree(this.stateDirectory, path, 'cpolar'))
       }
     })
   }
@@ -442,17 +463,8 @@ export class CpolarComponentManager {
   configure(authtoken: unknown): Promise<CpolarComponentStatus> {
     return this.enqueue(async () => {
       const token = validateCpolarAuthtoken(authtoken)
-      await mkdir(this.stateRoot, { recursive: true, mode: 0o700 })
-      const temporary = join(this.stateRoot, `.cpolar.${randomBytes(12).toString('hex')}.tmp`)
       const body = `authtoken: ${JSON.stringify(token)}\nconsole_ui: false\nupdate: false\ninspect_db_size: -1\n`
-      try {
-        await writeFile(temporary, body, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
-        await rename(temporary, this.configFile)
-        await restrictPrivateFile(this.configFile)
-      } catch (error) {
-        await rm(temporary, { force: true })
-        throw error
-      }
+      await writeManagedPrivateFile(this.stateDirectory, this.configFile, body, 'cpolar')
       this.configured = true
       this.errorCode = undefined
     })
@@ -461,12 +473,7 @@ export class CpolarComponentManager {
   /** Remove every cpolar file owned by DSH Mobile without touching global state. */
   purge(): Promise<CpolarComponentStatus> {
     return this.enqueue(async () => {
-      await Promise.all([
-        rm(this.componentRoot, { recursive: true, force: true }),
-        rm(this.stateRoot, { recursive: true, force: true }),
-        rm(this.logRoot, { recursive: true, force: true }),
-        rm(this.stagingRoot, { recursive: true, force: true }),
-      ])
+      await removeManagedPaths(this.stateDirectory, [this.componentRoot, this.stateRoot, this.logRoot, this.stagingRoot], 'cpolar')
       this.installed = false
       this.configured = false
       this.errorCode = undefined

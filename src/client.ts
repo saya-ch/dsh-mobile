@@ -15,6 +15,8 @@ import { MobileDisplayScaleRow } from './mobile-display-scale.js'
 import { CLIENT_MODULE_STYLES, ClientModuleSettingsRow, closeClientModuleDialog, disposeClientModuleDialogs } from './client-module-ui.js'
 import { isDesktopAdminSurface, localAdminRequestHeaders } from './local-admin-host.js'
 import { fireDeviceRevoked, fireTaskNotifyEvent, isDeviceRevokedPayload, parseTaskNotifyPayload, taskCompletionTag } from './task-notify.js'
+import { EXTENSION_RECOVERY_STYLES, installExtensionRecoveryControl } from './extension-recovery-ui.js'
+import { invokeBoundNativeCapability } from './native-capability.js'
 
 export { DIAGNOSTIC_REASON_MESSAGES, LOCALIZED_DIAGNOSTIC_COPY, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
@@ -711,6 +713,14 @@ const REMOTE_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   funnel_https_required: 'funnelHttps',
   funnel_start_failed: 'funnelStart',
   funnel_start_timeout: 'funnelTimeout',
+  funnel_state_invalid: 'funnelStateInvalid',
+  cpolar_path_invalid: 'componentPathUnsafe',
+  cloudflared_path_invalid: 'componentPathUnsafe',
+  cloudflared_tunnel_path_invalid: 'componentPathUnsafe',
+  frp_path_invalid: 'componentPathUnsafe',
+  frp_config_path_invalid: 'componentPathUnsafe',
+  frp_ingress_path_invalid: 'componentPathUnsafe',
+  caddy_path_invalid: 'componentPathUnsafe',
   tailscale_dns_missing: 'tailscaleDnsMissing',
   gateway_start_failed: 'gatewayStartFailed',
   control_channel_failed: 'controlChannelFailed',
@@ -802,6 +812,7 @@ const DIAGNOSTIC_CONTROLLER_ACTION_CODES: ReadonlySet<string> = new Set([
   'funnel_permission_required', 'funnel_https_required', 'funnel_start_failed', 'funnel_start_timeout',
   'tailscale_dns_missing', 'control_channel_failed', 'gateway_start_failed',
   'cpolar_component_missing', 'cpolar_component_invalid', 'cpolar_config_missing', 'cpolar_config_invalid',
+  'funnel_state_invalid',
   'cpolar_start_timeout', 'cpolar_stopped', 'cpolar_exited',
   'cloudflared_component_missing', 'cloudflared_component_invalid', 'cloudflared_component_unsupported',
   'cloudflared_port_unavailable', 'cloudflared_port_reservation_failed', 'cloudflared_launch_failed',
@@ -850,6 +861,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const t = controlTranslator(locale)
   const lifecycle = new AbortController()
   const controlRequestJson = (path: string, init?: RequestInit, timeoutMs?: number): Promise<Record<string, unknown>> => requestJson(path, { ...init, signal: lifecycle.signal }, timeoutMs)
+  const extensionRecovery = installExtensionRecoveryControl({ document, signal: lifecycle.signal, request: controlRequestJson, confirm: message => window.confirm(message), translate: t })
   const root = element('div', 'dsh-mobile-control'); root.lang = locale
   const panel = element('section', 'dsh-mobile-control__panel'); panel.id = CONTROL_PANEL_ID; panel.hidden = true; panel.lang = locale
   panel.setAttribute('aria-label', t('mobileAccess'))
@@ -1477,7 +1489,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   lanView.append(lanSetup, access, qrBox, status, extensionStatus, actions, manageRow, devicePanel, trustedNetworks)
   remoteView.append(remoteIntro, httpFrameWarning, providerSection, remoteWorkspace)
   diagnosticsView.append(diagnosticsIntro, diagnosticsSummary, diagnosticsToolbar, diagnosticsFeedback, diagnosticsChecks, wsPathsSection, diagnosticsDetails)
-  panel.append(header, releaseNotice, updateCard, appDownload, switcher, lanView, remoteView, diagnosticsView); root.append(panel); document.body.append(root)
+  panel.append(header, releaseNotice, updateCard, appDownload, extensionRecovery.section, switcher, lanView, remoteView, diagnosticsView); root.append(panel); document.body.append(root)
   let running = false
   let origin = ''
   let lanConfigured = true
@@ -1589,6 +1601,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     providerInfoButton.setAttribute('aria-expanded', 'false')
   })
   const selectView = (view: 'lan' | 'remote' | 'diagnostics'): void => {
+    if (!panel.hidden) void extensionRecovery.refresh()
     if (view !== 'diagnostics') previousAccessView = view
     lanView.hidden = view !== 'lan'
     remoteView.hidden = view !== 'remote'
@@ -1614,6 +1627,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   remoteTab.addEventListener('click', () => { selectView('remote'); loadRemote() })
   const setOpen = (open: boolean): void => {
     panel.hidden = !open
+    if (open) void extensionRecovery.refresh()
     for (const trigger of document.querySelectorAll('.dsh-mobile-control__trigger')) trigger.setAttribute('aria-expanded', String(open))
   }
   const render = (data: Record<string, unknown>): void => {
@@ -3274,6 +3288,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     selectView('diagnostics'); loadDiagnostics()
   })
   diagnosticsRun.addEventListener('click', loadDiagnostics)
+  diagnosticsRun.addEventListener('click', () => { void extensionRecovery.refresh() })
   const closeUpdateCard = (): void => {
     updateCard.hidden = true
     if (pluginUpdateAvailable && pluginLatestVersion !== '') updatePlugin.hidden = !diagnosticsView.hidden
@@ -3354,8 +3369,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       if (!diagnosticsView.hidden) renderWsBlocked(wsPathsBlocked)
     }, () => { /* gateway unreachable; dot keeps its last state */ })
   }
-  const wsBlockedPoll = window.setInterval(pollWsBlocked, 20_000)
-  return { remove: () => { lifecycle.abort(); window.clearInterval(remotePoll); window.clearInterval(wsBlockedPoll); window.removeEventListener('focus', retryAfterSetup); document.removeEventListener('visibilitychange', retryAfterSetup); document.removeEventListener('pointerdown', dismiss); root.remove() }, toggle: () => { setOpen(panel.hidden !== false) }, isOpen: () => !panel.hidden }
+  const wsBlockedPoll = window.setInterval(() => { pollWsBlocked(); if (!panel.hidden) void extensionRecovery.refresh() }, 20_000)
+  return { remove: () => { lifecycle.abort(); extensionRecovery.dispose(); window.clearInterval(remotePoll); window.clearInterval(wsBlockedPoll); window.removeEventListener('focus', retryAfterSetup); document.removeEventListener('visibilitychange', retryAfterSetup); document.removeEventListener('pointerdown', dismiss); root.remove() }, toggle: () => { setOpen(panel.hidden !== false) }, isOpen: () => !panel.hidden }
 }
 
 function mobileRequest(path: string, init: RequestInit = {}): Promise<Response> {
@@ -3956,16 +3971,7 @@ function installCustomAssets(): () => void {
     if (signal.aborted) throw abortReason()
     const bridge = window.__DSH_MOBILE_NATIVE__
     if (bridge !== undefined) {
-      return new Promise<unknown>((resolve, reject) => {
-        let settled = false
-        const finish = (callback: () => void): void => { if (settled) return; settled = true; signal.removeEventListener('abort', onAbort); callback() }
-        const onAbort = (): void => { finish(() => { reject(abortReason()) }) }
-        signal.addEventListener('abort', onAbort, { once: true })
-        void Promise.resolve().then(() => bridge.invoke(action, input)).then(
-          value => { finish(() => { resolve(materializeNativeFile(value)) }) },
-          error => { finish(() => { reject(error) }) },
-        )
-      })
+      return invokeBoundNativeCapability(bridge, () => window.__DSH_MOBILE_NATIVE__, action, input, signal).then(materializeNativeFile)
     }
     if (action === 'share' && typeof navigator.share === 'function') { await navigator.share((input ?? {}) as ShareData); return { ok: true } }
     if (action === 'clipboard.read' && navigator.clipboard !== undefined) return { text: await navigator.clipboard.readText() }
@@ -4405,7 +4411,7 @@ export const CONTROL_STYLES = `
 .dsh-mobile-control__origin-modes{min-width:0;margin:0 0 14px;padding:0;border:0}.dsh-mobile-control__origin-modes legend{margin:0 0 8px;padding:0;color:var(--dsw-alias-label-secondary,#606873);font:600 12px/1.4 system-ui}.dsh-mobile-control__origin-mode{display:flex;box-sizing:border-box;min-height:44px;align-items:center;gap:10px;padding:10px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:10px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);font:12px/1.5 system-ui;cursor:pointer}.dsh-mobile-control__origin-mode+.dsh-mobile-control__origin-mode{margin-top:8px}.dsh-mobile-control__origin-mode:has(input:checked){border-color:var(--dsw-alias-label-primary-bluish,#2563eb)}.dsh-mobile-control__origin-mode:focus-within{outline:2px solid var(--dsw-alias-state-business-primary,#2563eb);outline-offset:2px}.dsh-mobile-control__origin-mode:has(input:disabled){cursor:wait;opacity:.55}.dsh-mobile-control__origin-mode input[type=radio]{flex:0 0 18px;box-sizing:border-box;width:18px;height:18px;min-height:18px;margin:0;padding:0;accent-color:var(--dsw-alias-label-primary-bluish,#2563eb)}.dsh-mobile-control__origin-mode span{min-width:0;overflow-wrap:anywhere}
 /* Base the columns on the card width, not the desktop viewport behind the popup. */
 .dsh-mobile-control__origin-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:12px}.dsh-mobile-control__origin-fields>.dsh-mobile-control__field{min-width:0;grid-column:auto;font-size:12px}.dsh-mobile-control__origin-fields>.dsh-mobile-control__field--full{grid-column:1/-1}.dsh-mobile-control__origin-fields select{box-sizing:border-box;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__origin-fields select:disabled{cursor:not-allowed;opacity:.55}.dsh-mobile-control__caddy-form{display:grid;gap:12px}.dsh-mobile-control__caddy-form>.dsh-mobile-control__component-note,.dsh-mobile-control__caddy-form>.dsh-mobile-control__component-status,.dsh-mobile-control__caddy-form>.dsh-mobile-control__origin-feedback{margin:0;overflow-wrap:anywhere}.dsh-mobile-control__origin-setup .dsh-mobile-control__actions.dsh-mobile-control__caddy-actions{grid-template-columns:minmax(0,1fr);margin:0}.dsh-mobile-control__caddy-actions button{box-sizing:border-box;min-width:0;min-height:44px;padding:10px 12px;border-radius:10px;font:600 12px/1.4 system-ui;cursor:pointer}.dsh-mobile-control__origin-warning{margin:12px 0;padding:10px 12px;border-left:3px solid var(--dsw-alias-state-warn-primary,#a56810);border-radius:4px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);color:var(--dsw-alias-label-primary,#384152);font-size:12px;line-height:1.6}.dsh-mobile-control__origin-feedback{font-size:12px;line-height:1.6;overflow-wrap:anywhere}.dsh-mobile-control__origin-feedback.is-error{color:var(--dsw-alias-state-error-primary,#bc3030)}.dsh-mobile-control__origin-fields input[aria-invalid=true]{border-color:var(--dsw-alias-state-error-primary,#bc3030)}.dsh-mobile-control__origin-backend{display:flex;min-width:0;flex-direction:column;align-items:stretch;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--dsw-alias-border-l2,#dbe1e8)}.dsh-mobile-control__origin-backend button{align-self:flex-start;min-height:44px}.dsh-mobile-control__self-hosted-body .is-origin{margin-top:8px}
-`
+` + EXTENSION_RECOVERY_STYLES
 
 /** Mount the desktop control or mobile feature enhancements. */
 export function apply(ctx: ClientContext): void {

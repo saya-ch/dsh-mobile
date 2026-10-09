@@ -1,68 +1,53 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReactElement, ReactNode } from 'react'
-const mock = vi.hoisted(() => ({ phone: true }))
-vi.mock('react', async importOriginal => {
-  const actual = await importOriginal<typeof import('react')>()
-  return { ...actual, useSyncExternalStore: () => mock.phone, useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }), useState: () => [{ start: false, end: false }, () => {}] }
-})
-import { createElement } from 'react'
-import { MobileComposerToolbar, MOBILE_COMPOSER_TOOLBAR_STYLES, type MobileComposerToolbarProps } from '../src/mobile-composer-toolbar.js'
+import { readFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
+import { MOBILE_COMPOSER_TOOLBAR_STYLES } from '../src/mobile-composer-toolbar.js'
+import { NATIVE_MOBILE_STYLES } from '../src/native-mobile.js'
 
-function element(node: ReactNode): ReactElement<Record<string, unknown>> { return node as ReactElement<Record<string, unknown>> }
-function children(node: ReactNode): ReactNode[] { const value = element(node).props.children; return Array.isArray(value) ? value as ReactNode[] : [value as ReactNode] }
-function props(): MobileComposerToolbarProps {
-  return {
-    stock: createElement('div', { id: 'stock' }), rowRef: { current: null }, rowClassName: 'core_row',
-    leading: createElement('button', { id: 'upload' }), model: createElement('button', { id: 'model' }), actions: createElement('button', { id: 'send', onClick: vi.fn() }),
-    pluginsLeft: createElement('div', { id: 'left' }), pluginsRight: createElement('div', { id: 'right' }),
-    activity: createElement('button', { id: 'voice' }), activityActive: false,
-  }
-}
+describe('stock mobile composer toolbar', () => {
+  it('loads its layout through the existing mobile surface instead of an absent parent slot', () => {
+    expect(NATIVE_MOBILE_STYLES).toContain(MOBILE_COMPOSER_TOOLBAR_STYLES)
+    const layout = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    expect(layout).not.toContain('conversation.input.toolbar')
+    expect(layout).not.toContain('MobileComposerToolbar')
+  })
 
-describe('dedicated mobile composer toolbar', () => {
-  beforeEach(() => { mock.phone = true })
-  it('mounts all plugin nodes in one upper scrollport, with native controls below', () => {
-    const p = props(); const output = MobileComposerToolbar(p)
-    const [frame, core] = children(output)
-    const scroll = children(frame)[0]
-    const [left, right, activity] = children(scroll)
-    expect(element(scroll).props['data-mobile-plugin-scroll']).toBe(true)
-    expect(left).toBe(p.pluginsLeft); expect(right).toBe(p.pluginsRight)
-    expect(children(activity)[0]).toBe(p.activity)
-    const [leading, trailing] = children(core)
-    expect(children(leading)[0]).toBe(p.leading)
-    const [model, actions] = children(trailing)
-    expect(children(model)[0]).toBe(p.model); expect(children(actions)[0]).toBe(p.actions)
-    expect((core as ReactElement & { ref: unknown }).ref).toBe(p.rowRef)
-    expect(element(core).props.className).toContain(p.rowClassName)
+  it('keeps the two stock groups measurable and their children owned by DSH', () => {
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('[data-dsh-mobile-composer-row] { display:flex !important; flex-wrap:wrap !important')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('[data-dsh-mobile-composer-trailing] { display:flex !important; flex:1 0 auto !important; flex-wrap:nowrap !important')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('display:contents')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('order:')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('grid-template')
   })
-  it('keeps the recording subtree at the same React path while expanding it', () => {
-    const p = props(); const before = MobileComposerToolbar(p); const after = MobileComposerToolbar({ ...p, activityActive: true })
-    const frameBefore = children(before)[0]; const frameAfter = children(after)[0]
-    expect(element(frameBefore).type).toBe(element(frameAfter).type)
-    expect(element(frameAfter).props['data-activity-active']).toBe(true)
-    const scrollBefore = children(frameBefore)[0]; const scrollAfter = children(frameAfter)[0]
-    expect(element(scrollBefore).type).toBe(element(scrollAfter).type)
-    expect(children(children(scrollBefore)[2])[0]).toBe(p.activity)
-    expect(children(children(scrollAfter)[2])[0]).toBe(p.activity)
+
+  it('reserves room for simultaneous primary and Stop actions', () => {
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('> button[class*="_primary"] { min-width:44px !important; flex-shrink:0 !important; }')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('flex:1 0 auto !important; flex-wrap:nowrap')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('min-width:44px !important; max-width:100% !important; gap:6px')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('flex-basis:144px')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('[data-dsh-mobile-composer-model-trigger] { box-sizing:border-box !important; width:100% !important')
   })
-  it('returns the exact original toolbar for a wide dedicated viewport', () => {
-    mock.phone = false; const p = props(); expect(MobileComposerToolbar(p)).toBe(p.stock)
+
+  it('does not shrink action targets or override plugin switches', () => {
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('button:not([role="switch"]):not(:where(')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('min-width:44px !important; min-height:44px !important; touch-action:manipulation')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('32px')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('height:32')
   })
-  it('reserves the closed shell rail only for a held recorder at tablet widths', () => {
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('@media(min-width:721px) and (max-width:899px)')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('.dshm-shell:has(.dshm-drawer[data-open="false"]) .dshm-composer-plugin-frame[data-activity-active="true"]{box-sizing:border-box;padding-left:56px}')
+
+  it('leaves menus and dialogs out of intrinsic-width and button rules', () => {
+    for (const selector of ['dialog', '[popover]', '[role="dialog"]', '[role="menu"]', '[role="listbox"]', '[data-trigger-menu]']) {
+      expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain(selector)
+      expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain(`${selector} *`)
+    }
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('overflow-x:')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('overflow-y:hidden')
   })
-  it('does not impose toolbar intrinsic widths or compact button sizes on plugin dialogs', () => {
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('[data-slot="conversation.input.right"]>:not(dialog):not([popover]):not([role="dialog"]):not([role="menu"]):not([role="listbox"])')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain(':not(dialog button):not([popover] button):not([role="dialog"] button)')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('[data-slot="conversation.input.right"]>*{flex:0 0 auto;min-width:max-content')
-  })
-  it('restricts scrolling to the plugin seat and leaves switches at their native size', () => {
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('overflow-x:auto;overflow-y:hidden')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('scrollbar-width:none')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('button[role="switch"]{min-width:0!important;min-height:0!important')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('[data-activity-active="true"] .dshm-composer-plugin-scroll{overflow:visible')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('grid-template-columns:44px 44px')
+
+  it('does not guess third-party classes, paint a new surface or hide controls', () => {
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('dshAc')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('codex-quota')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('background:')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('display:none')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('@media (max-width:720px)')
   })
 })

@@ -84,7 +84,7 @@ export async function within(promise, timeoutMs, failure) {
 }
 
 /** Install the actual npm tarball and reject source or unrelated runtime fallbacks. */
-export async function createMobileProfile(root, { tarball, dshBin, excludedClientModules = [], compressedWebSocket = false, missingCompanion = false, extraPatches = [] }) {
+export async function createMobileProfile(root, { tarball, dshBin, excludedClientModules = [], compressedWebSocket = false, missingCompanion = false, extraPatches = [], hostExecution }) {
   const home = join(root, 'home')
   const profile = join(home, 'profiles', 'web')
   const mobileState = join(home, 'mobile-access')
@@ -105,6 +105,7 @@ export async function createMobileProfile(root, { tarball, dshBin, excludedClien
       customCssFile: join(mobileState, 'mobile.css'),
       customScriptFile: join(mobileState, 'mobile.js'),
       initiallyEnabled: true,
+      ...(hostExecution === undefined ? {} : { hostExecution }),
       ...(excludedClientModules.length > 0 ? { excludedClientModules } : {}),
       ...(compressedWebSocket ? { websocketCompression: { paths: ['/api/remote.mux'] } } : {}),
       listenHost: '127.0.0.1',

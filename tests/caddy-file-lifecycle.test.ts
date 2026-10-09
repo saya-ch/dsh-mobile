@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CaddyComponentManager, CADDY_VERSION, type CaddyArtifact } from '../src/caddy-component.js'
-import { removeCaddyTree, renameCaddyPath, writeCaddyPrivateFile } from '../src/caddy-files.js'
+import { ensureCaddyDirectory, removeCaddyTree, renameCaddyPath, writeCaddyPrivateFile } from '../src/caddy-files.js'
 import { restrictPrivateFile } from '../src/private-file.js'
 
 vi.mock('node:fs/promises', async importOriginal => {
@@ -204,14 +204,27 @@ describe('canonical Caddy file lifecycle', () => {
     expect(fs.rename).toHaveBeenCalledTimes(afterMutation ? 1 : 0)
     expect(delays).toEqual(afterMutation ? [50] : [])
   })
-  it.each(['directory', 'file'])('preserves private %s setup failure without a config switch', async kind => {
+  it('preserves private file setup failure without a config switch', async () => {
     const root = await directory(); const file = join(root, 'config.json'); const error = busy('EPERM')
     await fs.writeFile(file, 'old')
-    if (kind === 'directory') vi.mocked(restrictPrivateFile).mockRejectedValueOnce(error)
-    else vi.mocked(restrictPrivateFile).mockResolvedValueOnce(undefined).mockRejectedValueOnce(error)
+    vi.mocked(restrictPrivateFile).mockRejectedValueOnce(error)
     await expect(writeCaddyPrivateFile(root, file, 'new')).rejects.toBe(error)
     expect(await fs.readFile(file, 'utf8')).toBe('old'); expect(fs.rename).not.toHaveBeenCalled()
     expect(delays).toEqual([]); expect(await fs.readdir(root)).toEqual(['config.json'])
+  })
+  it('fails explicitly if a newly created owned directory cannot be secured', async () => {
+    const root = await directory(); const child = join(root, 'new'); const error = busy('EPERM')
+    vi.mocked(restrictPrivateFile).mockRejectedValueOnce(error)
+    await expect(ensureCaddyDirectory(root, child)).rejects.toBe(error)
+    expect(await fs.readdir(child)).toEqual([])
+  })
+  it('does not change inherited child ACLs when reusing an existing directory', async () => {
+    const root = await directory(); const file = join(root, 'config.json')
+    await fs.writeFile(file, 'old')
+    await writeCaddyPrivateFile(root, file, 'new')
+    expect(restrictPrivateFile).toHaveBeenCalledTimes(1)
+    expect(restrictPrivateFile).not.toHaveBeenCalledWith(root, 0o700)
+    expect(await fs.readFile(file, 'utf8')).toBe('new')
   })
   it('refuses a destination-only parent link introduced during rename backoff', async () => {
     const root = await directory(); const outside = await directory(); const destinationParent = join(root, 'destination')

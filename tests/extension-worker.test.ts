@@ -83,7 +83,7 @@ export default (api) => {
       .toBe('{"contextKeys":["logger"],"schemaType":"function","signalBrand":"object"}')
 
     // The worker context adapter is logger-only and forwards to the parent logger.
-    expect(lines).toContainEqual(['info', 'from-worker', { n: 1 }])
+    expect(lines).toContainEqual(['info', 'from-worker', '{ n: 1 }'])
   })
 })
 
@@ -278,7 +278,8 @@ describe('extension worker termination contract', () => {
     directories.push(root)
     const directory = await createExtensionDirectory(root, 'stalled', `
 import { appendFile } from 'node:fs/promises'
-const log = new URL('./exec.log', import.meta.url).pathname
+import { fileURLToPath } from 'node:url'
+const log = fileURLToPath(new URL('./exec.log', import.meta.url))
 export default (api) => {
   api.action('stall', { timeoutMs: 50, run: async () => { await appendFile(log, 'stall\\n'); await new Promise(() => {}) } })
   api.action('slowpoke', { run: async () => { await appendFile(log, 'slowpoke\\n'); await new Promise(resolve => { setTimeout(resolve, 400) }); return { ok: true } } })
@@ -293,11 +294,12 @@ export default (api) => {
     const caller = (): { signal: AbortSignal; deviceId: string } => ({ signal: new AbortController().signal, deviceId: 'device' })
     const trigger = service.invoke('stalled', 'stall', {}, caller())
     const sibling = service.invoke('stalled', 'slowpoke', {}, caller())
+    const siblingOutcome = sibling.catch((error: unknown) => error)
 
     // The invocation that triggered the deadline keeps its timeout result.
     await expect(trigger).rejects.toMatchObject({ code: 'extension_action_timeout', status: 500 })
     // Other pending invocations in that worker settle unavailable.
-    await expect(sibling).rejects.toMatchObject({ code: 'extension_host_unavailable', status: 503 })
+    await expect(siblingOutcome).resolves.toMatchObject({ code: 'extension_host_unavailable', status: 503 })
 
     // No interrupted action is replayed: execution log stays exactly one entry
     // per action even after slowpoke's natural completion time has passed.
@@ -666,7 +668,7 @@ setInterval(() => {}, 60_000)
       method: 'GET', pathname: '/x', query: new URLSearchParams(), headers: {},
       body: Buffer.alloc(0), signal: new AbortController().signal, deviceId: 'device',
     })
-    await expect(reply).rejects.toMatchObject({ code: 'extension_failed', status: 500 })
+    await expect(reply).rejects.toMatchObject({ code: 'invalid_route_response', status: 500 })
   })
 
   it('keeps logging clone-safe and bounded without failing the action', async () => {

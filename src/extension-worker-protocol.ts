@@ -1,5 +1,5 @@
 /**
- * Spike (Phase 2 de-risking): message protocol for the opt-in extension worker
+ * Message protocol for opt-in extension worker
  * execution mode. This module is imported by BOTH the parent supervisor and
  * the worker runtime, so it must stay pure: types and dependency-free helpers
  * only — no Cordis, no node:worker_threads.
@@ -10,6 +10,8 @@ export const WORKER_OPERATION_TIMEOUT_MAX_MS = 300_000
 
 /** Ceiling for one serialized action result, enforced worker-side. */
 export const WORKER_RESULT_MAX_BYTES = 4 * 1024 * 1024
+/** HTTP response metadata crossing threads stays within the ordinary HTTP header budget. */
+export const WORKER_RESPONSE_METADATA_MAX_BYTES = 16 * 1024
 
 /** Per-stream credit window: the worker may send at most this many unacknowledged bytes. */
 export const WORKER_STREAM_CREDIT_BYTES = 256 * 1024
@@ -202,6 +204,7 @@ export function validOperationTimeout(value: unknown): number | undefined {
 
 /** Normalize an extension route path exactly like the in-process registry. */
 export function normalizeWorkerRoutePath(value: string): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 256 || value.includes('?') || value.includes('#') || value.includes('\\') || /[\u0000-\u001f\u007f]/u.test(value)) throw new Error('invalid route path')
   const normalizedInput = value.startsWith('/') ? value : `/${value}`
   const parts = normalizedInput.split('/')
   if (parts.some(part => part === '..' || part === '.')) throw new Error('invalid route path')
@@ -230,5 +233,7 @@ export function businessErrorShape(error: unknown): { readonly code: string; rea
  * `extension_failed`, same as in-process mode today.
  */
 export function serializeWorkerResult(value: unknown): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify(value) ?? 'null')
+  const serialized = JSON.stringify(value)
+  if (serialized === undefined) throw new Error('extension result is not JSON serializable')
+  return new TextEncoder().encode(serialized)
 }

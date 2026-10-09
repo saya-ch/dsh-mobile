@@ -1,17 +1,21 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 
-const client = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
+const mobileRoot = process.env.DSH_BOOT_SMOKE_MOBILE_ROOT === undefined
+  ? fileURLToPath(new URL('..', import.meta.url)) : resolve(process.env.DSH_BOOT_SMOKE_MOBILE_ROOT)
+const client = await readFile(resolve(mobileRoot, 'lib/client.js'), 'utf8')
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC'
 const layouts = []
-for (const width of [320, 375, 393, 720, 844, 900]) {
-  for (const font of [16, 20, 32]) {
+for (const width of [288, 320, 375, 390, 393, 720, 844, 900]) {
+  for (const font of [16, 20, 24, 32]) {
     for (const theme of ['light', 'dark']) layouts.push({ width, height: 900, font, theme, mode: 'extensions', compact: false })
   }
 }
-for (const [width, height] of [[320, 900], [360, 900], [375, 900], [360, 453], [320, 375]]) {
-  for (const font of [16, 32]) {
+for (const [width, height] of [[288, 900], [320, 900], [360, 900], [375, 900], [390, 900], [360, 453], [320, 375], [720, 390]]) {
+  for (const font of [16, 24, 32]) {
     for (const theme of ['light', 'dark']) {
       for (const mode of ['ordinary', 'dual', 'activity', ...(height < 500 ? ['extensions'] : [])]) {
         layouts.push({ width, height, font, theme, mode, compact: true })

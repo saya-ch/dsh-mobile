@@ -194,4 +194,5 @@
     <string name="webview_update_message">Questo dispositivo usa Chromium %1$s. Un motore meno recente può causare pagine vuote, problemi del tema o controlli non reattivi. Aggiorna WebView di sistema o il browser che lo fornisce. Puoi continuare a usare DSH.\n\nProvider: %2$s</string>
     <string name="webview_update_action">Opzioni di aggiornamento</string>
     <string name="webview_continue">Continua</string>
+    <string name="device_storage_unavailable">L’archiviazione sicura dei dispositivi associati non è disponibile. Sblocca il dispositivo e riapri l’app o riprova. L’operazione non è stata completata.</string>
 </resources>

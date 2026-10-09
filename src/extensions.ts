@@ -6,7 +6,8 @@ import { pathToFileURL } from 'node:url'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { finished, type Readable } from 'node:stream'
-import { defaultExtensionWorkerModule, ExtensionWorkerHost, type WorkerParentLogger } from './extension-worker.js'
+import { defaultExtensionWorkerModule, ExtensionWorkerBudget, ExtensionWorkerHost, type WorkerParentLogger } from './extension-worker.js'
+import { resolveHostExecution, type HostExecutionConfig, type ResolvedHostExecutionConfig } from './extension-worker-config.js'
 
 /** Maximum sizes enforced at the local-extension filesystem boundary. */
 export const EXTENSION_LIMITS = Object.freeze({
@@ -176,14 +177,26 @@ interface RetiredLocalExtension {
   readonly timer: NodeJS.Timeout
 }
 
-/** Spike: how local extension hosts execute. Default is today's in-process mode. */
+/** Local execution options; the packaged worker entry is used unless a test supplies an override. */
 export interface LocalExecutionOptions {
-  readonly hostExecution?: { readonly mode: 'in-process' | 'worker'; readonly workerModule?: string }
+  readonly hostExecution?: HostExecutionConfig & { readonly workerModule?: string }
+  readonly workerBudget?: ExtensionWorkerBudget
 }
 
 type HostApi = {
   readonly manifest: LocalExtensionManifest
   readonly context: Context
+  readonly schema: typeof z
+  readonly signal: AbortSignal
+  action(name: string, spec: MobileHostAction): void
+  route(spec: MobileHostRoute): void
+  effect(setup: () => void | (() => void | Promise<void>) | Promise<void | (() => void | Promise<void>)>): void
+}
+
+/** Worker-host API: logger-only context, with no Cordis services or registrations crossing threads. */
+export interface MobileWorkerHostApi {
+  readonly manifest: LocalExtensionManifest
+  readonly context: { readonly logger: WorkerParentLogger }
   readonly schema: typeof z
   readonly signal: AbortSignal
   action(name: string, spec: MobileHostAction): void
@@ -495,6 +508,10 @@ export class MobileAccessService extends Service {
   private localLifecycle = 0
   private localClosed = true
   private localExecution: LocalExecutionOptions | undefined
+  private localExecutionKey: string | undefined
+  private workerBudget: ExtensionWorkerBudget | undefined
+  private readonly disposal = new Set<Promise<void>>()
+  private readonly recoveries = new Map<string, Promise<void>>()
 
   constructor(ctx: Context) { super(ctx, 'mobileAccess') }
 
@@ -557,7 +574,49 @@ export class MobileAccessService extends Service {
 
   /** Return loaded and failed local extension counts without exposing host errors. */
   status(): MobileExtensionStatus {
-    return Object.freeze({ loaded: this.registered.size + this.local.size, failed: this.failures.size })
+    const unavailable = [...this.local.values()].filter(entry => entry.worker !== undefined && !entry.worker.available()).length
+    return Object.freeze({ loaded: this.registered.size + this.local.size - unavailable, failed: this.failures.size + unavailable })
+  }
+
+  /** Local Host status does not reveal filesystem paths, credentials or extension errors. */
+  hostStatus(): { readonly hosts: readonly { readonly id: string; readonly name: string; readonly mode: 'worker' | 'in-process'; readonly state: 'ready' | 'unavailable'; readonly generation: string }[]; readonly limits: { readonly maxWorkers: number; readonly workers: number } } {
+    const limits = resolveHostExecution(this.localExecution?.hostExecution)
+    return {
+      hosts: [...this.local.values()].map(entry => ({ id: entry.manifest.id, name: entry.manifest.name, mode: entry.worker === undefined ? 'in-process' : 'worker', state: entry.worker === undefined || entry.worker.available() ? 'ready' : 'unavailable', generation: entry.digest })),
+      limits: { maxWorkers: limits.maxWorkers, workers: this.workerBudget?.current ?? 0 },
+    }
+  }
+
+  /** Explicitly replace one unavailable worker without replaying requests or changing its files. */
+  recoverExtension(id: string): Promise<void> {
+    assertExtensionId(id)
+    const existing = this.recoveries.get(id)
+    if (existing !== undefined) return existing
+    const recovering = (async (): Promise<void> => {
+      if (this.localRefreshing !== undefined) await this.localRefreshing
+      const previous = this.local.get(id)
+      if (this.localClosed || previous?.worker === undefined || this.localContext === undefined) throw new MobileExtensionError('extension_recovery_unavailable', 'local worker recovery is unavailable', 409)
+      if (previous.worker.available()) throw new MobileExtensionError('extension_host_running', 'extension worker is already running', 409)
+      await previous.worker.terminate('explicit-recovery')
+      const lifecycle = this.localLifecycle
+      const fingerprint = await extensionFingerprint(previous.directory)
+      const fresh = await loadLocalExtension(previous.directory, this.localContext, fingerprint, undefined, this.localExecution)
+      try {
+        const confirmed = await extensionFingerprint(previous.directory)
+        if (this.localClosed || this.localLifecycle !== lifecycle || this.local.get(id) !== previous || confirmed.digest !== fingerprint.digest) throw new MobileExtensionError('extension_changed_during_activation', 'extension changed during recovery', 409)
+      } catch (error) { await abortAndDisposeLocal([fresh]); throw error }
+      this.local.set(id, fresh)
+      this.failures.delete(id)
+      this.queueDisposal([previous])
+      this.updateContentHash()
+    })().finally(() => { if (this.recoveries.get(id) === recovering) this.recoveries.delete(id) })
+    this.recoveries.set(id, recovering)
+    return recovering
+  }
+
+  private queueDisposal(entries: readonly ActiveLocalExtension[]): void {
+    const pending = abortAndDisposeLocal(entries).finally(() => { this.disposal.delete(pending) })
+    this.disposal.add(pending)
   }
 
   /** Locate one active extension. */
@@ -649,7 +708,7 @@ export class MobileAccessService extends Service {
         },
         {
           external: external?.signal ?? context.signal,
-          timeoutMs: action.timeoutMs ?? HOST_OPERATION_TIMEOUT_MS,
+          timeoutMs: action.timeoutMs ?? ('host' in extension && extension.worker !== undefined ? resolveHostExecution(this.localExecution?.hostExecution).operationTimeoutMs : HOST_OPERATION_TIMEOUT_MS),
           timeoutError: () => new MobileExtensionError('extension_action_timeout', `extension ${id} action ${actionName} timed out`, 500),
           onDetach: () => { this.abandoned.set(id, (this.abandoned.get(id) ?? 0) + 1) },
         },
@@ -691,7 +750,7 @@ export class MobileAccessService extends Service {
         signal => route.handle({ ...request, signal }),
         {
           external: external?.signal ?? request.signal,
-          timeoutMs: route.timeoutMs ?? HOST_OPERATION_TIMEOUT_MS,
+          timeoutMs: route.timeoutMs ?? ('host' in extension && extension.worker !== undefined ? resolveHostExecution(this.localExecution?.hostExecution).operationTimeoutMs : HOST_OPERATION_TIMEOUT_MS),
           timeoutError: () => new MobileExtensionError('extension_route_timeout', `extension ${id} route ${method} ${pathname} timed out`, 500),
           onDetach: () => { this.abandoned.set(id, (this.abandoned.get(id) ?? 0) + 1) },
         },
@@ -727,10 +786,13 @@ export class MobileAccessService extends Service {
   /** Start the local directory watcher; an absent directory is intentionally inert. */
   async startLocal(root: string, context: Context, options?: LocalExecutionOptions): Promise<void> {
     const targetRoot = resolve(root)
-    if (this.localRoot !== undefined && resolve(this.localRoot) !== targetRoot) await this.stopLocal()
+    const limits = resolveHostExecution(options?.hostExecution)
+    const executionKey = JSON.stringify({ limits, module: options?.hostExecution?.workerModule })
+    if (this.localRoot !== undefined && (resolve(this.localRoot) !== targetRoot || this.localExecutionKey !== executionKey)) await this.stopLocal()
     if (this.localTimer !== undefined) clearInterval(this.localTimer)
     const lifecycle = ++this.localLifecycle
-    this.localRoot = targetRoot; this.localContext = context; this.localExecution = options; this.localClosed = false
+    this.workerBudget ??= new ExtensionWorkerBudget(limits.maxWorkers)
+    this.localRoot = targetRoot; this.localContext = context; this.localExecution = { ...options, workerBudget: this.workerBudget }; this.localExecutionKey = executionKey; this.localClosed = false
     await mkdir(this.localRoot, { recursive: true })
     if (this.localClosed || this.localLifecycle !== lifecycle || this.localRoot !== targetRoot || this.localContext !== context) return
     await this.refreshLocal()
@@ -765,6 +827,8 @@ export class MobileAccessService extends Service {
     this.failures.clear()
     this.updateContentHash()
     await abortAndDisposeLocal(late)
+    await Promise.allSettled([...this.disposal, ...this.recoveries.values()])
+    this.workerBudget = undefined
     if (this.localTimer !== undefined) clearInterval(this.localTimer)
     this.localTimer = undefined
   }
@@ -860,13 +924,15 @@ export class MobileAccessService extends Service {
         if (failure !== 'local' && !names.includes(failure)) this.failures.delete(failure)
       }
       this.failures.delete('local')
-      if (removed.length > 0) void abortAndDisposeLocal(removed)
+      if (removed.length > 0) this.queueDisposal(removed)
       this.updateContentHash()
     } catch (error) {
       await abortAndDisposeLocal(stagedFresh)
       if (this.localClosed || signal.aborted) return
       const message = error instanceof Error ? error.message : String(error)
+      const changedFailure=this.failures.get(failingName)!==message
       this.failures.set(failingName, message)
+      if(changedFailure&&error instanceof MobileExtensionError&&error.code==='extension_worker_heap_override')this.ctx.logger.warn('local extension worker refused: %s',error.message)
       if (!(error instanceof MobileExtensionError)) this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
     }
   }
@@ -877,13 +943,13 @@ export class MobileAccessService extends Service {
     if (previous !== undefined) {
       clearTimeout(previous.timer)
       this.retired.delete(active.manifest.id)
-      void abortAndDisposeLocal([previous.active])
+      this.queueDisposal([previous.active])
     }
     const timer = setTimeout(() => {
       const current = this.retired.get(active.manifest.id)
       if (current?.active !== active) return
       this.retired.delete(active.manifest.id)
-      void abortAndDisposeLocal([active])
+      this.queueDisposal([active])
     }, RETIRED_GENERATION_TTL_MS)
     timer.unref()
     this.retired.set(active.manifest.id, { active, timer })
@@ -1032,6 +1098,8 @@ async function abortAndDisposeLocal(entries: readonly ActiveLocalExtension[]): P
     pending.push(...invokeCleanups(entry.cleanups))
   }
   await settleBounded(pending, HOST_TEARDOWN_TIMEOUT_MS)
+  // Worker disposal requires confirmed exit even when its effect cleanup exceeded the advisory budget.
+  await Promise.all(entries.flatMap(entry => entry.worker === undefined ? [] : [entry.worker.dispose()]))
 }
 
 async function loadLocalExtension(directory: string, context: Context, known?: LocalExtensionFingerprint, parentSignal?: AbortSignal, execution?: LocalExecutionOptions): Promise<ActiveLocalExtension> {
@@ -1082,16 +1150,21 @@ async function loadLocalExtension(directory: string, context: Context, known?: L
     },
   }
   try {
-    // Spike worker mode: all executable host behavior runs inside one worker
+    // Worker mode: all executable host behavior runs inside one worker
     // per generation; registration crosses as metadata only and action results
     // cross as worker-serialized bytes.
-    const worker = execution?.hostExecution?.mode === 'worker' && hostFile !== undefined
+    const limits = resolveHostExecution(execution?.hostExecution)
+    const selected = limits.mode === 'worker' && (limits.extensions === undefined || limits.extensions.includes(manifest.id))
+    const worker = selected && hostFile !== undefined
       ? new ExtensionWorkerHost({
-        workerModule: execution.hostExecution.workerModule ?? defaultExtensionWorkerModule(),
+        workerModule: execution?.hostExecution?.workerModule ?? defaultExtensionWorkerModule(),
         hostFile,
         manifest,
         generation: known?.digest ?? createHash('sha256').update(manifest.id).digest('hex'),
         logger: workerLoggerAdapter(context),
+        limits,
+        ...(execution?.workerBudget === undefined ? {} : { budget: execution.workerBudget }),
+        onUnavailable: error => { controller.abort(error) },
       })
       : undefined
     let host: MobileExtensionDefinition
@@ -1108,7 +1181,7 @@ async function loadLocalExtension(directory: string, context: Context, known?: L
       for (const metadata of worker.actionMetadata()) {
         proxyActions[metadata.name] = {
           ...(metadata.timeoutMs === undefined ? {} : { timeoutMs: metadata.timeoutMs }),
-          run: (actionContext, input) => worker.invoke(metadata.name, input, actionContext),
+          run: (actionContext, input) => worker.invokeExecution(metadata.name, input, actionContext),
         }
       }
       const proxyRoutes: MobileHostRoute[] = worker.routeMetadata().map((metadata, index) => ({
@@ -1116,7 +1189,7 @@ async function loadLocalExtension(directory: string, context: Context, known?: L
         path: metadata.path,
         ...(metadata.kind === undefined ? {} : { kind: metadata.kind }),
         ...(metadata.timeoutMs === undefined ? {} : { timeoutMs: metadata.timeoutMs }),
-        handle: request => worker.handleRoute(index, request),
+        handle: request => worker.handleRouteExecution(index, request),
       }))
       try {
         host = validateDefinition({ ...manifest, ...(Object.keys(proxyActions).length === 0 ? {} : { actions: proxyActions }), ...(proxyRoutes.length === 0 ? {} : { routes: proxyRoutes }) })
@@ -1124,8 +1197,7 @@ async function loadLocalExtension(directory: string, context: Context, known?: L
         await worker.terminate('definition-invalid')
         throw error
       }
-      // Awaited: settleBounded in the teardown path can only bound awaited promises.
-      cleanups.push(() => worker.dispose())
+      // Worker lifecycle cleanup is owned separately from advisory in-process effect cleanup.
     } else {
       const activate = async (): Promise<void> => {
         controller.signal.throwIfAborted()

@@ -1,9 +1,9 @@
-import { randomBytes } from 'node:crypto'
 import { isIP } from './ip.js'
-import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { lstat, readFile } from 'node:fs/promises'
+import { isAbsolute, join, resolve } from 'node:path'
 import { isGloballyRoutableIpv4 } from './network.js'
 import { restrictPrivateFile } from './private-file.js'
+import { assertManagedParents, removeManagedPaths, removeManagedTree, writeManagedPrivateFile } from './managed-files.js'
 import { createRestrictedFrpServerTemplate, FRP_VHOST_HTTP_PORT, type FrpEntryTls } from './frp-template.js'
 
 const MAX_SETTINGS_BYTES = 8 * 1024
@@ -380,26 +380,6 @@ export function createFrpServerTemplate(settings: FrpSettings): string {
   })
 }
 
-async function atomicPrivateWrite(file: string, body: string): Promise<void> {
-  const directory = dirname(file)
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  try {
-    const current = await lstat(file)
-    if (!current.isFile() || current.isSymbolicLink()) throw new Error('frp_config_target_invalid')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-  }
-  const temporary = join(directory, `.${basename(file)}.${randomBytes(12).toString('hex')}.tmp`)
-  try {
-    await writeFile(temporary, body, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
-    await rename(temporary, file)
-    await restrictPrivateFile(file)
-  } catch (error) {
-    await rm(temporary, { force: true })
-    throw error
-  }
-}
-
 /** Owns private FRP settings and generation-specific frpc configuration. */
 export class FrpConfigStore {
   readonly stateRoot: string
@@ -416,7 +396,7 @@ export class FrpConfigStore {
   private settingsValue: FrpSettings | undefined
   private errorCode: string | undefined
 
-  constructor(stateDirectory: string, proxyName: string = FRP_DEFAULT_PROXY_NAME) {
+  constructor(stateDirectory: string, proxyName: string = FRP_DEFAULT_PROXY_NAME, private readonly ownedRoot = stateDirectory) {
     if (!isAbsolute(stateDirectory)) throw new Error('frp config state directory must be absolute')
     this.stateRoot = resolve(stateDirectory)
     this.settingsFile = join(this.stateRoot, 'settings.json')
@@ -426,6 +406,12 @@ export class FrpConfigStore {
 
   /** Load private settings while rejecting links, oversized files, and unknown fields. */
   async initialize(): Promise<void> {
+    this.settingsValue = undefined
+    this.errorCode = undefined
+    try { await assertManagedParents(this.ownedRoot, this.settingsFile, 'frp') } catch (_error) {
+      this.errorCode = 'frp_config_invalid'
+      return
+    }
     let entry
     try { entry = await lstat(this.settingsFile) } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
@@ -481,8 +467,8 @@ export class FrpConfigStore {
   /** Atomically replace private FRP settings. */
   async configure(value: unknown): Promise<FrpConfigurationStatus> {
     const settings = parseFrpSettings(value)
-    await atomicPrivateWrite(this.settingsFile, `${JSON.stringify(settings)}\n`)
-    await rm(this.runtimeConfigFile, { force: true })
+    await writeManagedPrivateFile(this.ownedRoot, this.settingsFile, `${JSON.stringify(settings)}\n`, 'frp')
+    await removeManagedTree(this.ownedRoot, this.runtimeConfigFile, 'frp')
     this.settingsValue = settings
     this.errorCode = undefined
     return this.status()
@@ -492,13 +478,13 @@ export class FrpConfigStore {
   async writeRuntimeConfig(localPort: number): Promise<string> {
     const settings = this.settingsValue
     if (settings === undefined) throw new Error('frp_config_missing')
-    await atomicPrivateWrite(this.runtimeConfigFile, createFrpcToml(settings, localPort, this.proxyName))
+    await writeManagedPrivateFile(this.ownedRoot, this.runtimeConfigFile, createFrpcToml(settings, localPort, this.proxyName), 'frp')
     return this.runtimeConfigFile
   }
 
   /** Remove only configuration files owned by the FRP provider. */
   async purge(): Promise<FrpConfigurationStatus> {
-    await rm(this.stateRoot, { recursive: true, force: true })
+    await removeManagedPaths(this.ownedRoot, [this.settingsFile, this.runtimeConfigFile], 'frp')
     this.settingsValue = undefined
     this.errorCode = undefined
     return this.status()

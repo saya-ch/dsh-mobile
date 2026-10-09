@@ -804,7 +804,6 @@ describe('dedicated mobile layout boot', () => {
           return () => {}
         } },
         slots: {
-          inject: (_name: string, initialize: () => () => void) => initialize(),
           register: (options: Record<string, unknown>, component: unknown) => {
             root = options as typeof root
             rootComponent = component as typeof rootComponent
@@ -947,7 +946,6 @@ describe('dedicated mobile layout boot', () => {
           return () => {}
         } },
         slots: {
-          inject: (_name: string, initialize: () => () => void) => initialize(),
           register: () => () => {},
           entries: (name: string) => name === 'main' ? [{ options: { key: 'alpha' } }] : [],
           subscribe: () => () => {},
@@ -1032,7 +1030,6 @@ describe('dedicated mobile layout boot', () => {
           return () => {}
         } },
         slots: {
-          inject: (_name: string, initialize: () => () => void) => initialize(),
           register: () => () => {},
           entries: (name: string) => name === 'main'
             ? [{ options: { key: 'alpha' } }, { options: { key: 'beta' } }]
@@ -1110,7 +1107,6 @@ describe('dedicated mobile layout boot', () => {
         on: () => () => {},
         reflect: { provide: () => () => {} },
         slots: {
-          inject: (_name: string, initialize: () => () => void) => initialize(),
           register: () => () => {},
           entries: () => [],
           subscribe: () => () => {},

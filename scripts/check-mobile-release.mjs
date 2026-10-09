@@ -90,7 +90,7 @@ async function checkBrandAndStoreIcon() {
 }
 
 async function checkAndroid() {
-  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, webViewClient, scanActivity, qrDecoder, nativeBridge, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
+  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
     read('apps/mobile/android/app/build.gradle.kts', 'utf8'),
     read('apps/mobile/android/app/src/main/AndroidManifest.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/xml/network_security_config.xml', 'utf8'),
@@ -99,6 +99,7 @@ async function checkAndroid() {
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/NsdDiscovery.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/DeviceCredentialStore.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/PairedDeviceStore.kt', 'utf8'),
+    read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/CredentialStorage.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/SecureWebViewClient.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/ScanActivity.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/QrDecoder.kt', 'utf8'),
@@ -144,10 +145,10 @@ async function checkAndroid() {
   if (!discovery.includes('NsdDiscovery.scan') || !nsdDiscovery.includes('_dsh-mobile._tcp.')) {
     fail('Android LAN discovery must listen for DSH DNS-SD services')
   }
-  if (!credentialStore.includes('AndroidKeyStore') || !credentialStore.includes('AES/GCM/NoPadding')) {
+  if (!credentialStore.includes('AndroidCredentialEncryption') || !credentialStorage.includes('AndroidKeyStore') || !credentialStorage.includes('AES/GCM/NoPadding')) {
     fail('Android device credentials must remain encrypted by Android Keystore AES-GCM')
   }
-  for (const marker of ['AndroidKeyStore', 'dsh_mobile_devices_v1', 'deviceToken', 'caCertificate', 'PairedDeviceStatus']) {
+  for (const marker of ['AndroidCredentialEncryption', 'dsh_mobile_devices_v1', 'deviceToken', 'caCertificate', 'PairedDeviceStatus', 'CredentialRead.Unreadable -> throw CredentialStorageUnavailable()']) {
     if (!pairedDeviceStore.includes(marker)) fail(`Android paired-device store is missing ${marker}`)
   }
   if (networkSecurity.includes('src="user"')) {

@@ -53,7 +53,7 @@ Once saved, leaving the token field blank keeps the stored token, and the field 
 
 ## Connect the phone to a named tunnel
 
-Moving to a fixed hostname means **an already paired phone must pair again**: a DSH Mobile device credential is only ever sent to the exact origin that first received it, which is the design that stops a swapped-in domain from harvesting it. A credential issued for the old address therefore never authenticates at the new one.
+Moving to a fixed hostname means **an already paired phone must pair again**: the App does not send a saved device token to a changed Origin without new pairing. This client-side exact-address policy does not mean the server token automatically expires by hostname; remote channels share the device registry. Use a trusted entry you control and revoke a device on the computer if credential theft is suspected.
 
 1. On the computer, open **Remote** in the panel and choose **Create remote pairing QR code**. That is what opens the pairing window, which is time-limited; while it is closed nothing can pair.
 2. In the app, **open the Remote entry first** (the remote access setup page in the connection center), then scan the code.
@@ -96,7 +96,7 @@ The old address may show **Address may have changed** or temporarily unreachable
 | Connection stopped or exited | `cloudflared_stopped` / `cloudflared_exited` | The channel dropped. Reconnect. |
 | Unrecognized output | `cloudflared_invalid_output` / `cloudflared_invalid_origin` | cloudflared output, or the public address it printed, failed validation. Reconnect and copy the diagnostic report. |
 | Gateway start failed | `gateway_start_failed` | The authentication gateway behind the tunnel did not start; this is not a port conflict. Check the local logs. |
-| Download redirect problem | `cloudflared_download_redirect_missing` / `_invalid` / `_rejected` | The official download page did not redirect to a release asset, or the redirect did not point at a GitHub release asset. Retry later, or install from the official page manually. |
+| Download redirect problem | `cloudflared_download_redirect_missing` / `_invalid` / `_rejected` | The official page did not redirect to the fixed release asset, or validation rejected the target. Retry later or update the plugin; a global cloudflared installation does not replace its private pinned component. |
 
 ## Troubleshooting
 

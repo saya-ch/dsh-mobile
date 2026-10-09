@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { assertManagedParents } from './managed-files.js'
 import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm/message'
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -31,7 +32,7 @@ import {
 } from './control.js'
 import { MobileAccessGateway, ClientModuleConflictError } from './gateway.js'
 import { ClientModulePreferenceStore } from './client-module-preferences.js'
-import { createMobileAccessService, type MobileAccessService } from './extensions.js'
+import { createMobileAccessService, MobileExtensionError, type MobileAccessService } from './extensions.js'
 import { listComputerImages, readComputerImage } from './computer-images.js'
 import {
   HttpError,
@@ -161,6 +162,7 @@ function installedDshVersion(): string {
 
 function mapAdminError(error: unknown): HttpError {
   if (error instanceof HttpError) return error
+  if (error instanceof MobileExtensionError) return new HttpError(error.status, error.code)
   const code = (error as NodeJS.ErrnoException).code
   if (error instanceof Error && error.message.includes('spawn UNKNOWN')) {
     return new HttpError(409, 'frp_component_launch_failed')
@@ -390,9 +392,15 @@ export function frpIngressGatewayConfig(
  * An unreadable self-signed CA fails explicitly: falling back to the system
  * trust store would hide a broken pairing identity behind a start timeout.
  */
-export async function readFrpIngressTrustAnchor(settings: FrpSettings, stateFile: string): Promise<string | undefined> {
+export async function readFrpIngressTrustAnchor(settings: FrpSettings, stateFile: string, ownedRoot: string = dirname(stateFile)): Promise<string | undefined> {
   if (!isFrpSelfSignedIngress(settings)) return undefined
-  try { return await readFile(frpIngressPaths(stateFile).caCertFile, 'utf8') } catch (error) {
+  try {
+    const file = frpIngressPaths(stateFile).caCertFile
+    await assertManagedParents(ownedRoot, file, 'frp_ingress')
+    const entry = await lstat(file)
+    if (!entry.isFile() || entry.isSymbolicLink()) throw new Error('frp_ingress_file_invalid')
+    return await readFile(file, 'utf8')
+  } catch (error) {
     throw new Error('frp_ingress_ca_invalid', { cause: error })
   }
 }
@@ -512,15 +520,15 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   // FRP registration persists across LAN setup changes, while the gateway's
   // pairing identity may change when an unconfigured setup becomes managed.
   const frpIdentity = await loadOrCreateInstallationId(join(stateDirectory, 'installation-id'))
-  const frpConfig = new FrpConfigStore(join(remoteDirectory, 'frp', 'config'), frpProxyName(frpIdentity))
+  const frpConfig = new FrpConfigStore(join(remoteDirectory, 'frp', 'config'), frpProxyName(frpIdentity), stateDirectory)
   await frpConfig.initialize()
-  const originConfig = new OriginConfigStore(join(remoteDirectory, 'origin', 'config'))
+  const originConfig = new OriginConfigStore(join(remoteDirectory, 'origin', 'config'), stateDirectory)
   await originConfig.initialize()
   const caddyComponent = new CaddyComponentManager({ stateDirectory })
   await caddyComponent.initialize()
   const caddyConfig = new CaddyConfigStore(stateDirectory)
   await caddyConfig.initialize()
-  const cloudflaredTunnel = new CloudflaredTunnelStore(join(remoteDirectory, 'cloudflared'))
+  const cloudflaredTunnel = new CloudflaredTunnelStore(join(remoteDirectory, 'cloudflared'), stateDirectory)
   await cloudflaredTunnel.initialize()
   const unregisterBuiltin = mobileAccess.registerExtension({
     schemaVersion: 1,
@@ -665,7 +673,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
    */
   const createFrpGateway = async (publicOrigin: string, settings: FrpSettings): Promise<MobileAccessGateway> => {
     if (!isFrpSelfSignedIngress(settings)) return createRemoteGateway(publicOrigin)
-    const ingress = await ensureFrpIngressCertificate(settings, remoteDeviceFile)
+    const ingress = await ensureFrpIngressCertificate(settings, remoteDeviceFile, Date.now(), undefined, stateDirectory)
     const resolved = frpIngressGatewayConfig(template, settings, remoteDeviceFile, ingress)
     const candidate = new MobileAccessGateway(
       resolved,
@@ -718,6 +726,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       store: tailscaleStore,
       executable: funnelExecutable(import.meta.url),
       stateDirectory: join(remoteDirectory, 'tailscale'),
+      ownedRoot: stateDirectory,
       hostname: `dsh-${instanceId.slice(0, 12)}`,
       createGateway: createRemoteGateway,
     }),
@@ -745,9 +754,9 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
        * Only this module knows where the ingress material lives, so the anchor is
        * read here from the ingress directory instead of being guessed downstream.
        */
-      resolveDiscoveryTrustAnchor: settings => readFrpIngressTrustAnchor(settings, remoteDeviceFile),
+      resolveDiscoveryTrustAnchor: settings => readFrpIngressTrustAnchor(settings, remoteDeviceFile, stateDirectory),
       maintainIngressCertificate: async (settings, gateway) => {
-        await ensureFrpIngressCertificate(settings, remoteDeviceFile, Date.now(), gateway.config.instanceId)
+        await ensureFrpIngressCertificate(settings, remoteDeviceFile, Date.now(), gateway.config.instanceId, stateDirectory)
         await gateway.refreshProvidedTls()
       },
     }),
@@ -834,7 +843,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       && frpGateway !== undefined && frpOrigin !== undefined
       ? async (): Promise<{ state: 'ready' | 'unreachable'; latencyMs?: number }> => {
           try {
-            const trustAnchorPem = await readFrpIngressTrustAnchor(frpSettings, remoteDeviceFile)
+            const trustAnchorPem = await readFrpIngressTrustAnchor(frpSettings, remoteDeviceFile, stateDirectory)
             if (trustAnchorPem === undefined) return { state: 'unreachable' }
             const started = performance.now()
             const reachable = await defaultProbeDiscovery(
@@ -950,6 +959,17 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/release`) {
           sendJson(response, 200, await releaseManager.status(), false)
+          return
+        }
+        if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/extensions/hosts`) {
+          sendJson(response, 200, mobileAccess.hostStatus(), false)
+          return
+        }
+        if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/extensions/recover`) {
+          const body = await readJsonObject(request, 4096)
+          if (typeof body.id !== 'string' || body.confirm !== true) throw new HttpError(400, 'bad_request')
+          await mobileAccess.recoverExtension(body.id)
+          sendJson(response, 200, mobileAccess.hostStatus(), false)
           return
         }
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/release/update`) {
@@ -1203,7 +1223,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/frp/self-check`) {
           const settings = frpConfig.settings()
           if (settings === undefined) throw new HttpError(409, 'frp_config_missing')
-          const check = await frpIngressSelfCheck(settings, remoteDeviceFile)
+          const check = await frpIngressSelfCheck(settings, remoteDeviceFile, stateDirectory)
           // TCP reachability is advisory; only authenticated discovery verifies
           // that the public tunnel reaches this DSH instance.
           const entry = resolveFrpEntryProbe(settings)
@@ -1320,7 +1340,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           if (body.confirm !== true) throw new HttpError(400, 'bad_request')
           await remoteProviders.mutate(async () => {
             await remoteControllers.frp.setEnabled(false)
-            await Promise.all([frpComponent.purge(), frpConfig.purge(), purgeFrpIngressCertificates(remoteDeviceFile)])
+            await settleCleanupSteps([
+              () => frpComponent.purge().then(() => undefined),
+              () => frpConfig.purge().then(() => undefined),
+              () => purgeFrpIngressCertificates(remoteDeviceFile, stateDirectory),
+            ])
           })
           sendJson(response, 200, remotePayload(), false)
           return
@@ -1384,15 +1408,16 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (task === '') return { kind: 'error', text: '请带上需求，例如：/mobile 把手机端改成深色主题' }
         // Collect the current customization state so the guide does not
         // overwrite earlier /mobile work blindly.
+        const hostStates = new Map(mobileAccess.hostStatus().hosts.map(host => [host.id, host]))
         const state: MobileGuideState = {
           directory: stateDirectory,
           hasCustomCss: await existsRegularFile(template.customCssFile),
           hasCustomJs: await existsRegularFile(template.customScriptFile),
-          extensions: mobileAccess.manifest().map(entry => ({
-            id: entry.id,
-            name: entry.name,
-            version: entry.version,
-          })),
+          extensions: mobileAccess.manifest().map(entry => {
+            const host = hostStates.get(entry.id)
+            return { id: entry.id, name: entry.name, version: entry.version,
+              ...(host === undefined ? {} : { executionMode: host.mode, executionState: host.state }) }
+          }),
           failedExtensionCount: mobileAccess.status().failed,
         }
         const guide = buildMobileGuide(state)
@@ -1411,7 +1436,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       },
     })
     try {
-      await mobileAccess.startLocal(template.extensionsDir, ctx)
+      await mobileAccess.startLocal(template.extensionsDir, ctx, { hostExecution: template.hostExecution })
       await lanController.initialize()
       const stores: Record<RemoteProvider, JsonMobileAccessControlStore> = {
         tailscale: tailscaleStore,

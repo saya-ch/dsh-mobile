@@ -5,6 +5,7 @@ import z from '@deepseek-ai/schemastery'
 import { isIP } from './ip.js'
 import { isLoopbackAddress, parseAuthority, parseCidr, type AuthoritySpec, type ParsedCidr } from './network.js'
 import { normalizeWebSocketPaths } from './websocket-paths.js'
+import { resolveHostExecution, type HostExecutionConfig, type ResolvedHostExecutionConfig } from './extension-worker-config.js'
 
 /** Optional compression for exact, already authorized WebSocket paths. */
 export interface WebSocketCompressionConfig {
@@ -45,6 +46,8 @@ export type TlsConfig = ProvidedTlsConfig | DisabledTlsConfig
 
 /** Operator-facing plugin configuration. */
 export interface PluginConfig {
+  /** Local host execution mode and owned worker budgets; defaults to in-process. */
+  hostExecution?: HostExecutionConfig
   /** Optional setup JSON written by the packaged CLI. */
   setupFile?: string
   /** Preferred HTTPS origin used to derive the public authority and listener port. */
@@ -101,6 +104,7 @@ export interface PluginConfig {
 
 /** Resolved, validated security and resource limits. */
 export interface ResolvedGatewayConfig {
+  readonly hostExecution: ResolvedHostExecutionConfig
   readonly listenHost: string
   readonly listenPort: number
   readonly upstreamOrigin: URL
@@ -140,6 +144,15 @@ export interface ResolvedGatewayConfig {
 
 /** Loader-facing defaults; {@link parseGatewayConfig} enforces cross-field security rules. */
 export const Config: z<PluginConfig> = z.object({
+  hostExecution: z.object({
+    mode: z.union([z.const('in-process'), z.const('worker')]),
+    // Omission selects every local host; an explicit empty array selects none.
+    extensions: z.union([z.const(undefined), z.array(String)]),
+    maxWorkers: z.natural(), maxRegistrations: z.natural(), maxOldGenerationSizeMb: z.natural(), maxYoungGenerationSizeMb: z.natural(), stackSizeMb: z.natural(),
+    activationTimeoutMs: z.natural(), operationTimeoutMs: z.natural(), cancelGraceMs: z.natural(), streamCancelGraceMs: z.natural(), disposeGraceMs: z.natural(),
+    resultMaxBytes: z.natural(), streamWindowBytes: z.natural(), streamChunkBytes: z.natural(), streamAggregateBytes: z.natural(),
+    logWindowMs: z.natural(), logMessagesPerWindow: z.natural(), logMessageBytes: z.natural(),
+  }) as z<HostExecutionConfig>,
   setupFile: z.string().hidden(),
   publicOrigin: z.string(),
   listenHost: z.string(),
@@ -283,7 +296,11 @@ function parsePublicOrigin(value: unknown): { readonly authority: AuthoritySpec;
 }
 
 function parseTls(value: PluginConfig['tls'], listenHost: string): TlsConfig {
+  if (value !== undefined && (value === null || typeof value !== 'object' || Array.isArray(value))) {
+    throw new Error('tls must be an object')
+  }
   const mode = value?.mode ?? 'provided'
+  if (value?.mode === null || (mode !== 'provided' && mode !== 'disabled')) throw new Error('tls.mode must be provided or disabled')
   if (mode === 'disabled') {
     if (!isLoopbackAddress(listenHost)) throw new Error('TLS may be disabled only on an IP loopback listener')
     return Object.freeze({ mode })
@@ -351,6 +368,7 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
 
   return Object.freeze({
     listenHost,
+    hostExecution: resolveHostExecution(value.hostExecution),
     listenPort,
     upstreamOrigin,
     authorities: Object.freeze(authorities),

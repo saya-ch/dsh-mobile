@@ -28,6 +28,14 @@ async function temporaryDirectory(prefix: string): Promise<string> {
 }
 
 describe('cloudflared tunnel configuration', () => {
+  it('preserves the existing controlled error for a non-file saved configuration', async () => {
+    const root = await temporaryDirectory('dsh-mobile-tunnel-target-')
+    const store = new CloudflaredTunnelStore(root)
+    await mkdir(store.settingsFile)
+    await expect(store.configure(named)).rejects.toThrow('cloudflared_tunnel_target_invalid')
+    expect((await lstat(store.settingsFile)).isDirectory()).toBe(true)
+  })
+
   it('defaults to a quick tunnel and rejects fields a quick tunnel cannot use', () => {
     expect(parseCloudflaredTunnelSettings({ version: 1 })).toEqual({ version: 1, mode: 'quick' })
     expect(parseCloudflaredTunnelSettings({ mode: 'quick' })).toEqual({ version: 1, mode: 'quick' })

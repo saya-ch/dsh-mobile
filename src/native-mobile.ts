@@ -6,6 +6,7 @@
  * style it.
  */
 import { installTaskCompletionWatcher, type TaskNotifyKind } from './task-notify.js'
+import { MOBILE_COMPOSER_TOOLBAR_STYLES } from './mobile-composer-toolbar.js'
 
 export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
@@ -48,11 +49,6 @@ export const NATIVE_MOBILE_STYLES = `
  .dsh-mobile-settings_fontFamily input:focus-visible,.dsh-mobile-settings_fontDetails > summary:focus-visible { outline:2px solid var(--dsw-alias-label-primary-bluish,#2563eb); outline-offset:2px; }
  /* The mobile row replaces the Host-backed font control, not the theme selector. */
  html.dsh-native-mobile-active [data-slot="settings.general.item"]:has([data-mobile-font-setting]) > :not([data-mobile-font-setting])[class*="_row"]:has([class*="_control"] > [class*="_stepper"] > [class*="_arrows"]) { display:none !important; }
- /* Landscape and wide App windows also constrain standard extension controls. */
- [data-dsh-mobile-composer-row] { min-width:0 !important; max-width:100% !important; }
- [data-dsh-mobile-composer-tools]:not([hidden]),[data-dsh-mobile-composer-controls]:not([hidden]) { flex-wrap:wrap !important; min-width:0 !important; max-width:100% !important; }
- [data-dsh-mobile-composer-tools] > *,[data-dsh-mobile-composer-tools] > [data-slot] > *,[data-dsh-mobile-composer-controls] > *,[data-dsh-mobile-composer-controls] > [data-slot] > * { min-width:0 !important; max-width:100% !important; }
- [data-dsh-mobile-composer-tools] button,[data-dsh-mobile-composer-controls] button { white-space:normal !important; overflow-wrap:anywhere !important; }
 @media ${NATIVE_MOBILE_OVERLAY_QUERY} {
   html.dsh-native-mobile-active,html.dsh-native-mobile-active body { width:100%; height:100%; overflow:hidden; }
   html.dsh-native-mobile-active { --dsh-mobile-motion-duration:200ms; --dsh-mobile-motion-ease:cubic-bezier(.22,1,.36,1); }
@@ -238,12 +234,6 @@ export const NATIVE_MOBILE_STYLES = `
   /* Collapse the scroll viewport only; the editor, draft and attachments stay
      owned by DSH. Toolbar focus keeps the card expanded during menu taps. */
   [data-dsh-mobile-center] [data-composer-card]:not(:focus-within) > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }
-  /* Stock frontend retains its native grouping; the dedicated presenter
-     owns its own toolbar sizing and never scales switches like action buttons. */
-  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) button:not([role="switch"]) { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }
-  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) { flex-wrap:wrap !important; min-width:0 !important; max-width:100% !important; }
-  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) [data-dsh-mobile-composer-trailing] { flex:1 1 0 !important; min-width:0 !important; }
-  [data-dsh-mobile-composer-row]:not([data-mobile-toolbar-layout]) [data-dsh-mobile-composer-model-label] { min-width:0 !important; overflow:hidden !important; text-overflow:ellipsis !important; white-space:nowrap !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) { box-sizing:border-box !important; width:100% !important; padding:0 0 8px !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) > [class=""]:last-child { display:none !important; }
 }
@@ -268,7 +258,7 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-settings-content][data-dsh-mobile-view-transition="true"],
   [data-dsh-mobile-view][data-dsh-mobile-view-transition="true"] { animation:none !important; }
 }
-`
+` + MOBILE_COMPOSER_TOOLBAR_STYLES
 
 function classToken(element: Element, suffix: string): boolean {
   return Array.from(element.classList).some(value => value.endsWith(suffix))
@@ -1480,8 +1470,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
         wrapper.append(table)
       }
       const composerCard = center.querySelector<HTMLElement>('[data-composer-card]')
-      const composerSeat = composerCard?.querySelector<HTMLElement>(':scope > [data-input-scroll]')?.nextElementSibling
-      const composerRow = composerSeat?.matches('[data-slot="conversation.input.toolbar"]') ? composerSeat.firstElementChild : composerSeat
+      const composerRow = composerCard?.querySelector<HTMLElement>(':scope > [data-input-scroll]')?.nextElementSibling
       if (!(composerRow instanceof HTMLElement)) {
         syncComposerEnterNewline(null)
         syncMediaBinding(null)
@@ -1491,8 +1480,8 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       if (composerRow instanceof HTMLElement) {
         composerRow.dataset.dshMobileComposerRow = 'true'
         const groups = Array.from(composerRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
-        const composerTools = composerRow.querySelector<HTMLElement>('[data-dsh-mobile-core-leading]') ?? groups[0]
-        const composerTrailing = composerRow.querySelector<HTMLElement>('[data-dsh-mobile-core-trailing]') ?? groups.at(-1)
+        const composerTools = groups[0]
+        const composerTrailing = groups.at(-1)
         if (composerTools !== undefined) {
           composerTools.dataset.dshMobileComposerTools = 'true'
           syncMediaBinding(composerCard ?? null)

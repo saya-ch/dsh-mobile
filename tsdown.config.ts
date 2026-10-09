@@ -41,7 +41,7 @@ export default defineConfig([{
   clean: false,
   outputOptions: { entryFileNames: 'cli.js' },
 }, {
-  // Spike (Phase 2 de-risking): standalone worker runtime for opt-in worker
+  // Standalone worker runtime for opt-in worker
   // execution of local extension hosts. Self-contained (schemastery bundled)
   // because it must start from the installed artifact with no node_modules
   // resolution of its own.

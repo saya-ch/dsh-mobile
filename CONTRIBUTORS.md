@@ -6,6 +6,8 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 ## 本地候选版已纳入 / Included in the local candidate
 
+[@abworks-dev](https://github.com/abworks-dev) 的 [#192](https://github.com/saya-ch/dsh-mobile/pull/192) 及 [@chintoleung](https://github.com/chintoleung) 在 [#189](https://github.com/saya-ch/dsh-mobile/issues/189) 提供的三个 Worker 原型提交已合入本地候选，保留原始提交并追加适配与修正；其完成范围见 [候选记录](CHANGELOG.md#063---unreleased)，尚未远端合并或发布。 / [@abworks-dev](https://github.com/abworks-dev)'s [#192](https://github.com/saya-ch/dsh-mobile/pull/192) and [@chintoleung](https://github.com/chintoleung)'s three Worker prototype commits supplied through [#189](https://github.com/saya-ch/dsh-mobile/issues/189) are merged into the local candidate with original history and maintainer corrections; see the [candidate scope](CHANGELOG.md#063---unreleased). They are not yet merged/published remotely.
+
 [@abworks-dev](https://github.com/abworks-dev) 的 [#190](https://github.com/saya-ch/dsh-mobile/pull/190) 与 [@chintoleung](https://github.com/chintoleung) 的 [#191](https://github.com/saya-ch/dsh-mobile/pull/191) 已合入本地 0.6.3 候选，保留原作者提交；尚未合入远程主分支或发布。 / [@abworks-dev](https://github.com/abworks-dev)'s [#190](https://github.com/saya-ch/dsh-mobile/pull/190) and [@chintoleung](https://github.com/chintoleung)'s [#191](https://github.com/saya-ch/dsh-mobile/pull/191) are included in the local 0.6.3 candidate with their original commits; they are not yet merged into remote main or released.
 
 ## 已合并 PR / Merged PRs

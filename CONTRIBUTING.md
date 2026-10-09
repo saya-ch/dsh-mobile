@@ -26,11 +26,13 @@ Browser checks consume built client files. Run `npm run build` and `npx playwrig
 | Conversation scrollport and older viewport units | `node scripts/smoke-conversation-scroll.mjs` |
 | Composer focus and keyboard | `npm run smoke:composer-keyboard` |
 | Composer controls, typography and wrapping | `npm run smoke:composer-overflow` |
+| Real InputBar with optional left/right/activity controls | `npm run smoke:composer-toolbar` |
 | Dictation lifecycle and focus | `npm run smoke:voice-session` |
 | Browser authentication Cookies | `npm run smoke:browser-auth-cookies` |
 | API fallback on older WebViews | `npm run smoke:mobile-compat` |
 | Async access-panel forms | `npm run smoke:control-state` |
 | Module-selection recovery | `npm run smoke:module-recovery` |
+| Local extension Worker execution and explicit recovery | `npm run smoke:extension-workers` |
 
 These fixtures do not submit a model request or read the normal DSH home. Browser evidence does not establish physical Android keyboard, camera or device-lifecycle behavior.
 

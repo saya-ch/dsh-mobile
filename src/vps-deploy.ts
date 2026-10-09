@@ -64,14 +64,19 @@ export interface VpsDeploymentResult {
 export interface VpsDeploymentOptions {
   readonly runSsh?: (input: VpsDeploymentInput, serverAddress: string, script: string) => Promise<{ stdout: string; stderr: string }>
   readonly runKeyscan?: (input: { readonly sshUser: unknown; readonly sshPort: unknown }, serverAddress: string) => Promise<string>
-  readonly runSshFetch?: (input: VpsSshFetchInput, serverAddress: string) => Promise<string>
   readonly runRemoteScript?: (input: VpsDeploymentInput, serverAddress: string, script: string) => Promise<{ stdout: string; stderr: string }>
   readonly log?: (event: string, fields: Readonly<Record<string, string | number | boolean>>) => void
 }
 
 export class VpsSshError extends Error {
-  constructor(message: string, readonly stdout: string, readonly stderr: string, options?: ErrorOptions) {
+  readonly timedOut: boolean
+  readonly exitCode: number | null | undefined
+  readonly signal: NodeJS.Signals | null | undefined
+  constructor(message: string, readonly stdout: string, readonly stderr: string, options?: ErrorOptions & { readonly timedOut?: boolean; readonly exitCode?: number | null; readonly signal?: NodeJS.Signals | null }) {
     super(message, options)
+    this.timedOut = options?.timedOut ?? false
+    this.exitCode = options?.exitCode
+    this.signal = options?.signal
   }
 }
 
@@ -174,9 +179,7 @@ function parseKeyscanOutput(output: string): Array<{ keyType: string; base64Key:
   for (const line of output.split(/\r?\n/u)) {
     const trimmed = line.trim()
     if (trimmed === '' || trimmed.startsWith('#')) continue
-    // The host field is optional: ssh-cat fallback lines carry only type and key.
-    // It is discarded anyway; pinned known_hosts lines are rebuilt from the
-    // validated server address, so accepting host-less lines is safe.
+    // Pinned known_hosts lines are rebuilt from the independently validated server address.
     const match = /^(?:\S+\s+)?(ssh-rsa|ecdsa-sha2-nistp\d+|ssh-ed25519)\s+([A-Za-z0-9+/]+={0,2})(\s|$)/u.exec(trimmed)
     if (match?.[1] === undefined || match[2] === undefined) throw new Error('vps_host_key_invalid')
     keys.push({ keyType: match[1], base64Key: match[2] })
@@ -194,7 +197,7 @@ function sshSessionOptions(knownHostsFile: string): string[] {
   ]
 }
 
-/** Lenient scan probe: garbage fails the whole fetch, comment-only output falls back. */
+/** Recognize usable public-key scan output without authenticating to the server. */
 function tryParseKeyscanOutput(output: string): Array<{ keyType: string; base64Key: string }> | undefined {
   try {
     return parseKeyscanOutput(output)
@@ -223,7 +226,7 @@ async function defaultRunKeyscan(input: { readonly sshUser: unknown; readonly ss
   if (first !== undefined && tryParseKeyscanOutput(first.stdout)?.length) return first.stdout
   // Old keyscan binaries fail KEX against modern servers (non-zero exit, no
   // keys); retry with the Git for Windows copy when present before giving up.
-  // An empty result lets the caller fall back to an authenticated read.
+  // Both alternatives are unauthenticated public-key scans.
   const bundled = await gitBundledKeyscan()
   if (bundled !== undefined) {
     const second = await runProcess(bundled, args, undefined, 30_000).catch(() => undefined)
@@ -238,58 +241,19 @@ export interface VpsSshFetchInput {
   readonly sshKeyPath?: unknown
 }
 
-/**
- * Read the server's public host keys over an authenticated connection with a
- * throwaway known_hosts file. Fallback for keyscan binaries that cannot
- * negotiate with modern servers; output feeds the same confirm-and-pin pipeline.
- */
-async function defaultRunSshFetch(input: VpsSshFetchInput, serverAddress: string): Promise<string> {
-  const ssh = process.platform === 'win32' ? 'ssh.exe' : 'ssh'
-  const sshUser = validSshUser(input.sshUser)
-  const sshPort = validSshPort(input.sshPort)
-  const sshKeyPath = validSshKeyPath(input.sshKeyPath)
-  const nullDevice = process.platform === 'win32' ? 'NUL' : '/dev/null'
-  const args = [
-    '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15',
-    '-o', 'StrictHostKeyChecking=no', `-o UserKnownHostsFile=${nullDevice}`,
-    ...(sshKeyPath === undefined ? [] : ['-i', sshKeyPath]),
-    '-p', String(sshPort), `${sshUser}@${serverAddress}`, 'cat /etc/ssh/ssh_host_*_key.pub',
-  ]
-  const { stdout } = await runProcess(ssh, args, undefined, 30_000).catch((error: unknown) => {
-    throw new VpsSshError('vps_host_key_unavailable', '', error instanceof Error ? error.message : String(error))
-  })
-  const lines: string[] = []
-  for (const line of stdout.split(/\r?\n/u)) {
-    const match = /^(ssh-rsa|ecdsa-sha2-nistp\d+|ssh-ed25519)\s+([A-Za-z0-9+/]+={0,2})(\s|$)/u.exec(line.trim())
-    if (match?.[1] !== undefined && match[2] !== undefined) lines.push(`${serverAddress} ${match[1]} ${match[2]}`)
-  }
-  return lines.length === 0 ? stdout : `${lines.join('\n')}\n`
-}
-
-/**
- * Scan host keys with keyscan first, then fall back to an authenticated read
- * when the local keyscan binary cannot negotiate with the server. Both paths
- * feed the same confirm-and-pin pipeline, so a fallback never weakens the
- * user-confirmation gate.
- */
+/** Obtain public host keys without using a private key, agent or unverified authenticated connection. */
 async function scanHostKeys(
   input: VpsSshFetchInput,
   serverAddress: string,
   options: VpsDeploymentOptions,
 ): Promise<string> {
   const runKeyscan = options.runKeyscan ?? defaultRunKeyscan
-  // A rejecting keyscan (old binary failing KEX, missing binary, DNS error)
-  // is equivalent to an empty scan: fall through to the authenticated read.
-  const scanned = await runKeyscan({ sshUser: input.sshUser, sshPort: input.sshPort }, serverAddress).catch(() => '')
-  if (tryParseKeyscanOutput(scanned)?.length) return scanned
-  options.log?.('host-keys-keyscan-empty', { serverAddress })
-  const runSshFetch = options.runSshFetch ?? defaultRunSshFetch
-  const fetched = await runSshFetch(input, serverAddress)
-  if (tryParseKeyscanOutput(fetched)?.length) {
-    options.log?.('host-keys-ssh-fallback', { serverAddress })
-    return fetched
-  }
-  throw new Error('vps_host_key_unavailable')
+  let scanned: string
+  try { scanned = await runKeyscan({ sshUser: input.sshUser, sshPort: input.sshPort }, serverAddress) }
+  catch (error) { throw new Error('vps_host_key_unavailable', { cause: error }) }
+  const keys = parseKeyscanOutput(scanned)
+  if (keys.length === 0) throw new Error('vps_host_key_unavailable')
+  return scanned
 }
 
 /**
@@ -659,25 +623,47 @@ echo DSH_MOBILE_DEPLOYMENT_OK
 `
 }
 
-async function runProcess(command: string, args: readonly string[], stdin?: string, timeoutMs = SSH_TIMEOUT_MS): Promise<{ stdout: string; stderr: string }> {
+/** Run one owned SSH/transfer utility; reject only after its process and stdio have closed. */
+export async function runVpsProcess(command: string, args: readonly string[], stdin?: string, timeoutMs = SSH_TIMEOUT_MS): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolveRun, rejectRun) => {
     const child = spawn(command, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
     let stderr = ''
     const append = (current: string, chunk: Buffer): string => `${current}${chunk.toString('utf8')}`.slice(-MAX_OUTPUT_BYTES)
-    const timer = setTimeout(() => { child.kill(); rejectRun(new VpsSshError('vps_ssh_timeout', stdout, stderr)) }, timeoutMs)
+    let timedOut = false
+    let failure: Error | undefined
+    let failureCode = 'vps_ssh_unavailable'
+    let forceTimer: NodeJS.Timeout | undefined
+    const terminate = (): void => {
+      child.kill()
+      forceTimer ??= setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+        child.stdin.destroy(); child.stdout.destroy(); child.stderr.destroy()
+      }, 1000)
+      forceTimer.unref()
+    }
+    const timer = setTimeout(() => { timedOut = true; terminate() }, timeoutMs)
     timer.unref()
     child.stdout.on('data', chunk => { stdout = append(stdout, Buffer.from(chunk)) })
     child.stderr.on('data', chunk => { stderr = append(stderr, Buffer.from(chunk)) })
-    child.once('error', error => { clearTimeout(timer); rejectRun(new VpsSshError('vps_ssh_unavailable', stdout, stderr, { cause: error })) })
-    child.once('close', code => {
+    child.once('error', error => { failure = error })
+    child.stdin.on('error', error => { failure = error; failureCode = 'vps_ssh_input_failed'; terminate() })
+    const failedOutput = (error:Error):void => { failure = error; failureCode = 'vps_ssh_transport_failed'; terminate() }
+    child.stdout.on('error',failedOutput);child.stderr.on('error',failedOutput)
+    child.once('close', (code, signal) => {
       clearTimeout(timer)
-      if (code !== 0) rejectRun(new VpsSshError(stderr.includes('Permission denied') ? 'vps_ssh_auth_failed' : 'vps_deploy_failed', stdout, stderr))
+      if (forceTimer !== undefined) clearTimeout(forceTimer)
+      const facts = {timedOut,exitCode:code,signal,...(failure === undefined ? {} : {cause:failure})}
+      if (timedOut) rejectRun(new VpsSshError('vps_ssh_timeout',stdout,stderr,facts))
+      else if (failure !== undefined) rejectRun(new VpsSshError(child.pid === undefined ? 'vps_ssh_unavailable' : failureCode,stdout,stderr,facts))
+      else if (code !== 0) rejectRun(new VpsSshError(stderr.includes('Permission denied') ? 'vps_ssh_auth_failed' : 'vps_deploy_failed', stdout, stderr, facts))
       else resolveRun({ stdout, stderr })
     })
     child.stdin.end(stdin, 'utf8')
   })
 }
+
+const runProcess = runVpsProcess
 
 async function downloadArtifact(artifact: (typeof LINUX_ARTIFACTS)[keyof typeof LINUX_ARTIFACTS], file: string): Promise<number> {
   const curl = process.platform === 'win32' ? 'curl.exe' : 'curl'

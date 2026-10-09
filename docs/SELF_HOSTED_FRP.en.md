@@ -61,7 +61,7 @@ curl -v https://PUBLIC_HOST/mobile-access/discovery
 
 Only public IPv4 mode installs `dsh-mobile-cert-renew.timer`; in that mode, also run `sudo systemctl status dsh-mobile-cert-renew.timer`. Replace `PUBLIC_HOST` with your actual domain or public IPv4 address. Do not add `-k`: verify the public certificate as well as the response. Check the same address from an independent external network and confirm discovery reports this computer's installation identifier; success on the VPS alone does not prove the phone's network can reach it.
 
-On the computer, start with the plugin log at `$DSH_HOME/mobile-access/logs/dsh-mobile.log` (JSONL, 5 MB rotation, tokens and keys redacted) and the panel diagnostic report. Windows antivirus software can quarantine frpc; if it does, create the smallest possible exception for the verified component directory only.
+On the computer, start with the plugin log at `$DSH_HOME/mobile-access/logs/dsh-mobile.log` (JSONL; existing files of at least 5 MB rotate at startup) and the panel diagnostic report. Custom extensions must not log tokens or keys; inspect and remove sensitive content before sharing logs because this is not a generic secret redactor. Windows antivirus software can quarantine frpc; if it does, create the smallest possible exception for the verified component directory only.
 
 When several computers share one frps, proxy names are unique across the server and entry ports cannot overlap. The plugin uses `dsh-mobile-<first 12 characters of the installation identity>` as its name. A name conflict requires checking another computer or an unexpired old connection; a port conflict requires a different entry port. A running frpc process does not mean the public entry was published: verify the public route.
 

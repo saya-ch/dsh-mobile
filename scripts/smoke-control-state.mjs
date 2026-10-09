@@ -14,6 +14,8 @@ const remotePath = `${prefix}/remote/control`
 const trustedPath = `${prefix}/lan/trusted-networks`
 const modePath = `${prefix}/remote/origin/mode`
 const caddyPath = `${prefix}/remote/caddy/settings`
+const hostsPath = `${prefix}/extensions/hosts`
+const recoverPath = `${prefix}/extensions/recover`
 const fixtureHtml = '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><section id="fixture-settings"></section><footer id="fixture-sidebar"></footer></body></html>'
 
 function remoteState() {
@@ -57,6 +59,8 @@ async function withControl(browser, name, options, run) {
     holdTrusted: options.holdTrusted === true,
     holdMode: options.holdMode === true,
     holdNextRemote: false,
+    hosts: options.hosts ?? [], holdHosts: false, holdRecovery: options.holdRecovery === true,
+    recoveryError: options.recoveryError,
   }
   if (options.managedReady) {
     Object.assign(state.remote, {
@@ -97,6 +101,20 @@ async function withControl(browser, name, options, run) {
     const entry = { method: request.method, pathname, body }
     requests.push(entry)
     if (pathname === `${prefix}/release`) { json(response, 200, {}); return }
+    if (pathname === `${prefix}/diagnostics`) { json(response, 503, { error: 'diagnostic_fixture_unavailable' }); return }
+    if (pathname === hostsPath) {
+      if (state.holdHosts) { hold(entry, response); return }
+      json(response, 200, { hosts: state.hosts, limits: { maxWorkers: 4, workers: state.hosts.filter(host => host.mode === 'worker' && host.state === 'ready').length } })
+      return
+    }
+    if (pathname === recoverPath) {
+      assert.equal(request.method, 'POST'); assert.equal(body.confirm, true)
+      if (state.holdRecovery) { hold(entry, response); return }
+      if (state.recoveryError !== undefined) { json(response, 409, { error: state.recoveryError }); return }
+      state.hosts = state.hosts.map(host => host.id === body.id ? { ...host, state: 'ready' } : host)
+      json(response, 200, { hosts: state.hosts, limits: { maxWorkers: 4, workers: 1 } })
+      return
+    }
     if (pathname === `${prefix}/lan/control`) {
       json(response, 200, { configured: true, running: true, origin: 'https://192.168.50.20:3443' })
       return
@@ -633,6 +651,129 @@ try {
     assert.equal(await ui.managed.isChecked(), true)
     assert.equal(await ui.caddySecretId.inputValue(), '', 'Successful Caddy connection retained the submitted SecretId')
     assert.equal(await ui.caddySecretKey.inputValue(), '', 'Successful Caddy connection retained the submitted SecretKey')
+  })
+  cases++
+
+  const stoppedHost = { id: 'stopped-worker', name: '<b>Stopped worker</b>', mode: 'worker', state: 'unavailable', generation: 'a'.repeat(64) }
+  for (const language of ['en', 'zh', 'it']) {
+    await withControl(browser, `explicit worker recovery ${language}`, { layoutFixture: true, language, width: 360,
+      hosts: [stoppedHost, { ...stoppedHost, id: 'ready-worker', state: 'ready' }, { ...stoppedHost, id: 'inline', mode: 'in-process' }],
+    }, async ({ page, count, consumed, settle, openRemote }) => {
+      const section = page.locator('.dsh-mobile-control__extension-recovery')
+      await section.waitFor({ state: 'visible' })
+      const dark = language !== 'en'
+      await page.evaluate(dark => {
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        for (const [key, value] of Object.entries(dark
+          ? { 'bg-module-platform': '#292929', 'bg-layer-1': '#222', 'label-primary': '#eee', 'label-secondary': '#bbb', 'border-l2': '#444', 'border-l3': '#555' }
+          : { 'bg-module-platform': '#f3f4f6', 'bg-layer-1': '#fff', 'label-primary': '#171a21', 'label-secondary': '#596273', 'border-l2': '#ddd', 'border-l3': '#ccc' })) {
+          document.documentElement.style.setProperty(`--dsw-alias-${key}`, value)
+        }
+      }, dark)
+      const theme = await section.evaluate(node => ({ foreground: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor }))
+      assert.deepEqual(theme, dark ? { foreground: 'rgb(238, 238, 238)', background: 'rgb(41, 41, 41)' } : { foreground: 'rgb(23, 26, 33)', background: 'rgb(243, 244, 246)' }, 'Recovery did not consume its DSH theme tokens')
+      assert.equal(await section.locator('li').count(), 1, 'Recovery included a ready or in-process host')
+      assert.equal(await section.locator('strong').textContent(), stoppedHost.name, 'Host name was not rendered as plain text')
+      assert.equal(await section.locator('strong b').count(), 0, 'Host name was interpreted as HTML')
+      const button = section.locator('button[data-extension-recovery-id]')
+      const bounds = await button.boundingBox()
+      assert(bounds !== null && bounds.width >= 48 && bounds.height >= 48, 'Recovery lost its touch target')
+      assert(await button.evaluate(node => { const box = node.getBoundingClientRect(); return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)) }), 'Recovery button was covered')
+      assert.equal(await section.evaluate(node => node.scrollWidth <= node.clientWidth + 1), true, 'Recovery card overflowed')
+      assert.equal(count('POST', recoverPath), 0, 'Opening the control automatically restarted a worker')
+      await openRemote()
+      assert.equal(await section.isVisible(), true, 'Remote tab hid extension recovery')
+      await page.locator('.dsh-mobile-control__diagnostic-entry').click()
+      assert.equal(await section.isVisible(), true, 'Diagnostics hid extension recovery')
+      const confirmations = []
+      page.on('dialog', dialog => { confirmations.push(dialog.message()) })
+      const before = await consumed(recoverPath)
+      await button.click()
+      await settle(recoverPath, before)
+      assert.equal(confirmations.length, 1, 'Recovery did not require an explicit confirmation')
+      assert.match(confirmations[0], language === 'zh' ? /不会重新执行|不会重新/u : language === 'it' ? /non verranno ripetute/u : /will not be retried/u)
+      assert.equal(count('POST', recoverPath), 1)
+      assert.equal(await section.isVisible(), false, 'Successful recovery did not remove the stopped-worker section')
+    })
+    cases++
+  }
+
+  await withControl(browser, 'cancelled worker recovery never sends a write', { hosts: [stoppedHost], cancelDialogs: true }, async ({ page, count }) => {
+    await page.locator('.dsh-mobile-control__extension-recovery').waitFor({ state: 'visible' })
+    await page.locator('button[data-extension-recovery-id]').click()
+    assert.equal(count('POST', recoverPath), 0)
+    assert.equal(await page.locator('button[data-extension-recovery-id]').isDisabled(), false)
+  })
+  cases++
+
+  await withControl(browser, 'worker recovery serializes writes and ignores an older read', { hosts: [stoppedHost, { ...stoppedHost, id: 'second-worker' }], holdRecovery: true }, async ({ page, state, count, waitRequest, consumed, settle, openRemote }) => {
+    const section = page.locator('.dsh-mobile-control__extension-recovery')
+    await section.waitFor({ state: 'visible' })
+    state.holdHosts = true
+    const readCount = count('GET', hostsPath)
+    await openRemote()
+    const stale = await waitRequest('GET', hostsPath, readCount)
+    await section.locator('button[data-extension-recovery-id]').first().click()
+    const post = await waitRequest('POST', recoverPath)
+    assert.deepEqual(post.body, { id: stoppedHost.id, confirm: true })
+    assert.equal(await section.locator('button[data-extension-recovery-id]:disabled').count(), 2)
+    await section.locator('button[data-extension-recovery-id]').last().evaluate(node => node.click())
+    assert.equal(count('POST', recoverPath), 1, 'Busy recovery allowed a second write')
+    state.hosts = []; state.holdHosts = false; state.holdRecovery = false
+    const before = await consumed(recoverPath)
+    post.release(200, { hosts: [], limits: { maxWorkers: 4, workers: 2 } })
+    await settle(recoverPath, before)
+    assert.equal(await section.isVisible(), false)
+    const previous = await consumed(hostsPath)
+    stale.release(200, { hosts: [stoppedHost], limits: { maxWorkers: 4, workers: 0 } })
+    await settle(hostsPath, previous)
+    assert.equal(await section.isVisible(), false, 'An older GET resurrected the recovered worker')
+  })
+  cases++
+
+  await withControl(browser, 'worker restart failure stays actionable through background refresh', { hosts: [stoppedHost], recoveryError: 'extension_changed_during_activation' }, async ({ page, state, consumed, settle }) => {
+    const section = page.locator('.dsh-mobile-control__extension-recovery')
+    await section.waitFor({ state: 'visible' })
+    const previous = await consumed(recoverPath)
+    await section.locator('button[data-extension-recovery-id]').click()
+    await settle(recoverPath, previous)
+    const error = section.locator('[role="status"]')
+    assert.match(await error.textContent(), /files changed/u)
+    assert.equal(await section.locator('button[data-extension-recovery-id]').isDisabled(), false)
+    const priorRead = await consumed(hostsPath)
+    await page.clock.runFor(20_000)
+    await settle(hostsPath, priorRead)
+    assert.match(await error.textContent(), /files changed/u, 'Background refresh erased the recovery failure')
+    state.recoveryError = undefined
+    const next = await consumed(recoverPath)
+    await section.locator('button[data-extension-recovery-id]').click()
+    await settle(recoverPath, next)
+    assert.equal(await section.isVisible(), false)
+  })
+  cases++
+
+  await withControl(browser, 'late recovery read cannot update a disposed control', { hosts: [stoppedHost] }, async ({ page }) => {
+    const section = page.locator('.dsh-mobile-control__extension-recovery')
+    await section.waitFor({ state: 'visible' })
+    await page.evaluate(payload => {
+      const original = window.fetch
+      window.fetch = (path, init) => String(path).endsWith('/extensions/hosts') ? new Promise(resolve => {
+        window.releaseLateRecovery = () => resolve({ ok: true, json: async () => payload })
+      }) : original(path, init)
+      window.detachedRecovery = document.querySelector('.dsh-mobile-control__extension-recovery')
+      window.detachedRecoveryText = window.detachedRecovery.textContent
+    }, { hosts: [] })
+    await page.locator('.dsh-mobile-control__trigger').click()
+    await page.locator('.dsh-mobile-control__trigger').click()
+    await page.waitForFunction(() => typeof window.releaseLateRecovery === 'function')
+    await page.evaluate(async () => {
+      window.disposeClient()
+      window.releaseLateRecovery()
+      for (let turn = 0; turn < 12; turn++) await Promise.resolve()
+    })
+    assert.equal(await page.locator('.dsh-mobile-control').count(), 0)
+    assert.equal(await page.evaluate(() => window.detachedRecovery.textContent), await page.evaluate(() => window.detachedRecoveryText), 'Late data rewrote a disposed section')
+    assert.equal(await page.evaluate(() => window.detachedRecovery.hidden), false, 'Late data hid the detached section')
   })
   cases++
   console.log(`Control-state browser smoke passed (${cases} cases; owned HTTP controller fixtures).`)

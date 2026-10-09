@@ -1,9 +1,9 @@
-import { randomBytes } from 'node:crypto'
-import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, readFile } from 'node:fs/promises'
 import { isIP } from './ip.js'
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { addressAllowed, isGloballyRoutableIpv4, isLoopbackAddress, parseCidr } from './network.js'
 import { restrictPrivateFile } from './private-file.js'
+import { assertManagedParents, removeManagedTree, writeManagedPrivateFile } from './managed-files.js'
 
 export const DEFAULT_ORIGIN_LISTEN_PORT = 3444
 const MAX_SETTINGS_BYTES = 8 * 1024
@@ -123,26 +123,6 @@ export function parseOriginSettings(value: unknown): OriginSettings {
   })
 }
 
-async function atomicPrivateWrite(file: string, body: string): Promise<void> {
-  const directory = dirname(file)
-  await mkdir(directory, { recursive: true, mode: 0o700 })
-  try {
-    const current = await lstat(file)
-    if (!current.isFile() || current.isSymbolicLink()) throw new Error('origin_config_target_invalid')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-  }
-  const temporary = join(directory, '.' + basename(file) + '.' + randomBytes(12).toString('hex') + '.tmp')
-  try {
-    await writeFile(temporary, body, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
-    await rename(temporary, file)
-    await restrictPrivateFile(file)
-  } catch (error) {
-    await rm(temporary, { force: true })
-    throw error
-  }
-}
-
 /** Owns only origin settings; shared paired-device storage is never removed. */
 export class OriginConfigStore {
   readonly stateRoot: string
@@ -150,7 +130,7 @@ export class OriginConfigStore {
   private settingsValue: OriginSettings | undefined
   private errorCode: string | undefined
 
-  constructor(stateDirectory: string) {
+  constructor(stateDirectory: string, private readonly ownedRoot = stateDirectory) {
     if (!isAbsolute(stateDirectory)) throw new Error('origin config state directory must be absolute')
     this.stateRoot = resolve(stateDirectory)
     this.settingsFile = join(this.stateRoot, 'settings.json')
@@ -159,6 +139,10 @@ export class OriginConfigStore {
   async initialize(): Promise<void> {
     this.settingsValue = undefined
     this.errorCode = undefined
+    try { await assertManagedParents(this.ownedRoot, this.settingsFile, 'origin') } catch (_error) {
+      this.errorCode = 'origin_config_invalid'
+      return
+    }
     let entry
     try { entry = await lstat(this.settingsFile) } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
@@ -194,14 +178,14 @@ export class OriginConfigStore {
 
   async configure(value: unknown): Promise<OriginConfigurationStatus> {
     const settings = parseOriginSettings(value)
-    await atomicPrivateWrite(this.settingsFile, JSON.stringify(settings) + '\n')
+    await writeManagedPrivateFile(this.ownedRoot, this.settingsFile, JSON.stringify(settings) + '\n', 'origin')
     this.settingsValue = settings
     this.errorCode = undefined
     return this.status()
   }
 
   async purge(): Promise<OriginConfigurationStatus> {
-    await rm(this.settingsFile, { force: true })
+    await removeManagedTree(this.ownedRoot, this.settingsFile, 'origin')
     this.settingsValue = undefined
     this.errorCode = undefined
     return this.status()

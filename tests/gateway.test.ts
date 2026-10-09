@@ -283,7 +283,19 @@ async function upstream(
       held.push(() => { response.writeHead(200); response.end('released') })
       return
     }
-    if (incoming.url === '/' && incoming.headers.accept?.includes('text/html')) {
+    if (incoming.url === '/sidebar/html/preview.html') {
+      const body = '<!doctype html><html><head><title>Plugin preview</title></head><body>owned preview</body></html>'
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'content-length': Buffer.byteLength(body) })
+      response.end(body)
+      return
+    }
+    if (incoming.url === '/sidebar/html/missing.html') {
+      response.writeHead(404, { 'content-type': 'text/html; charset=utf-8' })
+      response.end('<html><body>missing preview</body></html>')
+      return
+    }
+    const documentPath = new URL(incoming.url ?? '/', 'http://upstream.invalid').pathname
+    if ((documentPath === '/' || documentPath === '/index.html') && incoming.headers.accept?.includes('text/html')) {
       const pluginUrl = (id: string, name: string, rev: string): string => {
         if (boot === 'batched-relative-invalid' && id === 'feature') return 'plugins/../api/secret'
         return boot === 'batched-relative' || boot === 'batched-relative-invalid'
@@ -753,11 +765,19 @@ describe('HTTP gateway', () => {
     expect(mobile.body).toContain('<script src="/mobile-access/compat.js"></script>')
     expect(mobile.body.indexOf('/mobile-access/compat.js')).toBeLessThan(mobile.body.indexOf('__DSH_BOOT__'))
 
-    const deepLink = await request(instance.address().port, '/sessions/example', { headers })
+    const deepLink = await request(instance.address().port, '/?sessionId=example', { headers })
     expect(deepLink.status).toBe(200)
     expect(deepLink.body).toContain('window.__DSH_MOBILE_FRONTEND__="dedicated"')
     expect(deepLink.body.indexOf('/mobile-access/compat.js')).toBeGreaterThan(0)
     expect(deepLink.body.indexOf('/mobile-access/compat.js')).toBeLessThan(deepLink.body.indexOf('__DSH_BOOT__'))
+
+    const index = await request(instance.address().port, '/index.html?sessionId=example', {
+      headers: { ...headers, 'sec-fetch-dest': 'iframe' },
+    })
+    expect(index.status).toBe(200)
+    expect(index.body).toContain('window.__DSH_MOBILE_FRONTEND__="dedicated"')
+    expect(inner.observations.map(entry => entry.url)).toContain('/?sessionId=example')
+    expect(inner.observations.map(entry => entry.url)).toContain('/index.html?sessionId=example')
 
     const stock = await request(instance.address().port, '/?frontend=stock', { headers })
     expect(stock.status).toBe(200)
@@ -2014,12 +2034,18 @@ describe('HTTP gateway', () => {
     expect(csp).toContain("default-src 'self'")
     expect(document.headers['x-frame-options']).toBe('SAMEORIGIN')
 
-    const route = await request(instance.address().port, '/sidebar/html/preview.html', { headers: sessionHeaders })
+    const route = await request(instance.address().port, '/sidebar/html/preview.html', {
+      headers: { ...sessionHeaders, accept: 'text/html,application/xhtml+xml', 'sec-fetch-dest': 'iframe' },
+    })
     expect(route.status).toBe(200)
     const routeCsp = route.headers['content-security-policy'] ?? ''
     expect(routeCsp).toContain("frame-ancestors 'self'")
     expect(routeCsp).toContain("frame-src 'self' blob: https: http:")
     expect(route.headers['x-frame-options']).toBe('SAMEORIGIN')
+    expect(route.body).toContain('<body>owned preview</body>')
+    expect(route.body).not.toContain('__DSH_MOBILE_FRONTEND__')
+    expect(route.body).not.toContain('__DSH_BOOT__')
+    expect(inner.observations.map(entry => entry.url)).toEqual(['/', '/sidebar/html/preview.html'])
 
     // Gateway-owned surfaces (the login document is the one a browser actually
     // renders) keep refusing every frame, including same-origin ones.
@@ -2029,6 +2055,45 @@ describe('HTTP gateway', () => {
     expect(loginCsp).toContain("frame-ancestors 'none'")
     expect(loginCsp).not.toContain('frame-src')
     expect(login.headers['x-frame-options']).toBe('DENY')
+  })
+
+  it('retains a plugin HTML error and does not turn an unknown document route into the DSH homepage', async () => {
+    const inner = await upstream()
+    const instance = await gateway(inner.port)
+    const paired = await pair(instance)
+    const headers = {
+      ...browserHeaders(instance), cookie: `${SESSION_COOKIE}=${paired.session}`,
+      accept: 'text/html,application/xhtml+xml', 'sec-fetch-dest': 'document',
+    }
+    const missing = await request(instance.address().port, '/sidebar/html/missing.html', { headers })
+    expect(missing.status).toBe(404)
+    expect(missing.body).toBe('<html><body>missing preview</body></html>')
+    expect(missing.headers['x-frame-options']).toBe('SAMEORIGIN')
+    const unknown = await request(instance.address().port, '/sessions/example', { headers })
+    expect(unknown.status).toBe(200)
+    expect(JSON.parse(unknown.body)).toMatchObject({ url: '/sessions/example' })
+    expect(inner.observations.map(entry => entry.url)).toEqual(['/sidebar/html/missing.html', '/sessions/example'])
+    expect(missing.body + unknown.body).not.toContain('__DSH_MOBILE_FRONTEND__')
+  })
+
+  it('rejects a malformed DSH entry document instead of silently serving its unadapted shell', async () => {
+    const inner = createServer((_incoming, response) => {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      response.end('<html><head><script>globalThis["__DSH_BOOT__"] = {"rev":"broken","entries":[]};</script></head><body>broken shell</body></html>')
+    })
+    const port = await listen(inner)
+    cleanups.push(() => closeServer(inner))
+    const instance = await gateway(port)
+    const paired = await pair(instance)
+    const document = await request(instance.address().port, '/index.html?view=conversation', {
+      headers: {
+        ...browserHeaders(instance), cookie: `${SESSION_COOKIE}=${paired.session}`,
+        accept: 'text/html', 'sec-fetch-dest': 'document',
+      },
+    })
+    expect(document.status).toBe(502)
+    expect(JSON.parse(document.body)).toEqual({ error: 'upstream_unavailable' })
+    expect(document.body).not.toContain('broken shell')
   })
 
   it('compresses text assets when the authenticated client accepts gzip', async () => {

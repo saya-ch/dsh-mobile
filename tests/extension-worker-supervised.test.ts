@@ -11,7 +11,7 @@ import { buildExtensionWorkerArtifacts } from './helpers/extension-worker-build.
 describe('supervised extension worker blocking scenarios', () => {
   it('keeps the parent responsive, times the caller out, terminates and recovers', async () => {
     const artifacts = await buildExtensionWorkerArtifacts()
-    const verdict = await new Promise<{ stdout: string; code: number | null }>((resolve, reject) => {
+    const verdict = await new Promise<{ stdout: string; code: number | null; signal: NodeJS.Signals | null; timedOut: boolean }>((resolve, reject) => {
       const child = spawn(process.execPath, ['tests/supervised/extension-worker-blocking-runner.mjs', artifacts.runtimeEntry, artifacts.supervisorBundle], {
         cwd: process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -20,10 +20,13 @@ describe('supervised extension worker blocking scenarios', () => {
       child.stdout.on('data', chunk => { stdout += String(chunk) })
       child.stderr.on('data', chunk => { process.stderr.write(chunk) })
       // Hard supervision: a wedged runner fails the test instead of the suite.
-      const guard = setTimeout(() => { child.kill('SIGKILL') }, 15_000)
+      let timedOut = false
+      const guard = setTimeout(() => { timedOut = true; child.kill('SIGKILL') }, 15_000)
       child.once('error', reject)
-      child.once('close', code => { clearTimeout(guard); resolve({ stdout, code }) })
+      child.once('close', (code, signal) => { clearTimeout(guard); resolve({ stdout, code, signal, timedOut }) })
     })
+    expect(verdict.timedOut).toBe(false)
+    expect(verdict.signal).toBeNull()
     expect(verdict.code).toBe(0)
     const report = JSON.parse(verdict.stdout) as {
       scenarioA: { responsive: boolean; timeout: boolean; terminated: boolean; recovered: boolean; runtimeRotated: boolean }

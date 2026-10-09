@@ -12,11 +12,15 @@ Distinguish network unavailability, changed address, expired credentials, authen
 
 Optional downloaded components belong to a private managed directory derived from the user's actual DSH state. Preserve fixed-source/size/hash checks, archive extraction limits and parent-directory ownership. No hidden service installation, PATH edits or startup registration. Cleanup must distinguish plugin-owned components from a user's external proxy or system installation. A bounded Windows filesystem retry must not weaken path checks or destroy the rollback copy.
 
+Lexical path containment does not prevent an owned ancestor from being a junction or symlink to another directory. Use `src/managed-files.ts` for component/configuration mutation: refuse linked parents, unlink a selected leaf link without traversing it, retain a recoverable replacement backup, and await cleanup before reporting completion. Do not retrofit ACLs on an existing directory that may have unrelated children; secure newly created directories and sensitive temporary files before promotion. `tests/managed-component-files.test.ts` and `tests/caddy-file-lifecycle.test.ts` cover these paths.
+
 Managed Caddy build/review/distribution and runtime installation are separate states. Consult `docs/CADDY_MANAGED.md` and its English counterpart; a successful build or release does not enable an unpinned production catalog, prove certificate renewal or authorize component publication.
 
 ## Connectivity and remote performance
 
 Check the chain that matters: actual computer process → local gateway → public Origin → static boot resources → authenticated API → WebSocket Workspace reads. A health response, TLS handshake or screenshot of a login page is not full remote acceptance. If the same public URL is slow on the computer, separate provider/network limits from App rendering.
+
+An iframe document also requests `Accept: text/html`; that header alone does not identify the DSH shell. Keep Mobile boot rewriting aligned with DSH's actual frontend entry points and boot manifest, and forward community preview/error documents to their original route without replacing them with the homepage. Include the browser's iframe headers, response body and upstream target in `tests/gateway.test.ts`; framing-policy headers alone do not establish that the preview was served.
 
 For cellular/public-route tests, use the phone's real network. Mark USB reverse, loopback routing, local reverse proxies and simulated TLS as isolated evidence. If temporarily switching providers is authorized, record and restore the selected provider; do not silently abandon a working tunnel.
 
@@ -41,6 +45,10 @@ Keep mobile typography local to the current Origin instead of writing Host setti
 Preserve DSH's composition, menu selection, modifiers and send handling when changing Enter behavior. Browser events cannot reliably distinguish every soft and external keyboard; use the existing policy and native evidence rather than a UA guess. Switching sessions should not focus the composer and summon the keyboard. Reuse native DSH file upload instead of adding a duplicate chooser; camera actions remain explicit user actions.
 
 Async settings/forms need disposed-view and stale-result checks. A saved preference must actually affect rendering, and a failed operation should retain the last confirmed value with a short localized retry path. Do not capture microphone audio automatically or call speech recognition verified without a physical recording/recognition test.
+
+For local extension Workers, read `docs/EXTENSION_WORKERS.en.md` and the owning protocol/runtime tests. Keep caller settlement separate from execution completion and confirmed exit. Stream cancellation survives header delivery; unread EOF bytes retain budget, and Node flowing `push()` can deliver data without an explicit `read()`. Verify the real HTTP pipeline, fair aggregate progress and explicit recovery without replay. Inherited Node heap flags can override reported Worker limits; inspect the actual launch/guard rather than treating `worker.resourceLimits` as effective-memory evidence.
+
+Wait for resolved network state in browser fixtures, not a returned Promise's truthiness. Use a bounded asynchronous poll that checks the actual result, as in `scripts/smoke-extension-workers.mjs`; a completed `waitForFunction` call alone does not establish an asynchronous predicate became true. Keep source-content generation separate from runtime instance identity when checking recovery.
 
 ## Android and ADB
 

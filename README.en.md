@@ -216,6 +216,8 @@ Extension manifests, scripts, styles, and assets are revisioned. When the plugin
 
 An extension action's `input` may use a callable Schemastery schema such as `api.schema.object(...)` or an adapter with `parse(value)`; mobile `api.host.invoke()` sends JSON explicitly, and the input is validated and normalized before the computer-side action runs.
 
+The 0.6.3 candidate adds optional [Worker execution](docs/EXTENSION_WORKERS.en.md) for trusted local JavaScript hosts. It is disabled by default, selectable by extension, and recovers explicitly without replaying interrupted actions. It is not a permission sandbox and does not require a matching App version.
+
 <sub>You can even use an extension to connect to SillyTavern running on the same computer, give it a lightweight mobile frontend, and open it from the same app.</sub>
 
 > `host.mjs` has the same privileges as a local program. Create and run only computer-side extensions that you understand and trust.
@@ -385,6 +387,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 | --- | --- |
 | `0.5.5` | `0.1.7-alpha.2`, `0.1.7-rc.1`, `0.1.7-rc.2`, `0.2.0-rc.1`, and `0.2.0-rc.2` (npm installation, isolated pairing, mobile-page boot, and WebSocket Workspace baseline) |
 | `0.6.0` | `0.1.7-alpha.2`, `0.1.7-rc.1`, `0.1.7-rc.2`, `0.2.0-rc.1` and `0.2.0-rc.2` (packed installation, pairing, mobile-page boot and WebSocket Workspace reads); additional checks cover the mobile composer, module settings and component loading after a normal official Desktop restart |
+| `0.6.2` | Packed legacy-WebView boot, touch scrolling and missing-API/viewport negative controls passed on `0.2.0-rc.2`, with release CI passing. The reporter's physical old devices in #187 were not claimed as accepted |
 
 <details>
 <summary>Historical version checks</summary>

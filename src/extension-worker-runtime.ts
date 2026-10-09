@@ -1,5 +1,5 @@
 /**
- * Spike (Phase 2 de-risking): worker-side runtime for local extension hosts.
+ * Worker-side runtime for opt-in local extension hosts.
  *
  * This file is a standalone tsdown entry (lib/extension-worker-runtime.mjs).
  * It executes ALL host behavior inside the worker thread — module import,
@@ -7,7 +7,9 @@
  * parent with metadata and pre-serialized bytes only. It must never import
  * Cordis or any DSH service.
  */
-import { parentPort } from 'node:worker_threads'
+import { parentPort, workerData } from 'node:worker_threads'
+import { inspect } from 'node:util'
+import { resolveHostExecution } from './extension-worker-config.js'
 import { randomUUID } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import z from '@deepseek-ai/schemastery'
@@ -16,11 +18,7 @@ import {
   normalizeWorkerRoutePath,
   serializeWorkerResult,
   validOperationTimeout,
-  WORKER_LOG_WINDOW_MS,
-  WORKER_RESULT_MAX_BYTES,
-  WORKER_STREAM_AGGREGATE_BYTES,
-  WORKER_STREAM_CREDIT_BYTES,
-  WORKER_STREAM_MAX_CHUNK_BYTES,
+  WORKER_RESPONSE_METADATA_MAX_BYTES,
   type ParentMessage,
   type WorkerActionMetadata,
   type WorkerRouteMetadata,
@@ -67,9 +65,10 @@ interface RuntimeHostApi {
 const parentChannel = parentPort
 if (parentChannel === null) throw new Error('extension-worker-runtime must run inside a Worker')
 const port = parentChannel
+const limits = resolveHostExecution((workerData as { readonly limits?: unknown } | undefined)?.limits)
 
 /** Logger-adapter burst budget per time window; the budget resets each window. */
-const LOG_QUEUE_LIMIT = 64
+const LOG_QUEUE_LIMIT = limits.logMessagesPerWindow
 
 const runtimeId = randomUUID()
 const generationController = new AbortController()
@@ -84,20 +83,17 @@ function send(message: unknown): void {
 }
 
 /** Upper bound for one stringified log argument forwarded to the parent. */
-const LOG_ARG_MAX_CHARS = 4_096
+const LOG_ARG_MAX_CHARS = limits.logMessageBytes
 
 /** Render a log argument that structured cloning cannot carry (or that is huge). */
-function sanitizeLogArg(value: unknown): unknown {
-  if (typeof value === 'function' || typeof value === 'symbol') return `[${typeof value}]`
-  if (typeof value === 'string' && value.length > LOG_ARG_MAX_CHARS) {
-    return `${value.slice(0, LOG_ARG_MAX_CHARS)}…(+${value.length - LOG_ARG_MAX_CHARS} chars)`
-  }
-  return value
+function sanitizeLogArg(value: unknown): string {
+  const rendered = typeof value === 'string' ? value : inspect(value, { depth: 2, maxArrayLength: 16, maxStringLength: 256, customInspect: false, getters: false })
+  return rendered.slice(0, LOG_ARG_MAX_CHARS)
 }
 
 function log(level: 'debug' | 'info' | 'warn' | 'error', args: readonly unknown[]): void {
   const now = Date.now()
-  if (now - logWindowStartedAt >= WORKER_LOG_WINDOW_MS) {
+  if (now - logWindowStartedAt >= limits.logWindowMs) {
     logWindowStartedAt = now
     logWindowCount = 0
   }
@@ -107,8 +103,16 @@ function log(level: 'debug' | 'info' | 'warn' | 'error', args: readonly unknown[
     // Logging must never fail the host's calling code: clone-unsafe values are
     // rendered, oversized strings are truncated, and a postMessage failure
     // (deep non-cloneable objects) is swallowed.
-    send({ kind: 'log', level, args: args.map(sanitizeLogArg) })
-  } catch { /* dropped */ }
+    let remaining = limits.logMessageBytes
+    const rendered: string[] = []
+    for (const arg of args) {
+      if (remaining <= 0) break
+      const bytes = Buffer.from(sanitizeLogArg(arg)).subarray(0, remaining)
+      const text = bytes.toString('utf8').replace(/\uFFFD$/u, '')
+      rendered.push(text); remaining -= Buffer.byteLength(text)
+    }
+    send({ kind: 'log', level, args: rendered })
+  } catch (error) { void error /* Logging cannot fail host execution. */ }
 }
 
 /** Bound a forwarded error message so it cannot carry unbounded text. */
@@ -150,8 +154,10 @@ const streamCredit = new Map<string, number>()
 const streamSent = new Map<string, number>()
 const streamAcked = new Map<string, number>()
 
-/** Resolvers waiting for send budget (window credit or aggregate headroom). */
-let sendBudgetWaiters: (() => void)[] = []
+/** FIFO demands reserve aggregate bytes before waking a source pump. */
+const sendBudgetWaiters: { readonly id: string; readonly length: number; readonly bail: () => boolean; readonly resolve: (granted: boolean) => void }[] = []
+const finishedStreams = new Set<string>()
+let drainingBudget = false
 
 /** Bytes sent but not yet acknowledged, across all live streams. */
 function inFlightTotal(): number {
@@ -161,8 +167,21 @@ function inFlightTotal(): number {
 }
 
 function wakeSendBudgetWaiters(): void {
-  for (const wake of sendBudgetWaiters) wake()
-  sendBudgetWaiters = []
+  if (drainingBudget) return
+  drainingBudget = true
+  try {
+    for (let index = 0; index < sendBudgetWaiters.length;) {
+      const waiter = sendBudgetWaiters[index]!
+      if (waiter.bail()) { sendBudgetWaiters.splice(index, 1); waiter.resolve(false); continue }
+      // An unconsumed full stream does not block siblings that have their own window credit.
+      if ((streamCredit.get(waiter.id) ?? 0) < waiter.length) { index += 1; continue }
+      // Protect headroom for the oldest eligible demand: a hot small-chunk producer cannot continually steal it.
+      if (inFlightTotal() + waiter.length > limits.streamAggregateBytes) break
+      if (!tryReserve(waiter.id, waiter.length)) throw new Error('worker stream reservation failed')
+      sendBudgetWaiters.splice(index, 1)
+      waiter.resolve(true)
+    }
+  } finally { drainingBudget = false }
 }
 
 /**
@@ -174,42 +193,16 @@ function wakeSendBudgetWaiters(): void {
 function tryReserve(id: string, length: number): boolean {
   const credit = streamCredit.get(id) ?? 0
   if (credit < length) return false
-  if (inFlightTotal() + length > WORKER_STREAM_AGGREGATE_BYTES) return false
+  if (inFlightTotal() + length > limits.streamAggregateBytes) return false
   streamCredit.set(id, credit - length)
   streamSent.set(id, (streamSent.get(id) ?? 0) + length)
   return true
 }
 
-/**
- * Grant freed aggregate headroom to starved streams (oldest first): each may
- * receive up to one max chunk, bounded by its remaining window. Without this,
- * a stream that opened while the aggregate was exhausted (initial credit 0)
- * could never send, because only its own acknowledgments replenish it.
- */
-function redistributeAggregate(): void {
-  let headroom = WORKER_STREAM_AGGREGATE_BYTES - inFlightTotal()
-  if (headroom <= 0) return
-  for (const id of streamCredit.keys()) {
-    const credit = streamCredit.get(id) ?? 0
-    if (credit >= WORKER_STREAM_MAX_CHUNK_BYTES) continue
-    const ownInFlight = (streamSent.get(id) ?? 0) - (streamAcked.get(id) ?? 0)
-    const windowHeadroom = WORKER_STREAM_CREDIT_BYTES - ownInFlight - credit
-    const grant = Math.min(headroom, WORKER_STREAM_MAX_CHUNK_BYTES - credit, windowHeadroom)
-    if (grant <= 0) continue
-    streamCredit.set(id, credit + grant)
-    headroom -= grant
-    if (headroom <= 0) break
-  }
-  wakeSendBudgetWaiters()
-}
-
 /** Wait until a piece may be sent; resolves false when the caller bailed. */
 async function acquireSendBudget(id: string, length: number, bail: () => boolean): Promise<boolean> {
-  while (!tryReserve(id, length)) {
-    if (bail()) return false
-    await new Promise<void>(resolve => { sendBudgetWaiters.push(resolve) })
-  }
-  return true
+  if (bail()) return false
+  return new Promise<boolean>(resolve => { sendBudgetWaiters.push({ id, length, bail, resolve }); wakeSendBudgetWaiters() })
 }
 
 async function handleMessage(message: ParentMessage): Promise<void> {
@@ -227,16 +220,18 @@ async function handleMessage(message: ParentMessage): Promise<void> {
     return
   }
   if (message.kind === 'stream-ack') {
+    if (!streamSent.has(message.id) || !Number.isInteger(message.bytes) || message.bytes < 0 || message.bytes > (streamSent.get(message.id) ?? 0) - (streamAcked.get(message.id) ?? 0)) return
     streamAcked.set(message.id, (streamAcked.get(message.id) ?? 0) + message.bytes)
-    streamCredit.set(message.id, (streamCredit.get(message.id) ?? 0) + message.bytes)
+    if (!finishedStreams.has(message.id)) streamCredit.set(message.id, (streamCredit.get(message.id) ?? 0) + message.bytes)
+    if (finishedStreams.has(message.id) && streamSent.get(message.id) === streamAcked.get(message.id)) releaseStreamAccounting(message.id)
     // Freed aggregate headroom may unblock streams that opened starved.
-    redistributeAggregate()
     wakeSendBudgetWaiters()
     return
   }
   if (message.kind === 'stream-cancel') {
     const source = activeSources.get(message.id)
     source?.destroy()
+    if (finishedStreams.has(message.id)) releaseStreamAccounting(message.id)
     // A pump parked on exhausted budget must wake up and observe the destroy.
     wakeSendBudgetWaiters()
     return
@@ -253,7 +248,7 @@ async function handleMessage(message: ParentMessage): Promise<void> {
     for (const cleanup of [...cleanups].reverse()) {
       try { pending.push(Promise.resolve(cleanup())) } catch { /* teardown cannot block the parent */ }
     }
-    await Promise.race([Promise.allSettled(pending), new Promise(resolve => { setTimeout(resolve, 2_000).unref?.() })])
+    await Promise.allSettled(pending)
     send({ kind: 'result', runtimeId, id: message.id, bytes: new Uint8Array() })
     return
   }
@@ -289,25 +284,29 @@ async function runRoute(message: {
       signal: controller.signal,
       deviceId: message.deviceId,
     })
-    if (response === null || typeof response !== 'object' || typeof (response as { body?: unknown }).body !== 'string' && !((response as { body?: unknown }).body instanceof Uint8Array) && !isStream((response as { body?: unknown }).body)) {
+    if (response === null || typeof response !== 'object') {
       send({ kind: 'error', runtimeId, id: message.id, code: 'invalid_route_response', message: 'extension returned an invalid response', status: 500 })
       return
     }
-    const meta = response as { status?: number; contentType?: string; headers?: Record<string, string>; body: string | Uint8Array | import('node:stream').Readable }
-    if (isStream(meta.body)) {
-      await pumpStream(message.id, meta.body, meta)
+    const body:unknown = response.body
+    if (typeof body !== 'string' && !(body instanceof Uint8Array) && !isStream(body)) throw Object.assign(new Error('extension returned an invalid response'), {code:'invalid_route_response',status:500})
+    let wireMeta:ReturnType<typeof snapshotResponseMetadata>
+    try {wireMeta = snapshotResponseMetadata(response)} catch(error) {
+      if(isStream(body)){body.once('error',()=>undefined);body.destroy()}
+      throw error
+    }
+    if (isStream(body)) {
+      await pumpStream(message.id, body, wireMeta)
       return
     }
-    const bytes = typeof meta.body === 'string' ? new TextEncoder().encode(meta.body) : new Uint8Array(meta.body)
-    if (bytes.byteLength > WORKER_RESULT_MAX_BYTES) {
+    const bytes = typeof body === 'string' ? new TextEncoder().encode(body) : new Uint8Array(body)
+    if (bytes.byteLength > limits.resultMaxBytes) {
       send({ kind: 'error', runtimeId, id: message.id, code: 'extension_result_too_large', message: 'extension response is too large', status: 500 })
       return
     }
     send({
       kind: 'route-response', runtimeId, id: message.id,
-      ...(meta.status === undefined ? {} : { status: meta.status }),
-      ...(meta.contentType === undefined ? {} : { contentType: meta.contentType }),
-      ...(meta.headers === undefined ? {} : { headers: meta.headers }),
+      ...wireMeta,
       bytes,
     })
   } catch (error) {
@@ -329,7 +328,7 @@ function isStream(value: unknown): value is import('node:stream').Readable {
 
 async function pumpStream(id: string, source: import('node:stream').Readable, meta: { status?: number; contentType?: string; headers?: Record<string, string> }): Promise<void> {
   activeSources.set(id, source)
-  streamCredit.set(id, Math.max(0, Math.min(WORKER_STREAM_CREDIT_BYTES, WORKER_STREAM_AGGREGATE_BYTES - inFlightTotal())))
+  streamCredit.set(id, limits.streamWindowBytes)
   streamSent.set(id, 0)
   streamAcked.set(id, 0)
   send({
@@ -344,10 +343,10 @@ async function pumpStream(id: string, source: import('node:stream').Readable, me
     ended = true
     activeSources.delete(id)
     streamCredit.delete(id)
-    streamSent.delete(id)
-    streamAcked.delete(id)
+    finishedStreams.add(id)
+    if (source.destroyed && !source.readableEnded || streamSent.get(id) === streamAcked.get(id)) releaseStreamAccounting(id)
     // Freed aggregate budget may unblock other streams.
-    redistributeAggregate()
+    wakeSendBudgetWaiters()
   }
   source.once('error', error => {
     if (ended) return
@@ -360,7 +359,7 @@ async function pumpStream(id: string, source: import('node:stream').Readable, me
       if (ended) return
       // A chunk larger than the whole window can never be granted: split it.
       for (let offset = 0; offset < bytes.byteLength;) {
-        const piece = bytes.subarray(offset, Math.min(offset + WORKER_STREAM_MAX_CHUNK_BYTES, bytes.byteLength))
+        const piece = bytes.subarray(offset, Math.min(offset + limits.streamChunkBytes, bytes.byteLength))
         // Explicit pull/credit flow control plus the per-worker aggregate bound;
         // reservation is atomic, so competing wakes cannot over-send.
         if (!(await acquireSendBudget(id, piece.byteLength, () => source.destroyed || ended))) {
@@ -375,35 +374,85 @@ async function pumpStream(id: string, source: import('node:stream').Readable, me
     }
     finish()
     send({ kind: 'stream-end', runtimeId, id })
-  } catch {
+  } catch (error) {
     if (ended) return
     finish()
-    send({ kind: 'stream-end', runtimeId, id })
+    send({ kind: 'stream-error', runtimeId, id, message: boundedMessage(error) })
   }
+}
+
+/** Evaluate extension metadata only in the worker and forward the Gateway's existing safe headers. */
+function snapshotResponseMetadata(response: {status?:number;contentType?:string;headers?:Record<string,string>}): {status?:number;contentType?:string;headers?:Record<string,string>} {
+  const status = response.status
+  const contentType = response.contentType
+  if (status !== undefined && (!Number.isSafeInteger(status) || status < 200 || status > 599)) throw Object.assign(new Error('invalid HTTP status'), {code:'invalid_route_response',status:500})
+  if (contentType !== undefined && (typeof contentType !== 'string' || contentType.length > 1024 || !/^[\x20-\x7e]+$/u.test(contentType) || !/^[\w!#$&+.^-]+\/[\w!#$&+.^-]+(?:;[\x20-\x7e]*)?$/u.test(contentType))) throw Object.assign(new Error('invalid content type'), {code:'invalid_route_response',status:500})
+  const headers:Record<string,string> = {}
+  const source = response.headers
+  let bytes = Buffer.byteLength(contentType ?? '')
+  if (source !== undefined) {
+    if (source === null || typeof source !== 'object' || Array.isArray(source)) throw Object.assign(new Error('invalid response headers'), {code:'invalid_route_response',status:500})
+    for (const name of Object.keys(source)) {
+      if (!/^(?:content-disposition|cache-control|etag)$/iu.test(name)) continue
+      const value = source[name]
+      if (typeof value !== 'string') throw Object.assign(new Error('invalid response header'), {code:'invalid_route_response',status:500})
+      if (/[\r\n]/u.test(value)) continue
+      bytes += Buffer.byteLength(name) + Buffer.byteLength(value)
+      if (bytes > WORKER_RESPONSE_METADATA_MAX_BYTES) throw Object.assign(new Error('response headers are too large'), {code:'invalid_route_response',status:500})
+      headers[name.toLowerCase()] = value
+    }
+  }
+  return {...(status === undefined ? {} : {status}),...(contentType === undefined ? {} : {contentType}),...(source === undefined ? {} : {headers})}
+}
+
+function releaseStreamAccounting(id: string): void {
+  finishedStreams.delete(id); streamCredit.delete(id); streamSent.delete(id); streamAcked.delete(id)
+  wakeSendBudgetWaiters()
 }
 
 async function activate(replyId: string, hostFile: string, generation: string, manifest: import('./extension-worker-protocol.js').WorkerActivationManifest): Promise<void> {
   // Async effect setups gate activation exactly like the in-process path: a
   // rejection fails activation instead of vanishing.
   const pendingEffects: Promise<void>[] = []
+  let activationOpen = true
+  const ensureOpen = (): void => { if (!activationOpen || generationController.signal.aborted) throw new Error('host activation is closed') }
   const api: RuntimeHostApi = {
-    manifest,
-    context: { logger: loggerAdapter },
+    manifest: Object.freeze(manifest),
+    context: Object.freeze({ logger: Object.freeze(loggerAdapter) }),
     schema: z,
     signal: generationController.signal,
     action(name, spec) {
-      if (typeof spec?.run !== 'function') throw new Error(`invalid action ${name}`)
-      if (actions.has(name)) throw new Error(`duplicate action ${name}`)
-      actions.set(name, spec)
+      ensureOpen()
+      if (!/^[a-z][a-z0-9-]{0,63}$/u.test(name) || typeof spec?.run !== 'function') throw runtimeError('invalid_action', `invalid action ${name}`)
+      if (actions.has(name)) throw runtimeError('duplicate_action', `duplicate action ${name}`)
+      if (actions.size + routes.length >= limits.maxRegistrations) throw runtimeError('extension_registration_limit', 'local worker registration limit reached')
+      const timeoutMs = checkedTimeout(spec.timeoutMs, 'invalid_action')
+      const input = spec.input
+      actions.set(name, Object.freeze({ run: spec.run.bind(spec), ...(input === undefined ? {} : { input: typeof input === 'function' ? input : Object.freeze({ parse: input.parse.bind(input) }) }), ...(timeoutMs === undefined ? {} : { timeoutMs }) }))
     },
     route(spec) {
-      if (typeof spec?.handle !== 'function') throw new Error('invalid route')
-      routes.push(spec)
+      ensureOpen()
+      if (typeof spec?.handle !== 'function') throw runtimeError('invalid_route', 'invalid route')
+      if (actions.size + routes.length >= limits.maxRegistrations) throw runtimeError('extension_registration_limit', 'local worker registration limit reached')
+      const method = spec.method.toUpperCase()
+      if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method) || spec.kind !== undefined && spec.kind !== 'exact' && spec.kind !== 'prefix') throw new Error('invalid route')
+      const path = normalizeWorkerRoutePath(spec.path)
+      const kind = spec.kind ?? 'exact'
+      if (routes.some(route => route.method === method && route.path === path && (route.kind ?? 'exact') === kind)) throw new Error('duplicate route')
+      const timeoutMs = checkedTimeout(spec.timeoutMs, 'invalid_route')
+      routes.push(Object.freeze({ method, path, kind, handle: spec.handle.bind(spec), ...(timeoutMs === undefined ? {} : { timeoutMs }) }))
     },
     effect(setup) {
+      ensureOpen()
       const result = setup()
       if (result instanceof Promise) {
-        pendingEffects.push(result.then(cleanup => { if (typeof cleanup === 'function') cleanups.push(cleanup) }))
+        const pending = result.then(async cleanup => {
+          if (typeof cleanup !== 'function') return
+          if (activationOpen && !generationController.signal.aborted) cleanups.push(cleanup)
+          else await cleanup()
+        })
+        pendingEffects.push(pending)
+        void pending.catch(() => undefined)
       } else if (typeof result === 'function') {
         cleanups.push(result)
       }
@@ -421,9 +470,12 @@ async function activate(replyId: string, hostFile: string, generation: string, m
     if (imported.default !== undefined) await imported.default(api)
     await Promise.all(pendingEffects)
   } catch (error) {
-    send({ kind: 'error', runtimeId, id: replyId, code: 'host_activation_failed', message: boundedMessage(error), status: 500 })
+    activationOpen = false
+    const business = businessErrorShape(error)
+    send({ kind: 'error', runtimeId, id: replyId, code: business?.code ?? 'host_activation_failed', message: boundedMessage(error), status: business?.status ?? 500 })
     return
   }
+  activationOpen = false
   const actionMetadata: WorkerActionMetadata[] = [...actions.entries()].map(([name, spec]) => {
     const timeoutMs = validOperationTimeout(spec.timeoutMs)
     return { name, ...(timeoutMs === undefined ? {} : { timeoutMs }) }
@@ -438,6 +490,17 @@ async function activate(replyId: string, hostFile: string, generation: string, m
     }
   })
   send({ kind: 'activated', runtimeId, actions: actionMetadata, routes: routeMetadata })
+}
+
+function checkedTimeout(value: unknown, code: string): number | undefined {
+  if (value === undefined) return undefined
+  const timeout = validOperationTimeout(value)
+  if (timeout === undefined) throw Object.assign(new Error('operation timeoutMs is invalid'), { code, status: 400 })
+  return timeout
+}
+
+function runtimeError(code: string, message: string): Error & { readonly code: string; readonly status: number } {
+  return Object.assign(new Error(message), { code, status: 400 })
 }
 
 async function runAction(id: string, name: string, deviceId: string, input: unknown): Promise<void> {
@@ -463,7 +526,7 @@ async function runAction(id: string, name: string, deviceId: string, input: unkn
     let parsed = input
     if (spec.input !== undefined) {
       try {
-        parsed = typeof spec.input === 'function' ? spec.input(input) : spec.input.parse(input)
+        parsed = typeof spec.input === 'function' ? spec.input(input) : spec.input.parse(input) ?? input
         parsed = await parsed
       } catch {
         // Input validation failures keep the in-process contract: 400.
@@ -474,7 +537,7 @@ async function runAction(id: string, name: string, deviceId: string, input: unkn
     controller.signal.throwIfAborted()
     const value = await spec.run({ signal: controller.signal, deviceId }, parsed)
     const bytes = serializeWorkerResult(value)
-    if (bytes.byteLength > WORKER_RESULT_MAX_BYTES) {
+    if (bytes.byteLength > limits.resultMaxBytes) {
       send({ kind: 'error', runtimeId, id, code: 'extension_result_too_large', message: 'extension result is too large', status: 500 })
       return
     }

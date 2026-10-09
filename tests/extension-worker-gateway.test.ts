@@ -52,14 +52,17 @@ describe('worker-mode extension through the real gateway path', () => {
     await mkdir(directory, { recursive: true })
     await writeFile(join(directory, 'extension.json'), JSON.stringify({ schemaVersion: 1, id: 'bigcounter', name: 'BigCounter', version: '1.0.0' }))
     await writeFile(join(directory, 'host.mjs'), `
+import {Readable} from 'node:stream'
 export default (api) => {
   api.action('big', { run: () => ({ value: 'ok', note: '你好 worker 🚀' }) })
   api.action('quick', { run: async () => ({ ok: true }) })
+  api.route({method:'GET',path:'/stream',handle:()=>({body:Readable.from([Buffer.alloc(700000,120)])})})
 }
 `)
 
     const context = new Context(); cleanups.push(() => context.fiber.dispose())
     const service = new MobileAccessService(context)
+    cleanups.push(() => service.stopLocal())
     await service.startLocal(root, context, { hostExecution: { mode: 'worker', workerModule } })
     // Capture the canonical prepared bytes straight from the RPC boundary.
     const active = service.extension('bigcounter') as { readonly worker: { invoke: (action: string, input: unknown, caller: { signal: AbortSignal; deviceId: string }) => Promise<{ readonly bytes: Buffer }> } } | undefined
@@ -101,5 +104,8 @@ export default (api) => {
     const quick = await request(gateway.address().port, '/mobile-access/extensions/bigcounter/actions/quick', { method: 'POST', headers, body: '{}' })
     expect(quick.status).toBe(200)
     expect(quick.body).toBe('{"ok":true}\n')
+    const streamed = await request(gateway.address().port, '/mobile-access/extensions/bigcounter/routes/stream', {headers})
+    expect(streamed.status).toBe(200)
+    expect(streamed.body).toBe('x'.repeat(700000))
   })
 })

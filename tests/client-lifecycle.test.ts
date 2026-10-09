@@ -954,7 +954,7 @@ describe('mobile-control localization', () => {
     expect(source).toContain('wsGroupOf')
     expect(source).toContain('wsPathsAllowAll')
     expect(source).toContain('dsh-mobile-control__ws-dot')
-    expect(source).toContain('setInterval(pollWsBlocked, 20_000)')
+    expect(source).toContain('setInterval(() => { pollWsBlocked(); if (!panel.hidden) void extensionRecovery.refresh() }, 20_000)')
     expect(MOBILE_CONTROL_MESSAGES.en.wsPathsAllowAll).toBe('Allow all')
     expect(source).toContain('diagnosticsChecks, wsPathsSection, diagnosticsDetails')
     expect(source).toContain("if (view === 'diagnostics') {")
