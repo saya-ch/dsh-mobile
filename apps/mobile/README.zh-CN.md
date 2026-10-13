@@ -102,7 +102,7 @@ App 收到电脑端撤销通知后，后续检测不会把“电脑端已移除�
 
 可用能力包括 `files.pick`、`camera.capture`、`share`、`clipboard.read`、`clipboard.write`、`notification.notify`、`notification.settings` 和 `mobile.switch-computer`。DSH 原生文件附件入口仍在输入栏的“添加”组；当前附件 owner 支持接收图片时，Mobile 只把“拍照”加入同一组。扩展可单独调用 `files.pick`：它返回一个文件，系统选择器遵循调用方声明的 MIME 类型，通过 Bridge 返回的文件上限为 8 MiB；这不是 DSH 原生文件选择的限制。拍照仅在使用时申请 Android 相机权限，通过 `FileProvider` 写入完整分辨率 JPEG，再作为浏览器 `File` 返回。
 
-普通 DSH 附件使用系统文档选择器，App 会透传网页的多选和 MIME 设置，并返回全部选中项。可从“图片”分类或可用的图库提供方选择图片；相册入口是否出现由设备和已安装的提供方决定。这条路径独立于扩展的 `files.pick`。每台真机的文件选择验收仍见下方检查说明。
+普通 DSH 附件使用系统文档选择器，App 会透传网页的多选和 MIME 设置，并返回全部选中项。文档 Intent 直接启动，不再包一层 `Intent.createChooser`，因此自带文档界面的机型（如 vivo 文件管理）仍由其接管附件选择，而不会只剩 AOSP DocumentsUI；系统中存在多个可处理方时仍由系统弹出选择列表。可从“图片”分类或可用的图库提供方选择图片；相册入口是否出现由设备和已安装的提供方决定。这条路径独立于扩展的 `files.pick`。每台真机的文件选择验收仍见下方检查说明。
 
 任务提醒使用 Host 完成事件和明确的待确认卡片，在页面仍存活时触发；可从 App 内的 DSH **设置 → 通用设置** 开启通知或打开系统设置。锁屏只显示通用文案，点击可回到 App。插件待发布修正按完整会话和轮次 ID 区分通知，包括长 ID 和非 ASCII 字符；当前已发布插件仍可能因标签冲突而替换通知。完成提醒依赖通道支持 SSE，没有离线事件补发；Cloudflare 快速隧道不支持此流，详见[通道限制](../../docs/CLOUDFLARE_TUNNEL.md#快速隧道的功能限制)。
 

@@ -2571,7 +2571,12 @@ class MainActivity : Activity() {
             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE)
         }
         return try {
-            startActivityForResult(Intent.createChooser(intent, getString(R.string.choose_file)), FILE_CHOOSER_REQUEST)
+            // Start the document intent directly rather than through Intent.createChooser. On ROMs
+            // that ship their own document UI (observed on vivo OriginOS), the chooser-wrapped
+            // request lands on AOSP DocumentsUI while the identical intent started directly reaches
+            // the ROM's own picker. The system still shows its own resolver when several apps can
+            // handle the request, so no reachable picker is lost.
+            startActivityForResult(intent, FILE_CHOOSER_REQUEST)
             true
         } catch (_: ActivityNotFoundException) {
             uploadCallback?.onReceiveValue(null)
