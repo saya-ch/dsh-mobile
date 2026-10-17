@@ -69,7 +69,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.webkit:webkit:1.17.1")
     implementation("com.google.zxing:core:3.5.4")
     testImplementation("junit:junit:4.13.2")
