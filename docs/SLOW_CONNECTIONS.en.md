@@ -133,7 +133,7 @@ The gateway groups upstream application modules into start batches (`/mobile-acc
 
 Resources without upstream validators do not automatically acquire a reliable one. Compare the same complete resource URL during ordinary navigation, reload and app cold start: inspect `200`/`304`, cache hits, `If-None-Match`, encoding and actual transfer volume. Do not clear site data first and treat the result as normal cache behavior. Improved HTTP validation does not guarantee cache reuse in every WebView, and these headers alone do not establish a complete fix for [#107](https://github.com/saya-ch/dsh-mobile/issues/107).
 
-## Optional caches: API reads, static resources and history pages (plugin 0.9.0+)
+## Optional caches: API reads, static resources and history pages (plugin 0.8.1+)
 Reads stay fresh by default: all three groups are off, the gateway caches nothing, and behavior is unchanged. On a slow link an operator can enable any of them, each with its own explicit staleness window.
 
 ### API read cache (`contentCacheTtlMs`, default `0`)
