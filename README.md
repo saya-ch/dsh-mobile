@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.1">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.0">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.1**。适配 DSH **0.2.2-alpha.2** 的四座设置栅格（兼容矩阵扩展到 `0.2.1-rc.5 / 0.2.2-alpha.2`）；为插件面板提供 44px 触摸下限并修正 WebView 字号放大；新增插件移动端基线文档、Android 端 boot 批次缓存，以及局域网**更换网络**。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.1) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.0**。新增 **iPhone / iPad 主屏幕 Web App 引导与网页推送通知**，支持问题、计划、审批、回复、目标和失败六类提醒；同时改善会话列表位置保持、附件操作和慢链路传输。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.0) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件独立编号、独立发布，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
@@ -447,7 +447,7 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
-| `0.8.1` | 适配 DSH 0.2.2-alpha.2 的四座设置栅格；设置、目录选择、附件、侧栏、压缩 Workspace 流量与推送生命周期检查覆盖 `0.2.1-rc.5 / 0.2.2-alpha.2`；通用启动与布局矩阵见 [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml)。iOS 真机结果采信贡献者实测；浏览器检查不代表所有手机、第三方插件或公网线路已验收 |
+| `0.8.0` | 网页推送的公共接口、设置、加密载荷与点击归属检查固定在 `0.2.1-rc.2 / rc.3`；通用启动与布局矩阵见 [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml)。iOS 真机结果采信贡献者实测；浏览器检查不代表所有手机、第三方插件或公网线路已验收 |
 
 <details>
 <summary>较早版本的验证记录</summary>
