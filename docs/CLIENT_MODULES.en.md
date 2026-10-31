@@ -31,7 +31,7 @@ After a DSH or plugin update, an old exclusion may be missing from the catalog o
 
 1. Wait for the catalog. A failed or timed-out read has a **Reread settings** action; reopening the modal is unnecessary. Rereading replaces unsaved choices and asks for confirmation when changes exist.
 2. Checked means load on the next open; unchecked means omit next time, not unload the current page. Required boot modules cannot be unchecked. Details show declared dependencies.
-3. Review the unsaved-change count and select **Save selection**; saving stays disabled when nothing changed. A retained module depending on an excluded module is rejected with a conflict: keep the dependency or also exclude its unwanted consumer. Other modules are never unchecked automatically.
+3. Review the unsaved-change count and select **Save selection**; saving stays disabled when nothing changed. A retained module depending on an excluded module is rejected with a conflict: keep the dependency or also exclude its unwanted consumer. Other modules are never unchecked automatically. If the catalog changed after the dialog read it (a plugin or version update), the save is refused with a reread prompt instead of overwriting the current state with a selection computed from the old catalog.
 4. After a successful save, the current page, conversation, and draft are not reloaded automatically. Manually reopen or refresh the DSH page to apply the selection; saving through this control does not require a DSH restart.
 
 Close, Escape and the App's Back action ask before discarding unsaved changes. A failed save keeps choices. A write timeout means the result is unconfirmed, not rolled back; reread to confirm. Writes are not retried automatically, and closing cannot undo a completed save. Long lists scroll independently while close and footer actions remain reachable.
@@ -44,7 +44,7 @@ Only **Measure sizes** fetches module resources and calculates their individual 
 
 Each group lists measured modules largest first and unknown sizes last. Totals always identify any selected modules with unknown sizes rather than presenting a partial result as complete. The mobile layout is measured from the actual Gateway layout file. Batch merging, browser caches, encoding negotiation and plugin versions affect actual transfers, so the numbers compare current modules rather than promise exact next-open downloads or fixed savings.
 
-Modules whose package metadata is resolvable in the installation may also show the plugin's own `package.json` description: links removed, collapsed to one line, at most 200 characters. This is not an upstream endorsement. Unexported or unreadable metadata stays absent instead of guessing its purpose. **Required only (minimal load)** keeps required boot entries and their dependencies and marks other entries as not loaded. It edits the draft only; **Save selection** remains a separate action.
+Modules whose package metadata is resolvable in the installation may also show the plugin's own `package.json` description: links removed, collapsed to one line, at most 200 characters. This is not an upstream endorsement. Unexported or unreadable metadata stays absent instead of guessing its purpose. **Required only (minimal load)** keeps required boot entries and their dependencies and marks other entries as not loaded. Its confirmation states how many modules and how much size this excludes. It edits the draft only; **Save selection** remains a separate action.
 
 ## Data and authorization
 

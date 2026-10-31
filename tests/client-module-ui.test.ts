@@ -10,6 +10,11 @@ describe('client module settings response', () => {
   it('retains the required marker, exact module ids and dependencies', () => {
     expect(parseClientModuleView(catalog)).toEqual(catalog)
   })
+  it('retains a catalog revision when the server reports one and tolerates an older server', () => {
+    expect(parseClientModuleView({ ...catalog, revision: '0123456789abcdef' }).revision).toBe('0123456789abcdef')
+    expect(parseClientModuleView(catalog).revision).toBeUndefined()
+    expect(() => parseClientModuleView({ ...catalog, revision: '' })).toThrow('invalid_module_catalog')
+  })
   it('carries an optional plugin description and rejects unusable ones', () => {
     const described = { ...catalog, entries: [{ id: 'core', required: true, dependencies: [], description: 'Manage DeepSeek login and open billing pages' }] }
     expect(parseClientModuleView(described).entries[0]).toMatchObject({ description: 'Manage DeepSeek login and open billing pages' })

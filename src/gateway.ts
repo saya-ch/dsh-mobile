@@ -546,8 +546,8 @@ class ExcludedClientModulesError extends Error {
 export class ClientModuleConflictError extends HttpError {
   readonly detail: string
 
-  constructor(detail: string) {
-    super(409, 'excluded_client_modules_invalid')
+  constructor(detail: string, code = 'excluded_client_modules_invalid') {
+    super(409, code)
     this.detail = detail.replace(/[\u0000-\u001f\u007f]/gu, ' ')
       .replace(/(?:https?:\/\/|[a-z]:[\\/])\S+/giu, '[redacted]')
       .slice(0, 512)
@@ -593,6 +593,24 @@ export function describeMobileClientModules(html: string): readonly ClientModule
     required: requiredClientModule(entry, phases.get(entry.id)),
     dependencies: Object.freeze(clientModuleDependencies(entry).filter(id => ids.has(id))),
   })))
+}
+
+/**
+ * Canonical fingerprint of an installed catalog.
+ *
+ * A settings page computes "required only" client-side. If a plugin was added,
+ * removed or became required while that page stayed open, the computed set is
+ * based on a catalog that no longer exists. The fingerprint travels with the
+ * read and back with the write, so a stale page is told to reread instead of
+ * saving a selection made against an older graph.
+ * @param entries - Catalog entries in any order.
+ * @returns Stable 16-character hexadecimal revision.
+ */
+export function clientModuleCatalogRevision(entries: readonly ClientModuleEntry[]): string {
+  const canonical = entries
+    .map(entry => [entry.id, entry.required, entry.dependencies] as const)
+    .sort((left, right) => (left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0))
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex').slice(0, 16)
 }
 
 /** Validate graph edges before removing application rows from both manifest views. */
@@ -2360,16 +2378,19 @@ export class MobileAccessGateway {
       try {
         let kind: 'describe' | 'configure' | 'reset' | 'measure' = 'describe'
         let excluded: unknown
+        let revision: string | undefined
         if (request.method === 'POST') {
           const body = await readJsonObject(request, this.config.maxBodyBytes)
           const keys = Object.keys(body)
-          if (keys.length !== 1) throw new HttpError(400, 'bad_request')
-          if (keys[0] === 'reset' && body.reset === true) kind = 'reset'
-          else if (keys[0] === 'measure' && body.measure === true) kind = 'measure'
-          else if (keys[0] === 'excludedClientModules') { kind = 'configure'; excluded = body.excludedClientModules }
-          else throw new HttpError(400, 'bad_request')
+          if (keys.length === 1 && keys[0] === 'reset' && body.reset === true) kind = 'reset'
+          else if (keys.length === 1 && keys[0] === 'measure' && body.measure === true) kind = 'measure'
+          else if (keys.every(key => key === 'excludedClientModules' || key === 'revision')
+            && Object.prototype.hasOwnProperty.call(body, 'excludedClientModules')
+            && (body.revision === undefined || typeof body.revision === 'string')) {
+            kind = 'configure'; excluded = body.excludedClientModules; revision = body.revision
+          } else throw new HttpError(400, 'bad_request')
         }
-        const view = await this.clientModulePreferenceOperation(kind, excluded, authorization.deviceId, operation.signal)
+        const view = await this.clientModulePreferenceOperation(kind, excluded, authorization.deviceId, operation.signal, revision)
         operation.signal.throwIfAborted()
         sendJson(response, 200, view, this.tlsEnabled)
       } catch (error) {
@@ -2846,10 +2867,11 @@ export class MobileAccessGateway {
    * @param excluded - Untrusted module IDs to validate against the current boot graph.
    * @param deviceId - Authenticated device identity; omitted for computer defaults.
    * @param callerSignal - Cancels fetching and validation, not an atomic write already started.
+   * @param revision - Catalog fingerprint the selection was computed against; a mismatch is rejected.
    * @returns The catalog and saved selection without reloading clients.
    */
-  configureClientModules(excluded: unknown, deviceId?: string, callerSignal?: AbortSignal): Promise<ClientModulePreferenceView> {
-    return this.clientModulePreferenceOperation('configure', excluded, deviceId, callerSignal)
+  configureClientModules(excluded: unknown, deviceId?: string, callerSignal?: AbortSignal, revision?: string): Promise<ClientModulePreferenceView> {
+    return this.clientModulePreferenceOperation('configure', excluded, deviceId, callerSignal, revision)
   }
 
   /** Reset one override without reloading connected clients.
@@ -3016,7 +3038,7 @@ export class MobileAccessGateway {
   }
 
   private async clientModulePreferenceOperation(
-    kind: 'describe' | 'configure' | 'reset' | 'measure', excluded: unknown, deviceId?: string, callerSignal?: AbortSignal,
+    kind: 'describe' | 'configure' | 'reset' | 'measure', excluded: unknown, deviceId?: string, callerSignal?: AbortSignal, revision?: string,
   ): Promise<ClientModulePreferenceView> {
     if (this.closing || !this.started) throw new HttpError(503, 'unavailable')
     if (kind === 'measure' && this.clientModuleMeasurementActive) throw new HttpError(429, 'busy')
@@ -3035,7 +3057,19 @@ export class MobileAccessGateway {
       let html = ''
       const validate = async (selection: readonly string[]): Promise<void> => {
         html = (await this.fetchAuthenticatedUpstreamIndex(controller.signal)).html
-        try { parseMobileBootPlan(html, selection) } catch (error) {
+        try {
+          parseMobileBootPlan(html, selection)
+          // A page that stayed open across a plugin change computes "required only"
+          // from a catalog that no longer exists. Refuse that write explicitly
+          // instead of surfacing it as an unrelated required-module conflict.
+          if (revision !== undefined && revision !== clientModuleCatalogRevision(describeMobileClientModules(html))) {
+            throw new ClientModuleConflictError(
+              'the module catalog changed since it was read; reread it and confirm the selection again',
+              'client_module_catalog_changed',
+            )
+          }
+        } catch (error) {
+          if (error instanceof ClientModuleConflictError) throw error
           if (error instanceof ExcludedClientModulesError) throw new ClientModuleConflictError(error.message)
           throw new HttpError(502, 'upstream_unavailable')
         }
@@ -3059,8 +3093,10 @@ export class MobileAccessGateway {
             if (!measurementExpired || callerSignal?.aborted === true || this.closing) throw error
           }
         }
+        const entries = this.describeMobileModulesWithSizes(html)
         return Object.freeze({
-          entries: this.describeMobileModulesWithSizes(html),
+          entries,
+          revision: clientModuleCatalogRevision(entries),
           ...selection,
           ...(plan.batches === undefined ? { excludedClientModules: Object.freeze([]), defaultExcludedClientModules: Object.freeze([]) } : {}),
           reloadRequired: true,

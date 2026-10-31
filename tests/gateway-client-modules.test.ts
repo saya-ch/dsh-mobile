@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CLIENT_MODULE_MEASUREMENT_BUDGET_MS, ClientModuleConflictError, MobileAccessGateway, sanitizeModuleDescription } from '../src/gateway.js'
+import { CLIENT_MODULE_MEASUREMENT_BUDGET_MS, ClientModuleConflictError, MobileAccessGateway, clientModuleCatalogRevision, sanitizeModuleDescription } from '../src/gateway.js'
 import { ClientModulePreferenceStore, type ClientModulePreferenceView } from '../src/client-module-preferences.js'
 import { parseGatewayConfig } from '../src/config.js'
 import { MemoryDeviceStore } from '../src/storage.js'
@@ -415,6 +415,30 @@ describe('authenticated client module selection', () => {
     expect((await setup.request(path, setup.first, { excludedClientModules: [] })).status).toBe(200)
     expect((await setup.request(path, setup.first, { excludedClientModules: ['feature'] })).status).toBe(409)
     expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [], defaultExcludedClientModules: [] })
+  })
+
+  it('reports a catalog revision and refuses a selection computed against an older one', async () => {
+    const setup = await fixture()
+    const view = await setup.view(setup.first)
+    expect(view.revision).toMatch(/^[0-9a-f]{16}$/)
+    expect(view.revision).toBe(clientModuleCatalogRevision(view.entries))
+    const stale = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: '0123456789abcdef' })
+    expect(stale.status).toBe(409)
+    expect(JSON.parse(stale.body)).toMatchObject({ error: 'client_module_catalog_changed' })
+    expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [] })
+    const current = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: view.revision })
+    expect(current.status).toBe(200)
+    expect(JSON.parse(current.body)).toMatchObject({ excludedClientModules: ['feature'] })
+  })
+
+  it('changes the revision when the installed catalog changes', async () => {
+    const setup = await fixture()
+    const before = (await setup.view(setup.first)).revision
+    const graph = setup.graph()
+    graph.entries.push({ id: 'late-module', url: '/plugins/late.js?rev=v1234', rev: 'v1234', inject: [] })
+    graph.batches![1]!.entries.push('late-module')
+    const after = (await setup.view(setup.first)).revision
+    expect(after).not.toBe(before)
   })
 
   it('does not broadcast a reload event or refetch the document after saving until it is requested again', async () => {
