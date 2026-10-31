@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
+## 0.8.1 - 2026-10-31
 
 - Recognize the four-seat settings grid introduced in DSH 0.2.2-alpha.2. Preserve upstream navigation and grid placement while retaining Mobile's accessible close-button target; older two-column settings keep their existing mobile layout.
 - Extend upstream compatibility checks to DSH 0.2.1-rc.5 and 0.2.2-alpha.2, including settings, directory selection, attachments, sidebar, compressed Workspace traffic and public push lifecycle checks. No Android App update is needed for this web-page adjustment.
