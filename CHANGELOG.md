@@ -10,7 +10,6 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Add a bilingual **plugin mobile baseline** (L1/L2/L3 levels, number provenance, copy-paste stylesheet) as informative project guidance, not an official DSH standard. Thanks @LUgABeEEE for [#316](https://github.com/saya-ch/dsh-mobile/pull/316).
 - Android: reuse revalidated `mobile-boot` batches from a device-side content-addressed cache to cut cold-start re-downloads (~3.8 MB on the measured device); every hit revalidates by ETag and 401/403 still falls through to the WebView. Thanks @LUgABeEEE for [#314](https://github.com/saya-ch/dsh-mobile/pull/314).
 - Local network: add **Change network** in the desktop LAN panel — re-scans interfaces, keeps the private CA and paired devices, re-signs the server certificate for the new address, updates the listen address and allowed subnet, and restarts the listener when running (connected phones reconnect with a new pairing QR). [#317](https://github.com/saya-ch/dsh-mobile/issues/317)
-- Add **three opt-in cache groups**, all off by default. The API read cache (`contentCacheTtlMs: 0`) serves an explicit path allowlist (`contentCachePaths`, default `/api/sessions`), clears itself on any non-GET/HEAD request, and replays an expired entry only after `If-None-Match` revalidation when the upstream supplied an ETag. The static resource cache (`contentCacheAssetTtlMs: 0`) covers plugin bundles and owned files (`contentCacheAssetPaths`, default `/plugins`, `/assets`, `/mobile-access`) with a longer window, revalidating the same way, and is never dropped by a write. Replays carry `Age` and `X-DSH-Mobile-Cache`; browser responses keep `Cache-Control: no-store`, and uploads, writes, event streams, range requests, `Set-Cookie` responses and oversized bodies are never cached. Each group is bounded by both `contentCacheMaxBytes` and an entry count (`contentCacheMaxEntries`, default 256). A third group (`contentCacheHistoryTtlMs: 0`) covers POST read methods — by default only `session/page` on `/api/session` — keyed by the request body, with a short window and the same clear-on-write rule, because Session history cannot use the GET path. See [slow connections](docs/SLOW_CONNECTIONS.md#可选的缓存数据读静态资源与历史页090-起).
 
 ## 0.8.0 - 2026-10-30
 
@@ -31,6 +30,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 - Update the build toolchain to AGP 9.4.1 / Gradle 9.8.2 and WebKit integration to 1.18.0, retaining `core-ktx` 1.15.0 for compileSdk 36. Thanks Dependabot for [#304](https://github.com/saya-ch/dsh-mobile/pull/304).
 - Keep the compatibility and full iroh APK variants, the established application ID and signer, and existing pairing data. This is App build 86; plugin 0.8.0's iOS Web Push does not require an Android update.
+
 ## 0.7.1 - 2026-10-29
 
 - Reorganize **Mobile access** into a compact channel list and configuration pane, stacked on narrow screens. Device management has its own LAN/remote tabs beside Diagnostics; keyboard focus and Escape follow the open panel.

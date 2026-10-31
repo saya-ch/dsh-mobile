@@ -124,7 +124,8 @@ websocketCompression:
 
 0.8.0 起，启动文档按内容哈希引用兼容性脚本（`/mobile-access/compat-<sha256>.js`），该路径使用 `private, max-age=31536000, immutable`。浏览器保留缓存时可直接复用同版本脚本，内容变化则使用新地址；摘要与当前正文不符时返回 `404`。旧的 `/mobile-access/compat.js` 地址继续提供条件校验。服务器收到请求后仍先验证授权；本地已缓存的脚本不含凭据，也不赋予 API 访问权限。
 
-移动启动 HTML 包含绑定当前认证 Session 的页面标识，保持 `no-store`，不复用其他页面或 Session 的启动文档；配对页和 API 响应也保持 `no-store`。网关对上游静态资源做流式 gzip 时，可保留合法上游 ETag 的弱校验形式，并维护 `Vary: Accept-Encoding`；不会把原始内容的长度或范围元信息当作压缩内容的元信息，也不会缓存失败响应。API 响应默认也不新增缓存；下面「可选的 API 读取缓存」是唯一的、需要显式开启的例外。
+移动启动 HTML 包含绑定当前认证 Session 的页面标识，保持 `no-store`，不复用其他页面或 Session 的启动文档；配对页和 API 响应也保持 `no-store`。网关对上游静态资源做流式 gzip 时，可保留合法上游 ETag 的弱校验形式，并维护 `Vary: Accept-Encoding`；不会把原始内容的长度或范围元信息当作压缩内容的元信息，也不会缓存失败响应或为 API 请求新增缓存。
+
 可压缩的文本响应都走这条流式管道：静态资源、HTML 文档和 `/api/` 的 JSON 都会在手机声明 `Accept-Encoding: gzip` 时压缩，并维护 `Vary`。`/plugins/`、`/assets/` 下的静态资源**沿用原有判定，行为不变**（包括上游原本就会压缩的路径）。静态路径之外，`text/event-stream` 保持不压缩，否则逐帧事件会被 gzip 块缓冲；声明长度小于 1KB 或没有声明长度的响应也保持原样，压缩开销大于收益或可能被逐段消费。范围请求、已编码响应和 304 仍按原规则处理，不带 `Accept-Encoding` 的客户端收到的字节与以前一致。
 
 移动端启动页由网关拼装，不经过上面的代理压缩流程；正文至少 1KiB 且请求接受 gzip 时会压缩，压缩和未压缩响应都维护 `Vary: Accept-Encoding`。页面仍使用 `no-store`，不复用旧启动文档；它包含当前会话与模块选择对应的启动信息。
@@ -132,54 +133,6 @@ websocketCompression:
 网关把上游应用模块组合为启动批（`/mobile-access/mobile-boot/<hash>.js`），按 3MiB 源码目标大小切分，最多保留 16 个合并批，始终保留移动布局替换；超出数量的模块改用其原有独立资源地址，不因这项优化拒绝整个启动图。大于目标大小的单个模块不会拆开，原有单模块和组装大小限制不变。较小的响应和缓存复用可减少重复传输，但不能保证总启动时间或修复所有自动重连原因。合并批使用带引号 ETag 和 `private, max-age=30, must-revalidate`：短时间内重载可复用本地副本；布局文件改动后，已缓存的旧批最多可继续使用 30 秒，随后重新校验。ETag 与正文绑定，内容改变后返回新正文而不是 304。
 
 上游未提供校验标识的资源不会因此自动得到一个可靠标识。检查重复下载时，比较同一完整资源 URL 在普通打开、重新加载和 App 冷启动中的 `200`/`304`、缓存命中、`If-None-Match`、编码与实际传输量；不要先清除站点数据再把结果当作正常缓存行为。HTTP 校验语义改善不保证每个 WebView 都会复用缓存，也不能仅凭这些响应头认定 [#107](https://github.com/saya-ch/dsh-mobile/issues/107) 已完全解决。
-
-## 可选的缓存：数据读、静态资源与历史页（0.9.0 起）
-默认仍保持「读到的都是新鲜的」：三个缓存组默认都关闭，网关不缓存任何响应，行为与之前完全一致。慢链路上可以按需分别开启，代价是各自明确的陈旧窗口。
-
-### 数据读缓存（`contentCacheTtlMs`，默认 `0`）
-
-- **只缓存白名单路径**：`contentCachePaths` 默认 `["/api/sessions"]`，按前缀匹配自身与子路径，不命中 `/api/sessions-cookie`；设为 `[]` 表示不缓存。
-- **只缓存可安全重放的内容**：状态 200、完整 JSON 正文、无 `Set-Cookie`、上游未标 `no-store`/`private`、未编码；单条 256KB，条目数另有上限（`contentCacheMaxEntries`，默认 256），避免空正文或小正文堆满条目。
-- **新鲜度三道闸**：任何非 GET/HEAD 请求清空整组；条目只在窗口内直接重放；过期后若上游带 `ETag`，发 `If-None-Match` 校验，只有 `304` 才刷新并重放，否则回源。
-- 进度的写入发生在请求途中的情况由代际计数拦下：写入已清空的旧正文不会被回存。
-
-### 静态资源缓存（`contentCacheAssetTtlMs`，默认 `0`）
-
-- **白名单**：`contentCacheAssetPaths` 默认 `["/plugins", "/assets", "/mobile-access"]`——插件脚本、接口资源与网关自有文件；只缓存 GET 的脚本/样式/JSON/SVG，不含 `text/event-stream` 与二进制。
-- **窗口可以长**（上限 1 小时）：这些文件要么内容寻址、要么带 ETag；过期后同样先条件校验，`304` 才重放，编辑后最多等一个窗口。
-- **写请求不会清空这一组**：它们与清单/会话状态无关，只随内容变化。
-- 单条上限 2MB；两组各有自己的字节预算与条目上限，取值同为 `contentCacheMaxBytes`（默认 8MB）与 `contentCacheMaxEntries`（默认 256）。
-
-所有缓存组的共同保证：响应仍是 `Cache-Control: no-store`（不改浏览器策略）；重放带 `Age` 与 `X-DSH-Mobile-Cache: hit`，校验后重放为 `revalidated`；重放按调用方 `Accept-Encoding` 重新压缩，存储的是 identity 正文；上传、写请求、事件流、范围请求、带 `Set-Cookie` 或需要重新认证的响应永不缓存。
-
-### 对话历史页缓存（`contentCacheHistoryTtlMs`，默认 `0`）
-
-历史分页是 POST 读方法（`session/page`），不走上面的 GET 缓存，因此单列一组：
-
-- **默认只认一种读**：路径在 `contentCacheHistoryPaths`（默认 `["/api/session"]`），且 JSON 请求体的 `method` 在 `contentCacheHistoryMethods`（默认 `["page"]`）；路径本身以 `/page` 结尾时（如 `POST /api/session/page`）不再要求 body 声明方法。其他方法（`prompt`、`create` 等）永远不缓存，并且会被当作写请求清空本组。
-- **键包含请求体**：设备 + 路径 + body 的 SHA-256。翻页到不同游标就是不同条目，不会把上一页当成下一页重放。
-- **窗口短**（0–60 秒）。任何写请求都会清空整组；历史页读本身不清。
-- **边界**：请求体需带 `content-length`、≤64KB、`content-type` 为 JSON；响应需 200、完整 JSON、无 `Set-Cookie`、上游未标 `no-store`/`private`，单条 ≤256KB，条目数同样受 `contentCacheMaxEntries` 约束。不满足就旁路，行为与未开启一致。
-- **代价**：窗口内重新打开会话，看到的可能是上一次读到的分页；Agent 新产生的事件不经过写请求，因此不会被这道清空拦下。建议 5–15 秒，不要在窗口内期待看到刚发生的消息。
-
-配置片段（放进现有 `mobile-access` 条目的 `config`）：
-
-```yaml
-contentCacheTtlMs: 15000                 # 数据读：15 秒
-contentCacheAssetTtlMs: 600000           # 静态资源：10 分钟
-contentCacheHistoryTtlMs: 8000           # 历史页：8 秒
-# contentCachePaths: ["/api/sessions", "/api/changes"]
-# contentCacheAssetPaths: ["/plugins", "/assets", "/mobile-access"]
-# contentCacheMaxBytes: 8388608
-# contentCacheMaxEntries: 256
-```
-
-判断是否生效：同一路径第二次请求出现 `X-DSH-Mobile-Cache: hit`（过期校验后为 `revalidated`），上游对应请求计数不再增加。数据组越大越省流量，但窗口内看到的是上一次读到的内容；刷新页面或任何写操作会让它回源。
-
-### 适用范围与已验证收益
-
-- **静态资源组**在真实 DSH 0.2.1-rc.2 上实测：启动文档里 4 个 `/assets/*` 资源共 1,785,636 B，重复加载 4/4 命中（`X-DSH-Mobile-Cache: hit`），1.79 MB 不再回源。
-- **两个读组只对把读方法暴露成 HTTP 的部署有效。** DSH 0.2.x 的会话列表与历史页在 `/api/remote.mux` 的 WebSocket 帧上（`session/list`、`session/page`），默认白名单（`/api/sessions`；`/api/session` + `page`）不会命中；服务器实测这些 HTTP 路由返回 `404`，同版本存在的 `/api` 路由只有 `changes.summary`、`session.export`、`present.open`、`file`、`session/uploadFileBinary`、`remote.mux` 等。这些组默认关闭；在其它部署上开启前，先用 `X-DSH-Mobile-Cache` 确认目标路由确实存在。
 
 ## 手动压缩会话与长时间 API 请求（0.6.0）
 

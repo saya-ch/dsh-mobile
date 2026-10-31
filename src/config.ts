@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import z from '@deepseek-ai/schemastery'
 import { isIP } from './ip.js'
 import { isLoopbackAddress, parseAuthority, parseCidr, type AuthoritySpec, type ParsedCidr } from './network.js'
-import { normalizeContentCachePaths } from './content-cache.js'
 import { normalizeWebSocketPaths } from './websocket-paths.js'
 import { resolveHostExecution, type HostExecutionConfig, type ResolvedHostExecutionConfig } from './extension-worker-config.js'
 
@@ -109,38 +108,6 @@ export interface PluginConfig {
   upstreamTimeoutMs?: number
   /** Authenticated /api response and established DSH plugin-event stream idle timeout; zero disables it. */
   upstreamApiTimeoutMs?: number
-  /**
-   * Freshness window, in ms, for the opt-in API read cache; `0` keeps it off and is
-   * the default. Only complete JSON GET bodies under `contentCachePaths` are kept.
-   */
-  contentCacheTtlMs?: number
-  /** Total retained bytes across devices; least-recently-used entries are evicted first. */
-  contentCacheMaxBytes?: number
-  /**
-   * Retained bodies per cache group. Empty and tiny bodies barely move the byte
-   * budget, so the count cap is what stops them from piling up.
-   */
-  contentCacheMaxEntries?: number
-  /** Exact `/api/` path prefixes the cache may serve; empty keeps every read live. */
-  contentCachePaths?: string[]
-  /**
-   * Freshness window for the second group: plugin bundles and owned static resources.
-   * `0` keeps it off. These are content-addressed or ETag-validated files, so a longer
-   * window is safe, and they are never dropped by a write.
-   */
-  contentCacheAssetTtlMs?: number
-  /** Path prefixes for the static group; empty caches no asset. */
-  contentCacheAssetPaths?: string[]
-  /**
-   * Freshness window for the third group: POST read methods such as a Session history
-   * page. `0` keeps it off. Only an exact allowlist of paths (and, when given, JSON
-   * body methods) is eligible, and every write clears the group.
-   */
-  contentCacheHistoryTtlMs?: number
-  /** POST paths whose read methods may be cached. */
-  contentCacheHistoryPaths?: string[]
-  /** JSON body `method` values allowed on those paths; empty allows any body. */
-  contentCacheHistoryMethods?: string[]
   rateLimitWindowMs?: number
   maxPairingAttempts?: number
   maxRateLimitKeys?: number
@@ -186,15 +153,6 @@ export interface ResolvedGatewayConfig {
   readonly maxBodyBytes: number
   readonly upstreamTimeoutMs: number
   readonly upstreamApiTimeoutMs: number
-  readonly contentCacheTtlMs: number
-  readonly contentCacheMaxBytes: number
-  readonly contentCacheMaxEntries: number
-  readonly contentCachePaths: readonly string[]
-  readonly contentCacheAssetTtlMs: number
-  readonly contentCacheAssetPaths: readonly string[]
-  readonly contentCacheHistoryTtlMs: number
-  readonly contentCacheHistoryPaths: readonly string[]
-  readonly contentCacheHistoryMethods: readonly string[]
   readonly rateLimitWindowMs: number
   readonly maxPairingAttempts: number
   readonly maxRateLimitKeys: number
@@ -256,15 +214,6 @@ export const Config: z<PluginConfig> = z.object({
   maxBodyBytes: z.natural(),
   upstreamTimeoutMs: z.natural(),
   upstreamApiTimeoutMs: z.natural(),
-  contentCacheTtlMs: z.natural(),
-  contentCacheMaxBytes: z.natural(),
-  contentCacheMaxEntries: z.natural(),
-  contentCachePaths: z.array(String).default(['/api/sessions']),
-  contentCacheAssetTtlMs: z.natural(),
-  contentCacheAssetPaths: z.array(String).default(['/plugins', '/assets', '/mobile-access']),
-  contentCacheHistoryTtlMs: z.natural(),
-  contentCacheHistoryPaths: z.array(String).default(['/api/session']),
-  contentCacheHistoryMethods: z.array(String).default(['page']),
   rateLimitWindowMs: z.natural(),
   maxPairingAttempts: z.natural(),
   maxRateLimitKeys: z.natural(),
@@ -492,25 +441,6 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     maxBodyBytes: integer(value.maxBodyBytes, 'maxBodyBytes', 160 * 1024 * 1024, 1024, 256 * 1024 * 1024),
     upstreamTimeoutMs: integer(value.upstreamTimeoutMs, 'upstreamTimeoutMs', 30_000, 1_000, 300_000),
     upstreamApiTimeoutMs: integer(value.upstreamApiTimeoutMs, 'upstreamApiTimeoutMs', 0, 0, 2_147_483_647),
-    // A minute is already long enough to be surprising on a phone; the point of the
-    // cache is one reopen, not a background mirror of Session state.
-    contentCacheTtlMs: integer(value.contentCacheTtlMs, 'contentCacheTtlMs', 0, 0, 60_000),
-    contentCacheMaxBytes: integer(value.contentCacheMaxBytes, 'contentCacheMaxBytes', 8 * 1024 * 1024, 64 * 1024, 64 * 1024 * 1024),
-    contentCacheMaxEntries: integer(value.contentCacheMaxEntries, 'contentCacheMaxEntries', 256, 1, 65_536),
-    contentCachePaths: Object.freeze(normalizeContentCachePaths(value.contentCachePaths ?? ['/api/sessions'])),
-    // Assets are immutable or validator-backed, so their window can be long; the
-    // ceiling stays an hour so a stale copy cannot outlive an edit by much.
-    contentCacheAssetTtlMs: integer(value.contentCacheAssetTtlMs, 'contentCacheAssetTtlMs', 0, 0, 3_600_000),
-    contentCacheAssetPaths: Object.freeze(normalizeContentCachePaths(
-      value.contentCacheAssetPaths ?? ['/plugins', '/assets', '/mobile-access'],
-    )),
-    // A history page is read once per open; a window beyond a minute is stale state,
-    // not a saved wait. Writes clear the group, so the ceiling stays short.
-    contentCacheHistoryTtlMs: integer(value.contentCacheHistoryTtlMs, 'contentCacheHistoryTtlMs', 0, 0, 60_000),
-    contentCacheHistoryPaths: Object.freeze(normalizeContentCachePaths(value.contentCacheHistoryPaths ?? ['/api/session'])),
-    contentCacheHistoryMethods: Object.freeze(
-      (value.contentCacheHistoryMethods ?? ['page']).map(method => String(method)).filter(method => method !== ''),
-    ),
     rateLimitWindowMs: integer(value.rateLimitWindowMs, 'rateLimitWindowMs', 60_000, 1_000, 3_600_000),
     maxPairingAttempts: integer(value.maxPairingAttempts, 'maxPairingAttempts', 8, 1, 100),
     maxRateLimitKeys: integer(value.maxRateLimitKeys, 'maxRateLimitKeys', 256, 1, 4096),
