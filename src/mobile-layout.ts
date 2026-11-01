@@ -612,18 +612,13 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
 .dshm-main{grid-area:1/2;z-index:1}
 }
 @media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}}
-/* Plugin panels keep their own layout, but a control too small to hit is a host problem on
-   a touch screen. When a main-slot panel is open, give its controls a 44px hit area (a
-   minimum height, never a visual size), cap a 100vw/fixed-width panel root, and let the
-   pane scroll instead of chaining the gesture. A panel that deliberately ships its own
-   touch geometry opts out with data-dsh-adapt="off" on its root. */
-.dshm-main[data-dsh-panel="1"]{overflow-y:auto;overscroll-behavior:contain}
-.dshm-main[data-dsh-panel="1"] .dshm-mainContent{overflow-y:auto;overscroll-behavior:contain}
-.dshm-main[data-dsh-panel="1"] .dshm-mainContent>[data-slot="main"]>*{max-width:100%;box-sizing:border-box}
+/* Touch adaptation changes control boxes, not invisible hit regions. Root opt-out
+   retains pane geometry too; nested opt-out preserves a widget's own controls. */
 @media(pointer:coarse){
-.dshm-main[data-dsh-panel="1"] [data-slot="main"]>*:not([data-dsh-adapt="off"]) :is(button,[role="button"],select){min-height:44px!important}
-.dshm-main[data-dsh-panel="1"] [data-slot="main"]>*:not([data-dsh-adapt="off"]) :is(input:not([type=checkbox]):not([type=radio]),textarea){min-height:44px!important}
-.dshm-main[data-dsh-panel="1"] [data-slot="main"]>*:not([data-dsh-adapt="off"]) :is(button,[role="button"],a){touch-action:manipulation}
+.dshm-main[data-dsh-panel="1"] .dshm-mainContent:has(>[data-slot="main"]>:not([data-dsh-adapt="off"])):not(:has(>[data-slot="main"]>[data-dsh-adapt="off"])){overflow-y:auto;overscroll-behavior:contain}
+.dshm-main[data-dsh-panel="1"] .dshm-mainContent>[data-slot="main"]>:not([data-dsh-adapt="off"]){max-width:100%;box-sizing:border-box}
+.dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
+.dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],a):not([data-dsh-adapt="off"],[data-dsh-adapt="off"] *){touch-action:manipulation}
 }
 `
 

@@ -6,6 +6,7 @@ import {
   FollowingMobileAccessRuntime,
   JsonMobileAccessControlStore,
   MobileAccessGatewayController,
+  MobileAccessReconfigurationError,
   type MobileAccessControlState,
   type MobileAccessControlStore,
   type MobileAccessRuntime,
@@ -50,6 +51,97 @@ class MemoryControlStore implements MobileAccessControlStore {
 function runtime(close: () => void | Promise<void> = () => {}): MobileAccessRuntime {
   return { close: async () => close() }
 }
+
+describe('mobile-access configuration lifecycle', () => {
+  it('does not classify an uninitialized controller as a partial configuration change', async () => {
+    const controller = new MobileAccessGatewayController(new MemoryControlStore({ version: 1, enabled: false }), async () => runtime())
+    const change = vi.fn(async () => {})
+    const result = controller.reconfigure(change, async () => {})
+    await expect(result).rejects.toThrow('not initialized')
+    await expect(result).rejects.not.toBeInstanceOf(MobileAccessReconfigurationError)
+    expect(change).not.toHaveBeenCalled()
+    await controller.close()
+  })
+
+  it('keeps an unsuccessfully stopped runtime owned and reports recovery as required', async () => {
+    let closes = 0
+    const controller = new MobileAccessGatewayController(new MemoryControlStore({ version: 1, enabled: true }), async () => runtime(() => {
+      if (++closes === 1) throw new Error('Owned close failure')
+    }))
+    await controller.initialize()
+    const change = vi.fn(async () => {})
+    await expect(controller.reconfigure(change, async () => {})).rejects.toMatchObject({ recovered: false })
+    expect(change).not.toHaveBeenCalled()
+    expect(controller.isRunning()).toBe(true)
+    await controller.close()
+    expect(closes).toBe(2)
+  })
+
+  it('does not enable or rewrite the preference of a stopped listener', async () => {
+    const store = new MemoryControlStore({ version: 1, enabled: false })
+    const start = vi.fn(async () => runtime())
+    const controller = new MobileAccessGatewayController(store, start)
+    await controller.initialize()
+    await expect(controller.reconfigure(async () => 'saved', async () => {})).resolves.toEqual({ value: 'saved', running: false })
+    expect(start).not.toHaveBeenCalled()
+    expect(store.saved).toEqual([])
+    await controller.close()
+  })
+
+  it('serializes a held configuration with toggles and drains it before shutdown', async () => {
+    const store = new MemoryControlStore({ version: 1, enabled: true })
+    const events: string[] = []
+    let starts = 0
+    const controller = new MobileAccessGatewayController(store, async () => {
+      const id = ++starts
+      events.push(`start:${id}`)
+      return runtime(() => { events.push(`close:${id}`) })
+    })
+    await controller.initialize()
+    const entered = Promise.withResolvers<void>()
+    const held = Promise.withResolvers<void>()
+    const change = controller.reconfigure(async () => { events.push('change'); entered.resolve(); await held.promise }, async () => {})
+    await entered.promise
+    const stop = controller.setRunning(false)
+    let closed = false
+    const closing = controller.close().then(() => { closed = true })
+    await Promise.resolve()
+    expect(closed).toBe(false)
+    expect(events).toEqual(['start:1', 'close:1', 'change'])
+    held.resolve()
+    await Promise.all([change, stop, closing])
+    expect(events).toEqual(['start:1', 'close:1', 'change', 'start:2', 'close:2'])
+    expect(store.saved).toEqual([{ version: 1, enabled: false }])
+  })
+
+  it('restores before restarting after a rejected change and preserves the enabled preference', async () => {
+    const store = new MemoryControlStore({ version: 1, enabled: true })
+    const events: string[] = []
+    const controller = new MobileAccessGatewayController(store, async () => {
+      events.push('start')
+      return runtime(() => { events.push('stop') })
+    })
+    await controller.initialize()
+    await expect(controller.reconfigure(async () => { throw new Error('write rejected') }, async () => { events.push('restore') }))
+      .rejects.toMatchObject({ recovered: true })
+    expect(events).toEqual(['start', 'stop', 'restore', 'start'])
+    expect(store.saved).toEqual([])
+    expect(controller.isRunning()).toBe(true)
+    await controller.close()
+  })
+
+  it('reports failed recovery and leaves no running candidate', async () => {
+    const store = new MemoryControlStore({ version: 1, enabled: true })
+    const controller = new MobileAccessGatewayController(store, async () => runtime())
+    await controller.initialize()
+    const result = controller.reconfigure(async () => { throw new Error('write rejected') }, async () => { throw new Error('restore rejected') })
+    await expect(result).rejects.toBeInstanceOf(MobileAccessReconfigurationError)
+    await expect(result).rejects.toMatchObject({ recovered: false })
+    expect(controller.isRunning()).toBe(false)
+    expect(store.saved).toEqual([])
+    await controller.close()
+  })
+})
 
 describe('mobile-access control state', () => {
   it('uses the installation default only for a missing file and persists a disabled restart', async () => {

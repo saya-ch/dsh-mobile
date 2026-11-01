@@ -18,7 +18,7 @@ import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import type { IncomingMessage } from 'node:http'
 import { createRequire } from 'node:module'
 import { X509Certificate } from 'node:crypto'
-import { copyFile, lstat, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, readFile, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedGatewayConfig } from './config.js'
@@ -30,8 +30,10 @@ import {
   FollowingMobileAccessRuntime,
   JsonMobileAccessControlStore,
   MobileAccessGatewayController,
+  MobileAccessReconfigurationError,
   type MobileAccessRuntime,
 } from './control.js'
+import { rebindManagedLan, ManagedLanConfigurationError } from './lan-rebind.js'
 import { MobileAccessGateway, ClientModuleConflictError } from './gateway.js'
 import { ClientModulePreferenceStore } from './client-module-preferences.js'
 import { createMobileAccessService, MobileExtensionError, type MobileAccessService } from './extensions.js'
@@ -549,6 +551,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const loaded = await loadSetup(config)
   /** Rebind overrides the managed setup at runtime; the file on disk is the source of truth on restart. */
   let managedSetupOverride: ManagedSetup | undefined
+  let lanRebindRecoveryRequired = false
   const mobileAccess: MobileAccessService = createMobileAccessService(ctx)
   const baseTemplate = loopbackTemplate(loaded, ctx.webServer.port)
   const upstreamLoginUrl = upstreamAuthenticatedUrl(ctx, baseTemplate.upstreamOrigin)
@@ -845,8 +848,17 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   let lanGateway: MobileAccessGateway | undefined
   let preparedLanSetup: ManagedLanSetupResult | undefined
   let trustedNetworksRestartRequired = false
-  let trustedNetworksWrite: Promise<void> = Promise.resolve()
+  let lanConfigurationWork: Promise<void> = Promise.resolve()
   let adminClosing = false
+  const mutateLan = <T>(operation: () => Promise<T>): Promise<T> => {
+    if (adminClosing) return Promise.reject(new HttpError(503, 'unavailable'))
+    const run = lanConfigurationWork.then(() => {
+      if (adminClosing) throw new HttpError(503, 'unavailable')
+      return operation()
+    })
+    lanConfigurationWork = run.then(() => {}, () => {})
+    return run
+  }
   const startGateway = async (candidateConfig: PluginConfig): Promise<MobileAccessRuntime> => {
     const resolved = withInstallationIdentity(parseGatewayConfig({
       ...candidateConfig,
@@ -1165,6 +1177,8 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       restartRequired: preparedLanSetup !== undefined,
     } : {}),
     running: lanController.isRunning(),
+    rebindSupported: loaded.kind === 'managed',
+    ...(lanRebindRecoveryRequired ? { recoveryRequired: true } : {}),
     origin: lanGateway?.address().origin,
     ...(preparedLanSetup === undefined ? {} : { pendingOrigin: preparedLanSetup.origin }),
     ...(lanGateway === undefined ? {} : { extensions: lanGateway.extensionStatus() }),
@@ -1332,13 +1346,10 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           let values: readonly string[]
           try { values = parseAdditionalTrustedNetworks(body.extraAllowedCidrs) }
           catch { throw new HttpError(400, 'lan_trusted_networks_invalid') }
-          const write = trustedNetworksWrite.then(async () => {
-            if (adminClosing) throw new HttpError(503, 'unavailable')
+          await mutateLan(async () => {
             await saveManagedTrustedNetworks(loaded.setupFile, values)
             trustedNetworksRestartRequired = true
           })
-          trustedNetworksWrite = write.catch(() => undefined)
-          await write
           sendJson(response, 200, await trustedNetworksPayload(), false)
           return
         }
@@ -1368,11 +1379,15 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         }
         if (request.method === 'POST' && lanControl) {
           const body = await readJsonObject(request, 4096)
-          if (typeof body.running !== 'boolean') throw new HttpError(400, 'bad_request')
-          if (body.running && loaded.kind === 'unconfigured') {
+          const running = body.running
+          if (typeof running !== 'boolean') throw new HttpError(400, 'bad_request')
+          if (running && loaded.kind === 'unconfigured') {
             throw new HttpError(409, preparedLanSetup === undefined ? 'lan_setup_required' : 'lan_setup_restart_required')
           }
-          await lanController.setRunning(body.running)
+          await mutateLan(async () => {
+            if (running && lanRebindRecoveryRequired) throw new HttpError(409, 'lan_rebind_recovery_required')
+            await lanController.setRunning(running)
+          })
           sendJson(response, 200, lanPayload(), false)
           return
         }
@@ -1403,11 +1418,12 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           return
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/lan/networks`) {
+          await lanConfigurationWork
           const networks = availableLanNetworks()
           const preferred = await preferredLanInterfaceNames()
           let recommendedAddress: string | undefined
           try { recommendedAddress = selectLanNetwork(undefined, undefined, undefined, preferred).address } catch { /* ambiguous; the user chooses */ }
-          const currentInterface = loaded.kind === 'managed' ? loaded.setup.networkInterface : undefined
+          const currentInterface = loaded.kind === 'managed' ? (managedSetupOverride ?? loaded.setup).networkInterface : undefined
           sendJson(response, 200, {
             supported: loaded.kind === 'managed',
             currentInterface,
@@ -1427,44 +1443,33 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           if (loaded.kind !== 'managed') throw new HttpError(409, 'lan_rebind_unsupported')
           const body = await readJsonObject(request, 4096)
           const networkInterface = typeof body.networkInterface === 'string' ? body.networkInterface : ''
-          if (networkInterface === '') throw new HttpError(400, 'bad_request')
-          const network = availableLanNetworks().find(candidate => candidate.name === networkInterface)
-          if (network === undefined) throw new HttpError(409, 'lan_rebind_network_unavailable')
-          if (loaded.setup.networkInterface === networkInterface) throw new HttpError(409, 'lan_rebind_unchanged')
-          const setupFile = loaded.setupFile
-          const wasRunning = lanController.isRunning()
-          const previousOrigin = lanGateway?.address().origin
-          const previousSetup = managedSetupOverride ?? loaded.setup
-          const previousSetupFile = await readFile(setupFile, 'utf8')
-          try {
-            if (wasRunning) await lanController.setRunning(false)
-            const result = await prepareManagedLanSetup({
-              setupFile,
-              controlFile: lanControlFile,
-              network,
-              listenPort: previousSetup.listenPort,
-              dshPort: ctx.webServer.port,
-              configureFirewall: true,
-            })
-            managedSetupOverride = result.setup
-            await lanController.setRunning(wasRunning)
-            sendJson(response, 200, {
-              origin: result.origin,
-              previousOrigin,
-              restartRequired: !wasRunning,
-              disconnected: wasRunning,
-            }, false)
-          } catch (error) {
-            logger.error('managed LAN rebind failed: %s', error instanceof Error ? error.stack ?? error.message : String(error))
+          if (networkInterface === '' || Object.keys(body).some(key => key !== 'networkInterface')) throw new HttpError(400, 'bad_request')
+          const payload = await mutateLan(async () => {
+            let network
+            try { network = selectLanNetwork(undefined, networkInterface) }
+            catch { throw new HttpError(409, 'lan_rebind_network_unavailable') }
+            const current = managedSetupOverride ?? loaded.setup
+            if (!lanRebindRecoveryRequired && current.networkInterface === networkInterface) throw new HttpError(409, 'lan_rebind_unchanged')
+            const previousOrigin = lanGateway?.address().origin
             try {
-              await writeFile(setupFile, previousSetupFile, { mode: 0o600 })
-              managedSetupOverride = previousSetup
-              await lanController.setRunning(wasRunning)
-            } catch (restoreError) {
-              logger.error('managed LAN rebind rollback failed: %s', restoreError instanceof Error ? restoreError.message : String(restoreError))
+              const result = await rebindManagedLan({
+                setupFile: loaded.setupFile, controller: lanController, network,
+                publish: setup => { managedSetupOverride = setup },
+              })
+              trustedNetworksRestartRequired = false
+              lanRebindRecoveryRequired = false
+              return { origin: lanGateway?.address().origin ?? `https://${network.address}:${String(result.setup.listenPort)}`,
+                previousOrigin, restartRequired: false, disconnected: result.running, ready: lanGateway !== undefined }
+            } catch (error) {
+              if (error instanceof ManagedLanConfigurationError) throw new HttpError(409, 'lan_rebind_configuration_invalid')
+              if (!(error instanceof MobileAccessReconfigurationError)) throw new HttpError(503, 'lan_rebind_unavailable')
+              const recovered = error.recovered
+              if (!recovered) lanRebindRecoveryRequired = true
+              logger.error('managed LAN rebind failed; prior configuration restored: %s', String(recovered))
+              throw new HttpError(500, recovered ? 'lan_rebind_failed' : 'lan_rebind_recovery_required')
             }
-            throw new HttpError(500, 'lan_rebind_failed')
-          }
+          })
+          sendJson(response, 200, payload, false)
           return
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/control`) {
@@ -2011,7 +2016,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           stopAdmin,
           drainRemoteWork,
           () => releaseManager.dispose(),
-          () => trustedNetworksWrite,
+          () => lanConfigurationWork,
           disposeMobileCommand,
           disposeTaskEvents,
           async () => {
@@ -2035,7 +2040,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         stopAdmin,
         drainRemoteWork,
         () => releaseManager.dispose(),
-        () => trustedNetworksWrite,
+        () => lanConfigurationWork,
         disposeMobileCommand,
         disposeTaskEvents,
         async () => {

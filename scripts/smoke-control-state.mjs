@@ -63,6 +63,8 @@ async function withControl(browser, name, options, run) {
     recoveryError: options.recoveryError,
     diagnostics: options.diagnostics,
     pairingSequence: 0, holdCloudflared: false,
+    lanRunning: options.lanRunning !== false, lanOrigin: 'https://192.168.50.20:3443', lanInterface: 'fixture0',
+    holdRebind: false, rebindError: undefined, lanRecoveryRequired: false,
   }
   if (options.managedReady) {
     Object.assign(state.remote, {
@@ -128,21 +130,27 @@ async function withControl(browser, name, options, run) {
       return
     }
     if (pathname === `${prefix}/lan/control`) {
-      json(response, 200, { configured: true, running: true, origin: 'https://192.168.50.20:3443' })
+      json(response, 200, { configured: true, rebindSupported: true, running: state.lanRunning,
+        origin: state.lanRunning ? state.lanOrigin : undefined, ...(state.lanRecoveryRequired ? { recoveryRequired: true } : {}) })
       return
     }
     if (pathname === `${prefix}/lan/networks`) {
       json(response, 200, {
         supported: true,
-        currentInterface: 'fixture0',
+        currentInterface: state.lanInterface,
         listenPort: 3443,
         platform: process.platform,
-        networks: [{ name: 'fixture0', address: '192.168.50.20', cidr: '192.168.50.0/24', current: true, recommended: true }],
+        networks: [0, 1].map(index => ({ name: `fixture${index}`, address: `192.168.50.${20 + index}`,
+          cidr: '192.168.50.0/24', current: state.lanInterface === `fixture${index}`, recommended: index === 0 })),
       })
       return
     }
     if (pathname === `${prefix}/lan/rebind` && request.method === 'POST') {
-      json(response, 200, { origin: 'https://192.168.50.21:3443', previousOrigin: 'https://192.168.50.20:3443', restartRequired: false, disconnected: true })
+      if (state.rebindError !== undefined) { json(response, 500, { error: state.rebindError }); return }
+      if (state.holdRebind) { hold(entry, response); return }
+      state.lanInterface = body.networkInterface
+      state.lanOrigin = state.lanInterface === 'fixture1' ? 'https://192.168.50.21:3443' : 'https://192.168.50.20:3443'
+      json(response, 200, { origin: state.lanOrigin, restartRequired: false, disconnected: state.lanRunning, ready: state.lanRunning })
       return
     }
     if (/^\/api\/mobile-access\/(lan|remote)\/pairing\/open$/u.test(pathname) && request.method === 'POST') {
@@ -367,6 +375,46 @@ async function withControl(browser, name, options, run) {
 const browser = await chromium.launch({ headless: true })
 let cases = 0
 try {
+  for (const lanRunning of [false, true]) {
+    await withControl(browser, `LAN rebind state and confirmed refresh (${lanRunning})`, { lanRunning }, async ({ page, state, count, waitRequest }) => {
+      await page.locator('.dsh-mobile-control__provider.is-lan').click()
+      const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Change network', exact: true }) }).last()
+      const select = section.getByLabel('New network', { exact: true })
+      const confirm = section.locator('button.dsh-mobile-control__primary')
+      await waitUntil(() => confirm.isEnabled(), Boolean, 'initial network scan')
+      await select.selectOption('fixture1')
+      state.holdRebind = true
+      await confirm.click()
+      const request = await waitRequest('POST', `${prefix}/lan/rebind`)
+      assert.equal(await select.isDisabled(), true)
+      assert.equal(await section.getByRole('button', { name: 'Scan again' }).isDisabled(), true)
+      await select.dispatchEvent('change')
+      assert.equal(await confirm.isDisabled(), true, 'A queued change event re-enabled the pending submit')
+      assert.equal(count('POST', `${prefix}/lan/rebind`), 1)
+      state.lanInterface = 'fixture1'
+      state.lanOrigin = 'https://192.168.50.21:3443'
+      request.release(200, { origin: state.lanOrigin, disconnected: lanRunning, ready: lanRunning, restartRequired: false })
+      await waitUntil(() => confirm.isEnabled(), Boolean, 'rebind follow-up reads and idle controls')
+      assert.equal(await select.inputValue(), 'fixture1', 'Current network was not refreshed')
+      assert.equal(count('POST', `${prefix}/lan/control`), 0, 'Rebind changed the enabled preference')
+      if (lanRunning) {
+        await waitRequest('POST', `${prefix}/lan/pairing/open`)
+        assert.equal(await page.locator('a[href="https://192.168.50.21:3443"]').count(), 1, 'The previous connection address survived')
+      } else assert.equal(count('POST', `${prefix}/lan/pairing/open`), 0, 'Stopped access opened a pairing window')
+      state.holdRebind = false
+      state.rebindError = 'lan_rebind_recovery_required'
+      state.lanRecoveryRequired = true
+      await select.selectOption('fixture0')
+      await confirm.click()
+      await waitUntil(() => section.textContent(), text => text.includes('could not be restored'), 'explicit failed recovery')
+      assert.equal((await section.textContent()).includes('Nothing was modified'), false)
+      await section.getByRole('button', { name: 'Scan again' }).click()
+      await waitUntil(() => confirm.isEnabled(), Boolean, 'read-only recovery status refresh')
+      assert.equal(count('POST', `${prefix}/lan/rebind`), 2, 'Refreshing uncertain state replayed a write')
+      assert((await page.locator('.dsh-mobile-control__channel-pane').textContent()).includes('could not be restored'))
+    })
+    cases++
+  }
   for (const provider of ['cloudflared', 'cpolar', 'iroh']) {
     await withControl(browser, `${provider} actions require installation; stable three-button row`, {}, async ({ page, state, consumed, settle, openRemote, pollRemote, count }) => {
       await openRemote()

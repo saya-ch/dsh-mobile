@@ -33,6 +33,13 @@ async function fixture(files: Record<string, string>): Promise<string> {
 }
 
 describe('documentation checks', () => {
+  it('ships both baseline guides linked by the published documentation index', async () => {
+    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { files: readonly string[] }
+    for (const guide of ['docs/MOBILE_PLUGIN_BASELINE.md', 'docs/MOBILE_PLUGIN_BASELINE.en.md']) {
+      expect(manifest.files).toContain(guide)
+    }
+  })
+
   it('lists source Markdown without generated trees or duplicate entries', async () => {
     expect(await checker.listDocumentationFiles('.', ['README.md', 'docs/guide.md', 'docs\\guide.md', 'node_modules/a/README.md', 'vendor/a.md', 'build/a.md', '.git/a.md', 'src/a.ts', 'NEW.md']))
       .toEqual(['NEW.md', 'README.md', 'docs/guide.md'])
