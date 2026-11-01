@@ -130,9 +130,9 @@ Verify actual visibility, focus and `document.elementFromPoint()` while the draw
 
 When a third-party panel is open in the main slot, the mobile layer provides three safety measures:
 
-- on a coarse pointer, `button`, `[role="button"]`, `select` and single-line `input` / `textarea` inside the panel get a **44px minimum hit area** (height only, never a visual size);
+- on a coarse pointer, ordinary buttons, selects and text inputs get **44×44 CSS px minimum layout boxes**. This changes visual geometry; it is not an invisible hit-area extension. Switches, checkboxes and ranges keep their own geometry, and the panel owns multiline inputs;
 - a panel root that is `width:100vw` or a fixed pixel width is capped to the available width instead of overflowing;
-- the pane scrolls and contains the gesture; the plugin's own scroll container still wins.
+- the panel content can scroll and contain the gesture without also making the outer main pane a second scroll container; the plugin's own scroll container remains the first choice.
 
 This is a **floor, not a substitute for adapting the plugin**. A panel that ships its own touch geometry opts out on its root:
 
@@ -140,7 +140,7 @@ This is a **floor, not a substitute for adapting the plugin**. A panel that ship
 <main data-dsh-adapt="off">…</main>
 ```
 
-The rules only apply to coarse pointers; a mouse is unaffected. To go further, follow the checklist above for L1 / L2.
+Root opt-out also disables the sizing and outer-scroll overrides; nested groups can use the attribute to retain their own control sizes. These rules apply only to coarse pointers and leave fine-pointer geometry and scrolling unchanged. Plugin authors still own responsive adaptation; this is not a compatibility guarantee for arbitrary plugin combinations.
 
 ## Verification: what code checks, browsers and devices establish
 

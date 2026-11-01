@@ -184,6 +184,62 @@ async function geometry(page) {
   })
 }
 
+async function checkPanelTouch(styles) {
+  for (const hasTouch of [false, true]) for (const optOut of [false, true]) {
+    await withContext({ viewport: views[1], hasTouch }, async context => {
+      const page = await context.newPage()
+      await page.setContent(`<style>body{margin:0}[data-slot]{display:contents}button{box-sizing:border-box;width:28px;height:28px;padding:0}#panel{width:500px}input[type=range]{height:20px}</style>
+        <div id="root"><div class="dshm-shell"><main class="dshm-main" data-dsh-panel="0"><div class="dshm-mainContent"><div data-slot="main"><section id="panel"${optOut ? ' data-dsh-adapt="off"' : ''}>
+        <button id="action">Action</button><button role="switch" id="switch">Switch</button><input id="range" type="range"><div data-dsh-adapt="off"><button id="nested">Nested opt-out</button></div><p style="height:1200px">Owned long panel content</p></section></div></div></main></div></div>`)
+      await page.addStyleTag({ content: styles.stylesheet })
+      const measure = () => page.evaluate(() => {
+        const box = selector => { const node = document.querySelector(selector); const rect = node.getBoundingClientRect();
+          return { width: rect.width, height: rect.height, overflow: getComputedStyle(node).overflowY } }
+        return { main: box('.dshm-main'), content: box('.dshm-mainContent'), panel: box('#panel'),
+          action: box('#action'), switch: box('#switch'), range: box('#range'), nested: box('#nested') }
+      })
+      const before = await measure()
+      await page.locator('.dshm-main').evaluate(node => { node.dataset.dshPanel = '1' })
+      const after = await measure()
+      if (!hasTouch || optOut) assert.deepEqual(after, before, 'Fine-pointer and opted-out panels must retain their geometry and scrolling')
+      else {
+        assert(after.action.width >= 44 && after.action.height >= 44, 'Compact actions need two-dimensional touch targets')
+        for (const key of ['switch', 'range', 'nested', 'main']) assert.deepEqual(after[key], before[key], `${key}: touch adaptation reached an excluded owner`)
+        assert(after.panel.width <= after.content.width, 'The panel exceeds its available width')
+        await page.locator('#action').evaluate(node => { node.addEventListener('click', () => { node.dataset.clicked = 'true' }) })
+        await page.locator('#action').click()
+        assert.equal(await page.locator('#action').getAttribute('data-clicked'), 'true', 'The resized action is not hit-testable')
+        await page.locator('.dshm-mainContent').hover()
+        await page.mouse.wheel(0, 180)
+        await page.waitForFunction(() => document.querySelector('.dshm-mainContent').scrollTop > 0)
+      }
+      cases++
+    })
+  }
+  const guide = await readFile(resolve(mobileRoot, 'docs/MOBILE_PLUGIN_BASELINE.en.md'), 'utf8')
+  const example = guide.match(/```css\r?\n([\s\S]*?)```/u)?.[1]
+  assert(example, 'The shipped baseline guide has no CSS example')
+  for (const narrow of [false, true]) {
+    await withContext({ viewport: views[1], hasTouch: true }, async context => {
+      const page = await context.newPage()
+      await page.setContent(`<section class="plugin-panel" data-mobile="${narrow ? '1' : '0'}" style="display:flex;gap:8px">
+        <button class="icon-button"><span aria-hidden="true">+</span><span class="action-label">Owned action</span></button>
+        <label class="check-label"><input type="checkbox">Owned option</label></section>`)
+      const action = page.getByRole('button', { name: 'Owned action', exact: true })
+      const before = await action.boundingBox()
+      await page.addStyleTag({ content: example })
+      const after = await action.boundingBox()
+      if (narrow) {
+        assert(after.width >= 44 && after.height >= 44, 'The documented action is too small')
+        await page.locator('label').click({ position: { x: 5, y: 5 } })
+        assert.equal(await page.getByRole('checkbox').isChecked(), true, 'Label padding does not activate its checkbox')
+      } else assert.deepEqual(after, before, 'The documented narrow styles changed the desktop action')
+      assert.equal(await action.count(), 1, 'Collapsing the visible label removed the accessible name')
+      cases++
+    })
+  }
+}
+
 try {
   browser = await chromium.launch({ headless: true })
   const styles = await captureStyles()
@@ -204,6 +260,7 @@ try {
       failures.push(new Error(marker))
     })
   } else {
+    await checkPanelTouch(styles)
     for (const view of views) for (const open of [false, true]) for (const [theme, tokens] of Object.entries(themes)) for (const order of ['before', 'after']) {
       await withContext({ viewport: view, hasTouch: true }, async context => {
         const page = await context.newPage()
