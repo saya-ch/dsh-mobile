@@ -26,6 +26,14 @@ export interface MobileAccessRuntimeSelection {
   start(): Promise<MobileAccessRuntime>
 }
 
+/** A configuration change failed; recovered distinguishes a restored runtime from an unknown configuration. */
+export class MobileAccessReconfigurationError extends Error {
+  constructor(readonly recovered: boolean, cause: unknown) {
+    super(recovered ? 'mobile access configuration restored' : 'mobile access configuration requires recovery', { cause })
+    this.name = 'MobileAccessReconfigurationError'
+  }
+}
+
 /** Keeps one runtime aligned with a changing network selection. */
 export class FollowingMobileAccessRuntime implements MobileAccessRuntime {
   private runtime: MobileAccessRuntime | undefined
@@ -89,7 +97,7 @@ export class FollowingMobileAccessRuntime implements MobileAccessRuntime {
     })
   }
 
-  private enqueue(operation: () => Promise<void>): Promise<void> {
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const run = this.queue.then(operation, operation)
     this.queue = run.then(() => {}, () => {})
     return run
@@ -227,6 +235,33 @@ export class MobileAccessGatewayController {
     })
   }
 
+  /** Change configuration with the runtime stopped, without changing its durable enabled preference. */
+  reconfigure<T>(change: () => Promise<T>, restore: () => Promise<void>): Promise<{ value: T; running: boolean }> {
+    if (this.closing) return Promise.reject(new Error('mobile-access control is closing'))
+    return this.enqueue(async () => {
+      if (!this.initialized) throw new Error('mobile-access control is not initialized')
+      const previous = this.runtime
+      if (previous !== undefined) {
+        try { await previous.close() }
+        catch (error) { throw new MobileAccessReconfigurationError(false, error) }
+      }
+      this.runtime = undefined
+      try {
+        const value = await change()
+        if (previous !== undefined) this.runtime = await this.startRuntime()
+        return { value, running: previous !== undefined }
+      } catch (error) {
+        try {
+          await restore()
+          if (previous !== undefined) this.runtime = await this.startRuntime()
+        } catch (restoreError) {
+          throw new MobileAccessReconfigurationError(false, new AggregateError([error, restoreError]))
+        }
+        throw new MobileAccessReconfigurationError(true, error)
+      }
+    })
+  }
+
   /** Stop the runtime after earlier transitions without changing the restart preference. */
   close(): Promise<void> {
     if (this.closeTask !== undefined) return this.closeTask
@@ -273,7 +308,7 @@ export class MobileAccessGatewayController {
     this.runtime = undefined
   }
 
-  private enqueue(operation: () => Promise<void>): Promise<void> {
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const run = this.queue.then(operation, operation)
     this.queue = run.then(() => {}, () => {})
     return run

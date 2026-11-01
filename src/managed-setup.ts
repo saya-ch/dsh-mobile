@@ -156,6 +156,12 @@ export async function saveManagedTrustedNetworks(setupFile: string, values: unkn
   return next
 }
 
+/** Persist an existing managed setup without resetting its identity, paths or extra trusted networks. */
+export async function saveManagedSetup(setupFile: string, setup: ManagedSetup): Promise<void> {
+  const validated = parseManagedSetup(setup)
+  await atomicWrite(setupFile, `${JSON.stringify(validated, null, 2)}\n`)
+}
+
 function privateIpv4(value: string): boolean {
   const parts = value.split('.').map(Number)
   return parts.length === 4 && parts.every(part => Number.isInteger(part) && part >= 0 && part <= 255)

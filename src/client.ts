@@ -1779,6 +1779,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   let lanSetupLoaded = false
   let lanChangeLoaded = false
   let lanChangeBusy = false
+  let lanChangeRequest: Promise<void> | undefined
   let remoteRunning = false
   let remoteReady = false
   let remoteProvider: MobileRemoteProvider = 'tailscale'
@@ -1976,7 +1977,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     lanChoiceBadge.textContent = running ? t('lanBadgeOn') : t('lanBadgeOff')
     origin = running && typeof data.origin === 'string' ? data.origin : ''
     lanSetup.hidden = lanConfigured && !lanRestartRequired
-    lanChange.hidden = !lanConfigured || lanRestartRequired
+    lanChange.hidden = !lanConfigured || lanRestartRequired || data.rebindSupported !== true
     if (!lanChange.hidden && !lanChangeLoaded) loadLanChange()
     lanSetupForm.hidden = lanRestartRequired
     lanSetupIntro.hidden = lanRestartRequired
@@ -1993,7 +1994,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     accessLink.textContent = origin
     accessLink.title = origin
     status.classList.toggle('is-running', running)
-    status.textContent = !lanConfigured ? t('lanSetupRequired') : lanRestartRequired ? t('lanSetupRestart', { origin: typeof data.pendingOrigin === 'string' ? data.pendingOrigin : '' }) : running ? t('lanOn') : t('lanOff')
+    status.textContent = data.recoveryRequired === true ? t('lanChangeRecoveryRequired') : !lanConfigured ? t('lanSetupRequired') : lanRestartRequired ? t('lanSetupRestart', { origin: typeof data.pendingOrigin === 'string' ? data.pendingOrigin : '' }) : running ? t('lanOn') : t('lanOff')
     const extensionData = data.extensions
     if (extensionData !== null && typeof extensionData === 'object') {
       const loaded = typeof (extensionData as { loaded?: unknown }).loaded === 'number' ? (extensionData as { loaded: number }).loaded : 0
@@ -2066,19 +2067,17 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       lanSetupConfigure.disabled = lanRestartRequired || lanSetupSelect.options.length === 0
     })
   })
-  const lanChangeOptionCount = (): number => {
-    const options = (lanChangeSelect as HTMLSelectElement).options
-    return options === undefined ? lanChangeSelect.childElementCount : options.length
+  const syncLanChange = (): void => {
+    const waiting = lanChangeBusy || lanChangeRequest !== undefined
+    lanChangeSelect.disabled = waiting
+    lanChangeRefresh.disabled = waiting
+    lanChangeConfirm.disabled = waiting || lanChangeSelect.options.length === 0
   }
   const renderLanChange = (data: Record<string, unknown>): void => {
     const networks = Array.isArray(data.networks)
       ? data.networks.filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
       : []
-    if (typeof lanChangeSelect.replaceChildren === 'function') lanChangeSelect.replaceChildren()
-    else {
-      // Fake DOM nodes in tests may lack replaceChildren; emulate it.
-      try { while (lanChangeSelect.firstChild) lanChangeSelect.removeChild(lanChangeSelect.firstChild) } catch { /* keep whatever the fake DOM supports */ }
-    }
+    lanChangeSelect.replaceChildren()
     for (const network of networks) {
       const name = typeof network.name === 'string' ? network.name : ''
       const address = typeof network.address === 'string' ? network.address : ''
@@ -2089,42 +2088,58 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       if (network.current === true) option.selected = true
       lanChangeSelect.append(option)
     }
-    lanChangeConfirm.disabled = lanChangeOptionCount() === 0
+    syncLanChange()
   }
-  const loadLanChange = (): void => {
+  const loadLanChange = (): Promise<void> => {
+    if (lanChangeRequest !== undefined) return lanChangeRequest
     lanChangeLoaded = true
-    lanChangeRefresh.disabled = true
-    void controlRequestJson('/api/mobile-access/lan/networks').then(renderLanChange, () => {
-      lanChangeStatus.textContent = t('lanChangeFailed')
-    }).finally(() => { lanChangeRefresh.disabled = false })
+    lanChangeRequest = Promise.all([
+      controlRequestJson('/api/mobile-access/lan/networks'),
+      controlRequestJson('/api/mobile-access/lan/control'),
+    ]).then(([data, control]) => {
+      if (!lifecycle.signal.aborted) { renderLanChange(data); render(control) }
+    }, () => {
+      if (!lifecycle.signal.aborted) lanChangeStatus.textContent = t('lanChangeRefreshFailed')
+    }).finally(() => { lanChangeRequest = undefined; if (!lifecycle.signal.aborted) syncLanChange() })
+    syncLanChange()
+    return lanChangeRequest
   }
-  lanChangeRefresh.addEventListener('click', () => { loadLanChange() })
-  lanChangeSelect.addEventListener('change', () => { lanChangeConfirm.disabled = lanChangeOptionCount() === 0 })
+  lanChangeRefresh.addEventListener('click', () => { void loadLanChange() })
+  lanChangeSelect.addEventListener('change', syncLanChange)
   lanChangeConfirm.addEventListener('click', () => {
-    if (lanChangeSelect.value === '' || lanChangeBusy) return
+    if (lanChangeSelect.value === '' || lanChangeBusy || lanChangeRequest !== undefined) return
     lanChangeBusy = true
-    lanChangeConfirm.disabled = true
-    lanChangeRefresh.disabled = true
+    syncLanChange()
     lanChangeConfirm.textContent = t('lanChangeBusy')
     lanChangeStatus.textContent = t('lanChangeBusy')
     void controlRequestJson('/api/mobile-access/lan/rebind', {
       method: 'POST',
       body: JSON.stringify({ networkInterface: lanChangeSelect.value }),
-    }, LONG_CONTROL_REQUEST_TIMEOUT_MS).then(data => {
-      lanChangeStatus.textContent = data.disconnected === true ? t('lanChangeOkDisconnected') : t('lanChangeOk')
-      void controlRequestJson('/api/mobile-access/lan/setup').then(renderLanSetup, () => {})
-      if (data.disconnected === true) openPairing('key')
+    }, LONG_CONTROL_REQUEST_TIMEOUT_MS).then(async data => {
+      if (lifecycle.signal.aborted) return
+      lanChangeStatus.textContent = data.disconnected === true && data.ready === true ? t('lanChangeOkDisconnected') : t('lanChangeOk')
+      try {
+        const control = await controlRequestJson('/api/mobile-access/lan/control')
+        if (lifecycle.signal.aborted) return
+        render(control)
+        await loadLanChange()
+        if (!lifecycle.signal.aborted && data.ready === true) openPairing('key')
+      } catch {
+        if (!lifecycle.signal.aborted) lanChangeStatus.textContent = t('lanChangeRefreshFailed')
+      }
     }, error => {
+      if (lifecycle.signal.aborted) return
       const text = String(error)
       lanChangeStatus.textContent = text.includes('lan_rebind_unchanged') ? t('lanChangeUnchanged')
         : text.includes('lan_rebind_network_unavailable') ? t('lanChangeUnavailable')
         : text.includes('lan_rebind_unsupported') ? t('lanChangeUnsupported')
+        : text.includes('lan_rebind_recovery_required') ? t('lanChangeRecoveryRequired')
         : t('lanChangeFailed')
     }).finally(() => {
       lanChangeBusy = false
+      if (lifecycle.signal.aborted) return
       lanChangeConfirm.textContent = t('lanChangeConfirm')
-      lanChangeRefresh.disabled = false
-      lanChangeConfirm.disabled = lanChangeOptionCount() === 0
+      syncLanChange()
     })
   })
   const clearQrTarget = (target: HTMLDivElement): void => {

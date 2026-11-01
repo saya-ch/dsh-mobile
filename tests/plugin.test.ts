@@ -16,6 +16,9 @@ import { Config, parseGatewayConfig, type PluginConfig } from '../src/config.js'
 import { JsonMobileAccessControlStore } from '../src/control.js'
 import { parseCidr, RequestTrustPolicy } from '../src/network.js'
 import * as network from '../src/network.js'
+import * as managedSetup from '../src/managed-setup.js'
+import * as lanRebind from '../src/lan-rebind.js'
+import { MobileAccessReconfigurationError } from '../src/control.js'
 import { apply, frpIngressGatewayConfig, inject, originGatewayConfig, remoteGatewayConfig, settleCleanupSteps, upstreamAuthenticatedUrl } from '../src/plugin.js'
 import { parseOriginSettings } from '../src/origin-proxy-config.js'
 import { parseFrpSettings } from '../src/frp-config.js'
@@ -479,6 +482,7 @@ async function managedSetupFile(upstreamOrigin: string): Promise<string> {
   })
   const caCertFile = join(directory, 'ca.pem')
   await writeFile(caCertFile, generated.cert)
+  await writeFile(join(directory, 'ca-key.pem'), generated.private)
   const setupFile = join(directory, 'setup.json')
   await writeFile(setupFile, JSON.stringify({
     version: 2,
@@ -495,6 +499,80 @@ async function managedSetupFile(upstreamOrigin: string): Promise<string> {
   }))
   return setupFile
 }
+
+describe('managed LAN rebind HTTP route', () => {
+  it('blocks enabling an uncertain configuration until an explicit successful rebind', async () => {
+    const networks = [
+      { name: 'unused-while-disabled', address: '10.0.0.5', cidr: '10.0.0.0/24' },
+      { name: 'Ethernet', address: '10.1.0.5', cidr: '10.1.0.0/24' },
+    ]
+    vi.spyOn(managedSetup, 'availableLanNetworks').mockReturnValue(networks)
+    vi.spyOn(managedSetup, 'selectLanNetwork').mockImplementation((_address, name) => {
+      const selected = networks.find(item => name === undefined || item.name === name)
+      if (selected === undefined) throw new Error('Unavailable interface')
+      return selected
+    })
+    const setupFile = await managedSetupFile('http://127.0.0.1:3080')
+    const mounted = await mount(false, 3080, { setupFile })
+    const original = lanRebind.rebindManagedLan
+    const change = vi.spyOn(lanRebind, 'rebindManagedLan').mockRejectedValue(new MobileAccessReconfigurationError(false, new Error('Owned recovery failure')))
+    expect((await invoke(mounted.route, 'POST', '/api/mobile-access/lan/rebind', '{"networkInterface":"Ethernet"}')).status).toBe(500)
+    const uncertain = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control')
+    expect(JSON.parse(uncertain.body)).toMatchObject({ running: false, recoveryRequired: true })
+    const enable = await invoke(mounted.route, 'POST', '/api/mobile-access/lan/control', '{"running":true}')
+    expect(enable.status).toBe(409)
+    expect(enable.body).toContain('lan_rebind_recovery_required')
+    change.mockImplementation(original)
+    // Reapplying the original selection is allowed as an explicit recovery action.
+    expect((await invoke(mounted.route, 'POST', '/api/mobile-access/lan/rebind', '{"networkInterface":"unused-while-disabled"}')).status).toBe(200)
+    const restored = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control')
+    expect(JSON.parse(restored.body)).toMatchObject({ running: false })
+    expect(JSON.parse(restored.body)).not.toHaveProperty('recoveryRequired')
+  })
+
+  it('preserves stopped state and trusted networks through repeated changes and returns the current interface', async () => {
+    const networks = [
+      { name: 'unused-while-disabled', address: '10.0.0.5', cidr: '10.0.0.0/24' },
+      { name: 'Ethernet', address: '10.1.0.5', cidr: '10.1.0.0/24' },
+    ]
+    vi.spyOn(managedSetup, 'availableLanNetworks').mockReturnValue(networks)
+    vi.spyOn(managedSetup, 'preferredLanInterfaceNames').mockResolvedValue([])
+    vi.spyOn(managedSetup, 'selectLanNetwork').mockImplementation((_address, name) => {
+      const selected = networks.find(item => name === undefined || item.name === name)
+      if (selected === undefined) throw new Error('Unavailable interface')
+      return selected
+    })
+    const setupFile = await managedSetupFile('http://127.0.0.1:3080')
+    const current = managedSetup.parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))
+    await writeFile(setupFile, JSON.stringify({ ...current, extraAllowedCidrs: ['10.80.0.0/16'] }))
+    const mounted = await mount(false, 3080, { setupFile })
+    const caBefore = await readFile(current.tls.caCertFile, 'utf8')
+    const path = '/api/mobile-access/lan/rebind'
+    for (const name of ['Ethernet', 'unused-while-disabled', 'Ethernet']) {
+      expect((await invoke(mounted.route, 'POST', path, JSON.stringify({ networkInterface: name }))).status).toBe(200)
+      const saved = managedSetup.parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))
+      expect(saved.networkInterface).toBe(name)
+      expect(saved.extraAllowedCidrs).toEqual(['10.80.0.0/16'])
+      expect(saved.tls).toEqual(current.tls)
+      expect(await readFile(current.tls.caCertFile, 'utf8')).toBe(caBefore)
+      const status = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control')
+      expect(JSON.parse(status.body)).toMatchObject({ running: false, rebindSupported: true })
+      const listed = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/networks')
+      expect(JSON.parse(listed.body).currentInterface).toBe(name)
+      expect((await invoke(mounted.route, 'POST', path, JSON.stringify({ networkInterface: name }))).status).toBe(409)
+    }
+    const invalid = await invoke(mounted.route, 'POST', path, JSON.stringify({ networkInterface: 'Ethernet', ignored: true }))
+    expect(invalid.status).toBe(400)
+    const foreign = await invoke(mounted.route, 'POST', path, '{"networkInterface":"Ethernet"}', '127.0.0.1',
+      { origin: 'https://foreign.invalid', 'sec-fetch-site': 'cross-site' })
+    expect(foreign.status).toBe(403)
+    await writeFile(setupFile, '{broken configuration')
+    const corrupt = await invoke(mounted.route, 'POST', path, '{"networkInterface":"unused-while-disabled"}')
+    expect(corrupt.status).toBe(409)
+    expect(corrupt.body).toContain('lan_rebind_configuration_invalid')
+    expect(await readFile(setupFile, 'utf8')).toBe('{broken configuration')
+  })
+})
 
 describe('upstream browser authentication', () => {
   const upstreamOrigin = new URL('http://127.0.0.1:3080')
@@ -799,7 +877,7 @@ describe('stock DSH lifecycle', () => {
     expect(mounted.route).toMatchObject({ kind: 'prefix', path: '/api/mobile-access' })
     const status = await invoke(mounted.route, 'GET', '/api/mobile-access/control')
     expect(status.status).toBe(200)
-    expect(JSON.parse(status.body)).toEqual({ running: false })
+    expect(JSON.parse(status.body)).toEqual({ running: false, rebindSupported: false })
     const remote = await invoke(mounted.route, 'GET', '/api/mobile-access/remote/control')
     expect(remote.status).toBe(200)
     expect(JSON.parse(remote.body)).toMatchObject({
@@ -1333,7 +1411,7 @@ describe('stock DSH lifecycle', () => {
     expect(JSON.parse(started.body)).toMatchObject({ running: true })
     const stopped = await invoke(mounted.route, 'POST', '/api/mobile-access/control', JSON.stringify({ running: false }))
     expect(stopped.status).toBe(200)
-    expect(JSON.parse(stopped.body)).toEqual({ running: false })
+    expect(JSON.parse(stopped.body)).toEqual({ running: false, rebindSupported: false })
   })
 
   it('advertises and binds the persisted installation identity through the default fixed gateway', async () => {
@@ -1509,7 +1587,7 @@ describe('stock DSH lifecycle', () => {
     expect(selected.status).toBe(200)
     expect(JSON.parse(selected.body)).toMatchObject({ provider: 'cpolar', running: false, state: 'off' })
     const lan = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control')
-    expect(JSON.parse(lan.body)).toEqual({ running: false })
+    expect(JSON.parse(lan.body)).toEqual({ running: false, rebindSupported: false })
   })
 
   it('does not create control files for remote providers that were never enabled', async () => {
