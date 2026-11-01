@@ -12,7 +12,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.RenderProcessGoneDetail
-import java.io.ByteArrayInputStream
 
 /** Categories of main-frame failures that need a native recovery surface. */
 internal enum class LoadFailure {
@@ -67,7 +66,6 @@ internal class SecureWebViewClient(
     private val onBeforeTopLevelNavigation: () -> Unit,
     private val onContentVisible: (documentGeneration: Int) -> Unit = {},
     private val connectionDeadlineActive: () -> Boolean = { false },
-    private val bootAssets: BootAssetCache? = null,
 ) : WebViewClient() {
     private val handler = Handler(Looper.getMainLooper())
     private val document = WebViewDocumentState(origin)
@@ -128,32 +126,6 @@ internal class SecureWebViewClient(
     override fun onPageCommitVisible(view: WebView, url: String) {
         if (document.canInspectContent(url, view.url ?: url)) {
             onContentVisible(document.generation)
-        }
-    }
-
-    /**
-     * Answers only revisioned boot batches that [BootAssetCache] revalidated on this session.
-     * Everything else returns null so the WebView's own navigation, TLS, cookie and error paths
-     * remain authoritative; a cache miss is never a new failure mode.
-     */
-    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        if (request.method != "GET" || request.isForMainFrame) return null
-        val cache = bootAssets ?: return null
-        val resolved = cache.resolve(request.url.toString())
-        if (resolved !is BootAssetCache.Result.Body) return null
-        return WebResourceResponse(
-            resolved.contentType,
-            "utf-8",
-            ByteArrayInputStream(resolved.body),
-        ).apply {
-            setResponseHeaders(
-                buildMap {
-                    put("Content-Type", "${resolved.contentType}; charset=utf-8")
-                    put("Content-Length", resolved.body.size.toString())
-                    put("Cache-Control", "private, max-age=30, must-revalidate")
-                    resolved.etag?.let { put("ETag", it) }
-                },
-            )
         }
     }
 

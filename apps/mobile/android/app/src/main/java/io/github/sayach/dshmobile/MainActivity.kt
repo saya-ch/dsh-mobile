@@ -123,7 +123,6 @@ class MainActivity : Activity() {
     private val lanCredentialStore by lazy { DeviceCredentialStore(this, "lan") }
     private val remoteCredentialStore by lazy { DeviceCredentialStore(this, "remote") }
     private val pairedDeviceStore by lazy { PairedDeviceStore(this) }
-    private val bootAssetStore by lazy { BootAssetStore(File(filesDir, "boot-assets")) }
     private var legacyStorageUnavailable = false
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private val restoreExecutor = Executors.newFixedThreadPool(3)
@@ -1138,7 +1137,6 @@ class MainActivity : Activity() {
                     ?.takeIf { it.instanceId == device.instanceId }
                 val legacyOrigin = preferences.getString(originPreference(device.mode), null)
                 if (withCredentialStorage { pairedDeviceStore.remove(device.key) } != true) return@setPositiveButton
-                bootAssetStore.clear()
                 if (activeDeviceKey == device.key) {
                     stopIrohTransport()
                     activeDeviceKey = null
@@ -3577,16 +3575,8 @@ class MainActivity : Activity() {
             // A posted cancellation can outlive the frame that owns its Chromium callback.
             androidx.webkit.WebViewCompat.addNavigationListener(browser, java.util.concurrent.Executor { task -> task.run() }, listener)
         }
-        // An iroh page must fetch through its CONNECT proxy, not the platform resolver.
-        val bootTransport = runCatching { transportFor(origin) }.getOrDefault(LocalTransport)
-        val bootAssets = BootAssetCache(
-            origin = origin,
-            store = bootAssetStore,
-            fetcher = HttpBootAssetFetcher(origin, bootTransport, caCertificate, browser.settings.userAgentString),
-        )
         val secureClient = SecureWebViewClient(
             origin = origin,
-            bootAssets = bootAssets,
             onBeforeTopLevelNavigation = {
                 if (ownsBrowser() && fileChooserNavigationListener == null) {
                     cancelPageSessionRenewal()
@@ -3965,7 +3955,6 @@ class MainActivity : Activity() {
             clearCache(true)
             clearSslPreferences()
         }
-        bootAssetStore.clear()
         WebStorage.getInstance().deleteAllData()
         WebViewDatabase.getInstance(this).apply {
             clearHttpAuthUsernamePassword()
