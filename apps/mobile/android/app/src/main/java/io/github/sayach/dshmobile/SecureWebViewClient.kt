@@ -12,6 +12,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.RenderProcessGoneDetail
+import java.io.ByteArrayInputStream
 import java.security.cert.X509Certificate
 
 /** A matching secure authority alone cannot authorize an untrusted certificate callback. */
@@ -78,6 +79,7 @@ internal class SecureWebViewClient(
     private val onBeforeTopLevelNavigation: () -> Unit,
     private val onContentVisible: (documentGeneration: Int) -> Unit = {},
     private val connectionDeadlineActive: () -> Boolean = { false },
+    private val bootAssets: BootAssetResponder? = null,
 ) : WebViewClient() {
     private val handler = Handler(Looper.getMainLooper())
     private val document = WebViewDocumentState(origin)
@@ -95,6 +97,8 @@ internal class SecureWebViewClient(
 
     fun dispose() {
         clearTimeout()
+        // A destroyed page must not keep a download, its socket or its `.part` file alive.
+        bootAssets?.cancelInFlight()
     }
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -117,6 +121,8 @@ internal class SecureWebViewClient(
 
     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
         document.started()
+        // The previous document's boot batches are moot; stop any download it still owns.
+        bootAssets?.cancelInFlight()
         onTopLevelUrlChanged(url)
         if (url != "about:blank" && !GatewayUrlPolicy.isSameOrigin(origin, url)) {
             clearTimeout()
@@ -139,6 +145,31 @@ internal class SecureWebViewClient(
         if (document.canInspectContent(url, view.url ?: url)) {
             onContentVisible(document.generation)
         }
+    }
+
+    /**
+     * Answers only revisioned boot batches that [BootAssetResponder] revalidated for this session.
+     * Everything else returns null so the WebView's own navigation, TLS, cookie and error paths
+     * remain authoritative; a cache miss is never a new failure mode. Chromium calls this on a
+     * background thread, and the responder's bounded worker owns the download so it can be cancelled
+     * from [dispose] or the next [onPageStarted].
+     */
+    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+        val served = bootAssets?.response(request.method, request.isForMainFrame, request.url.toString()) ?: return null
+        // Building the response can still throw (a header value or stream the current WebView
+        // implementation rejects); a throw here would abort the subresource instead of loading it.
+        return runCatching {
+            WebResourceResponse(served.contentType, "utf-8", ByteArrayInputStream(served.body)).apply {
+                setResponseHeaders(
+                    buildMap {
+                        put("Content-Type", "${served.contentType}; charset=utf-8")
+                        put("Content-Length", served.body.size.toString())
+                        put("Cache-Control", "private, max-age=30, must-revalidate")
+                        served.etag?.let { put("ETag", it) }
+                    },
+                )
+            }
+        }.getOrNull()
     }
 
     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
