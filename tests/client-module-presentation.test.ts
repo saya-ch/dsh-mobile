@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { ClientModuleDraft, clientModuleDisplayName, clientModuleGroup, clientModuleMatches, clientModuleMinimalExclusion, formatClientModuleSize, sortClientModulesBySize, type ClientModuleRow } from '../src/client-module-presentation.js'
+import { ClientModuleDraft, clientModuleDisplayName, clientModuleGroup, clientModuleMatches, clientModuleMinimalExclusion, clientModuleMinimalImpact, formatClientModuleSize, sortClientModulesBySize, type ClientModuleRow } from '../src/client-module-presentation.js'
+
+describe('minimal preset impact', () => {
+  it('counts unmeasured and raw-only sizes separately from the gzip subtotal', () => {
+    expect(clientModuleMinimalImpact([
+      { id: 'core', required: true, dependencies: ['dependency'] },
+      { id: 'dependency', required: false, dependencies: [], gzipBytes: 900 },
+      { id: 'known', required: false, dependencies: [], gzipBytes: 42 },
+      { id: 'raw-only', required: false, dependencies: [], bytes: 800 },
+      { id: 'unknown', required: false, dependencies: [] },
+    ])).toEqual({ count: 3, gzipBytes: 42, unknown: 2 })
+  })
+
+  it('distinguishes a measured empty resource from an unmeasured resource', () => {
+    expect(clientModuleMinimalImpact([{ id: 'empty', required: false, dependencies: [], gzipBytes: 0 }])).toEqual({ count: 1, gzipBytes: 0, unknown: 0 })
+    expect(clientModuleMinimalImpact([{ id: 'unknown', required: false, dependencies: [] }])).toEqual({ count: 1, unknown: 1 })
+  })
+})
 
 const rows: readonly ClientModuleRow[] = [
   { id: 'skin-client', required: false, dependencies: [] },

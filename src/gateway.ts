@@ -608,7 +608,7 @@ export function describeMobileClientModules(html: string): readonly ClientModule
  */
 export function clientModuleCatalogRevision(entries: readonly ClientModuleEntry[]): string {
   const canonical = entries
-    .map(entry => [entry.id, entry.required, entry.dependencies] as const)
+    .map(entry => [entry.id, entry.required, [...new Set(entry.dependencies)].sort()] as const)
     .sort((left, right) => (left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0))
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex').slice(0, 16)
 }
@@ -3062,7 +3062,6 @@ export class MobileAccessGateway {
       const validate = async (selection: readonly string[]): Promise<void> => {
         html = (await this.fetchAuthenticatedUpstreamIndex(controller.signal)).html
         try {
-          parseMobileBootPlan(html, selection)
           // A page that stayed open across a plugin change computes "required only"
           // from a catalog that no longer exists. Refuse that write explicitly
           // instead of surfacing it as an unrelated required-module conflict.
@@ -3072,6 +3071,7 @@ export class MobileAccessGateway {
               'client_module_catalog_changed',
             )
           }
+          parseMobileBootPlan(html, selection)
         } catch (error) {
           if (error instanceof ClientModuleConflictError) throw error
           if (error instanceof ExcludedClientModulesError) throw new ClientModuleConflictError(error.message)

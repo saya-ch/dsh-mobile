@@ -107,6 +107,22 @@ export function clientModuleMinimalExclusion(entries: readonly ClientModuleRow[]
   return entries.filter(entry => !keep.has(entry.id)).map(entry => entry.id)
 }
 
+/**
+ * Describe the optional modules removed by the minimal preset without treating unmeasured sizes as zero.
+ * @param entries - The complete displayed catalog, including required dependencies.
+ * @returns Excluded count, known gzip bytes when measured, and the number still unmeasured.
+ */
+export function clientModuleMinimalImpact(entries: readonly ClientModuleRow[]): { readonly count: number; readonly gzipBytes?: number; readonly unknown: number } {
+  const excluded = new Set(clientModuleMinimalExclusion(entries))
+  const rows = entries.filter(entry => excluded.has(entry.id))
+  const measured = rows.filter(entry => entry.gzipBytes !== undefined)
+  return {
+    count: rows.length,
+    ...(measured.length === 0 ? {} : { gzipBytes: measured.reduce((sum, entry) => sum + entry.gzipBytes!, 0) }),
+    unknown: rows.length - measured.length,
+  }
+}
+
 /** Editable selections retain unknown server exclusions and never cascade dependencies. */
 export class ClientModuleDraft {
   private readonly initial: Set<string>

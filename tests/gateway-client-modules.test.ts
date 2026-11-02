@@ -441,6 +441,27 @@ describe('authenticated client module selection', () => {
     expect(after).not.toBe(before)
   })
 
+  it('compares catalog revisions before reporting a newly required exclusion as an invalid choice', async () => {
+    const setup = await fixture()
+    const before = await setup.view(setup.first)
+    const feature = setup.graph().entries.find(entry => entry.id === 'feature')
+    if (feature === undefined) throw new Error('fixture feature is missing')
+    feature.immediately = true
+    const stale = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: before.revision })
+    expect(stale.status).toBe(409)
+    expect(JSON.parse(stale.body)).toMatchObject({ error: 'client_module_catalog_changed' })
+    expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [] })
+  })
+
+  it('keeps the revision stable under dependency ordering and metadata-only changes', () => {
+    const before = [{ id: 'feature', required: false, dependencies: ['b', 'a'], gzipBytes: 10 }]
+    const after = [{ id: 'feature', required: false, dependencies: ['a', 'b', 'a'], gzipBytes: 20 }]
+    expect(clientModuleCatalogRevision(before)).toBe(clientModuleCatalogRevision(after))
+    expect(before[0]?.dependencies).toEqual(['b', 'a'])
+    expect(clientModuleCatalogRevision([{ ...after[0]!, required: true }])).not.toBe(clientModuleCatalogRevision(before))
+    expect(clientModuleCatalogRevision([{ ...after[0]!, dependencies: ['a'] }])).not.toBe(clientModuleCatalogRevision(before))
+  })
+
   it('does not broadcast a reload event or refetch the document after saving until it is requested again', async () => {
     const setup = await fixture()
     const broadcast = vi.fn()
