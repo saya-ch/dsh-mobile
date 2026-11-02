@@ -1574,7 +1574,11 @@ export class MobileAccessGateway {
       })
       server.on('clientError', (error, socket) => {
         const nodeCode = 'code' in error && typeof error.code === 'string' ? error.code : undefined
-        const failure = this.httpFailures.recordParser(nodeCode)
+        const failure = this.httpFailures.recordClientError(nodeCode)
+        if (failure.kind === 'transport' || !socket.writable) {
+          socket.destroy()
+          return
+        }
         rejectUpgrade(socket as Socket, failure.status, failure.code)
       })
       await new Promise<void>((resolve, reject) => {

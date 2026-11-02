@@ -4981,6 +4981,7 @@ export function installCustomAssets(recovery?: {
     manifestEtag = ''
   }
   const refreshExtensions = async (signal: AbortSignal): Promise<boolean> => {
+    let failureStage: MobileAssetLoadFailure = 'manifest_unavailable'
     try {
       const headers: Record<string, string> = {}
       if (manifestEtag !== '') headers['if-none-match'] = manifestEtag
@@ -5013,6 +5014,7 @@ export function installCustomAssets(recovery?: {
       catch { failed('manifest_invalid', signal); return false }
       if (refreshAborted(signal)) return false
       if (payload === undefined) { failed('manifest_invalid', signal); return false }
+      failureStage = 'resource_unavailable'
       events?.setEnabled(true)
       const entries = payload.extensions
       const seen = new Set(entries.map(entry => entry.id))
@@ -5147,7 +5149,7 @@ export function installCustomAssets(recovery?: {
         manifestEtag = nextManifestEtag
       } else manifestEtag = ''
       return refreshComplete
-    } catch { failed('refresh_failed', signal); return false }
+    } catch { failed(failureStage, signal); return false }
   }
   started = true
   for (const definition of definitions.values()) void activateDefinition(definition)

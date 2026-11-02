@@ -88,6 +88,30 @@ function manifest(revision = 'one'): Response {
 }
 
 describe('mobile customization ownership and safe diagnostics', () => {
+  it.each(['request', 'body'] as const)('identifies manifest %s failure without reflecting transport details', async phase => {
+    const { warn } = environment()
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (phase === 'request') throw new Error('private transport address and token')
+      return new Response(new ReadableStream({ start(controller) { controller.error(new Error('private response bytes')) } }))
+    }))
+    cleanups.push(installCustomAssets())
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalled() })
+    expect(warn.mock.calls[0]?.[0]).toContain('extension manifest is unavailable')
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private|token|refreshed/u)
+  })
+
+  it('distinguishes extension resource failure from a successfully read manifest', async () => {
+    const { warn } = environment()
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => {
+      if (path === '/mobile-access/extensions/manifest') return Response.json({ protocol: 1, legacy: { scriptRevision: '', styleRevision: '' }, extensions: [{ id: 'fixture', styleUrl: '/mobile-access/extensions/fixture/mobile.css' }] })
+      throw new Error('private resource failure')
+    }))
+    cleanups.push(installCustomAssets())
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalled() })
+    expect(warn.mock.calls.some(call => String(call[0]).includes('resource could not be loaded'))).toBe(true)
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('private')
+  })
+
   it.each([
     [true, undefined, true], [false, 'dedicated', true], [undefined, 'dedicated', true],
     [false, undefined, false], [undefined, undefined, false],

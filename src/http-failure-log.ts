@@ -2,6 +2,12 @@
 export type HttpParserCode =
   | 'ERR_HTTP_REQUEST_TIMEOUT'
   | 'HPE_HEADER_OVERFLOW'
+  | 'HPE_INVALID_METHOD'
+  | 'HPE_INVALID_CONSTANT'
+  | 'HPE_INVALID_URL'
+  | 'HPE_INVALID_VERSION'
+  | 'HPE_LF_EXPECTED'
+  | 'HPE_PAUSED_H2_UPGRADE'
   | 'HPE_INVALID_CHUNK_SIZE'
   | 'HPE_INVALID_CONTENT_LENGTH'
   | 'HPE_INVALID_EOF_STATE'
@@ -17,9 +23,18 @@ export interface HttpParserFailure {
   readonly parserCode: HttpParserCode
 }
 
+/** Socket failures do not establish that an HTTP request was rejected. */
+export type HttpTransportCode = 'ECONNRESET' | 'EPIPE' | 'ETIMEDOUT' | 'ERR_STREAM_PREMATURE_CLOSE'
+
+/** Node's clientError event includes transport errors as well as parser failures. */
+export type HttpClientFailure =
+  | ({ readonly kind: 'parser' } & HttpParserFailure)
+  | { readonly kind: 'transport'; readonly code: HttpTransportCode }
+
 /** One sampled rejection. Arbitrary paths, query strings, body data and credentials are excluded. */
 export type HttpFailureEntry = (
   | { readonly kind: 'parser'; readonly status: HttpParserFailure['status']; readonly code: HttpParserCode }
+  | { readonly kind: 'transport'; readonly code: HttpTransportCode }
   | { readonly kind: 'target'; readonly status: 400; readonly code: 'bad_request' }
   | { readonly kind: 'upstream'; readonly status: number; readonly method: 'POST'; readonly path: '/api/session/prompt' }
 ) & { readonly suppressed?: number }
@@ -28,6 +43,12 @@ function safeParserCode(code: string | undefined): HttpParserCode {
   switch (code) {
     case 'ERR_HTTP_REQUEST_TIMEOUT':
     case 'HPE_HEADER_OVERFLOW':
+    case 'HPE_INVALID_METHOD':
+    case 'HPE_INVALID_CONSTANT':
+    case 'HPE_INVALID_URL':
+    case 'HPE_INVALID_VERSION':
+    case 'HPE_LF_EXPECTED':
+    case 'HPE_PAUSED_H2_UPGRADE':
     case 'HPE_INVALID_CHUNK_SIZE':
     case 'HPE_INVALID_CONTENT_LENGTH':
     case 'HPE_INVALID_EOF_STATE':
@@ -56,13 +77,14 @@ interface FailureWindow { nextLogAt: number; suppressed: number }
 const LOG_INTERVAL_MS = 30_000
 
 /**
- * Per-Gateway diagnostics with three fixed sampling slots and no timers or request-selected keys.
+ * Per-Gateway diagnostics with four fixed sampling slots and no timers or request-selected keys.
  * Each kind records once immediately, then at most once per 30 seconds with suppressed counts.
  * A sink failure cannot change a response, retry a write or expose the diagnostic sink's error.
  */
 export class HttpFailureRecorder {
   private readonly windows: Record<HttpFailureEntry['kind'], FailureWindow> = {
     parser: { nextLogAt: 0, suppressed: 0 },
+    transport: { nextLogAt: 0, suppressed: 0 },
     target: { nextLogAt: 0, suppressed: 0 },
     upstream: { nextLogAt: 0, suppressed: 0 },
   }
@@ -81,6 +103,22 @@ export class HttpFailureRecorder {
     const failure = classifyHttpParserFailure(nodeCode)
     this.record({ kind: 'parser', status: failure.status, code: failure.parserCode })
     return failure
+  }
+
+  /** Classify a client socket error without assigning an HTTP status to a transport failure. */
+  recordClientError(nodeCode: string | undefined): HttpClientFailure {
+    switch (nodeCode) {
+      case 'ECONNRESET':
+      case 'EPIPE':
+      case 'ETIMEDOUT':
+      case 'ERR_STREAM_PREMATURE_CLOSE': {
+        const failure = { kind: 'transport', code: nodeCode } as const
+        this.record(failure)
+        return failure
+      }
+      default:
+        return { kind: 'parser', ...this.recordParser(nodeCode) }
+    }
   }
 
   /** Sample an invalid request target without retaining its raw or decoded URL. */
