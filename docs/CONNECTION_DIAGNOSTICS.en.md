@@ -22,6 +22,8 @@ Cards and copied reports identify **Configuration, Computer-side check, and Phon
 
 A successful configured-proxy fallback is labelled as the computer's proxy egress. It does not erase private system-DNS context or establish that the phone uses that proxy. Inactive LAN configuration and firewall items should not be interpreted as remote-entry failures.
 
+Script inspection uses the authenticated request's public Peer API without fabricating an identity. A failed optional observation remains explicitly unverified, not a claim that no competing plugin exists, while other network results remain available. Rejected authentication still refuses the report.
+
 ## Funnel inside the same tailnet
 
 The bundled Funnel component uses `tsnet.FunnelOnly()`: it accepts public Funnel ingress, not direct connections from its local tailnet. If MagicDNS resolves the name to the node's `100.64.0.0/10` or Tailscale IPv6 address, the computer takes that private path. Failure there does not prove the public Funnel is down. Other official Funnel configurations need not have this restriction. See [Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel) and [MagicDNS](https://tailscale.com/docs/features/magicdns).

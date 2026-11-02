@@ -21,6 +21,7 @@ export type DiagnosticReason =
   | 'dns-public' | 'dns-tailnet' | 'dns-fake-ip' | 'dns-private' | 'dns-mixed' | 'dns-unknown'
   | 'remote-dns-failed' | 'remote-connect-failed' | 'remote-tls-failed' | 'remote-probe-timeout' | 'remote-http-failed'
   | 'competing-remote-channel'
+  | 'plugin-inspection-unavailable'
   | 'phone-network-unknown'
 
 export interface DiagnosticFacts {
@@ -53,6 +54,8 @@ export interface DiagnosticSnapshot {
   readonly dshVersion: string
   /** Another plugin injects a remote transport before the DSH client boots. */
   readonly competingRemoteChannelBoot?: boolean
+  /** An optional index-injection observation failed; do not conclude that no competing script exists. */
+  readonly indexInspectionUnavailable?: boolean
   readonly lan: {
     readonly configured?: boolean
     readonly running: boolean
@@ -518,6 +521,10 @@ export async function collectConnectionDiagnostics(
       '检测到另一套远程请求通道脚本；手机页面可能进入该插件自己的配对流程。',
       '在电脑端关闭 dsh-remote-web-ui 的远程访问后刷新，再使用 DSH Mobile 当前二维码配对；不要混用两种配对码。',
     ))
+  }
+  if (snapshot.indexInspectionUnavailable === true) {
+    checks.push(check('plugin-inspection', 'warning', 'plugin-inspection-unavailable', '页面脚本检查',
+      '本次未能检查活动页面脚本；不能据此认定不存在其他远程通道。', '其余网络项目独立检查；保留复现环境并核对相关插件。'))
   }
 
   if (snapshot.lan.configured === false) {

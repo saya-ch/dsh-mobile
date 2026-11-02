@@ -731,15 +731,16 @@ Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
 
 /** Measurement boundaries shared by diagnostic cards and copied reports. */
 export const DIAGNOSTIC_SCOPE_MESSAGES = {
-  en: { configuration: 'Configuration', computer: 'Computer-side check', phone: 'Phone not tested', versions: 'Version information', provider: 'Local channel state', dns: 'System DNS', coverage: 'Computer-side checks only. Phone reachability, authenticated pages, resources and WebSockets have not been verified.' },
-  it: { configuration: 'Configurazione', computer: 'Controllo dal computer', phone: 'Telefono non verificato', versions: 'Informazioni versioni', provider: 'Stato del canale locale', dns: 'DNS di sistema', coverage: 'Solo controlli dal computer. Raggiungibilità dal telefono, pagine autenticate, risorse e WebSocket non verificati.' },
-  zh: { configuration: '配置信息', computer: '电脑侧检查', phone: '手机尚未验证', versions: '版本信息', provider: '本机通道状态', dns: '系统 DNS', coverage: '仅为电脑侧检查。手机可达性、认证页面、资源加载和 WebSocket 尚未验证。' },
+  en: { scripts: 'Page scripts', configuration: 'Configuration', computer: 'Computer-side check', phone: 'Phone not tested', versions: 'Version information', provider: 'Local channel state', dns: 'System DNS', coverage: 'Computer-side checks only. Phone reachability, authenticated pages, resources and WebSockets have not been verified.' },
+  it: { scripts: 'Script pagina', configuration: 'Configurazione', computer: 'Controllo dal computer', phone: 'Telefono non verificato', versions: 'Informazioni versioni', provider: 'Stato del canale locale', dns: 'DNS di sistema', coverage: 'Solo controlli dal computer. Raggiungibilità dal telefono, pagine autenticate, risorse e WebSocket non verificati.' },
+  zh: { scripts: '页面脚本', configuration: '配置信息', computer: '电脑侧检查', phone: '手机尚未验证', versions: '版本信息', provider: '本机通道状态', dns: '系统 DNS', coverage: '仅为电脑侧检查。手机可达性、认证页面、资源加载和 WebSocket 尚未验证。' },
 } as const
 
 /** Fixed DNS/egress observations never imply acceptance from another network. */
 export const DIAGNOSTIC_NETWORK_MESSAGES = {
   en: {
     'remote-service-ready': ['{provider} reports its local component ready; public and phone paths are not verified.', ''],
+    'plugin-inspection-unavailable': ['Active page scripts could not be inspected; absence of a competing remote channel is unverified.', 'Other network checks are independent. Keep the reproduction environment and inspect the relevant plugins.'],
     'firewall-inactive': ['LAN is off, so LAN firewall rules were not probed. This does not assess the remote entry.', 'Enable LAN first if you need a local connection.'],
     'remote-tailnet-shadowed': ['System DNS returned tailnet addresses and this Funnel-only listener does not accept that private path. This failed check does not establish a public Funnel outage.', 'Compare from outside the tailnet. If you voluntarily change device DNS for a test, consider other private services and restore it afterward.'],
     'dns-public': ['System DNS returned ordinary public-address results. This does not establish endpoint reachability.', ''],
@@ -756,6 +757,7 @@ export const DIAGNOSTIC_NETWORK_MESSAGES = {
   },
   it: {
     'remote-service-ready': ['{provider} segnala il componente locale pronto; i percorsi pubblico e del telefono non sono verificati.', ''],
+    'plugin-inspection-unavailable': ['Script attivi non verificati; non è confermata l’assenza di un altro canale remoto.', 'Gli altri controlli sono indipendenti. Mantieni il caso riproducibile e controlla i plugin coinvolti.'],
     'firewall-inactive': ['LAN disattivata: regole firewall locali non verificate. Il canale remoto non viene valutato da questo controllo.', 'Abilita LAN prima di verificare una connessione locale.'],
     'remote-tailnet-shadowed': ['Il DNS restituisce indirizzi tailnet e questo listener solo Funnel non accetta il percorso privato. Il controllo fallito non prova un guasto pubblico.', 'Confronta da una rete esterna alla tailnet. Se modifichi volontariamente il DNS del dispositivo, valuta gli altri servizi privati e ripristinalo dopo il test.'],
     'dns-public': ['Il DNS di sistema restituisce indirizzi pubblici ordinari; non prova la raggiungibilità.', ''],
@@ -772,6 +774,7 @@ export const DIAGNOSTIC_NETWORK_MESSAGES = {
   },
   zh: {
     'remote-service-ready': ['{provider} 报告本机组件已就绪；公网与手机路径尚未验证。', ''],
+    'plugin-inspection-unavailable': ['本次未能检查活动页面脚本，不能据此认定不存在其他远程通道。', '其余网络项目独立检查；保留复现环境并核对相关插件。'],
     'firewall-inactive': ['局域网未启用，本次没有探测局域网防火墙规则，不用于判断远程入口。', '需要局域网连接时，先启用再检查。'],
     'remote-tailnet-shadowed': ['系统 DNS 返回 tailnet 地址，而当前 Funnel-only 监听不接受此私网路径。本次失败不能证明公网 Funnel 故障。', '用 tailnet 外的网络对照。若自愿临时调整设备 DNS，注意其他私网服务的影响，并在测试后恢复。'],
     'dns-public': ['系统 DNS 返回普通公网地址类别；这本身不证明端点可达。', ''],

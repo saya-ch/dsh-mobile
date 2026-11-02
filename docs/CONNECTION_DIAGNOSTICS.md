@@ -22,6 +22,8 @@
 
 代理兜底成功会单独标注为电脑的代理出口，不会覆盖系统 DNS 的私网分类，也不表示手机使用了相同代理。未开启的 LAN 配置和防火墙项目不应被当作远程入口故障。
 
+页面脚本检查使用当前已认证请求的公开 Peer 接口，不伪造身份。某个可选脚本观测失败时会明确显示未完成，不会把它当作“没有其他远程插件”，也不会隐藏其他网络检查结果；认证被拒绝时仍拒绝读取报告。
+
 ## 同一 tailnet 下的 Funnel
 
 内置 Funnel 组件使用 `tsnet.FunnelOnly()`：它只接收公网 Funnel 入口的连接，不接收 tailnet 内部直连。如果 MagicDNS 把这个名称解析到节点的 `100.64.0.0/10` 或 Tailscale IPv6 地址，电脑会走私网路径；该路径失败不代表公网 Funnel 也失败。普通官方 Funnel 配置不一定具有这个限制。参见 [Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel) 和 [MagicDNS](https://tailscale.com/docs/features/magicdns)。

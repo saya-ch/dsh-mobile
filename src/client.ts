@@ -3999,6 +3999,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
         if (entry.id === 'versions') rowTitle.textContent = scopeCopy.versions
         else if (entry.id === 'remote-service') rowTitle.textContent = scopeCopy.provider
         else if (entry.id === 'remote-dns') rowTitle.textContent = scopeCopy.dns
+        else if (entry.id === 'plugin-inspection' || entry.id === 'remote-plugin-conflict') rowTitle.textContent = scopeCopy.scripts
         const scope = element('small', 'dsh-mobile-control__diagnostic-scope'); scope.textContent = scopeOf(entry)
         rowHeader.append(rowTitle, badge); rowBody.append(rowHeader, scope, detail)
         if (localizedCopy.action !== '') {
@@ -4025,7 +4026,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       const labelKey = typeof entry.id === 'string' ? diagnosticLabelKeys[entry.id] : undefined
       const label = labelKey === undefined && typeof entry.label === 'string' ? entry.label : labelKey === undefined ? t('diagnosticCheck') : t(labelKey)
       const localizedCopy = localizedEntryCopy(entry)
-      const scopedLabel = entry.id === 'versions' ? scopeCopy.versions : entry.id === 'remote-service' ? scopeCopy.provider : entry.id === 'remote-dns' ? scopeCopy.dns : label
+      const scopedLabel = entry.id === 'versions' ? scopeCopy.versions : entry.id === 'remote-service' ? scopeCopy.provider : entry.id === 'remote-dns' ? scopeCopy.dns : entry.id === 'plugin-inspection' || entry.id === 'remote-plugin-conflict' ? scopeCopy.scripts : label
       return `[${statusLabels[state]!}][${scopeOf(entry)}] ${scopedLabel}: ${localizedCopy.detail}${localizedCopy.action === '' ? '' : ` ${localizedCopy.action}`}`
     })
     copiedDiagnosticReport = [reportCopy.reportTitle, `${reportCopy.generated}: ${generatedAt}`, scopeCopy.coverage, ...lines].join('\n')

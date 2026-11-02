@@ -85,7 +85,9 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
         || !result.body.coverage.unverified.includes('phone') || !Array.isArray(result.body.checks)
         || !result.body.checks.some(entry => entry.id === 'phone-network' && entry.scope === 'phone')
         || !result.body.checks.some(entry => entry.id === 'versions' && entry.scope === 'configuration')) {
-        throw new Error('Packed diagnostic API omitted its measurement scope')
+        const entries = Array.isArray(result.body?.checks) ? result.body.checks.map(entry => ({ id: entry.id, scope: entry.scope })) : []
+        const code = typeof result.body?.error === 'string' && /^[a-z_]{1,80}$/u.test(result.body.error) ? result.body.error : undefined
+        throw new Error(`Packed diagnostic API omitted its measurement scope: ${JSON.stringify({ status: result.status, version: result.body?.version, hasCoverage: result.body?.coverage !== undefined, entries, code })}`)
       }
       console.log('Packed diagnostic API retained computer/configuration scope and explicitly unverified phone coverage')
     }
