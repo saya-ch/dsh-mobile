@@ -1412,6 +1412,13 @@ describe('mobile-control localization', () => {
     expect(source).toContain("t('frpAttachCaExpiring'")
     expect(CONTROL_STYLES).toContain('.dsh-mobile-control__frp-hint')
     expect(CONTROL_STYLES).toContain('.dsh-mobile-control__frp-fields select')
+    // The step-2 group <summary> is the visible heading while the group is
+    // collapsed, so it must follow the same attach/deploy switch as the inner
+    // title instead of keeping the construction-time deploy copy.
+    expect(source).toContain("frpVpsSummary.textContent = t(attachSelected ? 'frpStep2TitleAttach' : 'frpStep2Title')")
+    // `hidden` has to win over the container's `display:grid`, or the SSH deploy
+    // fields stay visible in attach mode even though the client sets `hidden`.
+    expect(CONTROL_STYLES).toContain('.dsh-mobile-control__frp-fields[hidden]{display:none}')
     const routes = readFileSync(new URL('../src/plugin.ts', import.meta.url), 'utf8')
     expect(routes).toContain('/remote/frp/attach-plan')
     expect(routes).toContain('/remote/frp/self-check')
@@ -1428,7 +1435,6 @@ describe('mobile-control localization', () => {
     const routes = readFileSync(new URL('../src/plugin.ts', import.meta.url), 'utf8')
     expect(routes).toContain('/remote/websocket-paths')
     expect(MOBILE_CONTROL_MESSAGES.en.wsPathsAdd).toBe('Allow path')
-    expect(source).toContain("frpVpsSummary.textContent = t('frpStep2Title')")
     expect(source).toContain('wsGroupOf')
     expect(source).toContain('wsPathsAllowAll')
     expect(source).toContain('dsh-mobile-control__ws-dot')
