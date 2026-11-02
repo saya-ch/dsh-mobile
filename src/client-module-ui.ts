@@ -2,7 +2,7 @@
 import { createElement, type ReactElement } from 'react'
 import { localAdminRequestHeaders } from './local-admin-host.js'
 import type { MobileControlLocale } from './client-messages.js'
-import { ClientModuleDraft, clientModuleDisplayName, clientModuleGroup, formatClientModuleSize, sortClientModulesBySize, type ClientModuleFilter, type ClientModuleGroup, type ClientModuleRow } from './client-module-presentation.js'
+import { ClientModuleDraft, clientModuleDisplayName, clientModuleGroup, clientModuleMinimalExclusion, formatClientModuleSize, sortClientModulesBySize, type ClientModuleFilter, type ClientModuleGroup, type ClientModuleRow } from './client-module-presentation.js'
 
 export type { ClientModuleRow } from './client-module-presentation.js'
 
@@ -13,11 +13,11 @@ export const CLIENT_MODULE_COPY = {
     loading: '正在读取模块…', hint: '勾选表示下次打开时加载。启动必需项受保护；依赖冲突会在保存时说明，不会自动取消其他模块。',
     save: '保存选择', reset: '恢复默认', close: '关闭', required: '启动必需', dependencies: '依赖：', noDependencies: '无声明的前端依赖', details: '模块详情', moduleId: '模块 ID',
     saved: '已保存，下次打开 DSH 生效。不会自动刷新当前页面或丢弃草稿。', failed: '暂时无法读取模块。请确认移动访问已启用后重试。', saveFailed: '未确认保存成功，已保留你的选择。可重新保存，或重新读取已保存设置。',
-    conflict: '无法保存：', computerSource: '当前来源：电脑默认设置', deviceSource: '当前来源：本设备设置', pluginSource: '当前来源：插件默认设置',
+    conflict: '无法保存：', catalogChanged: '模块目录已变化（插件或版本有更新），本次保存已取消。请点「重新读取」，确认后再保存。', computerSource: '当前来源：电脑默认设置', deviceSource: '当前来源：本设备设置', pluginSource: '当前来源：插件默认设置',
     resetConfirm: '恢复默认模块选择？仅下次打开生效，不会重新加载当前会话。', discardConfirm: '放弃未保存的模块选择并关闭？', reloadConfirm: '重新读取会替换未保存的选择。继续吗？', savingCloseConfirm: '保存结果尚未确认。现在关闭不会撤销可能已完成的保存，确定关闭吗？',
     search: '搜索模块', searchPlaceholder: '搜索名称或模块 ID', filter: '加载选择', all: '全部', loaded: '加载', excluded: '不加载', empty: '没有符合条件的模块。', clearFilters: '清除筛选',
     extensions: '可选扩展', extensionsHint: '可选择不加载的前端模块；一项模块不一定等于一个完整插件。', advanced: 'DSH 可选组件（高级）', advancedHint: 'DSH 的可选前端组件。只修改你了解的项目。', requiredGroup: '启动必需项', requiredHint: '这些模块保证页面启动，不能关闭。',
-    changes: '未保存：{count} 项改动', unchanged: '没有未保存的改动', results: '匹配 {visible} / {total} 项', sizeHint: '按传输体积从大到小排列；数字为 gzip 后的字节。说明取自插件包自身的描述字段，不代表上游认证。', total: '勾选合计约 {size}', totalUnknown: '勾选合计：部分模块未测到体积', minimal: '仅必需（最小加载）', minimalConfirm: '把除了启动必需项及其依赖之外全部设为不加载？保存后下次打开生效。', retry: '重新读取', saving: '正在保存…', readTimeout: '读取超时。当前页面和已保存设置未变，请重试。', writeTimeout: '保存超时，结果尚未确认。保留了你的选择；请重新读取确认，不会自动重试保存。', nextOpen: '仅下次打开生效',
+    changes: '未保存：{count} 项改动', unchanged: '没有未保存的改动', results: '匹配 {visible} / {total} 项', sizeHint: '按传输体积从大到小排列；数字为 gzip 后的字节。说明取自插件包自身的描述字段，不代表上游认证。', total: '勾选合计约 {size}', totalUnknown: '勾选合计：部分模块未测到体积', minimal: '仅必需（最小加载）', minimalConfirm: '把除了启动必需项及其依赖之外全部设为不加载？保存后下次打开生效。', minimalDetail: '将排除 {count} 个可选模块，约 {size}；启动必需项及其依赖会保留。', retry: '重新读取', saving: '正在保存…', readTimeout: '读取超时。当前页面和已保存设置未变，请重试。', writeTimeout: '保存超时，结果尚未确认。保留了你的选择；请重新读取确认，不会自动重试保存。', nextOpen: '仅下次打开生效',
     invalidSelections: '失效的旧选择', invalidHint: '这些旧排除已与当前模块目录不符。移除后仍需保存选择。', invalidMissing: '当前模块目录中不存在。', invalidRequired: '当前已是启动必需项，不能排除。', clearInvalid: '移除旧排除',
   },
   en: {
@@ -26,11 +26,11 @@ export const CLIENT_MODULE_COPY = {
     loading: 'Reading modules…', hint: 'Checked means load on the next open. Required entries are protected; saving explains dependency conflicts without unchecking other modules.',
     save: 'Save selection', reset: 'Restore defaults', close: 'Close', required: 'Required for boot', dependencies: 'Depends on: ', noDependencies: 'No declared frontend dependencies', details: 'Module details', moduleId: 'Module ID',
     saved: 'Saved for the next DSH open. This page is not refreshed and its draft is kept.', failed: 'Could not read modules. Enable mobile access and try again.', saveFailed: 'Saving was not confirmed. Your choices are kept. Save again or reread the saved settings.',
-    conflict: 'Could not save: ', computerSource: 'Source: computer defaults', deviceSource: 'Source: this device’s settings', pluginSource: 'Source: plugin defaults',
+    conflict: 'Could not save: ', catalogChanged: 'The module catalog changed (a plugin or version update). This save was cancelled; reread the settings, then confirm again.', computerSource: 'Source: computer defaults', deviceSource: 'Source: this device’s settings', pluginSource: 'Source: plugin defaults',
     resetConfirm: 'Restore default selections for the next open? The current conversation will not reload.', discardConfirm: 'Discard unsaved module choices and close?', reloadConfirm: 'Rereading replaces unsaved choices. Continue?', savingCloseConfirm: 'Saving is not confirmed. Closing will not undo a save that may have completed. Close anyway?',
     search: 'Search modules', searchPlaceholder: 'Search name or module ID', filter: 'Loading selection', all: 'All', loaded: 'Load', excluded: 'Do not load', empty: 'No modules match these filters.', clearFilters: 'Clear filters',
     extensions: 'Optional extensions', extensionsHint: 'Optional frontend modules; one module is not necessarily a complete plugin.', advanced: 'DSH optional components (advanced)', advancedHint: 'Optional DSH frontend components. Change only entries you understand.', requiredGroup: 'Required for boot', requiredHint: 'These modules keep the page bootable and cannot be disabled.',
-    changes: 'Unsaved: {count} changes', unchanged: 'No unsaved changes', results: 'Matching {visible} / {total}', sizeHint: 'Sorted by transfer size; numbers are gzipped bytes. Descriptions come from each plugin package; this is not an upstream endorsement.', total: 'Selection ≈ {size}', totalUnknown: 'Selection total: some sizes are unknown', minimal: 'Required only (minimal load)', minimalConfirm: 'Mark everything except required modules and their dependencies as not loaded? Applies on the next open after saving.', retry: 'Reread settings', saving: 'Saving…', readTimeout: 'Reading timed out. This page and saved settings are unchanged; try again.', writeTimeout: 'Saving timed out and its result is unconfirmed. Your choices are kept. Reread to confirm; saving is not retried automatically.', nextOpen: 'Applies on next open only',
+    changes: 'Unsaved: {count} changes', unchanged: 'No unsaved changes', results: 'Matching {visible} / {total}', sizeHint: 'Sorted by transfer size; numbers are gzipped bytes. Descriptions come from each plugin package; this is not an upstream endorsement.', total: 'Selection ≈ {size}', totalUnknown: 'Selection total: some sizes are unknown', minimal: 'Required only (minimal load)', minimalConfirm: 'Mark everything except required modules and their dependencies as not loaded? Applies on the next open after saving.', minimalDetail: 'This excludes {count} optional modules (about {size}); required modules and their dependencies stay loaded.', retry: 'Reread settings', saving: 'Saving…', readTimeout: 'Reading timed out. This page and saved settings are unchanged; try again.', writeTimeout: 'Saving timed out and its result is unconfirmed. Your choices are kept. Reread to confirm; saving is not retried automatically.', nextOpen: 'Applies on next open only',
     invalidSelections: 'Outdated selections', invalidHint: 'These old exclusions no longer match the module catalog. Save your choices after removing them.', invalidMissing: 'Not present in the current module catalog.', invalidRequired: 'Now required for boot and cannot be excluded.', clearInvalid: 'Remove old exclusion',
   },
   it: {
@@ -39,23 +39,27 @@ export const CLIENT_MODULE_COPY = {
     loading: 'Lettura dei moduli…', hint: 'Selezionato significa caricare alla prossima apertura. I moduli obbligatori sono protetti; il salvataggio mostra i conflitti senza deselezionare altri moduli.',
     save: 'Salva selezione', reset: 'Ripristina predefiniti', close: 'Chiudi', required: 'Obbligatorio', dependencies: 'Dipende da: ', noDependencies: 'Nessuna dipendenza frontend dichiarata', details: 'Dettagli modulo', moduleId: 'ID modulo',
     saved: 'Salvato per la prossima apertura di DSH. La pagina non si aggiorna e la bozza resta.', failed: 'Impossibile leggere i moduli. Abilita accesso mobile e riprova.', saveFailed: 'Salvataggio non confermato. Le scelte restano; salva di nuovo o rileggi le impostazioni salvate.',
-    conflict: 'Impossibile salvare: ', computerSource: 'Origine: predefiniti del computer', deviceSource: 'Origine: impostazioni del dispositivo', pluginSource: 'Origine: predefiniti del plugin',
+    conflict: 'Impossibile salvare: ', catalogChanged: 'Il catalogo dei moduli è cambiato (aggiornamento di plugin o versione). Salvataggio annullato: rileggi le impostazioni e conferma di nuovo.', computerSource: 'Origine: predefiniti del computer', deviceSource: 'Origine: impostazioni del dispositivo', pluginSource: 'Origine: predefiniti del plugin',
     resetConfirm: 'Ripristinare i predefiniti per la prossima apertura? La conversazione attuale non verrà ricaricata.', discardConfirm: 'Scartare le scelte non salvate e chiudere?', reloadConfirm: 'Rileggere sostituisce le scelte non salvate. Continuare?', savingCloseConfirm: 'Salvataggio non confermato. Chiudere non annulla un salvataggio già completato. Chiudere comunque?',
     search: 'Cerca moduli', searchPlaceholder: 'Cerca nome o ID modulo', filter: 'Selezione caricamento', all: 'Tutti', loaded: 'Carica', excluded: 'Non caricare', empty: 'Nessun modulo corrisponde ai filtri.', clearFilters: 'Cancella filtri',
     extensions: 'Estensioni facoltative', extensionsHint: 'Moduli frontend facoltativi; un modulo non è necessariamente un plugin completo.', advanced: 'Componenti DSH facoltativi (avanzate)', advancedHint: 'Componenti frontend DSH facoltativi. Modifica solo quelli che conosci.', requiredGroup: 'Moduli obbligatori', requiredHint: 'Questi moduli permettono l’avvio e non possono essere disattivati.',
-    changes: 'Non salvate: {count} modifiche', unchanged: 'Nessuna modifica non salvata', results: 'Corrispondenti {visible} / {total}', sizeHint: 'Ordinati per dimensione trasferita; i numeri sono byte gzip. Le descrizioni provengono dal pacchetto del plugin; non sono un’approvazione upstream.', total: 'Selezione ≈ {size}', totalUnknown: 'Totale selezione: alcune dimensioni sono sconosciute', minimal: 'Solo obbligatori (caricamento minimo)', minimalConfirm: 'Impostare come non caricati tutti i moduli tranne gli obbligatori e le loro dipendenze? Vale alla prossima apertura dopo il salvataggio.', retry: 'Rileggi impostazioni', saving: 'Salvataggio…', readTimeout: 'Lettura scaduta. Pagina e impostazioni salvate non cambiano; riprova.', writeTimeout: 'Salvataggio scaduto e non confermato. Le scelte restano. Rileggi per confermare; nessun tentativo automatico.', nextOpen: 'Solo alla prossima apertura',
+    changes: 'Non salvate: {count} modifiche', unchanged: 'Nessuna modifica non salvata', results: 'Corrispondenti {visible} / {total}', sizeHint: 'Ordinati per dimensione trasferita; i numeri sono byte gzip. Le descrizioni provengono dal pacchetto del plugin; non sono un’approvazione upstream.', total: 'Selezione ≈ {size}', totalUnknown: 'Totale selezione: alcune dimensioni sono sconosciute', minimal: 'Solo obbligatori (caricamento minimo)', minimalConfirm: 'Impostare come non caricati tutti i moduli tranne gli obbligatori e le loro dipendenze? Vale alla prossima apertura dopo il salvataggio.', minimalDetail: 'Verranno esclusi {count} moduli facoltativi (circa {size}); gli obbligatori e le loro dipendenze restano caricati.', retry: 'Rileggi impostazioni', saving: 'Salvataggio…', readTimeout: 'Lettura scaduta. Pagina e impostazioni salvate non cambiano; riprova.', writeTimeout: 'Salvataggio scaduto e non confermato. Le scelte restano. Rileggi per confermare; nessun tentativo automatico.', nextOpen: 'Solo alla prossima apertura',
     invalidSelections: 'Scelte obsolete', invalidHint: 'Queste esclusioni precedenti non corrispondono più al catalogo. Salva le scelte dopo averle rimosse.', invalidMissing: 'Assente dal catalogo attuale dei moduli.', invalidRequired: 'Ora obbligatorio per l’avvio e non può essere escluso.', clearInvalid: 'Rimuovi esclusione precedente',
   },
 } as const
 
 interface ClientModuleView {
   readonly entries: readonly ClientModuleRow[]
+  /** Catalog fingerprint from a server that reports one; older gateways omit it. */
+  readonly revision?: string
   readonly excludedClientModules: readonly string[]
   readonly source: 'device' | 'computer' | 'plugin'
 }
 
 class ClientModuleUiConflict extends Error {
-  constructor(readonly detail: string) { super('client_module_conflict') }
+  constructor(readonly detail: string, readonly code: 'invalid_selection' | 'catalog_changed' = 'invalid_selection') {
+    super('client_module_conflict')
+  }
 }
 
 /** A deadline does not imply that a POST was rolled back by the server. */
@@ -106,11 +110,18 @@ export function parseClientModuleView(value: unknown): ClientModuleView {
     return { id: entry.id, required: entry.required, dependencies, ...sizes }
   })
   if (new Set(entries.map(entry => entry.id)).size !== entries.length) throw new Error('invalid_module_catalog')
+  const revision = (value as Record<string, unknown>).revision
+  if (revision !== undefined && (typeof revision !== 'string' || revision === '' || revision.length > 64)) throw new Error('invalid_module_catalog')
   const excludedClientModules = value.excludedClientModules.map((id: unknown): string => {
     if (typeof id !== 'string') throw new Error('invalid_module_catalog')
     return id
   })
-  return { entries, excludedClientModules, source: value.source === 'device' ? 'device' : value.source === 'computer' ? 'computer' : 'plugin' }
+  return {
+    entries,
+    ...(typeof revision === 'string' ? { revision } : {}),
+    excludedClientModules,
+    source: value.source === 'device' ? 'device' : value.source === 'computer' ? 'computer' : 'plugin',
+  }
 }
 
 /** Read or explicitly write module choices with a bounded, cancellable operation.
@@ -147,7 +158,9 @@ export async function requestClientModuleView(scope: 'computer' | 'device', sign
     const value: unknown = await response.json()
     if (!response.ok) {
       const detail = typeof value === 'object' && value !== null && 'detail' in value && typeof value.detail === 'string' ? value.detail.slice(0, 512) : ''
-      if (response.status === 409 && detail !== '' && typeof value === 'object' && value !== null && 'error' in value && value.error === 'excluded_client_modules_invalid') throw new ClientModuleUiConflict(detail)
+      const code = typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string' ? value.error : ''
+      if (response.status === 409 && detail !== '' && code === 'client_module_catalog_changed') throw new ClientModuleUiConflict(detail, 'catalog_changed')
+      if (response.status === 409 && detail !== '' && code === 'excluded_client_modules_invalid') throw new ClientModuleUiConflict(detail)
       throw new Error('client_module_request_failed')
     }
     return parseClientModuleView(value)
@@ -247,6 +260,7 @@ export function openClientModuleSettings(scope: 'computer' | 'device', locale: M
   let measurementController: AbortController | undefined
   let generation = 0
   let draft: ClientModuleDraft | undefined
+  let catalogRevision: string | undefined
   let unconfirmedWrite = false
   const expansion = new Map<ClientModuleGroup, boolean>([['extensions', true], ['advanced', false], ['required', false]])
   const choices = new Map<string, HTMLInputElement>()
@@ -343,12 +357,14 @@ export function openClientModuleSettings(scope: 'computer' | 'device', locale: M
   }
   const render = (view: ClientModuleView): void => {
     draft = new ClientModuleDraft(view.entries, view.excludedClientModules)
+    catalogRevision = view.revision
     source.textContent = view.source === 'device' ? copy.deviceSource : view.source === 'computer' ? copy.computerSource : copy.pluginSource
     renderList()
   }
   const failed = (error: unknown, mutation: boolean): void => {
     status.classList.add('dsh-module-error')
-    status.textContent = error instanceof ClientModuleUiConflict ? `${copy.conflict}${error.detail}`
+    status.textContent = error instanceof ClientModuleUiConflict
+      ? (error.code === 'catalog_changed' ? copy.catalogChanged : `${copy.conflict}${error.detail}`)
       : error instanceof ClientModuleRequestTimeout ? (error.mutation ? copy.writeTimeout : copy.readTimeout) : mutation ? copy.saveFailed : copy.failed
     status.focus({ preventScroll: true })
   }
@@ -377,10 +393,17 @@ export function openClientModuleSettings(scope: 'computer' | 'device', locale: M
     })
   }
   search.addEventListener('input', renderList); filter.addEventListener('change', renderList)
-  save.addEventListener('click', () => { if ((draft?.changeCount ?? 0) > 0) runRequest({ excludedClientModules: draft?.excludedIds }) })
+  save.addEventListener('click', () => { if ((draft?.changeCount ?? 0) > 0) runRequest({ excludedClientModules: draft?.excludedIds, ...(catalogRevision === undefined ? {} : { revision: catalogRevision }) }) })
   reset.addEventListener('click', () => { if (busy === undefined && draft !== undefined && window.confirm(copy.resetConfirm)) runRequest({ reset: true }) })
   minimal.addEventListener('click', () => {
-    if (busy !== undefined || draft === undefined || !window.confirm(copy.minimalConfirm)) return
+    if (busy !== undefined || draft === undefined) return
+    const target = new Set(clientModuleMinimalExclusion(draft.entries))
+    const excludedRows = draft.entries.filter(entry => target.has(entry.id))
+    const excludedBytes = excludedRows.reduce((sum, entry) => sum + (entry.gzipBytes ?? entry.bytes ?? 0), 0)
+    const detail = copy.minimalDetail
+      .replace('{count}', String(excludedRows.length))
+      .replace('{size}', excludedBytes > 0 ? formatClientModuleSize({ id: '', required: false, dependencies: [], gzipBytes: excludedBytes }) ?? '—' : '—')
+    if (!window.confirm(`${copy.minimalConfirm}\n\n${detail}`)) return
     if (draft.applyMinimalSelection()) { renderList(); search.focus({ preventScroll: true }) }
     updateControls()
   })
