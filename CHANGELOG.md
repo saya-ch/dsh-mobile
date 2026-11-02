@@ -2,6 +2,14 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.8.2 - Unreleased
+
+- Separate inbound transport resets from HTTP parser rejections. Transport diagnostics carry no HTTP status; malformed methods and other fixed parser codes remain distinguishable without logging raw packets, URLs or credentials. Thanks @smlfx for the diagnostic report in [#338](https://github.com/saya-ch/dsh-mobile/issues/338); the reported iroh customization/scanning failure remains under investigation.
+- Identify customization manifest request/body failures separately from extension resource failures while retaining explicit retry, cancellation and existing working customization.
+- Refuse module selections computed against an older catalog, retain the draft for explicit rereading, and explain the measured gzip subtotal and unknown sizes before applying the minimal preset. Keep required Mobile modules and their dependencies; default loading is unchanged. Thanks @LUgABeEEE for [#328](https://github.com/saya-ch/dsh-mobile/pull/328).
+- Protect the installed General settings provider during minimal loading, keeping its sidebar launcher available after reopening. Old exclusions of that now-required provider use the existing explicit device recovery. This addresses a reproduced settings-inaccessibility case related to [#324](https://github.com/saya-ch/dsh-mobile/issues/324), not every reported layout symptom.
+- Update artifact-download actions, development maintenance dependencies and eventsource-parser; clarify skin module-selection limits and iroh failure diagnostics. Android App remains 0.7.1/build86; native startup caching is not restored.
+
 ## 0.8.1 - 2026-11-01
 
 - Recognize the four-seat settings grid introduced in DSH 0.2.2-alpha.2. Preserve upstream navigation and grid placement while retaining Mobile's accessible close-button target; older two-column settings keep their existing mobile layout.

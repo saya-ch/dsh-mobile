@@ -1,8 +1,14 @@
 # 贡献者 / Contributors
 
-GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/contributors) 按进入默认分支的提交自动统计，无法手动加入仅提交 issue 或 PR 提案的成员。本页按截至 2026-10-26 的实际参与方式感谢社区成员；仓库维护者与自动依赖更新仍可在 GitHub 历史记录中查看。
+GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/contributors) 按进入默认分支的提交自动统计，无法手动加入仅提交 issue 或 PR 提案的成员。本页按截至 2026-11-02 的实际参与方式感谢社区成员；仓库维护者与自动依赖更新仍可在 GitHub 历史记录中查看。
 
-GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed, through 2026-10-26. The repository maintainer and automated dependency updates remain visible in GitHub's history.
+GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed, through 2026-11-02. The repository maintainer and automated dependency updates remain visible in GitHub's history.
+
+## 0.8.2 候选贡献 / Candidate contributions for 0.8.2
+
+感谢 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#328](https://github.com/saya-ch/dsh-mobile/pull/328) 提供模块目录版本校验，以及 [@smlfx](https://github.com/smlfx) 在 [#338](https://github.com/saya-ch/dsh-mobile/issues/338) 提供 iroh 与 HTTP 诊断报告。报告原始故障仍在调查，不因署名而视为已解决。
+
+Thanks [@LUgABeEEE](https://github.com/LUgABeEEE) for module-catalog revision validation in [#328](https://github.com/saya-ch/dsh-mobile/pull/328), and [@smlfx](https://github.com/smlfx) for the iroh/HTTP diagnostic report in [#338](https://github.com/saya-ch/dsh-mobile/issues/338). The original reported failure remains under investigation; credit does not imply resolution.
 
 ## 0.6.18 代码贡献与反馈 / Code contributions and reports for 0.6.18
 

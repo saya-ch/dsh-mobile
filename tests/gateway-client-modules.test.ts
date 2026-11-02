@@ -441,12 +441,23 @@ describe('authenticated client module selection', () => {
     expect(after).not.toBe(before)
   })
 
+  it('protects the installed General settings provider so minimal loading cannot remove its launcher', async () => {
+    const setup = await fixture()
+    const id = '@deepseek-ai/dsh-client-ui-settings-general'
+    setup.graph().entries.push({ id, url: '/plugins/settings-general.js?rev=v1234', rev: 'v1234', inject: [] })
+    setup.graph().batches![1]!.entries.push(id)
+    expect((await setup.view(setup.first)).entries.find(entry => entry.id === id)?.required).toBe(true)
+    const result = await setup.request(path, setup.first, { excludedClientModules: [id] })
+    expect(result.status).toBe(409)
+    expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [] })
+  })
+
   it('compares catalog revisions before reporting a newly required exclusion as an invalid choice', async () => {
     const setup = await fixture()
     const before = await setup.view(setup.first)
     const feature = setup.graph().entries.find(entry => entry.id === 'feature')
     if (feature === undefined) throw new Error('fixture feature is missing')
-    feature.immediately = true
+    Object.assign(feature, { immediately: true })
     const stale = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: before.revision })
     expect(stale.status).toBe(409)
     expect(JSON.parse(stale.body)).toMatchObject({ error: 'client_module_catalog_changed' })

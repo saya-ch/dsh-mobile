@@ -45,6 +45,12 @@ Before a component release, verify first use with the exact catalog-pinned execu
 | `iroh_start_timeout` | Inspect iroh errors in the DSH log and network connectivity, and verify that the pinned component runs; repeated pairing is not a substitute for process diagnosis |
 | Channel `ready` but no phone connects | Check that the App is the full build, the device supports a packaged ABI and the descriptor is fresh. Computer readiness does not establish phone connectivity; a relay-service connection alone does not establish that data uses the relay |
 
+## Ready channel but failed mobile customization
+
+Desktop `ready` means the local component and endpoint are prepared, not that the phone loaded every manifest, stylesheet, script and event stream. If conversations work but customization fails, distinguish manifest and resource failures using the page notice and contemporaneous redacted HTTP diagnostics. `parser/400/other` does not identify a malformed request; a `transport` reset does not establish a server rejection. See [slow-link diagnostics](SLOW_CONNECTIONS.en.md).
+
+If scanning fails while copied content pairs successfully, report the scanner entry, App version and elapsed time since generation separately. Do not upload the descriptor, QR code or pairing key. Channel readiness does not establish a fix; do not disable certificate verification, clear existing pairings or change global proxy settings as a diagnostic shortcut.
+
 ## VPN, proxies and network environments
 
 iroh prefers direct connections with relay fallback. Direct connections use QUIC/UDP; discovery and relays also need their network services to be reachable. The following environment factors **can** interfere; they are troubleshooting directions, not confirmed failure mechanisms for every VPN or network:

@@ -299,11 +299,12 @@ const RUNTIME_MODULE = '@deepseek-ai/dsh-client-runtime'
 const RENDERER_MODULE = '@deepseek-ai/dsh-client-ui-renderer'
 const SIDEBAR_MODULE = '@deepseek-ai/dsh-client-ui-sidebar'
 const SETTINGS_MODULE = '@deepseek-ai/dsh-client-ui-settings'
+const SETTINGS_GENERAL_MODULE = '@deepseek-ai/dsh-client-ui-settings-general'
 const API_GATEWAY_MODULE = '@deepseek-ai/dsh-api-gateway'
 const API_REMOTES_MODULE = '@deepseek-ai/dsh-api-remotes'
 const MOBILE_BOOT_CORE_MODULES = new Set([
   MOBILE_CLIENT_MODULE, MOBILE_LAYOUT_MODULE, CONNECTION_MODULE, RUNTIME_MODULE,
-  RENDERER_MODULE, SIDEBAR_MODULE, SETTINGS_MODULE, API_GATEWAY_MODULE, API_REMOTES_MODULE,
+  RENDERER_MODULE, SIDEBAR_MODULE, SETTINGS_MODULE, SETTINGS_GENERAL_MODULE, API_GATEWAY_MODULE, API_REMOTES_MODULE,
 ])
 const MOBILE_LAYOUT_DEPENDENCY_PROFILES = Object.freeze([
   Object.freeze({

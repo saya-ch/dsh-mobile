@@ -30,7 +30,7 @@
 
 插件 0.6.13 起把请求接收超时区分为 `408 request_timeout`，请求头过大区分为 `431 headers_too_large`；其他非法 HTTP 请求仍为 `400 bad_request`。旧版可能把这几类情况都返回成 400 和相同的短 JSON，因此状态码与“24 字节”不足以定位原因。
 
-`http failure` 日志按网关区分 `parser`、`target`、`upstream` 三类：分别表示 HTTP 解析／接收失败、非法请求目标、已认证的 `POST /api/session/prompt` 被上游拒绝。每类首条立即记录，后续 30 秒内聚合，下一条的 `suppressed` 是此前被抑制的同类数量。日志不保留原始报错、请求正文、原始包、Cookie、Token、查询参数或任意 URL；不记录某条也不能证明它成功。
+`http failure` 日志按网关区分 `parser`、`transport`、`target`、`upstream` 四类：分别表示 HTTP 解析／接收失败、连接重置等传输错误、非法请求目标、已认证的 `POST /api/session/prompt` 被上游拒绝。`transport` 没有 HTTP 状态，不表示服务端返回了 400；`parser` 的 `other` 也不足以确定具体原因。每类首条立即记录，后续 30 秒内聚合，下一条的 `suppressed` 是此前被抑制的同类数量，不保证来自相同错误码、路径或设备。日志不保留原始报错、请求正文、原始包、Cookie、Token、查询参数或任意 URL；不记录某条也不能证明它成功。
 
 `slow api` 日志采样已认证并转发、耗时至少 3 秒的 `/api/` 请求：固定方法、`/api/session` 等固定路由类别（未知类别归为 `/api/other`）、状态和 `durationMs`。耗时从进入上游代理转发算到响应关闭，包含客户端中途放弃的响应；它是代理等待时间，不是上游处理耗时，也不能单凭该数字确定哪一层慢。日志不保留会话 ID 等路径后缀、查询参数、请求正文或任意原始路径，每个网关首条立即记录、后续采样在 30 秒窗口内聚合。不改变超时、重试或缓存策略。
 

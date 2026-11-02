@@ -431,6 +431,24 @@ try {
   assert(!cleaned.request.excludedClientModules.includes(obsoleteId) && !cleaned.request.excludedClientModules.includes(protectedId))
   assert(cleaned.request.excludedClientModules.includes(skinId), 'Cleaning obsolete exclusions changed the ordinary skin selection')
   record.checks.push('controlled old-selection catalog fields: missing/now-required exclusions visible as literal IDs, explicit cleanup is draft-only, required remains protected, actual device save succeeds')
+  stage = 'minimal-preset'
+  const beforeMinimal = record.requests.filter(item => item.method === 'POST').length
+  const minimal = await confirm('accept', () => dialog().getByRole('button', { name: /^(?:仅必需（最小加载）|Required only \(minimal load\)|Solo obbligatori \(caricamento minimo\))$/u }).click())
+  assert.match(minimal.message, /unmeasured|体积未知|non misurati/u, 'Minimal confirmation hides unmeasured sizes')
+  assert.equal(record.requests.filter(item => item.method === 'POST').length, beforeMinimal, 'Minimal preset saved without explicit confirmation')
+  const minimized = await writeSelection(() => save().click())
+  assert.equal(minimized.status, 200)
+  assert.match(minimized.request.revision, /^[a-f0-9]{16}$/u)
+  assert(minimized.body.entries.filter(entry => entry.required).every(entry => !minimized.body.excludedClientModules.includes(entry.id)), 'Minimal preset excluded a required module')
+  await reopen(false)
+  await openSettings()
+  const reopenedMinimal = await openManager()
+  assert.equal(reopenedMinimal.status, 200)
+  for (const id of ['dsh-mobile', '@deepseek-ai/dsh-client-ui-layout', '@deepseek-ai/dsh-client-ui-settings']) {
+    assert(reopenedMinimal.body.entries.some(entry => entry.id === id && entry.required), `Missing required mobile surface: ${id}`)
+    assert(!reopenedMinimal.body.excludedClientModules.includes(id), `Required mobile surface excluded after reopen: ${id}`)
+  }
+  record.checks.push('actual minimal preset: measured/unknown confirmation, draft-only edit, revision-bound save, required shell/settings remain loaded and settings remain reachable after reopening')
   assert.equal(record.prompts, 0, 'The acceptance test attempted a model submission')
   assert.deepEqual(record.pageErrors, [], 'Module settings emitted a page error')
   stage = 'completed'
