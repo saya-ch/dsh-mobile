@@ -1,5 +1,5 @@
 import { execFileText as execFile } from './exec-file.js'
-import { lookup } from 'node:dns/promises'
+import { diagnosticFailureStage, probeDiagnosticDns, type DiagnosticDnsContext, type DiagnosticFailureStage, type DiagnosticLookup } from './diagnostic-network-context.js'
 import type { ClientRequest, IncomingMessage } from 'node:http'
 import { request as proxyRequest } from 'node:http'
 import type { Socket } from 'node:net'
@@ -14,9 +14,12 @@ export type DiagnosticReason =
   | 'versions-current'
   | 'lan-setup-required' | 'network-unavailable' | 'network-interface' | 'network-fixed'
   | 'lan-ready' | 'lan-off'
-  | 'firewall-ready' | 'firewall-missing' | 'firewall-unknown'
+  | 'firewall-ready' | 'firewall-missing' | 'firewall-unknown' | 'firewall-inactive'
   | 'remote-off' | 'remote-ready' | 'remote-origin-ready' | 'remote-iroh-ready' | 'remote-rate-limited' | 'remote-fake-ip' | 'remote-unreachable'
   | 'remote-needs-login' | 'remote-connecting' | 'remote-controller-error'
+  | 'remote-service-ready' | 'remote-tailnet-shadowed'
+  | 'dns-public' | 'dns-tailnet' | 'dns-fake-ip' | 'dns-private' | 'dns-mixed' | 'dns-unknown'
+  | 'remote-dns-failed' | 'remote-connect-failed' | 'remote-tls-failed' | 'remote-probe-timeout' | 'remote-http-failed'
   | 'competing-remote-channel'
   | 'phone-network-unknown'
 
@@ -28,6 +31,8 @@ export interface DiagnosticFacts {
   readonly controllerCode?: string
   /** The reachability answer came from the machine's configured relay egress. */
   readonly viaProxy?: boolean
+  readonly dnsKind?: DiagnosticDnsContext['kind']
+  readonly dnsFamily?: DiagnosticDnsContext['family']
 }
 
 /** One user-facing diagnostic result with stable localization data and server fallback copy. */
@@ -39,6 +44,8 @@ export interface DiagnosticCheck {
   readonly label: string
   readonly detail: string
   readonly action?: string
+  /** Which side supplied evidence; a computer check is never phone acceptance. */
+  readonly scope?: 'configuration' | 'computer' | 'phone'
 }
 
 /** Runtime facts available without exposing credentials or local file paths. */
@@ -73,6 +80,8 @@ interface RemoteObservation {
   readonly latencyMs?: number
   readonly fakeIp?: boolean
   readonly viaProxy?: boolean
+  readonly dns?: DiagnosticDnsContext
+  readonly failureStage?: DiagnosticFailureStage
 }
 
 /** Injectable probes keep diagnostics deterministic in tests. */
@@ -94,6 +103,7 @@ export interface ConnectionDiagnostics {
   readonly summary: string
   readonly checks: readonly DiagnosticCheck[]
   readonly report: string
+  readonly coverage: { readonly measuredFrom: 'computer'; readonly unverified: readonly string[] }
 }
 
 /** Recognize the active remote-web-ui boot hook without evaluating or modifying it. */
@@ -160,7 +170,8 @@ function check(
   action?: string,
   facts?: DiagnosticFacts,
 ): DiagnosticCheck {
-  return Object.freeze({ id, status, reason, ...(facts === undefined ? {} : { facts: Object.freeze(facts) }), label, detail, ...(action === undefined ? {} : { action }) })
+  const scope = id === 'versions' ? 'configuration' : id === 'phone-network' ? 'phone' : 'computer'
+  return Object.freeze({ id, status, reason, scope, ...(facts === undefined ? {} : { facts: Object.freeze(facts) }), label, detail, ...(action === undefined ? {} : { action }) })
 }
 
 function maskLanOrigin(origin: string | undefined): string {
@@ -401,30 +412,6 @@ export async function relayProbeThroughProxy(target: URL, proxy: URL, budgetMs =
   })
 }
 
-/** Bounded supplementary DNS context for a failed direct attempt. */
-async function unreachableWithDnsContext(hostname: string, budgetMs: number): Promise<RemoteObservation> {
-  let fakeIp = false
-  let timer: NodeJS.Timeout | undefined
-  try {
-    const addresses = await Promise.race([
-      lookup(hostname, { all: true }),
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => { reject(new Error('dns_context_timeout')) }, Math.max(1, budgetMs))
-        timer.unref()
-      }),
-    ])
-    fakeIp = addresses.some(({ address }) => {
-      const [first, second] = address.split('.').map(Number)
-      return first === 198 && (second === 18 || second === 19)
-    })
-  } catch {
-    // DNS lookup is supplementary; the failed HTTPS probe remains authoritative.
-  } finally {
-    clearTimeout(timer)
-  }
-  return { state: 'unreachable', ...(fakeIp ? { fakeIp: true } : {}) }
-}
-
 async function fetchRemoteHealth(target: URL, budgetMs: number): Promise<RemoteObservation> {
   const started = performance.now()
   try {
@@ -434,10 +421,12 @@ async function fetchRemoteHealth(target: URL, budgetMs: number): Promise<RemoteO
       signal: AbortSignal.timeout(Math.max(1, budgetMs - 500)),
     })
     const latencyMs = Math.max(0, Math.round(performance.now() - started))
-    if (response.status === 429) return { state: 'rate-limited', latencyMs }
-    return response.ok ? { state: 'ready', latencyMs } : { state: 'unreachable', latencyMs }
-  } catch {
-    return unreachableWithDnsContext(target.hostname, Math.max(1, budgetMs - (performance.now() - started)))
+    if (response.status === 429) { await response.body?.cancel(); return { state: 'rate-limited', latencyMs } }
+    const observation: RemoteObservation = response.ok ? { state: 'ready', latencyMs } : { state: 'unreachable', latencyMs, failureStage: 'http' }
+    await response.body?.cancel()
+    return observation
+  } catch (error) {
+    return { state: 'unreachable', failureStage: diagnosticFailureStage(error) }
   }
 }
 
@@ -446,6 +435,7 @@ export interface RemoteHealthProbeOptions {
   readonly env?: NodeJS.ProcessEnv
   readonly direct?: DirectHealthProbe
   readonly tunnel?: ProxyHealthTunnel
+  readonly lookup?: DiagnosticLookup
 }
 
 /**
@@ -472,16 +462,21 @@ export async function probeRemoteHealth(
   }
   const budgetMs = remoteDiagnosticTimeoutMs(origin)
   const direct = options.direct ?? fetchRemoteHealth
-  const observation = await direct(target, budgetMs)
+  const [observed, dns] = await Promise.all([
+    direct(target, budgetMs),
+    options.direct !== undefined && options.lookup === undefined ? undefined : probeDiagnosticDns(target.hostname, Math.min(750, budgetMs), options.lookup),
+  ])
+  const context = dns === undefined ? {} : { dns }
+  const observation: RemoteObservation = { ...observed, ...context, ...(dns?.kind === 'fake-ip' ? { fakeIp: true } : {}) }
   if (observation.state !== 'unreachable') return observation
   const relay = configuredProxyFor(origin, options.env ?? process.env)
   if (relay === undefined) return observation
   const tunnel = options.tunnel ?? relayProbeThroughProxy
   try {
     const { status, latencyMs } = await tunnel(target, relay, budgetMs)
-    if (status === 429) return { state: 'rate-limited', latencyMs, viaProxy: true }
+    if (status === 429) return { state: 'rate-limited', latencyMs, viaProxy: true, ...context }
     return status >= 200 && status < 300
-      ? { state: 'ready', latencyMs, viaProxy: true }
+      ? { state: 'ready', latencyMs, viaProxy: true, ...context }
       : observation
   } catch {
     return observation
@@ -493,7 +488,7 @@ async function defaultRemoteProbe(origin: string | undefined): Promise<RemoteObs
 }
 
 function reportLine(entry: DiagnosticCheck): string {
-  return `[${entry.status.toUpperCase()}] ${entry.label}: ${entry.detail}${entry.action === undefined ? '' : ` ${entry.action}`}`
+  return `[${entry.status.toUpperCase()}][${entry.scope}] ${entry.label}: ${entry.detail}${entry.action === undefined ? '' : ` ${entry.action}`}`
 }
 
 /** Run bounded read-only checks and return a report safe to paste into an issue. */
@@ -506,14 +501,14 @@ export async function collectConnectionDiagnostics(
     ? (probes.remote ?? defaultRemoteProbe)(snapshot.remote.origin)
     : Promise.resolve<RemoteObservation>({ state: 'not-applicable' })
   const [firewall, remoteObservation] = await Promise.all([
-    (probes.firewall ?? defaultFirewallProbe())(snapshot.lan.port),
+    snapshot.lan.running ? (probes.firewall ?? defaultFirewallProbe())(snapshot.lan.port) : Promise.resolve<FirewallObservation>({ state: 'not-applicable' }),
     remoteProbe,
   ])
   checks.push(check(
     'versions',
     'ok',
     'versions-current',
-    '版本兼容',
+    '版本信息',
     `插件 ${DSH_MOBILE_VERSION}，DSH ${snapshot.dshVersion}，Android App 最低 ${MINIMUM_ANDROID_APP_VERSION}。`,
   ))
 
@@ -526,9 +521,9 @@ export async function collectConnectionDiagnostics(
   }
 
   if (snapshot.lan.configured === false) {
-    checks.push(check('network', 'error', 'lan-setup-required', '局域网配置', '尚未完成局域网初始化。', '返回局域网页选择网卡并完成配置。'))
+    checks.push(check('network', snapshot.lan.running ? 'error' : 'info', 'lan-setup-required', '局域网配置', '尚未完成局域网初始化。', '需要局域网连接时，返回局域网页选择网卡并完成配置。'))
   } else if (snapshot.lan.networkError !== undefined) {
-    checks.push(check('network', 'error', 'network-unavailable', '局域网网卡', '已保存的网卡当前不可用。', '重新运行 dsh-mobile setup。'))
+    checks.push(check('network', snapshot.lan.running ? 'error' : 'info', 'network-unavailable', '局域网网卡', '已保存的网卡当前不可用。', snapshot.lan.running ? '在局域网页重新确认网卡配置。' : '局域网未启用；此配置不用于判断远程入口。'))
   } else if (snapshot.lan.configuredInterface !== undefined) {
     const interfaceName = snapshot.lan.interfaceName ?? snapshot.lan.configuredInterface
     checks.push(check(
@@ -546,19 +541,28 @@ export async function collectConnectionDiagnostics(
 
   if (snapshot.lan.running && snapshot.lan.origin !== undefined) {
     const endpointSuffix = maskLanOrigin(snapshot.lan.origin)
-    checks.push(check('lan', 'ok', 'lan-ready', '局域网网关', `已监听 ${endpointSuffix}，配对入口可用。`, undefined, { endpointSuffix }))
+    checks.push(check('lan', 'ok', 'lan-ready', '局域网网关', `电脑网关已监听 ${endpointSuffix}；尚未验证手机能否到达。`, undefined, { endpointSuffix }))
   } else {
     checks.push(check('lan', 'info', 'lan-off', '局域网网关', '当前未开启。', '需要手机直连时开启局域网访问。'))
   }
 
-  if (firewall.state === 'ready') {
+  if (!snapshot.lan.running) {
+    checks.push(check('firewall', 'info', 'firewall-inactive', 'Windows 防火墙', '局域网未启用，本次未检查局域网防火墙规则。', '不据此判断远程入口；需要局域网时再启用并检查。'))
+  } else if (firewall.state === 'ready') {
     checks.push(check('firewall', 'ok', 'firewall-ready', 'Windows 防火墙', '局域网 TCP 与发现规则已启用。'))
   } else if (firewall.state === 'missing') {
-    checks.push(check('firewall', 'warning', 'firewall-missing', 'Windows 防火墙', '未找到完整的局域网放行规则。', '以管理员身份重新运行 dsh-mobile setup。'))
+    checks.push(check('firewall', snapshot.lan.running ? 'warning' : 'info', 'firewall-missing', 'Windows 防火墙', '未找到完整的局域网放行规则。', snapshot.lan.running ? '确认需要局域网连接，再检查相应规则；不要关闭整个防火墙。' : '局域网未启用，不据此判断远程入口失败。'))
   } else if (firewall.state === 'unknown') {
     checks.push(check('firewall', 'info', 'firewall-unknown', 'Windows 防火墙', '系统未允许插件读取防火墙状态。', '若手机找不到电脑，以管理员身份重新运行 setup。'))
   }
 
+  if (snapshot.remote.running && snapshot.remote.state === 'ready') {
+    checks.push(check('remote-service', 'ok', 'remote-service-ready', '本机通道状态', '提供方报告本机组件已就绪；不代表公网或手机路径已验证。', undefined, { provider: snapshot.remote.provider }))
+  }
+  if (remoteObservation.dns !== undefined) {
+    const kind = remoteObservation.dns.kind
+    checks.push(check('remote-dns', kind === 'fake-ip' ? 'warning' : 'info', `dns-${kind}`, '系统 DNS', `电脑系统解析分类：${kind}；IP：${remoteObservation.dns.family}。未查询公共 DNS，地址不写入报告。`, undefined, { dnsKind: kind, dnsFamily: remoteObservation.dns.family }))
+  }
   if (!snapshot.remote.running || snapshot.remote.state === 'off') {
     checks.push(check('remote', 'info', 'remote-off', '远程通道', '当前未启用。', undefined, { provider: snapshot.remote.provider }))
   } else if (snapshot.remote.provider === 'origin' && snapshot.remote.state === 'ready') {
@@ -587,7 +591,7 @@ export async function collectConnectionDiagnostics(
         '远程通道',
         remoteObservation.viaProxy === true
           ? `电脑经代理可访问 ${endpointSuffix}，但尚未验证手机能否连接。`
-          : `${snapshot.remote.provider} 公共地址 ${endpointSuffix} 可达，往返约 ${String(remoteObservation.latencyMs ?? 0)} ms。`,
+          : `电脑当前出口可访问 ${snapshot.remote.provider} 入口 ${endpointSuffix}，往返约 ${String(remoteObservation.latencyMs ?? 0)} ms；公网及手机路径未独立验证。`,
         remoteObservation.viaProxy === true ? '请在手机上测试远程连接。' : undefined,
         facts,
       ))
@@ -599,18 +603,29 @@ export async function collectConnectionDiagnostics(
           : '公共地址可达，但本次检查观察到服务限流。',
         '稍后重试；旧会话会按需加载以减少流量。', facts,
       ))
-    } else if (snapshot.remote.provider === 'tailscale' && remoteObservation.fakeIp === true) {
+    } else if (snapshot.remote.provider === 'tailscale' && remoteObservation.dns?.kind === 'tailnet'
+      && (remoteObservation.failureStage === 'connect' || remoteObservation.failureStage === 'timeout')) {
+      checks.push(check('remote', 'warning', 'remote-tailnet-shadowed', '电脑出口探测',
+        '本机系统 DNS 返回 tailnet 地址，当前 Funnel-only 监听不接受此私网路径；本次失败不能证明公网 Funnel 故障。',
+        '用 tailnet 外的网络单独验证；如自愿临时调整设备 DNS，注意其对其他私网服务的影响并在对照后恢复。', facts))
+    } else if (snapshot.remote.provider === 'tailscale' && (remoteObservation.fakeIp === true || remoteObservation.dns?.kind === 'fake-ip')
+      && remoteObservation.failureStage !== 'tls' && remoteObservation.failureStage !== 'http') {
       checks.push(check(
         'remote',
         'error',
         'remote-fake-ip',
         '远程通道',
-        'Tailscale 地址被当前 VPN 或 DNS 代理接管，但 TLS 链路未建立。',
-        '切换 VPN 节点或代理模式；仍失败时改用 cpolar。',
+        '本机系统 DNS 返回 Fake-IP 网段，本次出口探测未成功；这不是公网故障的证明。',
+        '核对 DNS 与代理路由，用其他网络对照，不要关闭证书验证。',
         facts,
       ))
     } else {
-      checks.push(check('remote', 'error', 'remote-unreachable', '远程通道', '提供方显示已就绪，但公共地址暂不可达。', '点击“重新连接”；仍失败时检查提供方状态。', facts))
+      const reason: DiagnosticReason = remoteObservation.failureStage === 'dns' ? 'remote-dns-failed'
+        : remoteObservation.failureStage === 'connect' ? 'remote-connect-failed'
+        : remoteObservation.failureStage === 'tls' ? 'remote-tls-failed'
+        : remoteObservation.failureStage === 'timeout' ? 'remote-probe-timeout'
+        : remoteObservation.failureStage === 'http' ? 'remote-http-failed' : 'remote-unreachable'
+      checks.push(check('remote', 'error', reason, '电脑出口探测', '电脑当前出口的探测未通过；不代表其他网络或手机一定失败。', '按失败阶段核对 DNS、路由、证书或代理，并用手机当前网络对照。', facts))
     }
   } else if (snapshot.remote.state === 'starting' || snapshot.remote.state === 'connecting' || snapshot.remote.state === 'needs-login') {
     const needsLogin = snapshot.remote.state === 'needs-login'
@@ -641,20 +656,21 @@ export async function collectConnectionDiagnostics(
     'info',
     'phone-network-unknown',
     '手机网络',
-    '电脑无法判断路由器是否隔离了手机。',
-    '局域网仍失败时，确认手机与电脑在同一网络，并关闭访客网络或 AP 隔离。',
+    '电脑没有验证手机网络、认证页面、资源加载或 WebSocket。',
+    '请用手机当前网络实际连接，记录失败阶段；不要提供配对凭据或直接关闭安全隔离措施。',
   ))
 
   const overall = checks.some(entry => entry.status === 'error')
     ? 'error'
     : checks.some(entry => entry.status === 'warning') ? 'attention' : 'ok'
-  const summary = overall === 'ok' ? '连接基础检查正常。' : overall === 'attention' ? '发现需要留意的项目。' : '发现会影响连接的问题。'
+  const summary = overall === 'ok' ? '电脑端基础检查完成；手机、认证页面、资源与 WebSocket 尚未验证。' : overall === 'attention' ? '电脑端检查有待确认项目；请区分测量路径与实际手机连接。' : '电脑端检查有失败项目；不据此推断所有网络均不可达。'
   const report = [
     'DSH Mobile 诊断报告',
     `生成时间: ${new Date().toISOString()}`,
     `版本: plugin=${DSH_MOBILE_VERSION}; dsh=${snapshot.dshVersion}; min-app=${MINIMUM_ANDROID_APP_VERSION}`,
     `LAN: ${snapshot.lan.running ? 'on' : 'off'}; endpoint=${maskLanOrigin(snapshot.lan.origin)}`,
     `Remote: provider=${snapshot.remote.provider}; state=${snapshot.remote.state}; endpoint=${remoteSuffix(snapshot.remote.origin)}`,
+    'Coverage: computer-side only; phone, authenticated page, resources and WebSocket remain unverified.',
     ...checks.map(reportLine),
   ].join('\n')
   return Object.freeze({
@@ -665,5 +681,6 @@ export async function collectConnectionDiagnostics(
     summary,
     checks: Object.freeze(checks),
     report,
+    coverage: Object.freeze({ measuredFrom: 'computer' as const, unverified: Object.freeze(['phone', 'authenticated-page', 'resources', 'websocket']) }),
   })
 }

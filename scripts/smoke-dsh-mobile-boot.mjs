@@ -21,6 +21,7 @@ const injectedFailure = process.argv.includes('--negative-control')
 const blockedRemoteMux = process.argv.includes('--negative-control-mux')
 const missingCompanion = process.argv.includes('--negative-control-companion')
 const compressedWebSocket = process.argv.includes('--compressed-websocket')
+const checkDiagnostics = process.argv.includes('--diagnostics')
 const blockedCompatibility = process.argv.includes('--negative-control-compat')
 const legacyWebView = blockedCompatibility || process.argv.includes('--legacy-webview')
 const compatibilityPath = '/mobile-access/compat.js'
@@ -75,6 +76,19 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
   try {
     const desktop = await browser.newPage()
     await desktop.goto(baseUrl, { waitUntil: 'domcontentloaded' })
+    if (checkDiagnostics) {
+      const result = await desktop.evaluate(async () => {
+        const response = await fetch('/api/mobile-access/diagnostics')
+        return { status: response.status, body: await response.json() }
+      })
+      if (result.status !== 200 || result.body.version !== 1 || result.body.coverage?.measuredFrom !== 'computer'
+        || !result.body.coverage.unverified.includes('phone') || !Array.isArray(result.body.checks)
+        || !result.body.checks.some(entry => entry.id === 'phone-network' && entry.scope === 'phone')
+        || !result.body.checks.some(entry => entry.id === 'versions' && entry.scope === 'configuration')) {
+        throw new Error('Packed diagnostic API omitted its measurement scope')
+      }
+      console.log('Packed diagnostic API retained computer/configuration scope and explicitly unverified phone coverage')
+    }
     const stockBatches = await desktop.evaluate(() => window.__DSH_BOOT__?.batches ?? [])
     const control = await desktop.evaluate(async () => {
       const response = await fetch('/api/mobile-access/lan/control')

@@ -747,6 +747,35 @@ try {
     })
     cases++
   }
+  for (const language of ['en', 'it', 'zh']) {
+    const checks = [
+      { id: 'remote-service', status: 'ok', reason: 'remote-service-ready', scope: 'computer', facts: { provider: 'tailscale' } },
+      { id: 'remote-dns', status: 'info', reason: 'dns-tailnet', scope: 'computer' },
+      { id: 'remote', status: 'warning', reason: 'remote-tailnet-shadowed', scope: 'computer' },
+      { id: 'phone-network', status: 'info', reason: 'phone-network-unknown', scope: 'phone' },
+    ].map(entry => ({ ...entry, label: 'Host label', detail: 'Host fallback', action: '' }))
+    await withControl(browser, `Diagnostic measurement scope ${language}`, {
+      layoutFixture: true, language, locale: language === 'zh' ? 'zh-CN' : language === 'it' ? 'it-IT' : 'en-US', width: 360,
+      diagnostics: { version: 1, overall: 'attention', generatedAt: Date.UTC(2026, 10, 2), checks },
+    }, async ({ page, consumed, settle }) => {
+      const previous = await consumed(`${prefix}/diagnostics`)
+      const name = await page.evaluate(locale => window.mobileClient.MOBILE_CONTROL_MESSAGES[locale].openDiagnostics, language)
+      await page.getByRole('button', { name, exact: true }).click()
+      await settle(`${prefix}/diagnostics`, previous)
+      const scopeCopy = await page.evaluate(locale => window.mobileClient.DIAGNOSTIC_SCOPE_MESSAGES[locale], language)
+      const rows = page.locator('.dsh-mobile-control__diagnostic-check')
+      assert.equal(await rows.count(), checks.length)
+      assert.equal(await rows.locator('.dsh-mobile-control__diagnostic-scope').count(), checks.length)
+      assert.equal(await rows.filter({ has: page.getByText(scopeCopy.phone, { exact: true }) }).count(), 1)
+      const report = await page.locator('.dsh-mobile-control__diagnostic-report').textContent()
+      assert(report.includes(scopeCopy.coverage) && report.includes(`[${scopeCopy.computer}]`) && report.includes(`[${scopeCopy.phone}]`), 'Copied report dropped measurement limits')
+      const expected = await page.evaluate(locale => window.mobileClient.DIAGNOSTIC_NETWORK_MESSAGES[locale]['remote-tailnet-shadowed'][0], language)
+      assert(report.includes(expected), 'Copied report lost the localized tailnet caveat')
+      assert.equal(await rows.filter({ hasText: expected }).count(), 1)
+      assert.equal(await page.locator('body').evaluate(node => node.scrollWidth <= window.innerWidth + 1), true, 'Diagnostic copy overflowed the narrow viewport')
+    })
+    cases++
+  }
 
   await withControl(browser, 'managed readiness uses server truth, not the HTTPS form preview', { managedReady: true }, async ({ page, state, ui, count, openRemote, pollRemote }) => {
     const badge = page.locator('.dsh-mobile-control__provider.is-origin .dsh-mobile-control__provider-badge')

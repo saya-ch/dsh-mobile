@@ -71,6 +71,8 @@
     "docs/TRUSTED_NETWORKS.en.md",
     "docs/SLOW_CONNECTIONS.md",
     "docs/SLOW_CONNECTIONS.en.md",
+    "docs/CONNECTION_DIAGNOSTICS.md",
+    "docs/CONNECTION_DIAGNOSTICS.en.md",
     "docs/EXTENSION_WORKERS.md",
     "docs/EXTENSION_WORKERS.en.md",
     "docs/MOBILE_COMPOSER_TOOLBAR.md",

@@ -45,7 +45,7 @@ Browser checks consume built client files. Run `npm run build` and `npx playwrig
 | Real HTTP/mux recovery and retained document/draft | `npm run smoke:transport-recovery` |
 | Real cross-client pending questions and explicit answer retry | `npm run smoke:transport-recovery -- --interactions` |
 | API fallback on older WebViews | `npm run smoke:mobile-compat` |
-| Async access-panel forms | `npm run smoke:control-state` |
+| Async access-panel forms, layered diagnostic scope and localized report parity | `npm run smoke:control-state` |
 | Module-selection recovery | `npm run smoke:module-recovery` |
 | Module grouping/search, read/write recovery and a published optional skin | `npm run smoke:module-settings` |
 | Gallery menu, locale labels, picker cancellation and stale/disposed results | `npm run smoke:gallery` |
@@ -91,6 +91,8 @@ npm run smoke:dsh-composer
 ```
 
 The smoke installs the actual npm tarball into an owned temporary profile before pairing. It does not substitute checkout files for bundled components. CI owns the complete version/platform matrix in [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+`npm run smoke:dsh-boot -- --diagnostics` additionally reads the real authenticated desktop diagnostic API and requires explicit computer/configuration scope and unverified phone coverage. It does not assert public ingress, change system DNS or run phone acceptance.
 
 The shared mobile-profile fixture imports package files with pnpm's `packageImportMethod: copy`. Independent profile directories otherwise can share a content-store hardlink: another import changes its `ctime` while preserving the client bytes, and DSH's metadata-based HMR can publish a different revision during boot. Copies isolate the installed file identities and metadata; this is a development-fixture setting, not a change to user profiles. `node scripts/probe-pnpm-client-metadata.mjs` requires explicit `DSH_BOOT_SMOKE_BIN` and `DSH_BOOT_SMOKE_MOBILE_TARBALL` files and compares `auto` with `copy` in an owned private store. It records dev/inode/link counts, source hashes and live registry revisions; resource reads use `cache: no-store` so a browser's immutable cache cannot establish a server response.
 

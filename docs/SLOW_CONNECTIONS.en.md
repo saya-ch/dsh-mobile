@@ -8,6 +8,8 @@ Start with the actual channel rather than treating every delay as a DSH heartbea
 
 ## Identify the stage that fails
 
+Component readiness, system DNS and computer egress are distinct observations, not proof of phone or public-route failure. See [connection diagnostics](CONNECTION_DIAGNOSTICS.en.md) for layered reports and the same-tailnet Funnel limitation.
+
 First record the DSH, DSH Mobile plugin and Android app versions. On the computer, check the current channel under **Mobile Access → Diagnostics**, then inspect DSH startup logs and the browser's developer tools under Network → WS and update the component involved. The plugin and app release independently; their version numbers do not need to match. Remove Tokens, Cookies, and complete pairing URLs before sharing logs.
 
 - **WebSocket never connects**: check for `101 Switching Protocols` and errors such as `401`, `403`, `404`, or `502`. Authentication, Host/Origin checks, proxy upgrade support, paths, and version differences can all cause this. Heartbeat adjustments do not resolve these failures. Allow blocked third-party plugin paths individually in Connection diagnostics; DSH's built-in paths do not need to be added again.

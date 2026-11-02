@@ -61,7 +61,7 @@ jobs:
           npm run smoke:directory-picker
           npm run smoke:attachments
           npm run smoke:mobile-sidebar
-          npm run smoke:dsh-boot -- --compressed-websocket
+          npm run smoke:dsh-boot -- --compressed-websocket --diagnostics
       - name: Verify packed Declarative Web Push UI and authenticated navigation
         if: matrix.dsh == '0.2.1-rc.2'
         run: npm run smoke:web-push

@@ -6,6 +6,10 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 ## 0.8.2 候选贡献 / Candidate contributions for 0.8.2
 
+感谢 [@z2140014118-stack](https://github.com/z2140014118-stack) 在 [#340](https://github.com/saya-ch/dsh-mobile/issues/340) 提供 MagicDNS 前后对照，帮助定位诊断的测量范围误报。诊断修正不表示 tailnet 内的连接限制已解除。
+
+Thanks [@z2140014118-stack](https://github.com/z2140014118-stack) for the MagicDNS comparison in [#340](https://github.com/saya-ch/dsh-mobile/issues/340), helping identify misleading diagnostic scope. Correcting the report does not remove the private-tailnet connection limitation.
+
 感谢 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#328](https://github.com/saya-ch/dsh-mobile/pull/328) 提供模块目录版本校验，以及 [@smlfx](https://github.com/smlfx) 在 [#338](https://github.com/saya-ch/dsh-mobile/issues/338) 提供 iroh 与 HTTP 诊断报告。报告原始故障仍在调查，不因署名而视为已解决。
 
 Thanks [@LUgABeEEE](https://github.com/LUgABeEEE) for module-catalog revision validation in [#328](https://github.com/saya-ch/dsh-mobile/pull/328), and [@smlfx](https://github.com/smlfx) for the iroh/HTTP diagnostic report in [#338](https://github.com/saya-ch/dsh-mobile/issues/338). The original reported failure remains under investigation; credit does not imply resolution.

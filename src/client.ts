@@ -1,6 +1,8 @@
 import { createElement, useEffect, useState, useSyncExternalStore } from 'react'
 import {
   DIAGNOSTIC_REASON_MESSAGES,
+  DIAGNOSTIC_NETWORK_MESSAGES,
+  DIAGNOSTIC_SCOPE_MESSAGES,
   LOCALIZED_DIAGNOSTIC_COPY,
   MOBILE_CONTROL_MESSAGES,
   type MobileControlLocale,
@@ -35,7 +37,7 @@ import { dismissMobileDirectoryPicker, hasUpstreamBrowsePicker, installMobileDir
 export { shouldNudgeReconnect, shouldRenewSession } from './client-recovery.js'
 export type { MobileConnectionState } from './client-recovery.js'
 
-export { DIAGNOSTIC_REASON_MESSAGES, LOCALIZED_DIAGNOSTIC_COPY, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
+export { DIAGNOSTIC_REASON_MESSAGES, DIAGNOSTIC_NETWORK_MESSAGES, DIAGNOSTIC_SCOPE_MESSAGES, LOCALIZED_DIAGNOSTIC_COPY, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
 
 /**
@@ -910,7 +912,9 @@ export function localizedDiagnosticEntryCopy(
   const copyReason = facts.viaProxy === true && (reason === 'remote-ready' || reason === 'remote-rate-limited')
     ? `${reason}-via-proxy` : reason
   const catalog = DIAGNOSTIC_REASON_MESSAGES[locale] as Readonly<Record<string, readonly [string, string]>>
-  const templates = Object.prototype.hasOwnProperty.call(catalog, copyReason) ? catalog[copyReason] : undefined
+  const networkCatalog = DIAGNOSTIC_NETWORK_MESSAGES[locale] as Readonly<Record<string, readonly [string, string]>>
+  const templates = Object.prototype.hasOwnProperty.call(networkCatalog, copyReason) ? networkCatalog[copyReason]
+    : Object.prototype.hasOwnProperty.call(catalog, copyReason) ? catalog[copyReason] : undefined
   if (templates === undefined) return serverCopy
   const providerNames: Record<string, string> = {
     tailscale: 'Tailscale Funnel', cpolar: 'cpolar', cloudflared: 'cloudflared',
@@ -930,6 +934,11 @@ export function localizedDiagnosticEntryCopy(
   const interpolate = (template: string): string => template.replace(/\{(\w+)\}/gu, (_match, key: string) => values[key] ?? '')
   let detail = reason === 'remote-controller-error' && controllerCode === '' ? t('remoteError') : interpolate(templates[0])
   let action = interpolate(templates[1])
+  if (reason.startsWith('dns-')) {
+    const families: Readonly<Record<string, string>> = { ipv4: 'IPv4', ipv6: 'IPv6', dual: 'IPv4 + IPv6' }
+    const family = typeof facts.dnsFamily === 'string' && Object.hasOwn(families, facts.dnsFamily) ? families[facts.dnsFamily] : undefined
+    if (family !== undefined) detail += ` (${family})`
+  }
   if (reason === 'versions-current') {
     const fields = versions !== null && typeof versions === 'object' ? versions as Record<string, unknown> : {}
     if ([fields.plugin, fields.dsh, fields.minimumAndroidApp].every(value => typeof value === 'string')) {
@@ -3952,11 +3961,13 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       .then(renderRemote, error => { remoteFailureText = remoteFailureTextFor(error, 'requestFailed'); remoteStatus.textContent = remoteFailureText })
   })
   const renderDiagnostics = (data: Record<string, unknown>): void => {
+    const scopeCopy = DIAGNOSTIC_SCOPE_MESSAGES[locale]
+    const scopeOf = (entry: Record<string, unknown>): string => entry.scope === 'configuration' || entry.id === 'versions' ? scopeCopy.configuration : entry.scope === 'phone' || entry.id === 'phone-network' ? scopeCopy.phone : scopeCopy.computer
     const entries = [...diagnosticEntriesForRender(data)]
     const overall = diagnosticOverallForChecks(data.overall, entries.map(entry => entry.status))
     diagnosticsSummary.className = `dsh-mobile-control__diagnostic-summary is-${overall}`
-    diagnosticsSummaryTitle.textContent = overall === 'ok' ? t('diagnosticsComplete') : overall === 'attention' ? t('diagnosticsAttention') : t('diagnosticsProblem')
-    diagnosticsSummaryText.textContent = locale === 'zh' && data.overall === overall && typeof data.summary === 'string' ? data.summary : t('diagnosticsCompleteFallback')
+    diagnosticsSummaryTitle.textContent = `${scopeCopy.computer} · ${overall === 'ok' ? t('diagnosticsComplete') : overall === 'attention' ? t('diagnosticsAttention') : t('diagnosticsProblem')}`
+    diagnosticsSummaryText.textContent = scopeCopy.coverage
     diagnosticsChecks.replaceChildren()
     const statusLabels: Record<string, string> = { ok: t('diagnosticStatusOk'), warning: t('diagnosticStatusWarning'), error: t('diagnosticStatusError'), info: t('diagnosticStatusInfo') }
     const diagnosticLabelKeys: Record<string, string> = {
@@ -3985,7 +3996,11 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
         const badge = element('span', 'dsh-mobile-control__diagnostic-badge'); badge.textContent = statusLabels[state]!
         const localizedCopy = localizedEntryCopy(entry)
         const detail = element('p'); detail.textContent = localizedCopy.detail
-        rowHeader.append(rowTitle, badge); rowBody.append(rowHeader, detail)
+        if (entry.id === 'versions') rowTitle.textContent = scopeCopy.versions
+        else if (entry.id === 'remote-service') rowTitle.textContent = scopeCopy.provider
+        else if (entry.id === 'remote-dns') rowTitle.textContent = scopeCopy.dns
+        const scope = element('small', 'dsh-mobile-control__diagnostic-scope'); scope.textContent = scopeOf(entry)
+        rowHeader.append(rowTitle, badge); rowBody.append(rowHeader, scope, detail)
         if (localizedCopy.action !== '') {
           const action = element('p', 'dsh-mobile-control__diagnostic-action')
           const actionLabel = element('span'); actionLabel.textContent = t('diagnosticAction')
@@ -4010,9 +4025,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       const labelKey = typeof entry.id === 'string' ? diagnosticLabelKeys[entry.id] : undefined
       const label = labelKey === undefined && typeof entry.label === 'string' ? entry.label : labelKey === undefined ? t('diagnosticCheck') : t(labelKey)
       const localizedCopy = localizedEntryCopy(entry)
-      return `[${statusLabels[state]!}] ${label}: ${localizedCopy.detail}${localizedCopy.action === '' ? '' : ` ${localizedCopy.action}`}`
+      const scopedLabel = entry.id === 'versions' ? scopeCopy.versions : entry.id === 'remote-service' ? scopeCopy.provider : entry.id === 'remote-dns' ? scopeCopy.dns : label
+      return `[${statusLabels[state]!}][${scopeOf(entry)}] ${scopedLabel}: ${localizedCopy.detail}${localizedCopy.action === '' ? '' : ` ${localizedCopy.action}`}`
     })
-    copiedDiagnosticReport = [reportCopy.reportTitle, `${reportCopy.generated}: ${generatedAt}`, ...lines].join('\n')
+    copiedDiagnosticReport = [reportCopy.reportTitle, `${reportCopy.generated}: ${generatedAt}`, scopeCopy.coverage, ...lines].join('\n')
     diagnosticsReport.textContent = copiedDiagnosticReport
     diagnosticsDetails.hidden = copiedDiagnosticReport === ''
     diagnosticsCopy.disabled = copiedDiagnosticReport === ''

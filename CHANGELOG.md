@@ -4,6 +4,8 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## 0.8.2 - Unreleased
 
+- Separate provider-reported readiness, system DNS and computer-egress observations. Distinguish tailnet, Fake-IP, private, mixed and unavailable DNS context; a failed Funnel-only private path no longer declares public ingress down. Preserve real TLS/HTTP failures and mark phone, authenticated pages, resources and WebSockets unverified. Cards and copied reports share localized scope and guidance. Thanks @z2140014118-stack for [#340](https://github.com/saya-ch/dsh-mobile/issues/340). This diagnostic change does not enable private tailnet ingress or silently use public DoH.
+
 - Separate inbound transport resets from HTTP parser rejections. Transport diagnostics carry no HTTP status; malformed methods and other fixed parser codes remain distinguishable without logging raw packets, URLs or credentials. Thanks @smlfx for the diagnostic report in [#338](https://github.com/saya-ch/dsh-mobile/issues/338); the reported iroh customization/scanning failure remains under investigation.
 - Identify customization manifest request/body failures separately from extension resource failures while retaining explicit retry, cancellation and existing working customization.
 - Refuse module selections computed against an older catalog, retain the draft for explicit rereading, and explain the measured gzip subtotal and unknown sizes before applying the minimal preset. Keep required Mobile modules and their dependencies; default loading is unchanged. Thanks @LUgABeEEE for [#328](https://github.com/saya-ch/dsh-mobile/pull/328).
