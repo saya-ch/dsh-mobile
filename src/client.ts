@@ -174,7 +174,9 @@ export function installMobileNativeBack(view: Window, page: Document, blocked: (
       const maskStyle = mask === undefined || mask === null ? undefined : view.getComputedStyle(mask)
       if (wrapper?.getAttribute('role') === 'presentation' && wrapper.children.length === 2
         && wrapper.lastElementChild === top && mask?.tagName === 'DIV'
-        && mask.getAttribute('aria-hidden') === 'true' && mask.isConnected && !mask.hidden
+        && mask.getAttribute('aria-hidden') !== 'false' && mask.getAttribute('role') === null
+        && mask.getAttribute('tabindex') === null && mask.getAttribute('contenteditable') === null
+        && mask.children.length === 0 && (mask.textContent ?? '').trim() === '' && mask.isConnected && !mask.hidden
         && maskStyle?.display !== 'none' && maskStyle?.visibility !== 'hidden' && mask.getClientRects().length > 0) {
         mask.click()
         return

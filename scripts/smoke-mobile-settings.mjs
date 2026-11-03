@@ -281,6 +281,14 @@ async function runCase({ width, height = 900, locale, bridgeMode }) {
     assert.deepEqual(errors, [], 'Settings generated unhandled page errors')
     await page.evaluate(() => { window.__settingsMarkdownRoot.unmount() })
     await page.evaluate(() => { window.__settingsRetainedDocument = 'retain settings navigation' })
+    assert.equal(await page.evaluate(() => {
+      const event = new Event('dsh-mobile:native-back', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }), true, 'Native Back did not claim General settings')
+    await row.waitFor({ state: 'hidden' })
+    assert.equal(await page.evaluate(() => window.__settingsRetainedDocument), 'retain settings navigation', 'Native Back replaced the DSH document')
+    await openSettings(page)
     await close.click()
     await row.waitFor({ state: 'hidden' })
     assert.equal(await page.evaluate(() => window.__settingsRetainedDocument), 'retain settings navigation', 'Closing settings replaced the DSH document')

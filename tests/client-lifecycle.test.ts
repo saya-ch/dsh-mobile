@@ -62,6 +62,7 @@ class BackNode extends EventTarget {
   display = 'block'
   visibility = 'visible'
   rects = 1
+  textContent = ''
   parentElement: BackNode | null = null
   readonly children: BackNode[] = []
   readonly attributes = new Map<string, string>()
@@ -596,11 +597,11 @@ describe('mobile native Back before layout navigation', () => {
     expect(surface.hidden).toBe(false)
   })
 
-  it('uses the direct presentation mask to close a DSH dialog, not a dialog action', () => {
+  it.each([true, false])('uses the empty direct presentation mask, with legacy aria-hidden %s, not a dialog action', legacyHidden => {
     const view = new BackWindow()
     const page = new BackDocument()
     const wrapper = new BackNode(); wrapper.setAttribute('role', 'presentation')
-    const mask = new BackNode(); mask.setAttribute('aria-hidden', 'true')
+    const mask = new BackNode(); if (legacyHidden) mask.setAttribute('aria-hidden', 'true')
     const dialog = new BackNode(); dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true')
     const action = new BackNode('BUTTON')
     mask.onClick = () => { wrapper.remove() }
@@ -614,6 +615,29 @@ describe('mobile native Back before layout navigation', () => {
     expect(wrapper.isConnected).toBe(false)
     expect(action.clicks).toBe(0)
     expect(blocked).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it.each(['role', 'tabindex', 'contenteditable', 'text', 'child', 'aria-visible'])('does not treat a %s sibling as a dialog backdrop', variant => {
+    const view = new BackWindow()
+    const page = new BackDocument()
+    const wrapper = new BackNode(); wrapper.setAttribute('role', 'presentation')
+    const sibling = new BackNode()
+    if (variant === 'role') sibling.setAttribute('role', 'button')
+    if (variant === 'tabindex') sibling.setAttribute('tabindex', '0')
+    if (variant === 'contenteditable') sibling.setAttribute('contenteditable', 'true')
+    if (variant === 'text') sibling.textContent = 'Perform an action'
+    if (variant === 'child') sibling.append(new BackNode('BUTTON'))
+    if (variant === 'aria-visible') sibling.setAttribute('aria-hidden', 'false')
+    const dialog = new BackNode(); dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true')
+    page.body.append(wrapper); wrapper.append(sibling); wrapper.append(dialog)
+    const blocked = vi.fn()
+    const stop = installMobileNativeBack(view as never, page as never, blocked)
+    const event = backEvent()
+    view.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(sibling.clicks).toBe(0)
+    expect(blocked).toHaveBeenCalledOnce()
     stop()
   })
 

@@ -10,6 +10,8 @@ Do not accept a draft replacement just because it has more features. Check avail
 
 Issue replies must match actual evidence and publication state. A local fix is not a released fix; a simulated keyboard test is not device verification. Keep replies concise and thank useful reports/contributions. Do not reply, close issues or alter PR state without authority for those external actions. If closure is authorized, distinguish shipped fixes, superseded duplicates, upstream ownership, requests awaiting reproduction and unimplemented ideas.
 
+Do not post issue or PR replies announcing unreleased fixes or candidate progress. Keep that work in local verification records and the draft PR description; after publication, reply only with shipped behavior and its actual verification. This does not authorize posting replies or closing issues by itself.
+
 Credit code authors and issue reporters by actual participation in `CONTRIBUTORS.md`. GitHub's Contributors graph follows commits in default-branch history; it cannot be populated by falsely attributing code to every reporter. Preserve contribution history even when a PR is incorporated with later corrections rather than directly merged on GitHub.
 
 ## Documentation

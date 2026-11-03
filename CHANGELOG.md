@@ -4,6 +4,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## 0.8.2 - Unreleased
 
+- Restore Android Back dismissal of current DSH settings dialogs whose empty backdrop omits `aria-hidden`. Retain older backdrop support and refuse interactive, labelled or editable sibling content rather than clicking arbitrary dialog actions. No Android App update is required.
 - Correct the FRP attach-mode step heading and hide the SSH deployment fields. Switching modes preserves unsaved SSH values without saving or deploying. Thanks @LunarFeller for [#341](https://github.com/saya-ch/dsh-mobile/issues/341) and [#342](https://github.com/saya-ch/dsh-mobile/pull/342).
 - Separate provider-reported readiness, system DNS and computer-egress observations. Distinguish tailnet, Fake-IP, private, mixed and unavailable DNS context; a failed Funnel-only private path no longer declares public ingress down. Preserve real TLS/HTTP failures and mark phone, authenticated pages, resources and WebSockets unverified. Cards and copied reports share localized scope and guidance. Thanks @z2140014118-stack for [#340](https://github.com/saya-ch/dsh-mobile/issues/340). This diagnostic change does not enable private tailnet ingress or silently use public DoH.
 - Supply the authenticated request Peer to newer DSH index-injection collectors. This fixes the diagnostic API's reproduced 500 on DSH0.2.2-alpha.2 without creating a replacement Peer or bypassing authentication. An optional script-inspection failure is reported as unverified while other checks remain available.
