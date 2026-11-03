@@ -127,20 +127,26 @@ describe('managed cloudflared component', () => {
     expect(status.installedBytes).toBeGreaterThan(status.downloadBytes)
   })
 
-  it('verifies the macOS executable pair rather than the archive pair', async () => {
+  it('rejects an archive-sized macOS file before checking its executable digest', async ({ signal }) => {
     const directory = await stateDirectory()
     const release = CLOUDFLARED_COMPONENT_RELEASES['darwin-arm64']
     if (release === undefined) throw new Error('darwin-arm64 must be pinned')
     const manager = new CloudflaredComponentManager({ stateDirectory: directory, platform: 'darwin', arch: 'arm64' })
     await mkdir(manager.componentStorage, { recursive: true })
     // Archive length: the executable size gate alone rejects it.
-    await writeFile(manager.executable, Buffer.alloc(release.downloadBytes, 0x41))
+    await writeFile(manager.executable, Buffer.alloc(release.downloadBytes, 0x41), { signal })
     await manager.initialize()
     expect(manager.status()).toMatchObject({ installed: false })
     expect(manager.status().errorCode).toBeUndefined()
-    // Exactly the unpacked length but not the pinned bytes: only the digest can
-    // catch this, which is why macOS cannot reuse the archive pair.
-    await writeFile(manager.executable, Buffer.alloc(release.executableBytes, 0x42))
+  })
+
+  it('rejects a macOS file with the executable size but the wrong digest', async ({ signal }) => {
+    const directory = await stateDirectory()
+    const release = CLOUDFLARED_COMPONENT_RELEASES['darwin-arm64']
+    if (release === undefined) throw new Error('darwin-arm64 must be pinned')
+    const manager = new CloudflaredComponentManager({ stateDirectory: directory, platform: 'darwin', arch: 'arm64' })
+    await mkdir(manager.componentStorage, { recursive: true })
+    await writeFile(manager.executable, Buffer.alloc(release.executableBytes, 0x42), { signal })
     await manager.initialize()
     expect(manager.status()).toMatchObject({ installed: false, errorCode: 'cloudflared_component_invalid' })
   })

@@ -35,6 +35,11 @@ describe('independent plugin and Android release workflows', () => {
     }
     const source = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8')
     expect(source).not.toContain('continue-on-error: true')
+    for (const script of ['smoke-mobile-push-contract.mjs', 'smoke-mobile-push.mjs']) {
+      const probe = await readFile(new URL(`../scripts/${script}`, import.meta.url), 'utf8')
+      expect(probe).toContain("'0.2.2-alpha.3'")
+      expect(probe).not.toContain("'0.2.2-alpha.2'")
+    }
   })
 
   it('publishes plugin tags without rebuilding or waiting for Android', async () => {
