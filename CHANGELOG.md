@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Android 0.7.2 - Unreleased
+
+- Android: accept a pinned gateway's WebSocket certificate callback when the secure authority and verified leaf match the paired HTTPS origin. Host, port, CA, certificate validity, signature and SAN checks remain required. Cleartext, foreign authorities and URL credentials remain rejected. Thanks @LUgABeEEE for [#343](https://github.com/saya-ch/dsh-mobile/pull/343); the contributor reports Android17/WebView150 testing with an instrumented cache experiment, not independent maintainer callback acceptance.
+
 ## 0.8.2 - Unreleased
 
 - Restore Android Back dismissal of current DSH settings dialogs whose empty backdrop omits `aria-hidden`. Retain older backdrop support and refuse interactive, labelled or editable sibling content rather than clicking arbitrary dialog actions. No Android App update is required.

@@ -110,6 +110,24 @@ internal object GatewayUrlPolicy {
         return GatewayOrigin.fromCandidate(candidate) == origin
     }
 
+    /**
+     * Returns whether a URL addresses the configured gateway over a secure scheme.
+     *
+     * Chromium reports WebSocket certificate errors to `onReceivedSslError` with a `wss:` URL while
+     * the pinned origin is canonicalized as `https:`, so [isSameOrigin] rejects the very channel a
+     * paired page needs and cancels its document. Only the secure scheme family may differ — host
+     * and port still have to match exactly.
+     */
+    fun isPinnedAuthority(origin: GatewayOrigin, rawCandidate: String): Boolean {
+        val candidate = parseCandidate(rawCandidate) ?: return false
+        if (candidate.scheme?.lowercase() !in PINNED_SCHEMES) return false
+        if (candidate.rawUserInfo != null) return false
+        val port = if (candidate.port == -1) DEFAULT_HTTPS_PORT else candidate.port
+        if (port != origin.port) return false
+        val host = candidate.host?.lowercase()?.removePrefix("[")?.removeSuffix("]") ?: return false
+        return host == origin.host
+    }
+
     /** Returns whether a URL may be handed to a system browser. */
     fun isExternalHttps(rawCandidate: String): Boolean {
         val candidate = parseCandidate(rawCandidate) ?: return false
@@ -142,4 +160,7 @@ internal object GatewayUrlPolicy {
     }
 
     private fun parseCandidate(rawValue: String): URI? = runCatching { URI(rawValue) }.getOrNull()
+
+    private val PINNED_SCHEMES = setOf("https", "wss")
+    private const val DEFAULT_HTTPS_PORT = 443
 }
