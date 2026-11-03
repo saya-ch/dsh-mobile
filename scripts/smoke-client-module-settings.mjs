@@ -449,6 +449,92 @@ try {
     assert(!reopenedMinimal.body.excludedClientModules.includes(id), `Required mobile surface excluded after reopen: ${id}`)
   }
   record.checks.push('actual minimal preset: measured/unknown confirmation, draft-only edit, revision-bound save, required shell/settings remain loaded and settings remain reachable after reopening')
+  stage = 'legacy-minimal-recovery-setup'
+  await leaveSettings()
+  const otherPhone = await browser.newPage({ viewport: { width: 390, height: 844 }, locale: 'en-US', isMobile: true, hasTouch: true })
+  otherPhone.on('pageerror', error => record.pageErrors.push(error.message))
+  await otherPhone.route('**/api/session/prompt', async route => { record.prompts++; await route.abort('blockedbyclient') })
+  await pairMobilePage(otherPhone, await openPairing(desktop, undefined, dsh.logs), dsh.logs)
+  const writeExclusions = async (page, path, exclusions) => page.evaluate(async ({ path, exclusions }) => {
+    const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ excludedClientModules: exclusions }) })
+    return { status: response.status, body: await response.json() }
+  }, { path, exclusions })
+  assert.equal((await writeExclusions(otherPhone, modulePath, [skinId])).status, 200)
+  assert.equal((await writeExclusions(desktop, '/api/mobile-access/client-modules', [skinId])).status, 200)
+  const preferenceFile = join(home, 'mobile-access/client-modules.json')
+  const selections = JSON.parse(await readFile(preferenceFile, 'utf8'))
+  const sameSet = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
+  const currentIds = Object.keys(selections.devices).filter(id => sameSet(selections.devices[id], minimized.body.excludedClientModules))
+  assert.equal(currentIds.length, 1, 'Could not identify the owned minimal-selection device')
+  const currentId = currentIds[0]
+  const otherIds = Object.keys(selections.devices).filter(id => id !== currentId)
+  assert.equal(otherIds.length, 1)
+  const otherId = otherIds[0]
+  assert.deepEqual(selections.computer, [skinId])
+  assert.deepEqual(selections.devices[otherId], [skinId])
+  const generalId = '@deepseek-ai/dsh-client-ui-settings-general'
+  assert(reopenedMinimal.body.entries.some(entry => entry.id === generalId && entry.required), 'Fixture lacks the installed settings provider')
+  const stoppedForUpgrade = await dsh.close()
+  assert.equal(stoppedForUpgrade.forced, false, 'Owned host did not stop before loading the old selection')
+  // Seed only the owned stopped profile with a previously valid exclusion. The
+  // live Store is deliberately not patched; its new instance reads persisted state.
+  selections.devices[currentId] = [...new Set([...selections.devices[currentId], generalId])]
+  await writeFile(preferenceFile, JSON.stringify(selections) + '\n')
+  stage = 'legacy-minimal-recovery'
+  dsh = launchDsh(root, home, dshBin)
+  await desktop.goto(await dsh.ready(), { waitUntil: 'domcontentloaded' })
+  const nextControl = await desktop.evaluate(async () => {
+    const response = await fetch('/api/mobile-access/lan/control')
+    return { status: response.status, body: await response.json() }
+  })
+  assert.equal(nextControl.status, 200)
+  assert.equal(nextControl.body.running, true)
+  const nextOrigin = nextControl.body.origin
+  await phone.goto(nextOrigin, { waitUntil: 'domcontentloaded' })
+  const loadAll = phone.locator('#load-all-modules')
+  await loadAll.waitFor({ state: 'visible', timeout: CLIENT_TIMEOUT_MS })
+  assert.equal(await phone.locator('.dshm-shell').count(), 0, 'Old required exclusion silently rendered a partial shell')
+  const beforeRecovery = JSON.parse(await readFile(preferenceFile, 'utf8'))
+  assert.deepEqual(beforeRecovery, selections, 'Opening recovery changed persisted selections without consent')
+  let refuseRecovery = true
+  await phone.route(`**${modulePath}`, async route => {
+    if (refuseRecovery && route.request().method() === 'POST') {
+      refuseRecovery = false
+      await route.fulfill({ status: 403, json: { error: 'forbidden' } })
+    } else await route.fallback()
+  })
+  await loadAll.click()
+  await phone.waitForFunction(() => {
+    const button = document.getElementById('load-all-modules')
+    return button && !button.disabled && document.getElementById('recovery-status')?.textContent !== ''
+  })
+  assert.deepEqual(JSON.parse(await readFile(preferenceFile, 'utf8')), selections, 'Rejected recovery changed selections')
+  const [recovered] = await Promise.all([
+    phone.waitForResponse(response => new URL(response.url()).pathname === modulePath && response.request().method() === 'POST'),
+    loadAll.click(),
+  ])
+  assert.equal(recovered.status(), 200)
+  assert.deepEqual(recovered.request().postDataJSON(), { excludedClientModules: [] })
+  await phone.waitForFunction(id => document.querySelector('#root .dshm-shell') !== null
+    && window.__DSH_BOOT__?.entries?.some(entry => entry.id === id), skinId, { timeout: CLIENT_TIMEOUT_MS })
+  await dismissOnboarding(phone)
+  const full = JSON.parse(await readFile(preferenceFile, 'utf8'))
+  assert.deepEqual(full.devices[currentId], [], 'Load-all did not create an explicit empty device exclusion')
+  assert.deepEqual(full.computer, selections.computer, 'Load-all changed computer defaults')
+  assert.deepEqual(full.devices[otherId], selections.devices[otherId], 'Load-all changed the other device')
+  await openSettings()
+  const fullView = await openManager()
+  assert.equal(fullView.body.source, 'device')
+  assert.deepEqual(fullView.body.excludedClientModules, [])
+  const inherited = await writeSelection(() => confirm('accept', () => reset().click()))
+  assert.equal(inherited.status, 200)
+  assert.equal(inherited.body.source, 'computer')
+  assert.deepEqual(inherited.body.excludedClientModules, [skinId], 'Restore defaults was incorrectly treated as load-all')
+  const resetState = JSON.parse(await readFile(preferenceFile, 'utf8'))
+  assert.equal(Object.hasOwn(resetState.devices, currentId), false)
+  assert.deepEqual(resetState.computer, selections.computer)
+  assert.deepEqual(resetState.devices[otherId], selections.devices[otherId])
+  record.checks.push('controlled legacy General-settings exclusion: persisted state loaded by a fresh real host, same paired device renews, explicit recovery remains available without settings, rejection is retryable, load-all overrides computer defaults without changing another device, restore-defaults instead inherits computer selection')
   assert.equal(record.prompts, 0, 'The acceptance test attempted a model submission')
   assert.deepEqual(record.pageErrors, [], 'Module settings emitted a page error')
   stage = 'completed'

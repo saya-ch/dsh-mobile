@@ -19,6 +19,8 @@ Selection precedence is: device override → computer default → the profile's 
 
 **Restore defaults** on a phone removes its override and uses the computer default. On the computer, it removes the computer override and uses plugin configuration. Other device overrides are retained.
 
+**Restore defaults is not Load all**: exclusions in the computer default or profile still apply after a reset. The startup recovery page's **Load all modules for this device and retry** instead saves an explicitly empty exclusion list for the current device, without changing computer defaults or other devices.
+
 ## Find a module
 
 **Optional extensions** appear first. **DSH optional components (advanced)** and **Required for boot** are collapsed; required entries cannot be disabled. These groups aid browsing, not source verification, and one frontend module is not necessarily a complete plugin.
@@ -37,6 +39,8 @@ After a DSH or plugin update, an old exclusion may be missing from the catalog o
 Close, Escape and the App's Back action ask before discarding unsaved changes. A failed save keeps choices. A write timeout means the result is unconfirmed, not rolled back; reread to confirm. Writes are not retried automatically, and closing cannot undo a completed save. Long lists scroll independently while close and footer actions remain reachable.
 
 Computer pages and `?frontend=stock` pages are unaffected. DSH or community-plugin updates can change the catalog and dependencies. When a saved selection prevents the mobile page from starting, the page offers “Load all modules for this device and retry”; it changes this device’s selection only when you click, without changing computer defaults, other devices or pairing authorization. Settings APIs still reject invalid selections and enforce required-module and dependency checks.
+
+The plugin 0.8.2 candidate marks the installed General settings provider as required for boot, fixing old minimal selections that made the settings entry unavailable. If an old record excludes that provider, reopening the mobile page shows recovery without requiring settings access first. Only selecting Load all saves and retries; a failure retains the old selection for an explicit retry. Pairings need not be deleted. Version 0.8.2 is not released yet; see [CHANGELOG](../CHANGELOG.md) for release status.
 
 ## Measure sizes and minimize loading
 

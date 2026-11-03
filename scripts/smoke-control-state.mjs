@@ -608,7 +608,36 @@ try {
       await field('token').fill('fixture-token-not-a-secret-012345')
       await field('publicOrigin').fill('https://1.2.3.4')
       assert.equal(await page.locator('.dsh-mobile-control__frp-fields [aria-invalid=true]').count(), 0, 'Corrected fields kept errors')
+      const vpsGroup = page.locator('.dsh-mobile-control__frp-group').nth(1)
+      const sshFields = vpsGroup.locator('.dsh-mobile-control__frp-fields')
+      const copy = await page.evaluate(locale => window.mobileClient.MOBILE_CONTROL_MESSAGES[locale], language)
+      const openVps = async () => { if (!await vpsGroup.evaluate(node => node.open)) await vpsGroup.locator('summary').click() }
+      await openVps()
+      await sshFields.locator('input').nth(0).fill('owned-fixture-user')
+      await sshFields.locator('input').nth(1).fill('2222')
+      await sshFields.locator('input').nth(2).fill('/owned-fixture/key')
+      const checkMode = async attach => {
+        await openVps()
+        assert.deepEqual({ title: await vpsGroup.locator('summary').textContent(), display: await sshFields.evaluate(node => getComputedStyle(node).display), visible: await sshFields.isVisible() },
+          { title: attach ? copy.frpStep2TitleAttach : copy.frpStep2Title, display: attach ? 'none' : 'grid', visible: !attach }, 'FRP step-2 heading and SSH fields disagree with attach/deploy mode')
+        assert.equal(await vpsGroup.getByRole('button', { name: copy.vpsDeploy, exact: true }).isVisible(), !attach)
+        if (attach) {
+          for (const name of [copy.frpAttachPlan, copy.frpAttachToken]) {
+            assert.equal(await vpsGroup.getByRole('button', { name, exact: true }).isVisible(), true, 'An attach action disappeared with the SSH fields')
+          }
+        }
+        assert.equal(await vpsGroup.getByRole('button', { name: copy.frpAttachSelfCheck, exact: true }).isVisible(), false, 'Self-check appeared before FRP configuration was saved')
+      }
+      await checkMode(false)
       await field('mode').selectOption('attach')
+      await checkMode(true)
+      await field('mode').selectOption('deploy')
+      await checkMode(false)
+      assert.deepEqual(await sshFields.locator('input').evaluateAll(nodes => nodes.map(node => node.value)), ['owned-fixture-user', '2222', '/owned-fixture/key'], 'Changing mode discarded SSH draft fields')
+      await field('mode').selectOption('attach')
+      await checkMode(true)
+      assert.equal(count('POST', postPath), 0, 'Changing mode silently saved configuration')
+      assert.equal(count('POST', `${prefix}/remote/frp/vps/deploy`), 0, 'Changing mode started VPS deployment')
       await configure.click()
       assert.equal(await field('vhostHttpPort').getAttribute('aria-invalid'), 'true')
       await field('entryTls').selectOption('self-signed')
