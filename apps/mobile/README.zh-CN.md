@@ -172,7 +172,7 @@ Set-Location apps/mobile/android
 ./gradlew.bat :app:assembleDebug -PirohNdk=C:/Android/Sdk/ndk/25.2.9519653 -x :app:lintAnalyzeDebugUnitTest -x :app:lintAnalyzeDebugAndroidTest
 ```
 
-传 `-PirohNative=false` 可走免工具链的快速通道，构建的是原 HTTPS 外壳：没有 iroh 配对入口，`IrohNative` 会报告自身不可用。传输库生成在 `app/build/generated/iroh/jniLibs/` 下，永不提交。启用原生库的构建不改变包名与既定正式签名；实验阶段的独立 alpha 签名在这里不使用。
+传 `-PirohNative=false` 可走免工具链的快速通道，构建的是不包含 iroh 传输的原 HTTPS 外壳，`IrohNative` 会报告自身不可用。使用 iroh 需要完整版构建。传输库生成在 `app/build/generated/iroh/jniLibs/` 下，永不提交。启用原生库的构建不改变包名与既定正式签名；实验阶段的独立 alpha 签名在这里不使用。
 
 原生构建还会从固定提交的官方 Maven 归档引入与 `native/Cargo.lock` 匹配的 JVM TLS 校验组件。必须保留其 JNI／Proguard 规则，仅打包 `.so` 不足以完成接入。APK 验证会检查 Debug 和压缩后的 Release 是否保留所需 JVM 类和原生入口名称。
 

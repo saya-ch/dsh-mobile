@@ -172,7 +172,7 @@ Set-Location apps/mobile/android
 ./gradlew.bat :app:assembleDebug -PirohNdk=C:/Android/Sdk/ndk/25.2.9519653 -x :app:lintAnalyzeDebugUnitTest -x :app:lintAnalyzeDebugAndroidTest
 ```
 
-Pass `-PirohNative=false` for a fast toolchain-free lane that builds the original HTTPS shell: the iroh pairing entry is absent and `IrohNative` reports itself unavailable. The transport libraries are generated under `app/build/generated/iroh/jniLibs/` and never committed. A native-enabled build does not change the package identity or the established signer; the independent alpha signer from the iroh experiment is not used here.
+Pass `-PirohNative=false` for a fast toolchain-free lane that builds the original HTTPS shell without iroh transport; `IrohNative` reports itself unavailable. Using iroh requires the full build. The transport libraries are generated under `app/build/generated/iroh/jniLibs/` and never committed. A native-enabled build does not change the package identity or the established signer; the independent alpha signer from the iroh experiment is not used here.
 
 Native builds also include the JVM TLS verifier matching `native/Cargo.lock`, from the revision-pinned official Maven archive. Preserve its JNI/Proguard rules: compiling and packaging the `.so` alone is insufficient. The APK verifier checks the retained JVM classes and native entry names in both Debug and minified Release builds.
 
