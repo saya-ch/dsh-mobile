@@ -36,6 +36,10 @@ Page zoom changes the whole page and is separate from per-address text preferenc
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
 
+## 0.7.2 candidate — unreleased
+
+Accept the paired gateway's `wss:` certificate callback only when its host and port match the saved HTTPS origin and its certificate passes the pinned CA, validity, signature and SAN checks. Ordinary HTTPS navigation and download rules remain unchanged; third-party WebSocket paths still require computer-side approval. This is an App change and cannot be installed by updating npm. The current signed download remains 0.7.1 until the independent App release is verified.
+
 ## 0.7.1 update
 
 Update AndroidX WebKit to 1.18.0 and the build toolchain to AGP 9.4.1 / Gradle 9.8.2, retaining Android API 36 and the existing pairing format. Both APK variants keep the established signer and upgrade in place. Plugin 0.8.0's iPhone/iPad Web Push is a computer-side feature, not a reason to update the Android app.
