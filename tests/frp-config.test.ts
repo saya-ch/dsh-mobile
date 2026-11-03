@@ -197,6 +197,55 @@ describe('attach mode and entry TLS settings', () => {
 })
 
 /*
+ * Optional frpc `user` field.
+ *
+ * Shared frps services (for example free public frp panels) namespace proxies
+ * per user: frps registers `<user>.<proxyName>`. The field stays optional so a
+ * legacy configuration keeps producing byte-identical artefacts, and a blank
+ * form input is "absent" rather than an empty string in settings.json.
+ */
+describe('optional frpc user field', () => {
+  it('keeps user optional, normalizes blank to absent, and validates the token form', () => {
+    expect(parseFrpSettings({ ...input, user: 'shared-frp.user_1' })).toMatchObject({ user: 'shared-frp.user_1' })
+    expect(parseFrpSettings({ ...input, user: '' })).not.toHaveProperty('user')
+    expect(parseFrpSettings(input)).not.toHaveProperty('user')
+    for (const invalid of ['has space', 'quote"d', 'a/b', '括号', 'x'.repeat(129), 7, null]) {
+      expect(() => parseFrpSettings({ ...input, user: invalid as unknown as string })).toThrow('frp_user_invalid')
+    }
+  })
+
+  it('emits user into frpc.toml for both proxy types and keeps defaults unchanged', () => {
+    const withUser = parseFrpSettings({ ...input, user: 'shared-frp.user_1' })
+    const http = createFrpcToml(withUser, 42123)
+    expect(http).toContain('user = "shared-frp.user_1"')
+    expect(http.indexOf('user = "shared-frp.user_1"')).toBeLessThan(http.indexOf('[[proxies]]'))
+    const tcp = createFrpcToml(parseFrpSettings({
+      ...input, publicOrigin: 'https://1.2.3.4', mode: 'attach', entryTls: 'self-signed', publicPort: 33_080, user: 'shared-frp.user_1',
+    }), 41234)
+    expect(tcp).toContain('user = "shared-frp.user_1"')
+    expect(tcp).toContain('type = "tcp"')
+    expect(createFrpcToml(parseFrpSettings(input), 42123)).not.toContain('user')
+  })
+
+  it('merges blank user with the saved value and reports it in the status', async () => {
+    const saved = parseFrpSettings({ ...input, user: 'shared-frp.user_1' })
+    expect(mergeSavedFrpSettings({ ...input }, saved).user).toBe('shared-frp.user_1')
+    expect(mergeSavedFrpSettings({ ...input, user: 'other.user-1' }, saved).user).toBe('other.user-1')
+    expect(mergeSavedFrpSettings({ ...input }, parseFrpSettings(input)).user).toBeUndefined()
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-frp-user-'))
+    temporaryDirectories.push(directory)
+    const store = new FrpConfigStore(join(directory, 'frp'))
+    await store.initialize()
+    await store.configure({ ...input, user: 'shared-frp.user_1' })
+    expect(store.status().user).toBe('shared-frp.user_1')
+    await store.writeRuntimeConfig(42123)
+    expect(await readFile(store.runtimeConfigFile, 'utf8')).toContain('user = "shared-frp.user_1"')
+    await store.configure(input)
+    expect(store.status()).not.toHaveProperty('user')
+  })
+})
+
+/*
  * Shared-frps proxy naming.
  *
  * frps accepts one proxy per name across every client, so the fixed upstream
