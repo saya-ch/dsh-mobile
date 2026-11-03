@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Android: answer a pinned gateway's **WebSocket certificate error** instead of cancelling the page. Chromium reports a `wss:` handshake's certificate error to `WebViewClient.onReceivedSslError`, while the pinned check compared it against the `https:` page origin, so a paired page's own `/api/remote.mux` channel was treated as a foreign identity: the handler cancelled it, failed the document and showed the "安全连接失败 / secure connection failed" surface over a half-booted page. Certificate decisions now accept the secure scheme family (`https`/`wss`) while keeping host, port and the leaf pin exact; cleartext, another port or a URL carrying credentials still cancel. Verified on a Xiaomi Pad 9 Pro Max (Android 17, WebView 150.0.7871.181) with a LAN-paired gateway: before, `sslError url=wss://… sameOrigin=false pinned=false` cancelled the document on every start; after, the same handshake reports `pinned=true` and the page boots.
+
 ## 0.8.1 - 2026-11-01
 
 - Recognize the four-seat settings grid introduced in DSH 0.2.2-alpha.2. Preserve upstream navigation and grid placement while retaining Mobile's accessible close-button target; older two-column settings keep their existing mobile layout.

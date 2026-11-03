@@ -130,8 +130,11 @@ internal class SecureWebViewClient(
     }
 
     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+        // A WebSocket handshake reaches this callback with a `wss:` URL, so an exact `https:`
+        // origin check rejects the page's own stream channel and cancels the document it belongs
+        // to. Host and port must still match exactly, and the leaf must pin.
         val pinned = caCertificate != null && error.primaryError == SslError.SSL_UNTRUSTED
-            && GatewayUrlPolicy.isSameOrigin(origin, error.url)
+            && GatewayUrlPolicy.isPinnedAuthority(origin, error.url)
             && PinnedTls.acceptsWebViewLeaf(origin, caCertificate, error.certificate.x509Certificate)
         if (pinned) {
             handler.proceed()
