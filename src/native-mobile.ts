@@ -349,6 +349,15 @@ export function resolveNativeMobileFrame(root: ParentNode, dedicatedCenter: HTML
 }
 
 /**
+ * Detect upstream ownership before applying legacy frame geometry.
+ * @param frame - the stock frame's element lookup, if mounted.
+ * @returns whether it provides the responsive sidebar opener.
+ */
+export function stockOwnsMobileDrawer(frame: Pick<ParentNode, 'querySelector'> | undefined): boolean {
+  return frame?.querySelector('[data-sidebar-opener]') != null
+}
+
+/**
  * Mirror the classes of the stock Add-menu item on an injected attachment action.
  *
  * An empty class name is not nullish: trusting it would strip the plugin's own
@@ -1831,13 +1840,29 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     const nextFrame = resolveNativeMobileFrame(document, dedicatedCenter)
     if (frame !== nextFrame) frame?.removeAttribute('data-dsh-mobile-frame')
     frame = nextFrame
-    if (frame !== undefined) frame.dataset.dshMobileFrame = 'true'
-    sidebar = frame === undefined
+    const nativeDrawer = stockOwnsMobileDrawer(frame)
+    if (frame !== undefined) {
+      if (nativeDrawer) frame.removeAttribute('data-dsh-mobile-frame')
+      else frame.dataset.dshMobileFrame = 'true'
+    }
+    if (nativeDrawer) {
+      sidebar?.removeAttribute('data-dsh-mobile-sidebar')
+      sidebarRoot?.removeAttribute('data-dsh-mobile-sidebar-root')
+      toggle?.removeAttribute('data-dsh-mobile-toggle')
+      for (const node of frame!.querySelectorAll('[data-dsh-mobile-details],[data-dsh-mobile-handle]')) {
+        node.removeAttribute('data-dsh-mobile-details')
+        node.removeAttribute('data-dsh-mobile-handle')
+      }
+      sidebarRoot = undefined
+      toggle = undefined
+      backdrop.hidden = true
+    }
+    sidebar = nativeDrawer ? undefined : frame === undefined
       ? document.querySelector<HTMLElement>('.dshm-drawer') ?? undefined
       : firstByClassSuffix(frame, '_sidebarCol')
     const center = frame === undefined ? dedicatedCenter : firstByClassSuffix(frame, '_centerCol')
-    const details = frame === undefined ? undefined : firstByClassSuffix(frame, '_detailsCol')
-    const handle = frame === undefined ? undefined : firstByClassSuffix(frame, '_handle')
+    const details = frame === undefined || nativeDrawer ? undefined : firstByClassSuffix(frame, '_detailsCol')
+    const handle = frame === undefined || nativeDrawer ? undefined : firstByClassSuffix(frame, '_handle')
     markNativeMobileSettings(document)
     if (center === undefined) {
       syncPanHeader(undefined)
@@ -1851,12 +1876,15 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       return
     }
     if (center !== undefined) {
-      center.dataset.dshMobileCenter = 'true'
+      if (nativeDrawer) center.removeAttribute('data-dsh-mobile-center')
+      else center.dataset.dshMobileCenter = 'true'
       const header = center.querySelector<HTMLElement>('header') ?? undefined
-      header?.setAttribute('data-dsh-mobile-header', 'true')
-      syncPanHeader(header)
+      if (nativeDrawer) header?.removeAttribute('data-dsh-mobile-header')
+      else header?.setAttribute('data-dsh-mobile-header', 'true')
+      syncPanHeader(nativeDrawer ? undefined : header)
       viewArea = firstByClassSuffix(center, '_viewArea')
-      if (viewArea !== undefined) viewArea.dataset.dshMobileView = 'true'
+      if (nativeDrawer) viewArea?.removeAttribute('data-dsh-mobile-view')
+      else if (viewArea !== undefined) viewArea.dataset.dshMobileView = 'true'
       const conversation = center.querySelector<HTMLElement>('[data-conversation-scroll]')
       // Resolved before the binder call: the history gate's session identity is
       // read from this pass's composer, not the media binding's later capture.

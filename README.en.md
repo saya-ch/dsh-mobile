@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.1">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.2">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.1**. Support DSH's new settings layout, change the LAN network interface while preserving existing pairings, improve touch-control adaptation, and add mobile adaptation guidance for plugin authors. No Android app update is required. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.1) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.2**. Improve connection diagnostics, minimal module loading and device recovery; fix the FRP attach panel and Android Back hierarchy; and adapt to DSH 0.2.2-alpha.3. Plugin and Android App releases remain independent. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.2) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: since plugin **0.6.2**, the Android app and plugin use independent version numbers and releases. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
@@ -445,6 +445,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.2` | The current preview target is `0.2.2-alpha.3`, alongside existing checks including `0.2.1-rc.5`. Fresh `0.2.2-alpha.2` installs can fail to save settings because of an upstream dependency mismatch; upgrade to alpha.3. See the [independent reproduction](https://github.com/deepseek-ai/deepseek-harness/discussions/11994#discussioncomment-19373554). Historical alpha.2 verification does not establish that its freshly resolved dependencies still work |
 | `0.8.1` | Add packed boot, settings, directory selection, attachments, sidebar and compressed Workspace checks on `0.2.1-rc.5` and `0.2.2-alpha.2`; see [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml) for the complete version matrix |
 | `0.8.0` | Push public-contract, settings, encrypted-payload and tap-ownership checks are pinned to `0.2.1-rc.2 / rc.3`; see [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml) for the general boot/layout matrix. iOS device results accept contributor testing; browser checks do not establish every phone, plugin or public route |
 

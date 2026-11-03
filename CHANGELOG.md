@@ -2,11 +2,14 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Android 0.7.2 - Unreleased
+## Android 0.7.2 - 2026-11-04
 
-- Android: accept a pinned gateway's WebSocket certificate callback when the secure authority and verified leaf match the paired HTTPS origin. Host, port, CA, certificate validity, signature and SAN checks remain required. Cleartext, foreign authorities and URL credentials remain rejected. Thanks @LUgABeEEE for [#343](https://github.com/saya-ch/dsh-mobile/pull/343); the contributor reports Android17/WebView150 testing with an instrumented cache experiment, not independent maintainer callback acceptance.
+- Android: accept a pinned gateway's WebSocket certificate callback when the secure authority and verified leaf match the paired HTTPS origin. Host, port, CA, certificate validity, signature and SAN checks remain required. Cleartext, foreign authorities and URL credentials remain rejected. Thanks @LUgABeEEE for [#343](https://github.com/saya-ch/dsh-mobile/pull/343).
 
-## 0.8.2 - Unreleased
+## 0.8.2 - 2026-11-04
+
+- Move the current preview compatibility lane to DSH0.2.2-alpha.3, retaining the same packed settings, module recovery, picker, attachment, sidebar and compressed Workspace checks. Fresh alpha.2 installs have an independently reproduced upstream settings-write failure; upgrade to alpha.3. No DSH source patch, dependency override or ignored test failure is used.
+- Let newer stock DSH own its responsive modal sidebar instead of adapting its hidden desktop column. Keep upstream focus, inert state and Escape dismissal; the dedicated Mobile layout and older stock fallback remain separate.
 
 - Restore Android Back dismissal of current DSH settings dialogs whose empty backdrop omits `aria-hidden`. Retain older backdrop support and refuse interactive, labelled or editable sibling content rather than clicking arbitrary dialog actions. No Android App update is required.
 - Correct the FRP attach-mode step heading and hide the SSH deployment fields. Switching modes preserves unsaved SSH values without saving or deploying. Thanks @LunarFeller for [#341](https://github.com/saya-ch/dsh-mobile/issues/341) and [#342](https://github.com/saya-ch/dsh-mobile/pull/342).
