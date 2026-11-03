@@ -19,6 +19,8 @@ Selection precedence is: device override → computer default → the profile's 
 
 **Restore defaults** on a phone removes its override and uses the computer default. On the computer, it removes the computer override and uses plugin configuration. Other device overrides are retained.
 
+**Restore defaults is not Load all**: exclusions in the computer default or profile still apply after a reset. The startup recovery page's **Load all modules for this device and retry** instead saves an explicitly empty exclusion list for the current device, without changing computer defaults or other devices.
+
 ## Find a module
 
 **Optional extensions** appear first. **DSH optional components (advanced)** and **Required for boot** are collapsed; required entries cannot be disabled. These groups aid browsing, not source verification, and one frontend module is not necessarily a complete plugin.
@@ -31,12 +33,14 @@ After a DSH or plugin update, an old exclusion may be missing from the catalog o
 
 1. Wait for the catalog. A failed or timed-out read has a **Reread settings** action; reopening the modal is unnecessary. Rereading replaces unsaved choices and asks for confirmation when changes exist.
 2. Checked means load on the next open; unchecked means omit next time, not unload the current page. Required boot modules cannot be unchecked. Details show declared dependencies.
-3. Review the unsaved-change count and select **Save selection**; saving stays disabled when nothing changed. A retained module depending on an excluded module is rejected with a conflict: keep the dependency or also exclude its unwanted consumer. Other modules are never unchecked automatically.
+3. Review the unsaved-change count and select **Save selection**; saving stays disabled when nothing changed. A retained module depending on an excluded module is rejected with a conflict: keep the dependency or also exclude its unwanted consumer. Other modules are never unchecked automatically. If the catalog changed after the dialog read it (a plugin or version update), the save is refused with a reread prompt instead of overwriting the current state with a selection computed from the old catalog.
 4. After a successful save, the current page, conversation, and draft are not reloaded automatically. Manually reopen or refresh the DSH page to apply the selection; saving through this control does not require a DSH restart.
 
 Close, Escape and the App's Back action ask before discarding unsaved changes. A failed save keeps choices. A write timeout means the result is unconfirmed, not rolled back; reread to confirm. Writes are not retried automatically, and closing cannot undo a completed save. Long lists scroll independently while close and footer actions remain reachable.
 
 Computer pages and `?frontend=stock` pages are unaffected. DSH or community-plugin updates can change the catalog and dependencies. When a saved selection prevents the mobile page from starting, the page offers “Load all modules for this device and retry”; it changes this device’s selection only when you click, without changing computer defaults, other devices or pairing authorization. Settings APIs still reject invalid selections and enforce required-module and dependency checks.
+
+The plugin 0.8.2 candidate marks the installed General settings provider as required for boot, fixing old minimal selections that made the settings entry unavailable. If an old record excludes that provider, reopening the mobile page shows recovery without requiring settings access first. Only selecting Load all saves and retries; a failure retains the old selection for an explicit retry. Pairings need not be deleted. Version 0.8.2 is not released yet; see [CHANGELOG](../CHANGELOG.md) for release status.
 
 ## Measure sizes and minimize loading
 
@@ -44,7 +48,7 @@ Only **Measure sizes** fetches module resources and calculates their individual 
 
 Each group lists measured modules largest first and unknown sizes last. Totals always identify any selected modules with unknown sizes rather than presenting a partial result as complete. The mobile layout is measured from the actual Gateway layout file. Batch merging, browser caches, encoding negotiation and plugin versions affect actual transfers, so the numbers compare current modules rather than promise exact next-open downloads or fixed savings.
 
-Modules whose package metadata is resolvable in the installation may also show the plugin's own `package.json` description: links removed, collapsed to one line, at most 200 characters. This is not an upstream endorsement. Unexported or unreadable metadata stays absent instead of guessing its purpose. **Required only (minimal load)** keeps required boot entries and their dependencies and marks other entries as not loaded. It edits the draft only; **Save selection** remains a separate action.
+Modules whose package metadata is resolvable in the installation may also show the plugin's own `package.json` description: links removed, collapsed to one line, at most 200 characters. This is not an upstream endorsement. Unexported or unreadable metadata stays absent instead of guessing its purpose. **Required only (minimal load)** keeps required boot entries and their dependencies and marks other entries as not loaded. Its confirmation separates the excluded count, measured gzip subtotal and unmeasured count; partial measurements are not complete savings. It edits the draft only; **Save selection** remains a separate action. Default loading rules do not change and third-party plugins are not automatically blocked.
 
 ## Data and authorization
 

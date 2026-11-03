@@ -19,6 +19,8 @@ export interface ClientModuleEntry {
 /** Selection returned to the computer administrator or the authenticated device. */
 export interface ClientModulePreferenceView {
   readonly entries: readonly ClientModuleEntry[]
+  /** Canonical fingerprint of this catalog. A write that carries a different one is stale. */
+  readonly revision: string
   readonly excludedClientModules: readonly string[]
   readonly defaultExcludedClientModules: readonly string[]
   readonly source: 'device' | 'computer' | 'plugin'

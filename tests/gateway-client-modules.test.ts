@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CLIENT_MODULE_MEASUREMENT_BUDGET_MS, ClientModuleConflictError, MobileAccessGateway, sanitizeModuleDescription } from '../src/gateway.js'
+import { CLIENT_MODULE_MEASUREMENT_BUDGET_MS, ClientModuleConflictError, MobileAccessGateway, clientModuleCatalogRevision, sanitizeModuleDescription } from '../src/gateway.js'
 import { ClientModulePreferenceStore, type ClientModulePreferenceView } from '../src/client-module-preferences.js'
 import { parseGatewayConfig } from '../src/config.js'
 import { MemoryDeviceStore } from '../src/storage.js'
@@ -415,6 +415,62 @@ describe('authenticated client module selection', () => {
     expect((await setup.request(path, setup.first, { excludedClientModules: [] })).status).toBe(200)
     expect((await setup.request(path, setup.first, { excludedClientModules: ['feature'] })).status).toBe(409)
     expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [], defaultExcludedClientModules: [] })
+  })
+
+  it('reports a catalog revision and refuses a selection computed against an older one', async () => {
+    const setup = await fixture()
+    const view = await setup.view(setup.first)
+    expect(view.revision).toMatch(/^[0-9a-f]{16}$/)
+    expect(view.revision).toBe(clientModuleCatalogRevision(view.entries))
+    const stale = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: '0123456789abcdef' })
+    expect(stale.status).toBe(409)
+    expect(JSON.parse(stale.body)).toMatchObject({ error: 'client_module_catalog_changed' })
+    expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [] })
+    const current = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: view.revision })
+    expect(current.status).toBe(200)
+    expect(JSON.parse(current.body)).toMatchObject({ excludedClientModules: ['feature'] })
+  })
+
+  it('changes the revision when the installed catalog changes', async () => {
+    const setup = await fixture()
+    const before = (await setup.view(setup.first)).revision
+    const graph = setup.graph()
+    graph.entries.push({ id: 'late-module', url: '/plugins/late.js?rev=v1234', rev: 'v1234', inject: [] })
+    graph.batches![1]!.entries.push('late-module')
+    const after = (await setup.view(setup.first)).revision
+    expect(after).not.toBe(before)
+  })
+
+  it('protects the installed General settings provider so minimal loading cannot remove its launcher', async () => {
+    const setup = await fixture()
+    const id = '@deepseek-ai/dsh-client-ui-settings-general'
+    setup.graph().entries.push({ id, url: '/plugins/settings-general.js?rev=v1234', rev: 'v1234', inject: [] })
+    setup.graph().batches![1]!.entries.push(id)
+    expect((await setup.view(setup.first)).entries.find(entry => entry.id === id)?.required).toBe(true)
+    const result = await setup.request(path, setup.first, { excludedClientModules: [id] })
+    expect(result.status).toBe(409)
+    expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [] })
+  })
+
+  it('compares catalog revisions before reporting a newly required exclusion as an invalid choice', async () => {
+    const setup = await fixture()
+    const before = await setup.view(setup.first)
+    const feature = setup.graph().entries.find(entry => entry.id === 'feature')
+    if (feature === undefined) throw new Error('fixture feature is missing')
+    Object.assign(feature, { immediately: true })
+    const stale = await setup.request(path, setup.first, { excludedClientModules: ['feature'], revision: before.revision })
+    expect(stale.status).toBe(409)
+    expect(JSON.parse(stale.body)).toMatchObject({ error: 'client_module_catalog_changed' })
+    expect(await setup.view(setup.first)).toMatchObject({ excludedClientModules: [] })
+  })
+
+  it('keeps the revision stable under dependency ordering and metadata-only changes', () => {
+    const before = [{ id: 'feature', required: false, dependencies: ['b', 'a'], gzipBytes: 10 }]
+    const after = [{ id: 'feature', required: false, dependencies: ['a', 'b', 'a'], gzipBytes: 20 }]
+    expect(clientModuleCatalogRevision(before)).toBe(clientModuleCatalogRevision(after))
+    expect(before[0]?.dependencies).toEqual(['b', 'a'])
+    expect(clientModuleCatalogRevision([{ ...after[0]!, required: true }])).not.toBe(clientModuleCatalogRevision(before))
+    expect(clientModuleCatalogRevision([{ ...after[0]!, dependencies: ['a'] }])).not.toBe(clientModuleCatalogRevision(before))
   })
 
   it('does not broadcast a reload event or refetch the document after saving until it is requested again', async () => {

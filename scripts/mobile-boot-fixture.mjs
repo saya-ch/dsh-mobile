@@ -307,6 +307,23 @@ export async function openMobileSettings(phone, { sidebar, activate = button => 
 /** Dismiss first-run choices without hiding arbitrary dialogs from screenshots. */
 export async function dismissOnboarding(phone) {
   const dialog = phone.locator('[role="dialog"][aria-modal="true"]').first()
+  const waitForNext = async previous => {
+    try {
+      await phone.waitForFunction(previous => document.querySelector('[role="dialog"][aria-modal="true"]')?.getAttribute('aria-label') !== previous, previous)
+    } catch (error) {
+      const state = await phone.evaluate(() => ({
+        modals: [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].map(node => ({
+          label: node.getAttribute('aria-label'),
+          visible: getComputedStyle(node).display !== 'none' && getComputedStyle(node).visibility !== 'hidden' && node.getClientRects().length > 0,
+          buttons: [...node.querySelectorAll('button')].map(button => ({ text: button.textContent?.trim().slice(0, 80), disabled: button.disabled })),
+          alerts: [...node.querySelectorAll('[role="alert"]')].map(alert => alert.textContent?.trim().slice(0, 200)),
+        })),
+        readyState: document.readyState,
+        shellCount: document.querySelectorAll('.dshm-shell').length,
+      })).catch(() => ({ unavailable: true }))
+      throw new Error(`Owned onboarding action did not finish: ${JSON.stringify(state)}`, { cause: error })
+    }
+  }
   for (let step = 0; step < 3; step++) {
     await dialog.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => {})
     if (await dialog.count() === 0) return
@@ -319,7 +336,7 @@ export async function dismissOnboarding(phone) {
       const close = dialog.getByRole('button', { name: /^(?:Close|关闭)$/u })
       if (await close.count() !== 1) throw new Error('Unexpected initial DSH account close action')
       await close.click()
-      await phone.waitForFunction(previous => document.querySelector('[role="dialog"][aria-modal="true"]')?.getAttribute('aria-label') !== previous, label)
+      await waitForNext(label)
       continue
     }
     const apiKeyOnboarding = /^(?:Add an API key to get started|添加一个 API Key 开始使用)$/u.test(label ?? '')
@@ -329,6 +346,6 @@ export async function dismissOnboarding(phone) {
     const choice = skip >= 0 ? skip : previewNotice ? 0 : -1
     if (choice < 0) throw new Error('Unexpected initial DSH dialog choices')
     await dialog.locator('button').nth(choice).click()
-    await phone.waitForFunction(previous => document.querySelector('[role="dialog"][aria-modal="true"]')?.getAttribute('aria-label') !== previous, label)
+    await waitForNext(label)
   }
 }

@@ -9,6 +9,7 @@ interface Workflow {
   readonly on: { readonly push: { readonly tags: readonly string[] } }
   readonly jobs: Readonly<Record<string, {
     readonly needs?: string | readonly string[]
+    readonly strategy?: { readonly matrix: { readonly dsh: readonly string[] } }
     readonly steps: readonly { readonly name?: string; readonly run?: string; readonly if?: string }[]
   }>>
 }
@@ -18,6 +19,29 @@ async function workflow(name: string): Promise<Workflow> {
 }
 
 describe('independent plugin and Android release workflows', () => {
+  it('checks the current alpha.3 preview without dependency overrides or an ignored compatibility failure', async () => {
+    const ci = await workflow('ci')
+    const boot = ci.jobs['mobile-client-boot']!
+    expect(boot.strategy!.matrix.dsh).toContain('0.2.2-alpha.3')
+    expect(boot.strategy!.matrix.dsh).not.toContain('0.2.2-alpha.2')
+    const installation = boot.steps.find(step => step.name === 'Install DSH and pack the Mobile bundle')!.run!
+    expect(installation).toContain('"@deepseek-ai/dsh@${{ matrix.dsh }}"')
+    expect(installation).not.toContain('@deepseek-ai/cordis@')
+    expect(installation).not.toContain('overrides')
+    const current = boot.steps.find(step => step.name === 'Verify current upstream settings, module recovery, picker, attachments and compressed mux')!
+    expect(current.if).toContain("matrix.dsh == '0.2.2-alpha.3'")
+    for (const check of ['smoke:mobile-settings', 'smoke:module-settings', 'smoke:directory-picker', 'smoke:attachments', 'smoke:mobile-sidebar', '--compressed-websocket --diagnostics']) {
+      expect(current.run).toContain(check)
+    }
+    const source = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8')
+    expect(source).not.toContain('continue-on-error: true')
+    for (const script of ['smoke-mobile-push-contract.mjs', 'smoke-mobile-push.mjs']) {
+      const probe = await readFile(new URL(`../scripts/${script}`, import.meta.url), 'utf8')
+      expect(probe).toContain("'0.2.2-alpha.3'")
+      expect(probe).not.toContain("'0.2.2-alpha.2'")
+    }
+  })
+
   it('publishes plugin tags without rebuilding or waiting for Android', async () => {
     const release = await workflow('release')
     expect(release.on.push.tags).toEqual(['v*'])

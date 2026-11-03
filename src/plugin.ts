@@ -154,6 +154,13 @@ export async function settleCleanupSteps(steps: readonly (() => void | Promise<v
 interface BrowserAuthenticatedConnection {
   authenticatedUrl?: (baseUrl: string) => string
   requestRejection?: (request: IncomingMessage) => 401 | 403 | undefined
+  /** Newer DSH index injections require the authenticated request's opaque Peer. */
+  admit?: (request: IncomingMessage) => { readonly peer: object } | { readonly rejection: 401 | 403 }
+}
+
+/** Older collectors ignore the optional Peer; newer collectors receive the public admission result. */
+interface DiagnosticIndexCollector {
+  collectIndexInjections?: (peer?: object) => readonly { readonly kind: string; readonly text?: string }[]
 }
 
 /**
@@ -1212,7 +1219,21 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       windowsFirewall: process.platform === 'win32',
     }
   }
-  const diagnosticsPayload = async (): Promise<Record<string, unknown>> => {
+  const diagnosticsPayload = async (request: IncomingMessage): Promise<Record<string, unknown>> => {
+    const connection = (ctx as Context & { readonly connection?: BrowserAuthenticatedConnection }).connection
+    const admission = connection?.admit?.(request)
+    if (admission !== undefined && 'rejection' in admission) throw new HttpError(admission.rejection, 'authentication_failed')
+    const indexCollector: DiagnosticIndexCollector = ctx.webServer
+    let indexInjections: readonly { readonly kind: string; readonly text?: string }[] = []
+    let indexInspectionUnavailable = false
+    if (typeof indexCollector.collectIndexInjections === 'function') {
+      try { indexInjections = indexCollector.collectIndexInjections(admission?.peer) }
+      catch (inspectionError) {
+        // Optional script observation must not hide other checks or expose another plugin's exception.
+        void inspectionError
+        indexInspectionUnavailable = true
+      }
+    } else indexInspectionUnavailable = true
     let interfaceName: string | undefined
     let networkError: string | undefined
     if (loaded.kind === 'managed') {
@@ -1245,7 +1266,8 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       : undefined
     return collectConnectionDiagnostics({
       dshVersion,
-      competingRemoteChannelBoot: hasCompetingRemoteChannelBoot(ctx.webServer.collectIndexInjections?.() ?? []),
+      competingRemoteChannelBoot: hasCompetingRemoteChannelBoot(indexInjections),
+      indexInspectionUnavailable,
       lan: {
         configured: loaded.kind !== 'unconfigured' || preparedLanSetup !== undefined,
         running: lanController.isRunning(),
@@ -1318,17 +1340,21 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
             }
             if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed')
             const body = await readJsonObject(request, template.maxBodyBytes)
-            if (Object.keys(body).length !== 1 || Object.keys(body).some(key => key !== 'reset' && key !== 'excludedClientModules' && key !== 'measure')
-              || ('measure' in body && body.measure !== true)) throw new HttpError(400, 'bad_request')
+            const keys = Object.keys(body)
+            const configure = keys.every(key => key === 'excludedClientModules' || key === 'revision')
+              && Object.prototype.hasOwnProperty.call(body, 'excludedClientModules')
+              && (body.revision === undefined || typeof body.revision === 'string')
+            const single = keys.length === 1 && (body.reset === true || body.measure === true)
+            if (!configure && !single) throw new HttpError(400, 'bad_request')
             const view = body.measure === true
               ? await gateway.measureClientModules(undefined, operation.signal)
               : body.reset === true
               ? await gateway.resetClientModules(undefined, operation.signal)
-              : await gateway.configureClientModules(body.excludedClientModules, undefined, operation.signal)
+              : await gateway.configureClientModules(body.excludedClientModules, undefined, operation.signal, typeof body.revision === 'string' ? body.revision : undefined)
             sendJson(response, 200, view, false)
           } catch (error) {
             if (!(error instanceof ClientModuleConflictError)) throw error
-            sendJson(response, 409, { error: 'excluded_client_modules_invalid', detail: error.detail }, false)
+            sendJson(response, 409, { error: error.code, detail: error.detail }, false)
           } finally {
             response.removeListener('close', abort)
             operation.abort()
@@ -1354,7 +1380,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           return
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/diagnostics`) {
-          sendJson(response, 200, await diagnosticsPayload(), false)
+          sendJson(response, 200, await diagnosticsPayload(request), false)
           return
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/release`) {

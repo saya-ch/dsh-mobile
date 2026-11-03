@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { stockOwnsMobileDrawer } from '../src/native-mobile.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { activeSessionForSoftEnter, applyNativeMobileLanguageMarker, BROWSER_COMPOSER_EDITOR_QUERY, bindBrowserComposerSoftEnter, bindComposerSoftEnter, bindHistoryAutoLoadGate, composerIsLandingHero, createDocumentCompositionGuard, createHeaderStripPanController, createHistoryAutoLoadGate, createSwitchComputerHold, dispatchComposerImageDrop, drawerScrimVisible, HISTORY_INTENT_LISTENER_OPTIONS, HISTORY_SCROLL_QUIET_MS, installNativeMobileSurface, installStockMobileBack, isBrowserTouchEnterLineBreak, isComposerMediaOriginCurrent, isSoftKeyboardEnterLineBreak, markNativeMobileSettings, measureHeaderStripOverflow, mediaActionClassName, nativeAppOwnsComposerEnter, NATIVE_MOBILE_OVERLAY_QUERY, NATIVE_MOBILE_STYLES, NATIVE_MOBILE_TOGGLE_QUERY, preflightComposerImageDrop, resolveBrowserComposerEditor, resolveComposerSessionOrigin, resolveHistoryGateIdentity, resolveNativeMobileFrame, resolveNativeMobileLanguage, shouldAutoLoadEarlier, stockMainPanelOpen, syncHistoryLoaderLabel, SWITCH_COMPUTER_CLICK_SUPPRESSION_MS, SWITCH_COMPUTER_LONG_PRESS_MS, SWITCH_COMPUTER_MOVE_TOLERANCE_PX, SWITCH_COMPUTER_NATIVE_ACTION } from '../src/native-mobile.js'
 
@@ -26,6 +27,16 @@ function fakeRoot(elements: readonly HTMLElement[], dialogs: readonly HTMLElemen
 }
 
 describe('native mobile presentation', () => {
+  it('leaves a stock responsive drawer with a public opener under upstream ownership', () => {
+    const querySelector = vi.fn().mockReturnValue(null)
+    const frame = { querySelector }
+    expect(stockOwnsMobileDrawer(undefined)).toBe(false)
+    expect(stockOwnsMobileDrawer(frame)).toBe(false)
+    querySelector.mockReturnValue({})
+    expect(stockOwnsMobileDrawer(frame)).toBe(true)
+    expect(querySelector).toHaveBeenLastCalledWith('[data-sidebar-opener]')
+  })
+
   it('keeps a scrollable workspace seat when a narrow drawer has long panel and footer seats', () => {
     const [, overlay] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
     expect(overlay).toContain('[data-dsh-mobile-sidebar][data-open="true"]:not(:has([data-dsh-mobile-settings])) [data-dsh-mobile-sidebar-root] { overflow-y:auto !important; overscroll-behavior-y:contain; }')

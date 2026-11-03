@@ -8,6 +8,16 @@ import org.junit.Test
 
 class SecureWebViewClientTest {
     @Test
+    fun sslCallbackUsesTheCompleteTestedDecisionBeforeProceeding() {
+        val source = clientSource().substringAfter("override fun onReceivedSslError(").substringBefore("override fun onReceivedError(")
+        assertTrue(source.contains("acceptsPinnedWebViewSslError(origin, caCertificate, error.primaryError,"))
+        assertTrue(source.contains("error.url, error.certificate.x509Certificate"))
+        assertTrue(source.indexOf("acceptsPinnedWebViewSslError(") < source.indexOf("handler.proceed()"))
+        assertTrue(source.contains("handler.cancel()"))
+        assertTrue(source.contains("onFailure(LoadFailure.TLS)"))
+    }
+
+    @Test
     fun cpolarPagesReceiveEnoughTimeForTheProxiedClientBundle() {
         assertEquals(120_000L, webViewLoadTimeoutMs("private-name.r8.cpolar.cn"))
         assertEquals(120_000L, webViewLoadTimeoutMs("PRIVATE-NAME.CPOLAR.IO"))

@@ -144,6 +144,27 @@ function gatewayServer(gateway: MobileAccessGateway): Server {
 }
 
 describe('Gateway HTTP rejection diagnostics', () => {
+  it.each(['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ERR_STREAM_PREMATURE_CLOSE'])('closes a controlled %s without sending a false HTTP 400', async nodeCode => {
+    const f = await fixture()
+    const server = gatewayServer(f.gateway)
+    server.once('connection', (socket: Socket) => {
+      server.emit('clientError', Object.assign(new Error('private message'), { code: nodeCode, rawPacket: Buffer.from('private-cookie-and-body') }), socket)
+    })
+    const result = await rawRequest(f.port, '')
+    expect(result).toEqual({ head: '', body: '' })
+    expect(f.entries).toEqual([{ kind: 'transport', code: nodeCode }])
+    expect(f.received).toHaveLength(0)
+    expect(JSON.stringify(f.entries)).not.toContain('private')
+  })
+
+  it('identifies a real invalid HTTP method without retaining the request or credentials', async () => {
+    const f = await fixture()
+    const result = await rawRequest(f.port, 'G@T /private?token=secret HTTP/1.1\r\nHost: localhost\r\n\r\n')
+    expect(result.head).toContain('HTTP/1.1 400 Bad Request')
+    expect(f.entries).toEqual([{ kind: 'parser', status: 400, code: 'HPE_INVALID_METHOD' }])
+    expect(f.received).toHaveLength(0)
+    expect(JSON.stringify(f.entries)).not.toMatch(/private|secret/u)
+  })
   it('returns a real header parser overflow as 431 instead of an ambiguous 400', async () => {
     const f = await fixture()
     const result = await rawRequest(f.port, [

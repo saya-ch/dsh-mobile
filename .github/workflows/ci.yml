@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2, 0.2.1-alpha.3, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-alpha.2]
+        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2, 0.2.1-alpha.3, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-alpha.3]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -52,16 +52,17 @@ jobs:
           echo "DSH_BOOT_SMOKE_MOBILE_TARBALL=$RUNNER_TEMP/plugin-package/dsh-mobile-$mobile_version.tgz" >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium --only-shell
       - name: Verify passive public Web Push lifecycle contracts
-        if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-alpha.2'
+        if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-alpha.3'
         run: npm run smoke:push-contract
-      - name: Verify current upstream settings, picker, attachments and compressed mux
-        if: matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-alpha.2'
+      - name: Verify current upstream settings, module recovery, picker, attachments and compressed mux
+        if: matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-alpha.3'
         run: |
           npm run smoke:mobile-settings
+          npm run smoke:module-settings
           npm run smoke:directory-picker
           npm run smoke:attachments
           npm run smoke:mobile-sidebar
-          npm run smoke:dsh-boot -- --compressed-websocket
+          npm run smoke:dsh-boot -- --compressed-websocket --diagnostics
       - name: Verify packed Declarative Web Push UI and authenticated navigation
         if: matrix.dsh == '0.2.1-rc.2'
         run: npm run smoke:web-push

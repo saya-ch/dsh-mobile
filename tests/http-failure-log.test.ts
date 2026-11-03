@@ -5,6 +5,7 @@ describe('HTTP parser rejection classification', () => {
   it.each([
     { nodeCode: 'ERR_HTTP_REQUEST_TIMEOUT', status: 408, code: 'request_timeout' },
     { nodeCode: 'HPE_HEADER_OVERFLOW', status: 431, code: 'headers_too_large' },
+    ...['HPE_INVALID_METHOD', 'HPE_INVALID_CONSTANT', 'HPE_INVALID_URL', 'HPE_INVALID_VERSION', 'HPE_LF_EXPECTED', 'HPE_PAUSED_H2_UPGRADE'].map(nodeCode => ({ nodeCode, status: 400, code: 'bad_request' })),
     { nodeCode: 'HPE_INVALID_CHUNK_SIZE', status: 400, code: 'bad_request' },
     { nodeCode: 'HPE_INVALID_CONTENT_LENGTH', status: 400, code: 'bad_request' },
     { nodeCode: 'HPE_INVALID_EOF_STATE', status: 400, code: 'bad_request' },
@@ -21,6 +22,29 @@ describe('HTTP parser rejection classification', () => {
 })
 
 describe('bounded HTTP failure diagnostics', () => {
+  it.each(['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ERR_STREAM_PREMATURE_CLOSE'])('keeps %s separate from HTTP rejections', nodeCode => {
+    const entries: HttpFailureEntry[] = []
+    const recorder = new HttpFailureRecorder(entry => { entries.push(entry) })
+    expect(recorder.recordClientError(nodeCode)).toEqual({ kind: 'transport', code: nodeCode })
+    expect(entries).toEqual([{ kind: 'transport', code: nodeCode }])
+    expect(entries[0]).not.toHaveProperty('status')
+  })
+
+  it('bounds transport sampling independently without losing a parser rejection', () => {
+    let now = 0
+    const entries: HttpFailureEntry[] = []
+    const recorder = new HttpFailureRecorder(entry => { entries.push(entry) }, () => now)
+    recorder.recordClientError('ECONNRESET')
+    recorder.recordClientError('EPIPE')
+    recorder.recordClientError('HPE_INVALID_METHOD')
+    now = 30_000
+    recorder.recordClientError('ECONNRESET')
+    expect(entries).toEqual([
+      { kind: 'transport', code: 'ECONNRESET' },
+      { kind: 'parser', status: 400, code: 'HPE_INVALID_METHOD' },
+      { kind: 'transport', code: 'ECONNRESET', suppressed: 1 },
+    ])
+  })
   it('uses only fixed parser and target fields and exact authenticated prompt status fields', () => {
     const entries: HttpFailureEntry[] = []
     const recorder = new HttpFailureRecorder(entry => { entries.push(entry) })

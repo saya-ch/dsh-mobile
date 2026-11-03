@@ -2,6 +2,26 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Android 0.7.2 - 2026-11-04
+
+- Android: accept a pinned gateway's WebSocket certificate callback when the secure authority and verified leaf match the paired HTTPS origin. Host, port, CA, certificate validity, signature and SAN checks remain required. Cleartext, foreign authorities and URL credentials remain rejected. Thanks @LUgABeEEE for [#343](https://github.com/saya-ch/dsh-mobile/pull/343).
+
+## 0.8.2 - 2026-11-04
+
+- Move the current preview compatibility lane to DSH0.2.2-alpha.3, retaining the same packed settings, module recovery, picker, attachment, sidebar and compressed Workspace checks. Fresh alpha.2 installs have an independently reproduced upstream settings-write failure; upgrade to alpha.3. No DSH source patch, dependency override or ignored test failure is used.
+- Let newer stock DSH own its responsive modal sidebar instead of adapting its hidden desktop column. Keep upstream focus, inert state and Escape dismissal; the dedicated Mobile layout and older stock fallback remain separate.
+
+- Restore Android Back dismissal of current DSH settings dialogs whose empty backdrop omits `aria-hidden`. Retain older backdrop support and refuse interactive, labelled or editable sibling content rather than clicking arbitrary dialog actions. No Android App update is required.
+- Correct the FRP attach-mode step heading and hide the SSH deployment fields. Switching modes preserves unsaved SSH values without saving or deploying. Thanks @LunarFeller for [#341](https://github.com/saya-ch/dsh-mobile/issues/341) and [#342](https://github.com/saya-ch/dsh-mobile/pull/342).
+- Separate provider-reported readiness, system DNS and computer-egress observations. Distinguish tailnet, Fake-IP, private, mixed and unavailable DNS context; a failed Funnel-only private path no longer declares public ingress down. Preserve real TLS/HTTP failures and mark phone, authenticated pages, resources and WebSockets unverified. Cards and copied reports share localized scope and guidance. Thanks @z2140014118-stack for [#340](https://github.com/saya-ch/dsh-mobile/issues/340). This diagnostic change does not enable private tailnet ingress or silently use public DoH.
+- Supply the authenticated request Peer to newer DSH index-injection collectors. This fixes the diagnostic API's reproduced 500 on DSH0.2.2-alpha.2 without creating a replacement Peer or bypassing authentication. An optional script-inspection failure is reported as unverified while other checks remain available.
+
+- Separate inbound transport resets from HTTP parser rejections. Transport diagnostics carry no HTTP status; malformed methods and other fixed parser codes remain distinguishable without logging raw packets, URLs or credentials. Thanks @smlfx for the diagnostic report in [#338](https://github.com/saya-ch/dsh-mobile/issues/338); the reported iroh customization/scanning failure remains under investigation.
+- Identify customization manifest request/body failures separately from extension resource failures while retaining explicit retry, cancellation and existing working customization.
+- Refuse module selections computed against an older catalog, retain the draft for explicit rereading, and explain the measured gzip subtotal and unknown sizes before applying the minimal preset. Keep required Mobile modules and their dependencies; default loading is unchanged. Thanks @LUgABeEEE for [#328](https://github.com/saya-ch/dsh-mobile/pull/328).
+- Protect the installed General settings provider during minimal loading, keeping its sidebar launcher available after reopening. Old exclusions of that now-required provider use the existing explicit device recovery without opening settings first. Loading all modules affects only the current device; restoring defaults instead inherits computer/profile exclusions. This addresses a reproduced settings-inaccessibility case related to [#324](https://github.com/saya-ch/dsh-mobile/issues/324) and the follow-up in [#337](https://github.com/saya-ch/dsh-mobile/issues/337), not every reported layout symptom.
+- Update artifact-download actions, development maintenance dependencies and eventsource-parser; clarify skin module-selection limits and iroh failure diagnostics. Android0.7.2/build87 is released independently with its notes above; native startup caching is not restored.
+
 ## 0.8.1 - 2026-11-01
 
 - Recognize the four-seat settings grid introduced in DSH 0.2.2-alpha.2. Preserve upstream navigation and grid placement while retaining Mobile's accessible close-button target; older two-column settings keep their existing mobile layout.

@@ -12,6 +12,18 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.RenderProcessGoneDetail
+import java.security.cert.X509Certificate
+
+/** A matching secure authority alone cannot authorize an untrusted certificate callback. */
+internal fun acceptsPinnedWebViewSslError(
+    origin: GatewayOrigin,
+    caCertificate: ByteArray?,
+    primaryError: Int,
+    url: String,
+    leaf: X509Certificate?,
+): Boolean = caCertificate != null && primaryError == SslError.SSL_UNTRUSTED
+    && GatewayUrlPolicy.isPinnedAuthority(origin, url)
+    && PinnedTls.acceptsWebViewLeaf(origin, caCertificate, leaf)
 
 /** Categories of main-frame failures that need a native recovery surface. */
 internal enum class LoadFailure {
@@ -130,9 +142,11 @@ internal class SecureWebViewClient(
     }
 
     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
-        val pinned = caCertificate != null && error.primaryError == SslError.SSL_UNTRUSTED
-            && GatewayUrlPolicy.isSameOrigin(origin, error.url)
-            && PinnedTls.acceptsWebViewLeaf(origin, caCertificate, error.certificate.x509Certificate)
+        // A WebSocket handshake reaches this callback with a `wss:` URL, so an exact `https:`
+        // origin check rejects the page's own stream channel and cancels the document it belongs
+        // to. Host and port must still match exactly, and the leaf must pin.
+        val pinned = acceptsPinnedWebViewSslError(origin, caCertificate, error.primaryError,
+            error.url, error.certificate.x509Certificate)
         if (pinned) {
             handler.proceed()
         } else {

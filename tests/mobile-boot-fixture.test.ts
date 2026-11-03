@@ -35,8 +35,9 @@ interface OnboardingDialog {
  * `hiddenModalsBefore` models elements that stay in the DOM ahead of the real
  * onboarding while hidden, which is exactly what first() would return.
  */
-function onboardingPhone(dialogs: readonly OnboardingDialog[], { hiddenModalsBefore = [] }: {
+function onboardingPhone(dialogs: readonly OnboardingDialog[], { hiddenModalsBefore = [], stalled = false }: {
   hiddenModalsBefore?: readonly OnboardingDialog[]
+  stalled?: boolean
 } = {}) {
   let index = 0
   const clicked: string[] = []
@@ -46,7 +47,7 @@ function onboardingPhone(dialogs: readonly OnboardingDialog[], { hiddenModalsBef
     const selected = current()?.buttons[button]
     if (selected === undefined) throw new Error('No current fixture button')
     clicked.push(selected.ariaLabel ?? selected.text)
-    index += 1
+    if (!stalled) index += 1
   }
   // first() resolves the earliest matching node in DOM order, so a persistent
   // hidden modal wins over every later dialog and is never consumed.
@@ -73,8 +74,10 @@ function onboardingPhone(dialogs: readonly OnboardingDialog[], { hiddenModalsBef
   }
   const phone = {
     locator: () => ({ first: () => dialog }),
+    evaluate: async () => ({ modals: [{ label: firstMatch()?.label, visible: true, alerts: ['controlled acknowledgement failure'] }] }),
     waitForFunction: async (_predicate: unknown, previous: string) => {
       waited.push(previous)
+      if (stalled) throw new Error('Controlled onboarding completion timeout')
       expect(current()?.label).not.toBe(previous)
     },
   }
@@ -208,6 +211,16 @@ describe('owned Mobile development fixture', () => {
     await fixture.dismissOnboarding(state.phone)
     expect(state.clicked).toEqual(['Configure later', 'Continue'])
     expect(state.waited).toEqual(['Add an API key to get started', 'Internal Testing Notice'])
+  })
+
+  it('reports a stalled acknowledged action without replaying it or skipping the dialog', async () => {
+    const state = onboardingPhone([{ label: 'Preview Notice', buttons: [{ text: 'Continue' }] }], { stalled: true })
+    const failure = await fixture.dismissOnboarding(state.phone).then(() => undefined, (error: Error) => error)
+    expect(failure?.message).toContain('Owned onboarding action did not finish:')
+    expect(failure?.message).toContain('controlled acknowledgement failure')
+    expect(failure?.cause).toEqual(new Error('Controlled onboarding completion timeout'))
+    expect(state.clicked).toEqual(['Continue'])
+    expect(state.waited).toEqual(['Preview Notice'])
   })
 
   it.each(['Internal Testing Notice', 'Preview Notice', '内测声明', '预览版说明'])('acknowledges only the known %s preview notice', async label => {

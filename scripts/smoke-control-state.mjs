@@ -608,7 +608,36 @@ try {
       await field('token').fill('fixture-token-not-a-secret-012345')
       await field('publicOrigin').fill('https://1.2.3.4')
       assert.equal(await page.locator('.dsh-mobile-control__frp-fields [aria-invalid=true]').count(), 0, 'Corrected fields kept errors')
+      const vpsGroup = page.locator('.dsh-mobile-control__frp-group').nth(1)
+      const sshFields = vpsGroup.locator('.dsh-mobile-control__frp-fields')
+      const copy = await page.evaluate(locale => window.mobileClient.MOBILE_CONTROL_MESSAGES[locale], language)
+      const openVps = async () => { if (!await vpsGroup.evaluate(node => node.open)) await vpsGroup.locator('summary').click() }
+      await openVps()
+      await sshFields.locator('input').nth(0).fill('owned-fixture-user')
+      await sshFields.locator('input').nth(1).fill('2222')
+      await sshFields.locator('input').nth(2).fill('/owned-fixture/key')
+      const checkMode = async attach => {
+        await openVps()
+        assert.deepEqual({ title: await vpsGroup.locator('summary').textContent(), display: await sshFields.evaluate(node => getComputedStyle(node).display), visible: await sshFields.isVisible() },
+          { title: attach ? copy.frpStep2TitleAttach : copy.frpStep2Title, display: attach ? 'none' : 'grid', visible: !attach }, 'FRP step-2 heading and SSH fields disagree with attach/deploy mode')
+        assert.equal(await vpsGroup.getByRole('button', { name: copy.vpsDeploy, exact: true }).isVisible(), !attach)
+        if (attach) {
+          for (const name of [copy.frpAttachPlan, copy.frpAttachToken]) {
+            assert.equal(await vpsGroup.getByRole('button', { name, exact: true }).isVisible(), true, 'An attach action disappeared with the SSH fields')
+          }
+        }
+        assert.equal(await vpsGroup.getByRole('button', { name: copy.frpAttachSelfCheck, exact: true }).isVisible(), false, 'Self-check appeared before FRP configuration was saved')
+      }
+      await checkMode(false)
       await field('mode').selectOption('attach')
+      await checkMode(true)
+      await field('mode').selectOption('deploy')
+      await checkMode(false)
+      assert.deepEqual(await sshFields.locator('input').evaluateAll(nodes => nodes.map(node => node.value)), ['owned-fixture-user', '2222', '/owned-fixture/key'], 'Changing mode discarded SSH draft fields')
+      await field('mode').selectOption('attach')
+      await checkMode(true)
+      assert.equal(count('POST', postPath), 0, 'Changing mode silently saved configuration')
+      assert.equal(count('POST', `${prefix}/remote/frp/vps/deploy`), 0, 'Changing mode started VPS deployment')
       await configure.click()
       assert.equal(await field('vhostHttpPort').getAttribute('aria-invalid'), 'true')
       await field('entryTls').selectOption('self-signed')
@@ -744,6 +773,35 @@ try {
       assert.equal(await rows.locator('img').count(), 0, 'An error code was interpreted as HTML')
       await page.locator('.dsh-mobile-control__diagnostic-copy').click()
       assert.equal(await page.evaluate(() => window.fixtureCopiedReport), report)
+    })
+    cases++
+  }
+  for (const language of ['en', 'it', 'zh']) {
+    const checks = [
+      { id: 'remote-service', status: 'ok', reason: 'remote-service-ready', scope: 'computer', facts: { provider: 'tailscale' } },
+      { id: 'remote-dns', status: 'info', reason: 'dns-tailnet', scope: 'computer' },
+      { id: 'remote', status: 'warning', reason: 'remote-tailnet-shadowed', scope: 'computer' },
+      { id: 'phone-network', status: 'info', reason: 'phone-network-unknown', scope: 'phone' },
+    ].map(entry => ({ ...entry, label: 'Host label', detail: 'Host fallback', action: '' }))
+    await withControl(browser, `Diagnostic measurement scope ${language}`, {
+      layoutFixture: true, language, locale: language === 'zh' ? 'zh-CN' : language === 'it' ? 'it-IT' : 'en-US', width: 360,
+      diagnostics: { version: 1, overall: 'attention', generatedAt: Date.UTC(2026, 10, 2), checks },
+    }, async ({ page, consumed, settle }) => {
+      const previous = await consumed(`${prefix}/diagnostics`)
+      const name = await page.evaluate(locale => window.mobileClient.MOBILE_CONTROL_MESSAGES[locale].openDiagnostics, language)
+      await page.getByRole('button', { name, exact: true }).click()
+      await settle(`${prefix}/diagnostics`, previous)
+      const scopeCopy = await page.evaluate(locale => window.mobileClient.DIAGNOSTIC_SCOPE_MESSAGES[locale], language)
+      const rows = page.locator('.dsh-mobile-control__diagnostic-check')
+      assert.equal(await rows.count(), checks.length)
+      assert.equal(await rows.locator('.dsh-mobile-control__diagnostic-scope').count(), checks.length)
+      assert.equal(await rows.filter({ has: page.getByText(scopeCopy.phone, { exact: true }) }).count(), 1)
+      const report = await page.locator('.dsh-mobile-control__diagnostic-report').textContent()
+      assert(report.includes(scopeCopy.coverage) && report.includes(`[${scopeCopy.computer}]`) && report.includes(`[${scopeCopy.phone}]`), 'Copied report dropped measurement limits')
+      const expected = await page.evaluate(locale => window.mobileClient.DIAGNOSTIC_NETWORK_MESSAGES[locale]['remote-tailnet-shadowed'][0], language)
+      assert(report.includes(expected), 'Copied report lost the localized tailnet caveat')
+      assert.equal(await rows.filter({ hasText: expected }).count(), 1)
+      assert.equal(await page.locator('body').evaluate(node => node.scrollWidth <= window.innerWidth + 1), true, 'Diagnostic copy overflowed the narrow viewport')
     })
     cases++
   }

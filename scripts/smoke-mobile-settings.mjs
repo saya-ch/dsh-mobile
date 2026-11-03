@@ -48,11 +48,29 @@ async function runCase({ width, height = 900, locale, bridgeMode }) {
     hasTouch: true, reducedMotion: 'reduce' })
   const errors = []
   const settingsWrites = []
+  const settingsWire = []
+  const wireReads = new Set()
   try {
     const page = await context.newPage()
     page.on('pageerror', error => errors.push(error.message))
     page.on('request', request => {
       if (request.method() === 'POST' && /\/api\/.*settings.*mutate/u.test(new URL(request.url()).pathname)) settingsWrites.push(new URL(request.url()).pathname)
+    })
+    page.on('response', response => {
+      const path = new URL(response.url()).pathname
+      if (!/\/api\/.*settings.*mutate/u.test(path)) return
+      const task = (async () => {
+        const body = await response.json().catch(() => undefined)
+        const value = body?.result ?? body
+        const result = value !== null && typeof value === 'object' ? value : undefined
+        settingsWire.push({ path, status: response.status(), ok: result?.ok,
+          errorCode: result?.error?.code ?? result?.code,
+          errorMessage: typeof result?.error?.message === 'string'
+            ? sanitized(result.error.message).replaceAll(root, '<owned-profile>').slice(0, 240) : undefined,
+          fields: result === undefined ? [] : Object.keys(result) })
+      })().catch(() => { settingsWire.push({ path, status: response.status(), unavailable: true }) })
+      wireReads.add(task)
+      void task.finally(() => wireReads.delete(task))
     })
     await page.addInitScript(({ bridgeMode }) => {
       let moduleLoader
@@ -281,11 +299,24 @@ async function runCase({ width, height = 900, locale, bridgeMode }) {
     assert.deepEqual(errors, [], 'Settings generated unhandled page errors')
     await page.evaluate(() => { window.__settingsMarkdownRoot.unmount() })
     await page.evaluate(() => { window.__settingsRetainedDocument = 'retain settings navigation' })
+    assert.equal(await page.evaluate(() => {
+      const event = new Event('dsh-mobile:native-back', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }), true, 'Native Back did not claim General settings')
+    await row.waitFor({ state: 'hidden' })
+    assert.equal(await page.evaluate(() => window.__settingsRetainedDocument), 'retain settings navigation', 'Native Back replaced the DSH document')
+    await openSettings(page)
     await close.click()
     await row.waitFor({ state: 'hidden' })
     assert.equal(await page.evaluate(() => window.__settingsRetainedDocument), 'retain settings navigation', 'Closing settings replaced the DSH document')
     await page.locator('.dshm-main').waitFor({ state: 'visible' })
     cases.push({ width, height, locale, bridgeMode, expectedLanguage, language: geometry.fontRowLanguage, typographySupport })
+  } catch (error) {
+    await Promise.allSettled(wireReads)
+    const httpEvents = dsh.logs().split(/\r?\n/u).filter(line => /http failure|auth failure/u.test(line)).slice(-12)
+    console.error('SETTINGS_SMOKE_FAILURE_CONTEXT', JSON.stringify({ width, height, locale, bridgeMode, settingsWire: settingsWire.slice(-20), httpEvents }))
+    throw error
   } finally { await context.close() }
 }
 

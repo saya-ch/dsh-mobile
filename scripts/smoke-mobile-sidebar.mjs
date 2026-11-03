@@ -45,7 +45,8 @@ const fixtureClient = `window.__ModuleLoader__.load({id:${JSON.stringify(fixture
  function Stop(){return h('button',{id:'sidebar-fixture-stop',style:{minWidth:44,minHeight:44},onClick:()=>state.clicks.push('stop')},'Owned Stop control')}
  function apply(ctx){ctx.effect(()=>{const off=[];state.setLong=value=>{state.long=value;update()};state.setFooterMode=value=>{state.footerMode=value;update()};state.hasSession=id=>ctx.sessions.list.getSnapshot().byId[id]!==undefined;state.openSession=id=>ctx.uiWorkspace.openSession(id);state.openRightbar=()=>{if(!ctx.sidebarRight.isExpanded())ctx.sidebarRight.toggleExpanded()};
  for(const [name,id,component] of [['sidebar.footer.action','sidebar-fixture-footer',Footer],['shell.overlay','sidebar-fixture-overlay',Overlay],['conversation.input.right','sidebar-fixture-stop',Stop]])off.push(ctx.slots.inject(name,()=>ctx.slots.register({name,id},component)));
- for(let i=0;i<5;i++){const id='sidebar-fixture-panel-'+i;off.push(ctx.slots.inject('sidebar.panellist',()=>ctx.slots.register({name:'sidebar.panellist',id,label:'Owned panel '+i},()=>h('span',null,'P'))));off.push(ctx.slots.inject('main',()=>ctx.slots.register({name:'main',key:id},()=>h('div',{'data-sidebar-fixture-panel':id},'Owned panel '+i))))}
+ const panels=[];state.clearPanels=()=>panels.splice(0).reverse().forEach(dispose=>dispose());off.push(()=>state.clearPanels());
+ for(let i=0;i<5;i++){const id='sidebar-fixture-panel-'+i;panels.push(ctx.slots.inject('sidebar.panellist',()=>ctx.slots.register({name:'sidebar.panellist',id,label:'Owned panel '+i},()=>h('span',null,'P'))));panels.push(ctx.slots.inject('main',()=>ctx.slots.register({name:'main',key:id},()=>h('div',{'data-sidebar-fixture-panel':id},'Owned panel '+i))))}
  return()=>{off.reverse().forEach(dispose=>dispose());delete window.__sidebarFixture}})}return{inject:['slots','uiWorkspace','sessions','sidebarRight'],apply};}});`
 
 async function addFixture(home) {
@@ -174,6 +175,15 @@ async function sidebarRetentionDiagnostics(frontend, id) {
           overflowY: getComputedStyle(root).overflowY, rect: rect(root) },
       },
       targetRect: rect(target),
+      targetAncestors: target === null ? [] : (() => {
+        const result = []
+        for (let node = target; node !== null && result.length < 12; node = node.parentElement) {
+          const css = getComputedStyle(node)
+          result.push({ tag: node.tagName, class: node.className, display: css.display, visibility: css.visibility,
+            opacity: css.opacity, hidden: node.hidden, inert: node.inert, rect: rect(node) })
+        }
+        return result
+      })(),
       viewport: { width: innerWidth, height: innerHeight },
     }
   }, { frontend, id })
@@ -198,7 +208,9 @@ async function checkSidebarScrollMemory(frontend, sessions) {
       return { top: list.scrollTop, outer: root.scrollTop, offset: row.getBoundingClientRect().top - list.getBoundingClientRect().top }
     }, id)
     assert(before.top > 0, `${frontend}: retention test did not reach the lower list`)
-    await row.tap()
+    await row.tap().catch(async error => {
+      throw new Error(`${frontend}: Session selection was not reachable ${JSON.stringify(await sidebarRetentionDiagnostics(frontend, id))}`, { cause: error })
+    })
     await phone.waitForFunction(id => document.querySelector('[data-conversation-session]')?.dataset.conversationSession === id, id)
     // The dedicated shell closes on selection; stock DSH retains its drawer.
     if (frontend === 'stock' && await sidebar().getAttribute('data-open') === 'true') {
@@ -224,6 +236,38 @@ async function checkSidebarScrollMemory(frontend, sessions) {
     assert.equal(await phone.locator('[data-composer-input]').evaluate(node => node.contains(document.activeElement)), false, 'Session switching unexpectedly focused the composer')
   }
   record.checks.push(`${frontend}: lower-list position, visible keyed row and outer scroll survived three session switches without scrolling again`)
+}
+
+async function checkUpstreamDrawer(sessions) {
+  // The preceding dedicated checks own the synthetic five panels/280px footer.
+  // This control exercises upstream's native drawer without those stress slots.
+  await phone.evaluate(() => {
+    window.__sidebarFixture.setFooterMode('hidden')
+    window.__sidebarFixture.clearPanels()
+  })
+  await frames(phone)
+  for (const viewport of [{ width: 393, height: 659 }, { width: 659, height: 393 }]) {
+    await phone.setViewportSize(viewport)
+    const opener = phone.locator('[data-sidebar-opener]')
+    await opener.waitFor({ state: 'visible' })
+    assert.equal(await phone.locator('[data-dsh-mobile-frame]').count(), 0, 'Legacy frame adaptation claimed native drawer layout')
+    assert.equal(await phone.locator('.dsh-native-mobile-backdrop:not([hidden])').count(), 0, 'Legacy scrim covered upstream navigation')
+    await opener.tap()
+    const drawer = phone.locator('[data-shortcut-modal="sidebar"][aria-modal="true"]')
+    await drawer.waitFor({ state: 'visible' })
+    const row = drawer.locator(`[data-row-key="session:${sessions[11]}"]`)
+    await row.scrollIntoViewIfNeeded()
+    await hit(row, 'Upstream native drawer Session')
+    await phone.waitForFunction(id => document.querySelector('[data-conversation-session]')?.dataset.conversationSession === id, sessions[11])
+    await drawer.waitFor({ state: 'hidden' })
+    await opener.tap()
+    await drawer.waitFor({ state: 'visible' })
+    await phone.keyboard.press('Escape')
+    await drawer.waitFor({ state: 'hidden' })
+    const hiddenDesktop = await phone.locator('[class*="_sidebarCol"]').evaluate(node => ({ inert: node.inert, visibility: getComputedStyle(node).visibility }))
+    assert(hiddenDesktop.inert && hiddenDesktop.visibility === 'hidden', 'Mobile overrode the hidden desktop sidebar')
+    record.checks.push(`stock ${viewport.width}x${viewport.height}: upstream modal opener, visible row hit/navigation, selection dismissal and Escape; desktop sidebar remains inert/hidden`)
+  }
 }
 
 async function geometry(label) {
@@ -395,13 +439,17 @@ try {
       // The launch-token exchange redirects to ./ and drops all query fields.
       await phone.goto(launchUrl, { waitUntil: 'domcontentloaded' })
       await phone.goto(stockPreview.href, { waitUntil: 'domcontentloaded' })
-      await phone.locator('[data-dsh-mobile-frame]').waitFor({ state: 'attached', timeout: CLIENT_TIMEOUT_MS })
+      await phone.locator('[data-dsh-mobile-frame],[data-sidebar-opener]').first().waitFor({ state: 'attached', timeout: CLIENT_TIMEOUT_MS })
       assert.equal(await phone.locator('.dshm-shell').count(), 0, 'Stock control loaded the dedicated layout')
     }
     await phone.waitForFunction(() => typeof window.__sidebarFixture?.openSession === 'function')
     await phone.waitForFunction(id => window.__sidebarFixture.hasSession(id), sessions[0], { timeout: CLIENT_TIMEOUT_MS })
     await phone.evaluate(id => window.__sidebarFixture.openSession(id), sessions[0])
     await phone.locator('[data-composer-input][contenteditable="true"]').waitFor({ state: 'visible', timeout: CLIENT_TIMEOUT_MS })
+    if (frontend === 'stock' && await phone.locator('[data-sidebar-opener]').count() > 0) {
+      await checkUpstreamDrawer(sessions)
+      continue
+    }
     if (frontend === 'dedicated' && !negative) {
       for (const width of [393, 719, 720, 721, 844, 899, 900, 901]) {
         await phone.setViewportSize({ width, height: 800 })

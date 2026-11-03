@@ -939,6 +939,44 @@ describe('stock DSH lifecycle', () => {
     })
   })
 
+  it('passes the admitted request Peer to newer index collectors without creating another Peer', async () => {
+    const mounted = await mount()
+    const peer = Object.freeze({ fixture: 'opaque request peer' })
+    const admit = vi.fn(() => ({ peer }))
+    Object.assign(mounted.context.get('connection')!, { admit })
+    const collect = vi.fn((received?: object) => {
+      if (received !== peer) throw new Error('Missing admitted Peer')
+      return [{ kind: 'script', text: 'window.__DSH_REMOTE_CHANNEL_BOOT__=true' }]
+    })
+    Object.assign(mounted.context.webServer, { collectIndexInjections: collect })
+    const response = await invoke(mounted.route, 'GET', '/api/mobile-access/diagnostics')
+    expect(response.status).toBe(200)
+    expect(admit).toHaveBeenCalledTimes(1)
+    expect(collect).toHaveBeenCalledExactlyOnceWith(peer)
+    expect(JSON.parse(response.body).checks).toContainEqual(expect.objectContaining({ reason: 'competing-remote-channel' }))
+  })
+
+  it('preserves a newer admission rejection instead of inspecting injections under a fabricated Peer', async () => {
+    const mounted = await mount()
+    Object.assign(mounted.context.get('connection')!, { admit: () => ({ rejection: 403 }) })
+    const collect = vi.fn(() => [])
+    Object.assign(mounted.context.webServer, { collectIndexInjections: collect })
+    const response = await invoke(mounted.route, 'GET', '/api/mobile-access/diagnostics')
+    expect(response.status).toBe(403)
+    expect(collect).not.toHaveBeenCalled()
+  })
+
+  it('contains a failed optional script inspection without reporting no conflict or leaking its error', async () => {
+    const mounted = await mount()
+    Object.assign(mounted.context.webServer, { collectIndexInjections: () => { throw new Error('private hook data and token') } })
+    const response = await invoke(mounted.route, 'GET', '/api/mobile-access/diagnostics')
+    expect(response.status).toBe(200)
+    const report = JSON.parse(response.body)
+    expect(report.checks).toContainEqual(expect.objectContaining({ reason: 'plugin-inspection-unavailable', status: 'warning' }))
+    expect(report.checks).toContainEqual(expect.objectContaining({ reason: 'versions-current' }))
+    expect(response.body).not.toContain('private hook data')
+  })
+
   it('allows a private LAN Host on the loopback desktop admin route', async () => {
     const mounted = await mount()
     const allowed = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/control', '', '192.168.50.23')

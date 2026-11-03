@@ -45,7 +45,7 @@ describe('connection diagnostics', () => {
     ]))
   })
 
-  it('reports missing LAN setup as an actionable blocking problem', async () => {
+  it('reports missing inactive LAN setup as an optional next step rather than a failed connection', async () => {
     const result = await collectConnectionDiagnostics({
       ...healthy,
       lan: { configured: false, running: false },
@@ -55,9 +55,9 @@ describe('connection diagnostics', () => {
       remote: async () => ({ state: 'not-applicable' }),
     })
 
-    expect(result.overall).toBe('error')
+    expect(result.overall).toBe('ok')
     expect(result.checks).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'network', status: 'error', reason: 'lan-setup-required', action: expect.stringContaining('选择网卡') }),
+      expect.objectContaining({ id: 'network', status: 'info', reason: 'lan-setup-required', action: expect.stringContaining('选择网卡') }),
     ]))
   })
 
@@ -127,7 +127,7 @@ describe('connection diagnostics', () => {
 
     expect(result.overall).toBe('error')
     expect(result.checks).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'firewall', status: 'warning', action: expect.stringContaining('setup') }),
+      expect.objectContaining({ id: 'firewall', status: 'warning', action: expect.stringContaining('不要关闭整个防火墙') }),
       expect.objectContaining({ id: 'remote', status: 'error', reason: 'remote-controller-error', facts: { provider: 'tailscale', controllerCode: 'funnel_permission_required' }, action: '继续完成 Tailscale Funnel 授权。' }),
     ]))
   })
@@ -171,8 +171,8 @@ describe('connection diagnostics', () => {
         status: 'error',
         reason: 'remote-fake-ip',
         facts: { provider: 'tailscale', endpointSuffix: '*.ts.net' },
-        detail: expect.stringContaining('VPN 或 DNS 代理'),
-        action: expect.stringContaining('cpolar'),
+        detail: expect.stringContaining('不是公网故障的证明'),
+        action: expect.stringContaining('不要关闭证书验证'),
       }),
     ]))
   })

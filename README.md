@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.1">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.2">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,14 +36,14 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.1**。适配 DSH 新版设置布局，支持在局域网面板切换网卡并保留已有配对，改善触屏控件适配，并补充面向插件作者的移动适配指南。Android App 无需同步更新。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.1) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.2**。改进连接诊断、最小模块加载与设备恢复，修复 FRP 接入面板和 Android 返回层级，并适配 DSH 0.2.2-alpha.3。插件与 Android App 独立更新。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.2) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件独立编号、独立发布，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.1/dsh-mobile-android-v0.7.1.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.1/dsh-mobile-android-v0.7.1.apk"><strong>下载 Android App 0.7.1（兼容版）</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.1/dsh-mobile-android-v0.7.1-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.1">版本说明与校验文件</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.2/dsh-mobile-android-v0.7.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.2/dsh-mobile-android-v0.7.2.apk"><strong>下载 Android App 0.7.2（兼容版）</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.2/dsh-mobile-android-v0.7.2-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.2">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -447,6 +447,7 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.8.2` | 当前预览验证目标为 `0.2.2-alpha.3`，同时保留 `0.2.1-rc.5` 等既有版本检查。`0.2.2-alpha.2` 全新安装可能因上游依赖组合不一致而无法保存设置，请升级到 alpha.3；[独立复现](https://github.com/deepseek-ai/deepseek-harness/discussions/11994#discussioncomment-19373554)。历史 alpha.2 验证不代表其当前新装依赖仍可用 |
 | `0.8.1` | 新增 `0.2.1-rc.5`、`0.2.2-alpha.2` 的打包启动与设置、目录选择、附件、侧栏、压缩 Workspace 连接检查；完整版本矩阵见 [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml) |
 | `0.8.0` | 网页推送的公共接口、设置、加密载荷与点击归属检查固定在 `0.2.1-rc.2 / rc.3`；通用启动与布局矩阵见 [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml)。iOS 真机结果采信贡献者实测；浏览器检查不代表所有手机、第三方插件或公网线路已验收 |
 

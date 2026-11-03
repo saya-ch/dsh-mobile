@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { assertPinnedSslSource } from './android-ssl-release-policy.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
@@ -215,11 +216,7 @@ async function checkAndroid() {
   if (![clientSource, mobileLayoutSource, nativeMobileSource].every(source => !source.includes('dsh-mobile-control-locale'))) {
     fail('Web plugin language must follow DSH and must not persist an independent locale preference')
   }
-  if (!webViewClient.includes('error.primaryError == SslError.SSL_UNTRUSTED')
-    || !webViewClient.includes('PinnedTls.acceptsWebViewLeaf')
-    || !webViewClient.includes('handler.proceed()')) {
-    fail('Android WebView private-CA handling must remain restricted to the pinned exact-origin leaf')
-  }
+  assertPinnedSslSource(webViewClient)
 
   const densitySizes = {
     mdpi: 48,
