@@ -64,7 +64,10 @@ async function runCase({ width, height = 900, locale, bridgeMode }) {
         const value = body?.result ?? body
         const result = value !== null && typeof value === 'object' ? value : undefined
         settingsWire.push({ path, status: response.status(), ok: result?.ok,
-          errorCode: result?.error?.code ?? result?.code, fields: result === undefined ? [] : Object.keys(result) })
+          errorCode: result?.error?.code ?? result?.code,
+          errorMessage: typeof result?.error?.message === 'string'
+            ? sanitized(result.error.message).replaceAll(root, '<owned-profile>').slice(0, 240) : undefined,
+          fields: result === undefined ? [] : Object.keys(result) })
       })().catch(() => { settingsWire.push({ path, status: response.status(), unavailable: true }) })
       wireReads.add(task)
       void task.finally(() => wireReads.delete(task))
