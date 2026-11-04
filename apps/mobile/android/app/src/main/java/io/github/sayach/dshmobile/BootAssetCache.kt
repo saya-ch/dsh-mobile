@@ -45,8 +45,13 @@ internal object BootAssetPolicy {
     )
     private val COMBO_REV = Regex("&rev=([A-Za-z0-9_-]{4,128})$")
 
-    /** A single plugin file: `/plugins/<id>/client.js?rev=<hash>` (no combo marker). */
-    private val SINGLE_PLUGIN = Regex("^/plugins/[A-Za-z0-9@._/-]+/client\\.(?:js|css)$")
+    /**
+     * A single plugin file: `/plugins/<id>/client.<facet>.js?rev=<hash>`.
+     *
+     * Plugins split their client into facets (`client.statistics.js`, `client.peak.js`), so the
+     * name is `client` followed by optional dot-segments. Source maps carry `.map` and never match.
+     */
+    private val SINGLE_PLUGIN = Regex("^/plugins/[A-Za-z0-9@._/-]+/client(?:\\.[A-Za-z0-9_-]+)*\\.(?:js|css)$")
     private val REV_ONLY = Regex("^rev=[A-Za-z0-9_-]{4,128}$")
 
     /** An owned asset whose file name already carries its content digest. */

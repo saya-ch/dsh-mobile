@@ -113,4 +113,14 @@ class BootAssetPluginComboTest {
         assertNull(BootAssetPolicy.key(origin, "$base/assets/index.js"))
         assertNull(BootAssetPolicy.key(origin, "$base/assets/logo.png"))
     }
+
+    @Test
+    fun acceptsPluginFacetScriptsButNotSourceMaps() {
+        for (facet in listOf("client.statistics.js", "client.sidebar-order.js", "client.peak.js")) {
+            val url = "$base/plugins/dsh-cost-meter/$facet?rev=e46a240884f6"
+            assertEquals(url, BootAssetPolicy.key(origin, url))
+            assertEquals(true, BootAssetPolicy.isImmutable(url))
+        }
+        assertNull(BootAssetPolicy.key(origin, "$base/plugins/dsh-cost-meter/client.statistics.js.map?rev=e46a240884f6"))
+    }
 }

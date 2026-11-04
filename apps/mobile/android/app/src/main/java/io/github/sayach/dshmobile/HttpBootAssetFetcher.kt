@@ -86,7 +86,11 @@ internal class HttpBootAssetFetcher(
         } catch (_: RuntimeException) {
             if (cancellation.isCancelled) BootAssetFetch.Cancelled else BootAssetFetch.Failed
         } finally {
-            runCatching { connection.disconnect() }
+            // A completed response returns its socket to the connection pool, so the next batch can
+            // reuse the same TCP + TLS session. Calling `disconnect()` unconditionally threw that
+            // away and re-handshaked for every batch; only a cancelled attempt needs the explicit
+            // disconnect, because that is what unblocks a socket read.
+            if (cancellation.isCancelled) runCatching { connection.disconnect() }
         }
     }
 
