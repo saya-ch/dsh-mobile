@@ -20,7 +20,6 @@ import { constants } from 'node:fs'
 import { access } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 
 /** Result of the permission probe. */
 export type MacFileAccessStatus = 'ok' | 'missing'
@@ -119,7 +118,16 @@ export class MacFileAccessProbe {
 /** System Settings deep link for the Full Disk Access pane. */
 export const MAC_FULL_DISK_ACCESS_PANE = 'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles'
 
-const execFileAsync = promisify(execFile)
+/** Absolute path so a GUI-launched process does not depend on PATH. */
+const OPEN_COMMAND = '/usr/bin/open'
+
+type CommandRunner = (file: string, args: readonly string[]) => Promise<void>
+
+function runCommand(file: string, args: readonly string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(file, [...args], error => { if (error === null) resolve(); else reject(error) })
+  })
+}
 
 /**
  * Open the Full Disk Access pane from the host process.
@@ -128,8 +136,6 @@ const execFileAsync = promisify(execFile)
  * button cannot use `window.open`; `open` runs on the Mac that owns the app.
  * @param run - Command runner, injectable for tests.
  */
-export async function openMacFullDiskAccessSettings(
-  run: (file: string, args: readonly string[]) => Promise<unknown> = execFileAsync as never,
-): Promise<void> {
-  await run('open', [MAC_FULL_DISK_ACCESS_PANE])
+export async function openMacFullDiskAccessSettings(run: CommandRunner = runCommand): Promise<void> {
+  await run(OPEN_COMMAND, [MAC_FULL_DISK_ACCESS_PANE])
 }
