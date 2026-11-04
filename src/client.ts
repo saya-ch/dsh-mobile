@@ -3914,8 +3914,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   }
   remoteReconnect.addEventListener('click', reconnectRemote)
   remoteSetupRetry.addEventListener('click', () => { remoteSetupPending = false; reconnectRemote() })
+  // The renderer cannot open x-apple.systempreferences itself; the host runs
+  // `open` on the Mac that owns this app.
   remotePermissionOpen.addEventListener('click', () => {
-    window.open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles', '_self', 'noopener,noreferrer')
+    void controlRequestJson('/api/mobile-access/remote/macos-file-access/open-settings', { method: 'POST' }).catch(() => {})
   })
   remotePermissionDismissButton.addEventListener('click', () => {
     remotePermissionDismissed = true

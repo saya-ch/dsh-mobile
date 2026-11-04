@@ -23,7 +23,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedGatewayConfig } from './config.js'
 import { collectConnectionDiagnostics, hasCompetingRemoteChannelBoot } from './diagnostics.js'
-import { MacFileAccessProbe } from './macos-file-access.js'
+import { MacFileAccessProbe, openMacFullDiskAccessSettings } from './macos-file-access.js'
 import { buildMobileGuide, type MobileGuideState } from './mobile-guide.js'
 import { createVpsUninstallScript, deployVps, fetchVpsHostKeys, parseVpsDeploymentInput, uninstallVps } from './vps-deploy.js'
 import { TaskEventHub, watchTaskCompletions } from './task-events.js'
@@ -1509,6 +1509,14 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           // coming back is enough; a granted result is final and skips the I/O.
           await macFileAccess.refresh()
           sendJson(response, 200, remotePayload(), false)
+          return
+        }
+        if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/macos-file-access/open-settings`) {
+          // The renderer cannot navigate to x-apple.systempreferences, so the
+          // host opens the pane on the Mac that owns the app.
+          if (!macFileAccess.applicable) throw new HttpError(404, 'not_found')
+          await openMacFullDiskAccessSettings()
+          sendJson(response, 200, { opened: true }, false)
           return
         }
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/provider`) {
