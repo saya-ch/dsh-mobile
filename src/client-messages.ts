@@ -921,3 +921,27 @@ Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
   frpAttachToken: '复制含 Token 的 frpc.toml', frpAttachTokenCopied: '含 Token 的 frpc.toml（明文）已复制：它会留在系统剪贴板中，请勿粘贴到公开位置。', frpAttachTokenFailed: '复制含 Token 的 frpc.toml 失败：{error}',
   frpAttachTokenReenter: '请先重新输入共享 Token。插件不会把已保存的 Token 返回页面。', frpStep2TitleAttach: '2 · 核对既有服务器', frpStep2TextAttach: '核对既有 frps 配置并复制 VPS 操作清单；插件不会改动服务器。', frpStep4TextAttach: '保存本机 frpc 配置，并验证公开入口确实连接到这台电脑。', frpAppRequirementSelfSigned: '自签入口需要支持远程 CA 固定的 Android App；不具备此功能的旧版 App 无法使用。', frpConfigurationMissingAttach: '填写既有 frps 信息，在本机安装 frpc，然后保存并验证连接。', purgeFrpConfirmSelfSigned: '要停止 FRP 并删除本机 frpc、Token、配置、证书、私钥、身份记录、临时文件和日志吗？通过此自签入口配对的手机都需重新配对；VPS 不会改变。',
 })
+
+Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
+  macPermissionTitle: '请确认已开启「完全磁盘访问权限」',
+  macPermissionSummary: '开启后，远程使用期间不会再弹出需要确认的文件夹授权窗口，连接也不会因此中断。',
+  macPermissionSteps: '系统设置 → 隐私与安全性 → 完全磁盘访问权限 → 打开 DeepSeek Harness',
+  macPermissionOpen: '打开系统设置',
+  macPermissionDismiss: '我知道了',
+})
+
+Object.assign(MOBILE_CONTROL_MESSAGES.en, {
+  macPermissionTitle: 'Confirm Full Disk Access is enabled',
+  macPermissionSummary: 'With it enabled, remote use will not raise folder authorization dialogs, and the connection will not stall on them.',
+  macPermissionSteps: 'System Settings → Privacy & Security → Full Disk Access → turn on DeepSeek Harness',
+  macPermissionOpen: 'Open System Settings',
+  macPermissionDismiss: 'Got it',
+})
+
+Object.assign(MOBILE_CONTROL_MESSAGES.it, {
+  macPermissionTitle: 'Verifica che l’accesso completo al disco sia attivo',
+  macPermissionSummary: 'Se attivo, durante l’uso remoto non compariranno finestre di autorizzazione per le cartelle e la connessione non si bloccherà.',
+  macPermissionSteps: 'Impostazioni di Sistema → Privacy e sicurezza → Accesso completo al disco → attiva DeepSeek Harness',
+  macPermissionOpen: 'Apri Impostazioni di Sistema',
+  macPermissionDismiss: 'Ho capito',
+})

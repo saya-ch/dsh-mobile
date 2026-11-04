@@ -1556,6 +1556,18 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const remoteSetup = element('button', 'dsh-mobile-control__primary'); remoteSetup.type = 'button'; remoteSetup.textContent = t('continueFunnel')
   const remoteSetupRetry = element('button', 'dsh-mobile-control__secondary'); remoteSetupRetry.type = 'button'; remoteSetupRetry.textContent = t('retryNow')
   remoteGuideActions.append(remoteSetup, remoteSetupRetry); remoteGuide.append(remoteGuideTitle, remoteGuideSummary, remoteGuideSteps, remoteGuideNote, remoteGuideActions)
+  // macOS only: the host reports whether Full Disk Access is already granted.
+  // Shown once per session while the grant is missing, and never on other platforms.
+  const remotePermission = element('section', 'dsh-mobile-control__guide'); remotePermission.hidden = true
+  remotePermission.setAttribute('aria-label', t('macPermissionTitle'))
+  const remotePermissionTitle = element('h3', 'dsh-mobile-control__guide-title'); remotePermissionTitle.textContent = t('macPermissionTitle')
+  const remotePermissionSummary = element('p', 'dsh-mobile-control__guide-summary'); remotePermissionSummary.textContent = t('macPermissionSummary')
+  const remotePermissionSteps = element('p', 'dsh-mobile-control__guide-note'); remotePermissionSteps.textContent = t('macPermissionSteps')
+  const remotePermissionActions = element('div', 'dsh-mobile-control__guide-actions')
+  const remotePermissionOpen = element('button', 'dsh-mobile-control__primary'); remotePermissionOpen.type = 'button'; remotePermissionOpen.textContent = t('macPermissionOpen')
+  const remotePermissionDismissButton = element('button', 'dsh-mobile-control__secondary'); remotePermissionDismissButton.type = 'button'; remotePermissionDismissButton.textContent = t('macPermissionDismiss')
+  remotePermissionActions.append(remotePermissionOpen, remotePermissionDismissButton)
+  remotePermission.append(remotePermissionTitle, remotePermissionSummary, remotePermissionSteps, remotePermissionActions)
   const remoteActions = element('div', 'dsh-mobile-control__actions')
   const remoteToggle = element('button', 'dsh-mobile-control__primary'); remoteToggle.type = 'button'; remoteToggle.textContent = t('enableRemote')
   const remoteLogin = element('button', 'dsh-mobile-control__primary'); remoteLogin.type = 'button'; remoteLogin.textContent = t('continueLogin'); remoteLogin.hidden = true
@@ -1725,7 +1737,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   // provider page, below the action buttons, regardless of the active provider.
   const setupDetailsRow = element('div', 'dsh-mobile-control__setup-details')
   for (const disclosure of [cpolarDetails, cloudflaredDetails, frpDetails, irohDetails]) { disclosure.hidden = true; setupDetailsRow.append(disclosure) }
-  remoteWorkspace.append(remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteQr, pairingValidity, providerInstallRow, remoteActions, remotePairLink, setupDetailsRow)
+  remoteWorkspace.append(remoteStatus, remoteAccess, remoteGuide, remotePermission, providerSetupBody, remoteQr, pairingValidity, providerInstallRow, remoteActions, remotePairLink, setupDetailsRow)
   const diagnosticsView = element('div', 'dsh-mobile-control__view is-diagnostics'); diagnosticsView.hidden = true
   // Paired-device management is its own page (like diagnostics), reached from the
   // LAN view's "Manage paired devices" button, instead of expanding inline.
@@ -1797,6 +1809,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   let remoteLoginUrl = ''
   let remoteSetupUrl = ''
   let remoteSetupPending = false
+  let remotePermissionDismissed = false
   let remoteSetupOpenedAt = 0
   let remoteReconnectBusy = false
   let remoteProviderBusy = false
@@ -2662,6 +2675,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     remoteSetupUrl = candidateSetupUrl !== '' ? candidateSetupUrl : (fallbackSetupUrls[errorCode] ?? '')
     const needsFunnelSetup = state === 'error' && remoteSetupUrl !== ''
     remoteReady = remoteRunning && state === 'ready' && remoteOrigin !== ''
+    // Absent on every other platform, so Windows and Linux never see this block.
+    const macFileAccess = data.macFileAccess === 'missing' ? 'missing' : data.macFileAccess === 'ok' ? 'ok' : undefined
+    remotePermission.hidden = macFileAccess !== 'missing' || remotePermissionDismissed || !remoteRunning
     frpChoiceBadge.textContent = frpConfigured && frpInstalled ? t('ready') : t('advanced')
     originChoiceBadge.textContent = managedOrigin ? t(remoteReady ? 'ready' : 'advanced') : originListening ? t('originBackendReady') : t('advanced')
     // The selected provider and its state already live in the left column. The
@@ -3849,6 +3865,13 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   }
   remoteReconnect.addEventListener('click', reconnectRemote)
   remoteSetupRetry.addEventListener('click', () => { remoteSetupPending = false; reconnectRemote() })
+  remotePermissionOpen.addEventListener('click', () => {
+    window.open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles', '_self', 'noopener,noreferrer')
+  })
+  remotePermissionDismissButton.addEventListener('click', () => {
+    remotePermissionDismissed = true
+    remotePermission.hidden = true
+  })
   remoteSetup.addEventListener('click', () => {
     if (remoteSetupUrl === '') return
     remoteSetupPending = true
