@@ -16,6 +16,8 @@ describe('FRP field feedback', () => {
     ['serverPort', 7000.5, 'frpServerPortInvalid'],
     ['token', 'short', 'frpTokenInvalid'],
     ['token', `${'a'.repeat(20)}\n`, 'frpTokenInvalid'],
+    ['user', 'has space', 'frpUserInvalid'],
+    ['user', 'x'.repeat(129), 'frpUserInvalid'],
     ['publicOrigin', 'phone.example.com', 'frpPublicOriginInvalid'],
     ['publicOrigin', 'http://phone.example.com', 'frpPublicOriginInvalid'],
     ['publicOrigin', 'https://1.2.3.4:33080', 'frpPublicOriginInvalid'],
@@ -60,5 +62,11 @@ describe('FRP field feedback', () => {
     expect(validateFrpForm({ ...valid, token: '' })).toEqual([expect.objectContaining({ field: 'token' })])
     expect(validateFrpForm({ ...valid, token: '' }, true)).toEqual([])
     expect(validateFrpForm({ ...valid, token: 'short' }, true)).toEqual([expect.objectContaining({ field: 'token' })])
+  })
+
+  it('treats the user field as optional and accepts a well-formed value', () => {
+    expect(validateFrpForm({ ...valid, user: '' })).toEqual([])
+    expect(validateFrpForm({ ...valid, user: 'shared-frp.user_1' })).toEqual([])
+    expect(parseFrpSettings({ ...valid, user: '' })).not.toHaveProperty('user')
   })
 })
