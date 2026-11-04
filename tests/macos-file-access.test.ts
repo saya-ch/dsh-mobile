@@ -81,6 +81,6 @@ describe('macOS Full Disk Access settings opener', () => {
   it('opens the pane through the system open command', async () => {
     const calls: Array<[string, readonly string[]]> = []
     await openMacFullDiskAccessSettings(async (file, args) => { calls.push([file, args]) })
-    expect(calls).toEqual([['open', [MAC_FULL_DISK_ACCESS_PANE]]])
+    expect(calls).toEqual([['/usr/bin/open', [MAC_FULL_DISK_ACCESS_PANE]]])
   })
 })
