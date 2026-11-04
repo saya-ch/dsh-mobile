@@ -73,8 +73,10 @@ const SURFACES = Object.freeze([
  * bar only while a panel is active on a narrow viewport. Keeping them in the
  * fixture lets one page cover both breakpoints without driving the controller.
  */
-const FIXTURE = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
-<div id="root"><div data-slot="root"><div class="dshm-shell">
+// `data-dshm-wide` is the layout's own wide/narrow decision, which the stylesheet
+// follows instead of a media query; this static fixture states it per viewport.
+const fixture = wide => `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<div id="root"><div data-slot="root"><div class="dshm-shell" data-dshm-wide="${wide ? '1' : '0'}">
   <main class="dshm-main" data-pane="conversation">
     <div class="dshm-panelNav">
       <button class="dshm-panelBack" type="button" aria-label="Back to conversation"><span>Owned back action</span></button>
@@ -243,7 +245,7 @@ try {
         const page = await context.newPage()
         const pageErrors = []
         page.on('pageerror', error => pageErrors.push(error.message))
-        await page.setContent(FIXTURE)
+        await page.setContent(fixture(viewport.width >= 900 && Math.min(viewport.width, viewport.height) >= 600))
         await page.evaluate(() => {
           window.__ModuleLoader__ = { load: ({ id, factory }) => {
             if (id !== '@deepseek-ai/dsh-client-ui-layout') throw new Error('Unexpected built layout identity')
