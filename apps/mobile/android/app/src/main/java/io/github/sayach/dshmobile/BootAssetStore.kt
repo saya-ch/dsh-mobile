@@ -8,13 +8,21 @@ import java.security.MessageDigest
 import org.json.JSONObject
 
 /** Largest single boot batch this cache accepts; the gateway caps merged batches well below it. */
-internal const val MAX_BOOT_ASSET_BYTES = 8L * 1024 * 1024
+/**
+ * Largest body this cache may hold.
+ *
+ * Boot batches stay far below this. A plugin combo bundle is the outlier: one measured combo is
+ * 19,107,568 decoded bytes from a 5,168,468-byte gzip transfer, because it concatenates dozens of
+ * modules. The ceiling is a memory guard, not a policy: a response above it falls back to the
+ * WebView instead of being buffered whole.
+ */
+internal const val MAX_BOOT_ASSET_BYTES = 24L * 1024 * 1024
 
 /** Default on-disk budget shared by every stored boot batch. */
 internal const val DEFAULT_BOOT_ASSET_QUOTA_BYTES = 64L * 1024 * 1024
 
 /** Default number of stored batches; the gateway emits a handful of revisioned batches per layout. */
-internal const val DEFAULT_BOOT_ASSET_ENTRIES = 8
+internal const val DEFAULT_BOOT_ASSET_ENTRIES = 24
 
 /** Content digest of one batch body; recorded on write and re-checked before any read is served. */
 internal object BootAssetDigest {

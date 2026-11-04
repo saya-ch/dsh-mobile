@@ -51,8 +51,16 @@ internal class HttpBootAssetFetcher(
     override fun fetch(url: String, etag: String?, cancellation: BootAssetCancellation): BootAssetFetch {
         if (cancellation.isCancelled) return BootAssetFetch.Cancelled
         if (BootAssetPolicy.key(origin, url) == null) return BootAssetFetch.Failed
-        val path = runCatching { URI(url).rawPath }.getOrNull() ?: return BootAssetFetch.Failed
-        val connection = runCatching { transport.open(origin, path) }.getOrNull() ?: return BootAssetFetch.Failed
+        // A plugin combo carries its module list and revision in the query, so the request path is
+        // `rawPath` plus `?rawQuery`. A boot batch has no query and keeps the bare path.
+        val parsed = runCatching { URI(url) }.getOrNull() ?: return BootAssetFetch.Failed
+        val path = buildString {
+            append(parsed.rawPath ?: return BootAssetFetch.Failed)
+            val query = parsed.rawQuery
+            if (!query.isNullOrEmpty()) append('?').append(query)
+        }
+        val connection = runCatching { transport.open(origin, path) }.getOrNull()
+            ?: return BootAssetFetch.Failed
         cancellation.onCancel { runCatching { connection.disconnect() } }
         return try {
             if (caCertificate != null) connection.sslSocketFactory = PinnedTls.socketFactory(caCertificate)

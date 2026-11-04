@@ -31,22 +31,60 @@ internal const val BOOT_ASSET_CACHE_ENABLED = true
 internal object BootAssetPolicy {
     private val REVISIONED_BATCH = Regex("^/mobile-access/mobile-boot/[0-9a-f]{64}\\.js$")
 
-    /** Returns the revisioned batch path, or null when this URL is not a boot batch at all. */
+    /**
+     * A plugin combo bundle: `/plugins/??<id>/client.js,<id>/client.js&rev=<hash>`.
+     *
+     * The whole query is the identity — the ordered module list plus the revision — so it is the
+     * storage key, not decoration. Only `client.js` combos qualify; source maps and single-module
+     * files stay with the WebView.
+     */
+    // `URI` strips the query separator, so the leading `?` here is the combo marker itself:
+    // `/plugins/??<ids>&rev=<hash>` yields rawQuery = "?<ids>&rev=<hash>".
+    private val COMBO_QUERY = Regex(
+        "^\\?[A-Za-z0-9@._/-]+/client\\.js(?:,[A-Za-z0-9@._/-]+/client\\.js)*&rev=[A-Za-z0-9_-]{4,128}$",
+    )
+    private val COMBO_REV = Regex("&rev=([A-Za-z0-9_-]{4,128})$")
+
+    /** Returns the revisioned batch path, or null when this URL is not a cacheable batch at all. */
     fun path(rawUrl: String): String? {
         val candidate = runCatching { URI(rawUrl) }.getOrNull() ?: return null
         if (!candidate.isAbsolute || candidate.isOpaque) return null
         if (candidate.scheme?.lowercase() != "https") return null
-        if (candidate.rawUserInfo != null || candidate.rawQuery != null || candidate.rawFragment != null) return null
+        if (candidate.rawUserInfo != null || candidate.rawFragment != null) return null
         val path = candidate.rawPath ?: return null
-        return path.takeIf { REVISIONED_BATCH.matches(it) }
+        if (REVISIONED_BATCH.matches(path) && candidate.rawQuery == null) return path
+        // A combo bundle is keyed by its full query; metrics get a short, query-free label.
+        if (path == COMBO_PATH) {
+            val query = candidate.rawQuery ?: return null
+            if (!COMBO_QUERY.matches(query)) return null
+            val rev = COMBO_REV.find(query)?.groupValues?.get(1) ?: return null
+            return "$COMBO_PATH rev=$rev"
+        }
+        return null
     }
 
     /** Returns the storage key, or null when the cache must not answer this URL. */
     fun key(origin: GatewayOrigin, rawUrl: String): String? {
-        val path = path(rawUrl) ?: return null
+        path(rawUrl) ?: return null
         if (!GatewayUrlPolicy.isSameOrigin(origin, rawUrl)) return null
-        return origin.serialized + path
+        val candidate = runCatching { URI(rawUrl) }.getOrNull() ?: return null
+        // A combo bundle is keyed by its full query too, or two module selections would collide.
+        val query = candidate.rawQuery
+        val identity = if (query.isNullOrEmpty()) candidate.rawPath else "${candidate.rawPath}?$query"
+        return origin.serialized + identity
     }
+
+    /**
+     * Whether a stored body for this URL is final.
+     *
+     * A boot batch is not: the gateway can reassemble the same path from a changed layout, so every
+     * hit revalidates with `If-None-Match`. A plugin combo is named by the ordered module list plus
+     * the revision the host computed for those artifacts, so a stored body for that exact URL is
+     * what the host asked for — revalidating it would buy nothing and cost a round-trip.
+     */
+    fun isImmutable(rawUrl: String): Boolean = path(rawUrl)?.startsWith("$COMBO_PATH rev=") == true
+
+    private const val COMBO_PATH = "/plugins/"
 }
 
 /**
@@ -307,6 +345,11 @@ internal class BootAssetCache(
             lease?.close()
             return decide(BootAssetOutcome.CANCELLED, started)
         }
+        // A revision-named combo is served from disk without a network round-trip; a boot batch
+        // still revalidates because its path can be reassembled with different bytes.
+        if (lease != null && BootAssetPolicy.isImmutable(rawUrl)) {
+            return serveRevalidated(key, lease, started)
+        }
         val fetched = try {
             fetcher.fetch(rawUrl, lease?.entry?.etag, cancellation)
         } catch (_: Exception) {
@@ -337,7 +380,7 @@ internal class BootAssetCache(
             }
             is BootAssetFetch.Modified -> {
                 lease?.close()
-                storeAndServe(key, epoch, cancellation, fetched, started)
+                storeAndServe(key, rawUrl, epoch, cancellation, fetched, started)
             }
         }
     }
@@ -356,6 +399,7 @@ internal class BootAssetCache(
 
     private fun storeAndServe(
         key: String,
+        rawUrl: String,
         epoch: Long,
         cancellation: BootAssetCancellation,
         modified: BootAssetFetch.Modified,
@@ -363,7 +407,11 @@ internal class BootAssetCache(
     ): BootAssetDecision {
         // Anything but JavaScript means the response is not a boot batch; leave it to the WebView.
         if (!isJavaScript(modified.contentType)) return decide(BootAssetOutcome.FAILED, started)
-        val etag = modified.etag
+        // The gateway does not send an `ETag` for plugin combos, whose URL already names the
+        // revision, so the content digest becomes the stored validator. Nothing is sent as
+        // `If-None-Match` for those URLs; it only has to be non-blank for the store.
+        val etag = modified.etag?.takeIf { it.isNotBlank() }
+            ?: modified.digest.takeIf { BootAssetPolicy.isImmutable(rawUrl) }
         if (!etag.isNullOrBlank() && !cancellation.isCancelled) {
             val ticket = store.beginWrite(key, epoch)
             if (ticket != null) {
