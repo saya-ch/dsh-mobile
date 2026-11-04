@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MOBILE_CONTROL_MESSAGES, type MobileControlLocale } from '../src/client-messages.js'
 import { MAC_FULL_DISK_ACCESS_PANE, MacFileAccessProbe, openMacFullDiskAccessSettings } from '../src/macos-file-access.js'
 
 const DATABASE = '/Users/tester/Library/Application Support/com.apple.TCC/TCC.db'
@@ -82,5 +83,23 @@ describe('macOS Full Disk Access settings opener', () => {
     const calls: Array<[string, readonly string[]]> = []
     await openMacFullDiskAccessSettings(async (file, args) => { calls.push([file, args]) })
     expect(calls).toEqual([['/usr/bin/open', [MAC_FULL_DISK_ACCESS_PANE]]])
+  })
+})
+
+describe('macOS permission notice copy', () => {
+  const keys = ['macPermissionTitle', 'macPermissionSummary', 'macPermissionSteps', 'macPermissionOpen', 'macPermissionDismiss'] as const
+  const copy = (locale: MobileControlLocale): Record<string, string> =>
+    MOBILE_CONTROL_MESSAGES[locale] as unknown as Record<string, string>
+
+  it('defines every notice string in each shipped locale', () => {
+    for (const locale of ['en', 'it', 'zh'] as const) {
+      for (const key of keys) expect(copy(locale)[key]?.trim()).toBeTruthy()
+    }
+  })
+
+  it('translates the notice instead of falling back to English', () => {
+    expect(copy('zh').macPermissionTitle).not.toBe(copy('en').macPermissionTitle)
+    expect(copy('it').macPermissionTitle).not.toBe(copy('en').macPermissionTitle)
+    expect(copy('zh').macPermissionSteps).not.toBe(copy('en').macPermissionSteps)
   })
 })
