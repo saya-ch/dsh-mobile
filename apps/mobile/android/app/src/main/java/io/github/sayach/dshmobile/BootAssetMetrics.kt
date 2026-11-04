@@ -59,6 +59,11 @@ internal data class BootAssetSnapshot(
     val contended: Long = 0,
     val bytesServed: Long = 0,
     val bytesFetched: Long = 0,
+    /**
+     * Bytes that actually crossed the network (compressed transfer size). Quote this — not
+     * [bytesFetched], which counts decoded bytes — whenever a saving is claimed.
+     */
+    val wireFetched: Long = 0,
     val bytesSaved: Long = 0,
     val totalDurationMs: Long = 0,
     val maxDurationMs: Long = 0,
@@ -91,6 +96,7 @@ internal data class BootAssetSnapshot(
         append(" contended=").append(contended)
         append(" served=").append(bytesServed).append("B")
         append(" fetched=").append(bytesFetched).append("B")
+        append(" wireFetched=").append(wireFetched).append("B")
         append(" saved=").append(bytesSaved).append("B")
         append(" hitPercent=").append(hitPercent)
         append(" savedPercent=").append(savedPercent)
@@ -124,6 +130,7 @@ internal class BootAssetMetrics(private val recentLimit: Int = DEFAULT_RECENT_LI
     private var contended = 0L
     private var bytesServed = 0L
     private var bytesFetched = 0L
+    private var wireFetchedTotal = 0L
     private var bytesSaved = 0L
     private var totalDurationMs = 0L
     private var maxDurationMs = 0L
@@ -135,6 +142,7 @@ internal class BootAssetMetrics(private val recentLimit: Int = DEFAULT_RECENT_LI
         bytesServed: Long = 0L,
         bytesFetched: Long = 0L,
         bytesSaved: Long = 0L,
+        wireFetched: Long = 0L,
         durationMs: Long = 0L,
     ) {
         when (outcome) {
@@ -147,6 +155,7 @@ internal class BootAssetMetrics(private val recentLimit: Int = DEFAULT_RECENT_LI
         }
         this.bytesServed += bytesServed
         this.bytesFetched += bytesFetched
+        wireFetchedTotal += wireFetched
         this.bytesSaved += bytesSaved
         totalDurationMs += durationMs
         if (durationMs > maxDurationMs) maxDurationMs = durationMs
@@ -172,6 +181,7 @@ internal class BootAssetMetrics(private val recentLimit: Int = DEFAULT_RECENT_LI
         contended = contended,
         bytesServed = bytesServed,
         bytesFetched = bytesFetched,
+        wireFetched = wireFetchedTotal,
         bytesSaved = bytesSaved,
         totalDurationMs = totalDurationMs,
         maxDurationMs = maxDurationMs,

@@ -64,9 +64,10 @@ class BootAssetPluginComboTest {
 
     @Test
     fun stillRejectsOrdinaryPluginFiles() {
-        // A single module file is not a combo and stays with the WebView.
-        assertNull(BootAssetPolicy.key(origin, "$base/plugins/@a/b/client.js?rev=e6f3c3604a26"))
+        // A revisioned single module is accepted (see the extended-policy test); a non-script or
+        // unversioned plugin resource stays with the WebView.
         assertNull(BootAssetPolicy.key(origin, "$base/plugins/manifest.json?rev=e6f3c3604a26"))
+        assertNull(BootAssetPolicy.key(origin, "$base/plugins/@a/b/client.js"))
     }
 
     @Test
@@ -83,6 +84,33 @@ class BootAssetPluginComboTest {
         // A boot batch path can be reassembled with different layout bytes, so it must revalidate.
         val batch = "$base/mobile-access/mobile-boot/${"a".repeat(64)}.js"
         assertEquals(false, BootAssetPolicy.isImmutable(batch))
-        assertEquals(false, BootAssetPolicy.isImmutable("$base/plugins/@a/b/client.js?rev=e6f3c3604a26"))
+        // A single plugin file names its build in `?rev=`, so a stored body is final too.
+        assertEquals(true, BootAssetPolicy.isImmutable("$base/plugins/@a/b/client.js?rev=e6f3c3604a26"))
+    }
+
+    @Test
+    fun acceptsSinglePluginFilesAndHashedAssets() {
+        val single = "$base/plugins/dsh-cost-meter/client.js?rev=e6f3c3604a26"
+        assertEquals(single, BootAssetPolicy.key(origin, single))
+        assertEquals(true, BootAssetPolicy.isImmutable(single))
+
+        val scoped = "$base/plugins/@a/b/client.js?rev=e6f3c3604a26"
+        assertEquals(scoped, BootAssetPolicy.key(origin, scoped))
+
+        val asset = "$base/assets/index-BXV-oxvX.js"
+        assertEquals(asset, BootAssetPolicy.key(origin, asset))
+        assertEquals(true, BootAssetPolicy.isImmutable(asset))
+        // A hashed asset may also carry a revision; then the revision is part of the key.
+        assertEquals("$asset?rev=e6f3c3604a26", BootAssetPolicy.key(origin, "$asset?rev=e6f3c3604a26"))
+    }
+
+    @Test
+    fun stillRejectsUnversionedOrNonScriptPluginFiles() {
+        assertNull(BootAssetPolicy.key(origin, "$base/plugins/dsh-cost-meter/client.js"))
+        assertNull(BootAssetPolicy.key(origin, "$base/plugins/dsh-cost-meter/client.js.map?rev=e6f3c3604a26"))
+        assertNull(BootAssetPolicy.key(origin, "$base/plugins/dsh-cost-meter/package.json?rev=e6f3c3604a26"))
+        // An asset without a content digest is not addressed, so it stays with the WebView.
+        assertNull(BootAssetPolicy.key(origin, "$base/assets/index.js"))
+        assertNull(BootAssetPolicy.key(origin, "$base/assets/logo.png"))
     }
 }

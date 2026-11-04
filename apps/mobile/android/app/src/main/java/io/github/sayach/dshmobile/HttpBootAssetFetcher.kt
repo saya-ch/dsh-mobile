@@ -114,6 +114,8 @@ internal class HttpBootAssetFetcher(
             contentType = contentType,
             body = body,
             digest = BootAssetDigest.of(body),
+            // The counted bytes are the compressed transfer, measured before GZIPInputStream.
+            wireBytes = received.count,
         )
     }
 

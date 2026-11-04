@@ -45,6 +45,13 @@ internal object BootAssetPolicy {
     )
     private val COMBO_REV = Regex("&rev=([A-Za-z0-9_-]{4,128})$")
 
+    /** A single plugin file: `/plugins/<id>/client.js?rev=<hash>` (no combo marker). */
+    private val SINGLE_PLUGIN = Regex("^/plugins/[A-Za-z0-9@._/-]+/client\\.(?:js|css)$")
+    private val REV_ONLY = Regex("^rev=[A-Za-z0-9_-]{4,128}$")
+
+    /** An owned asset whose file name already carries its content digest. */
+    private val HASHED_ASSET = Regex("^/assets/[A-Za-z0-9@._/-]+-[A-Za-z0-9_-]{8,}\\.(?:js|css)$")
+
     /** Returns the revisioned batch path, or null when this URL is not a cacheable batch at all. */
     fun path(rawUrl: String): String? {
         val candidate = runCatching { URI(rawUrl) }.getOrNull() ?: return null
@@ -53,13 +60,20 @@ internal object BootAssetPolicy {
         if (candidate.rawUserInfo != null || candidate.rawFragment != null) return null
         val path = candidate.rawPath ?: return null
         if (REVISIONED_BATCH.matches(path) && candidate.rawQuery == null) return path
+        val query = candidate.rawQuery
         // A combo bundle is keyed by its full query; metrics get a short, query-free label.
         if (path == COMBO_PATH) {
-            val query = candidate.rawQuery ?: return null
-            if (!COMBO_QUERY.matches(query)) return null
+            if (query == null || !COMBO_QUERY.matches(query)) return null
             val rev = COMBO_REV.find(query)?.groupValues?.get(1) ?: return null
             return "$COMBO_PATH rev=$rev"
         }
+        // A single plugin file names its own module in the path and its build in `?rev=`.
+        if (SINGLE_PLUGIN.matches(path)) {
+            if (query == null || !REV_ONLY.matches(query)) return null
+            return "$path rev=${query.removePrefix("rev=")}"
+        }
+        // An owned asset carries the content digest in its file name, so the path is the identity.
+        if (HASHED_ASSET.matches(path) && (query == null || REV_ONLY.matches(query))) return path
         return null
     }
 
@@ -82,7 +96,13 @@ internal object BootAssetPolicy {
      * the revision the host computed for those artifacts, so a stored body for that exact URL is
      * what the host asked for — revalidating it would buy nothing and cost a round-trip.
      */
-    fun isImmutable(rawUrl: String): Boolean = path(rawUrl)?.startsWith("$COMBO_PATH rev=") == true
+    fun isImmutable(rawUrl: String): Boolean {
+        path(rawUrl) ?: return false
+        val candidate = runCatching { URI(rawUrl) }.getOrNull() ?: return false
+        val path = candidate.rawPath ?: return false
+        if (REVISIONED_BATCH.matches(path)) return false   // the gateway can reassemble it
+        return true
+    }
 
     private const val COMBO_PATH = "/plugins/"
 }
@@ -102,6 +122,11 @@ internal sealed interface BootAssetFetch {
         val body: ByteArray,
         /** SHA-256 of [body]; the store refuses anything that does not hash to this value. */
         val digest: String,
+        /**
+         * Bytes that actually crossed the wire for this body — the compressed transfer size, not
+         * [body]`.size`. Benefit reports must quote this, never the decoded length.
+         */
+        val wireBytes: Long,
     ) : BootAssetFetch
 
     data object NotModified : BootAssetFetch
@@ -150,6 +175,8 @@ internal class BootAssetDecision(
     /** Response-body bytes that crossed the network for this decision; 0 for a revalidated hit. */
     val bytesFetched: Long = 0L,
     val bytesSaved: Long = 0L,
+    /** Wire bytes this decision actually transferred; the auditable form of [bytesFetched]. */
+    val wireFetched: Long = 0L,
     val durationMs: Long = 0L,
 )
 
@@ -302,6 +329,7 @@ internal class BootAssetCache(
                     bytesServed = decision.bytesServed,
                     bytesFetched = decision.bytesFetched,
                     bytesSaved = decision.bytesSaved,
+                    wireFetched = decision.wireFetched,
                     durationMs = decision.durationMs,
                 )
                 decision.result
@@ -405,8 +433,9 @@ internal class BootAssetCache(
         modified: BootAssetFetch.Modified,
         started: Long,
     ): BootAssetDecision {
-        // Anything but JavaScript means the response is not a boot batch; leave it to the WebView.
-        if (!isJavaScript(modified.contentType)) return decide(BootAssetOutcome.FAILED, started)
+        // Anything but a script or stylesheet means the response is not one of the resources the
+        // policy may serve; leave it to the WebView.
+        if (!isCacheableContentType(modified.contentType)) return decide(BootAssetOutcome.FAILED, started)
         // The gateway does not send an `ETag` for plugin combos, whose URL already names the
         // revision, so the content digest becomes the stored validator. Nothing is sent as
         // `If-None-Match` for those URLs; it only has to be non-blank for the store.
@@ -433,17 +462,27 @@ internal class BootAssetCache(
             result = Result.Body(modified.body, modified.contentType, modified.etag),
             bytesServed = modified.body.size.toLong(),
             bytesFetched = modified.body.size.toLong(),
+            wireFetched = modified.wireBytes,
             durationMs = clock() - started,
         )
     }
 
-    private fun decide(outcome: BootAssetOutcome, started: Long): BootAssetDecision =
-        BootAssetDecision(outcome, Result.Miss, durationMs = clock() - started)
+    private fun decide(
+        outcome: BootAssetOutcome,
+        started: Long,
+        wireFetched: Long = 0L,
+    ): BootAssetDecision = BootAssetDecision(
+        outcome = outcome,
+        result = Result.Miss,
+        wireFetched = wireFetched,
+        durationMs = clock() - started,
+    )
 
-    private fun isJavaScript(contentType: String): Boolean = when (
+    /** JavaScript or CSS: the only mutable-free resources the policy may answer. */
+    private fun isCacheableContentType(contentType: String): Boolean = when (
         contentType.substringBefore(';').trim().lowercase()
     ) {
-        "text/javascript", "application/javascript" -> true
+        "text/javascript", "application/javascript", "text/css" -> true
         else -> false
     }
 }

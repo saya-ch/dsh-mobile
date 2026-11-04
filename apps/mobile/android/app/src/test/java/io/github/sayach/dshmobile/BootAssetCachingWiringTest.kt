@@ -46,7 +46,7 @@ class BootAssetCachingWiringTest {
 
     private fun body(text: String): BootAssetFetch {
         val bytes = text.toByteArray()
-        return BootAssetFetch.Modified("\"v1\"", "text/javascript", bytes, BootAssetDigest.of(bytes))
+        return BootAssetFetch.Modified("\"v1\"", "text/javascript", bytes, BootAssetDigest.of(bytes), wireBytes = bytes.size.toLong())
     }
 
     @Test

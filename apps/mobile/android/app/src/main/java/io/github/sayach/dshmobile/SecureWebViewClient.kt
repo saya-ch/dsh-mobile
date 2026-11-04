@@ -4,6 +4,7 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
@@ -178,6 +179,14 @@ internal class SecureWebViewClient(
         // to. Host and port must still match exactly, and the leaf must pin.
         val pinned = acceptsPinnedWebViewSslError(origin, caCertificate, error.primaryError,
             error.url, error.certificate.x509Certificate)
+        // One line per certificate decision turns Chromium's `net_error -202` into evidence:
+        // a healthy start shows exactly one `proceed` for the document origin, while a failing
+        // pin shows `cancel` (and a burst of them). No certificate bytes or session values here.
+        Log.i(
+            LOG_TAG,
+            "ssl decision=${if (pinned) "proceed" else "cancel"} url=${error.url} " +
+                "primary=${sslErrorName(error.primaryError)} caLoaded=${caCertificate != null}",
+        )
         if (pinned) {
             handler.proceed()
         } else {
@@ -250,5 +259,19 @@ internal class SecureWebViewClient(
         timeout?.let(handler::removeCallbacks)
         timeout = null
         loadingUrl = null
+    }
+
+    private fun sslErrorName(primary: Int): String = when (primary) {
+        SslError.SSL_IDMISMATCH -> "SSL_IDMISMATCH"
+        SslError.SSL_UNTRUSTED -> "SSL_UNTRUSTED"
+        SslError.SSL_DATE_INVALID -> "SSL_DATE_INVALID"
+        SslError.SSL_EXPIRED -> "SSL_EXPIRED"
+        SslError.SSL_NOTYETVALID -> "SSL_NOTYETVALID"
+        SslError.SSL_INVALID -> "SSL_INVALID"
+        else -> "SSL_OTHER"
+    }
+
+    private companion object {
+        const val LOG_TAG = "DSHMobile-TLS"
     }
 }

@@ -51,7 +51,7 @@ class BootAssetCacheTest {
         contentType: String = "text/javascript",
     ): BootAssetFetch.Modified {
         val bytes = text.toByteArray()
-        return BootAssetFetch.Modified(etag, contentType, bytes, BootAssetDigest.of(bytes))
+        return BootAssetFetch.Modified(etag, contentType, bytes, BootAssetDigest.of(bytes), wireBytes = bytes.size.toLong())
     }
 
     private fun preload(text: String, etag: String = "\"v1\"") {
