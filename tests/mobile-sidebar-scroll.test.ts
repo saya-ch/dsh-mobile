@@ -11,6 +11,8 @@ class FakePort {
   children: FakePort[] = []
   parent: FakePort | undefined
   closed = false
+  inDrawer = false
+  wideBand: string | null = null
   y = 0
   height = 20
   selected = false
@@ -24,10 +26,15 @@ class FakePort {
     const top = this.parent === undefined ? 0 : this.y - this.parent.scrollTop
     return { top, bottom: top + this.height, height: this.height }
   }
-  getAttribute(name: string): string | null { return name === 'data-row-key' ? this.dataset.rowKey ?? null : null }
+  getAttribute(name: string): string | null {
+    if (name === 'data-row-key') return this.dataset.rowKey ?? null
+    if (name === 'data-dshm-wide') return this.wideBand
+    return null
+  }
   contains(node: unknown): boolean { return node === this || this.children.some(child => child.contains(node)) || this.rows.includes(node as FakePort) }
   closest(selector: string): FakePort | null {
     if (selector === '[data-open="false"]') return this.closed ? this : null
+    if (selector === '[data-pane="sidebar"]') return this.inDrawer ? this : null
     return null
   }
   querySelectorAll(selector: string): FakePort[] {
@@ -52,8 +59,14 @@ function fixture() {
     addEventListener: (type: string, listener: EventListener) => { listeners.set(type, listener) },
     removeEventListener: (type: string) => { listeners.delete(type) },
   })
+  // `mobile` is the stock <=720px band; the dedicated band is the shell marker.
   let mobile = true
-  vi.stubGlobal('window', { matchMedia: () => ({ get matches() { return mobile }, addEventListener: () => {}, removeEventListener: () => {} }) })
+  const windowListeners = new Map<string, EventListener>()
+  vi.stubGlobal('window', {
+    matchMedia: () => ({ get matches() { return mobile }, addEventListener: () => {}, removeEventListener: () => {} }),
+    addEventListener: (type: string, listener: EventListener) => { windowListeners.set(type, listener) },
+    removeEventListener: (type: string) => { windowListeners.delete(type) },
+  })
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++id, callback); return id })
   vi.stubGlobal('cancelAnimationFrame', (key: number) => { frames.delete(key) })
   const list = (selected = false): FakePort => {
@@ -71,7 +84,14 @@ function fixture() {
     }
   }
   const event = (type: string, target: FakePort): void => { listeners.get(type)?.({ target } as unknown as Event) }
-  return { root, list, tick, event, frames, listeners, desktop: () => { mobile = false } }
+  const resize = (): void => { windowListeners.get('resize')?.({ target: window } as unknown as Event) }
+  return {
+    root, list, tick, event, frames, listeners, windowListeners, resize,
+    desktop: () => { mobile = false },
+    // The dedicated layout writes the band on the shell; the drawer element is
+    // inside `[data-pane="sidebar"]` whenever the dedicated layout owns it.
+    dedicated: (wide: boolean) => { root.inDrawer = true; root.wideBand = wide ? '1' : '0' },
+  }
 }
 
 afterEach(() => { vi.unstubAllGlobals() })
@@ -151,6 +171,53 @@ describe('sidebar scroll memory', () => {
     next.scrollHeight = 1100; f.tick()
     expect(next.scrollTop).toBe(647)
     memory.dispose()
+  })
+
+  it('keeps scroll memory on a landscape phone drawer whose viewport is wider than 720px', () => {
+    // 932x430 phone: the stock <=720px band is false, but the dedicated layout
+    // renders an overlay drawer because the device short side is 430. A width
+    // query would leave the drawer without scroll memory exactly there.
+    const f = fixture(), port = f.list(), memory = installMobileSidebarScrollMemory()
+    f.desktop(); f.dedicated(false)
+    memory.sync(); f.tick()
+    port.scrollTop = 647; f.event('scroll', port)
+    f.root.closed = true; memory.sync()
+    const next = f.list(); f.root.closed = false
+    memory.sync(); f.tick()
+    expect(next.scrollTop).toBe(647)
+    memory.dispose()
+  })
+
+  it('keeps the stock list untouched once the layout docks the sidebar', () => {
+    const f = fixture(), port = f.list(), memory = installMobileSidebarScrollMemory()
+    f.desktop(); f.dedicated(true)
+    memory.sync(); f.tick()
+    port.scrollTop = 647; f.event('scroll', port)
+    f.root.closed = true; memory.sync()
+    const next = f.list(); f.root.closed = false
+    memory.sync(); f.tick()
+    expect(next.scrollTop).toBe(0)
+    memory.dispose()
+  })
+
+  it('follows the band marker when it changes and ignores resizes that keep it', () => {
+    const f = fixture(), port = f.list(), memory = installMobileSidebarScrollMemory()
+    f.desktop(); f.dedicated(false)
+    memory.sync(); f.tick()
+    expect(f.windowListeners.has('resize')).toBe(true)
+    port.scrollTop = 647; f.event('scroll', port)
+    // A resize that keeps the band leaves the remembered position alone.
+    f.resize(); f.tick()
+    expect(port.scrollTop).toBe(647)
+    // The layout docks the sidebar: the adapter hands the list back to stock.
+    f.root.wideBand = '1'
+    f.resize(); f.tick()
+    f.root.closed = true; memory.sync()
+    const next = f.list(); f.root.closed = false
+    memory.sync(); f.tick()
+    expect(next.scrollTop).toBe(0)
+    memory.dispose()
+    expect(f.windowListeners.has('resize')).toBe(false)
   })
 
   it('cancels a pending restore on genuine navigation and keeps desktop untouched', () => {
