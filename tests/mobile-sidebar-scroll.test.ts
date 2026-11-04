@@ -61,11 +61,8 @@ function fixture() {
   })
   // `mobile` is the stock <=720px band; the dedicated band is the shell marker.
   let mobile = true
-  const windowListeners = new Map<string, EventListener>()
   vi.stubGlobal('window', {
     matchMedia: () => ({ get matches() { return mobile }, addEventListener: () => {}, removeEventListener: () => {} }),
-    addEventListener: (type: string, listener: EventListener) => { windowListeners.set(type, listener) },
-    removeEventListener: (type: string) => { windowListeners.delete(type) },
   })
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++id, callback); return id })
   vi.stubGlobal('cancelAnimationFrame', (key: number) => { frames.delete(key) })
@@ -84,9 +81,8 @@ function fixture() {
     }
   }
   const event = (type: string, target: FakePort): void => { listeners.get(type)?.({ target } as unknown as Event) }
-  const resize = (): void => { windowListeners.get('resize')?.({ target: window } as unknown as Event) }
   return {
-    root, list, tick, event, frames, listeners, windowListeners, resize,
+    root, list, tick, event, frames, listeners,
     desktop: () => { mobile = false },
     // The dedicated layout writes the band on the shell; the drawer element is
     // inside `[data-pane="sidebar"]` whenever the dedicated layout owns it.
@@ -200,24 +196,21 @@ describe('sidebar scroll memory', () => {
     memory.dispose()
   })
 
-  it('follows the band marker when it changes and ignores resizes that keep it', () => {
+  it('hands scroll ownership back to stock when the committed band changes', () => {
     const f = fixture(), port = f.list(), memory = installMobileSidebarScrollMemory()
     f.desktop(); f.dedicated(false)
     memory.sync(); f.tick()
-    expect(f.windowListeners.has('resize')).toBe(true)
     port.scrollTop = 647; f.event('scroll', port)
-    // A resize that keeps the band leaves the remembered position alone.
-    f.resize(); f.tick()
+    memory.sync(); f.tick()
     expect(port.scrollTop).toBe(647)
     // The layout docks the sidebar: the adapter hands the list back to stock.
     f.root.wideBand = '1'
-    f.resize(); f.tick()
+    memory.sync(); f.tick()
     f.root.closed = true; memory.sync()
     const next = f.list(); f.root.closed = false
     memory.sync(); f.tick()
     expect(next.scrollTop).toBe(0)
     memory.dispose()
-    expect(f.windowListeners.has('resize')).toBe(false)
   })
 
   it('cancels a pending restore on genuine navigation and keeps desktop untouched', () => {

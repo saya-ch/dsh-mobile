@@ -248,7 +248,7 @@ export function mergeSavedFrpSettings(
   partial: Readonly<Record<string, unknown>>,
   saved: FrpSettings | undefined,
 ): FrpSettings {
-  const pick = <K extends 'mode' | 'entryTls' | 'vhostHttpPort' | 'publicPort' | 'user'>(key: K): unknown => {
+  const pick = <K extends 'mode' | 'entryTls' | 'vhostHttpPort' | 'publicPort'>(key: K): unknown => {
     const supplied = partial[key]
     if (supplied === '' || supplied === undefined) return saved?.[key]
     return supplied
@@ -257,7 +257,8 @@ export function mergeSavedFrpSettings(
   const entryTls = pick('entryTls')
   const vhostHttpPort = pick('vhostHttpPort')
   const publicPort = pick('publicPort')
-  const user = pick('user')
+  // Unlike a write-only token, this visible optional field can be cleared.
+  const user = partial.user === undefined ? saved?.user : partial.user
   const merged = {
     serverAddress: partial.serverAddress === '' || partial.serverAddress === undefined
       ? saved?.serverAddress : partial.serverAddress,

@@ -16,7 +16,7 @@ const metadata = await lstat(binary)
 if (!metadata.isFile() || metadata.isSymbolicLink()) throw new Error('DSH_BOOT_SMOKE_BIN must resolve to a regular explicit DSH CLI file')
 const expectedVersion = createRequire(binary)('@deepseek-ai/dsh/package.json').version
 // Allowed DSH runtimes for the packed push lanes (kept identical to scripts/smoke-mobile-push.mjs).
-const RUNTIME_VERSIONS = ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-alpha.3']
+const RUNTIME_VERSIONS = ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-alpha.3', '0.2.2-rc.1']
 assert(RUNTIME_VERSIONS.includes(expectedVersion), `The push contract evidence requires an allowed DSH runtime (got ${expectedVersion}, allowed ${RUNTIME_VERSIONS.join('/')})`)
 
 const root = await mkdtemp(join(tmpdir(), 'dsh-mobile-push-contract-'))

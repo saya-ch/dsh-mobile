@@ -227,9 +227,13 @@ describe('optional frpc user field', () => {
     expect(createFrpcToml(parseFrpSettings(input), 42123)).not.toContain('user')
   })
 
-  it('merges blank user with the saved value and reports it in the status', async () => {
+  it('keeps an omitted user but clears an explicitly blank user without replacing the saved token', async () => {
     const saved = parseFrpSettings({ ...input, user: 'shared-frp.user_1' })
     expect(mergeSavedFrpSettings({ ...input }, saved).user).toBe('shared-frp.user_1')
+    const cleared = mergeSavedFrpSettings({ token: '', user: '' }, saved)
+    expect(cleared.token).toBe(saved.token)
+    expect(cleared).not.toHaveProperty('user')
+    expect(createFrpcToml(cleared, 42123)).not.toContain('user =')
     expect(mergeSavedFrpSettings({ ...input, user: 'other.user-1' }, saved).user).toBe('other.user-1')
     expect(mergeSavedFrpSettings({ ...input }, parseFrpSettings(input)).user).toBeUndefined()
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-frp-user-'))

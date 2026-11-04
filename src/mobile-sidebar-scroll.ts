@@ -147,17 +147,7 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
     cancel()
     remember()
   }
-  // The band is an attribute, not a media query, so the resize event is the
-  // crossing signal; syncing only on an actual change keeps drag-resize cheap.
-  let band = drawerBand()
-  const onViewportChange = (): void => {
-    const next = drawerBand()
-    if (next === band) return
-    band = next
-    sync()
-  }
   stockViewport.addEventListener('change', sync)
-  window.addEventListener('resize', onViewportChange)
   document.addEventListener('scroll', onScroll, true)
   for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown', 'click']) document.addEventListener(type, onIntent, true)
   return {
@@ -166,7 +156,6 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
       disposed = true
       cancel()
       stockViewport.removeEventListener('change', sync)
-      window.removeEventListener('resize', onViewportChange)
       document.removeEventListener('scroll', onScroll, true)
       for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown', 'click']) document.removeEventListener(type, onIntent, true)
       ports.clear(); memories.clear(); root = undefined

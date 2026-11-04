@@ -24,7 +24,7 @@ import { completeSmoke } from './negative-control.mjs'
 const repository = fileURLToPath(new URL('../', import.meta.url))
 const TRANSPORT_MARKER = 'dsh.mobile.push.integration.transport'
 // Allowed DSH runtimes for the packed push lanes (kept identical to scripts/smoke-mobile-push-contract.mjs).
-const RUNTIME_VERSIONS = ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-alpha.3']
+const RUNTIME_VERSIONS = ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-alpha.3', '0.2.2-rc.1']
 const OWNER_NEGATIVE_MARKER = 'Push ownership negative control detected'
 const PAIR_DIAGNOSTIC_LOG_ENV = 'DSH_PUSH_PAIR_DIAGNOSTIC_LOG'
 const args = process.argv.slice(2)

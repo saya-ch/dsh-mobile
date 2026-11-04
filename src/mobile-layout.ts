@@ -642,11 +642,9 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-panelBack:disabled{opacity:.5;cursor:default}
 .dshm-panelBack:focus-visible{outline:2px solid var(--dsw-alias-label-primary,#171a21);outline-offset:2px}
 .dshm-panelBack svg{width:20px;height:20px;flex-shrink:0}
-.dshm-shell header{min-width:0;padding-left:52px}
-/* The rail inset above ends at an open third-party panel: its back bar owns the
-   top-left, so the panel's own page headers align with its body content instead
-   of inheriting the conversation header's drawer clearance. */
-.dshm-main[data-dsh-panel="1"] header{padding-left:0}
+.dshm-shell header{min-width:0}
+/* A panel owns its header padding; only conversation content clears the rail. */
+.dshm-shell :where(.dshm-main:not([data-dsh-panel="1"])) header{padding-left:52px}
 /* Keep focused editables above Safari's 16px zoom threshold while retaining
    the DSH content-font preference and larger inherited text. Stock menus
    portal into document.body, so the floor scopes from the body itself. */
@@ -701,7 +699,7 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
 @media(pointer:coarse){
 .dshm-main[data-dsh-panel="1"] .dshm-mainContent:has(>[data-slot="main"]>:not([data-dsh-adapt="off"])):not(:has(>[data-slot="main"]>[data-dsh-adapt="off"])){overflow-y:auto;overscroll-behavior:contain}
 .dshm-main[data-dsh-panel="1"] .dshm-mainContent>[data-slot="main"]>:not([data-dsh-adapt="off"]){max-width:100%;box-sizing:border-box}
-.dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],[class*="_cardTitle"],[class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
+.dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],button[class*="_cardTitle"][class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
 .dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],a):not([data-dsh-adapt="off"],[data-dsh-adapt="off"] *){touch-action:manipulation}
 }
 `

@@ -1685,7 +1685,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/frp/configure`) {
           const body = await readJsonObject(request, 4096)
           await remoteProviders.mutate(async () => {
-            await frpConfig.configure(body)
+            const saved = frpConfig.settings()
+            // Only the saved frps endpoint may reuse its write-only token.
+            const reuseToken = body.token === '' && saved !== undefined
+              && body.serverAddress === saved.serverAddress && body.serverPort === saved.serverPort
+            await frpConfig.configure(reuseToken ? { ...body, token: saved.token } : body)
             if (remoteControllers.frp.status().enabled) await remoteControllers.frp.reconnect()
           })
           sendJson(response, 200, remotePayload(), false)
@@ -1747,8 +1751,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         }
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/frp/attach-plan`) {
           const body = await readJsonObject(request, 8192)
-          // Read-only preview: blank fields keep their saved values, and nothing
-          // on the VPS or the local filesystem is touched.
+          // Read-only preview: the token stays masked and no configuration is written.
           const settings = mergeSavedFrpSettings(body, frpConfig.settings())
           // This route is callable by any same-origin client script. Never return
           // the saved token, even if a caller asks for an unmasked preview.

@@ -168,6 +168,17 @@ export function installMobileNativeBack(view: Window, page: Document, blocked: (
       if (!escape.defaultPrevented) blocked()
       return
     }
+    if (top.getAttribute('data-shortcut-modal') === 'sidebar' && top.closest('[data-sidebar-drawer]') !== null) {
+      // The DSH drawer owns its focus, mask and dismissal. Route to its
+      // existing keyboard handler instead of guessing a close button.
+      if (layers.some(layer => layer !== top && !top.contains(layer))) { blocked(); return }
+      const focused = page.activeElement
+      const target = focused !== null && top.contains(focused) ? focused : top
+      const escape = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
+      target.dispatchEvent(escape)
+      if (!escape.defaultPrevented) blocked()
+      return
+    }
     if (top.getAttribute('role') === 'dialog') {
       const wrapper = top.parentElement
       const mask = wrapper?.firstElementChild as HTMLElement | null | undefined
@@ -1859,6 +1870,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   let configuredFrpVhostPort = 7080
   let configuredFrpPublicPort = 33_080
   let configuredFrpUser = ''
+  let frpUserDraft = false
   /** Proxy name the host writes into its frpc.toml; the local clipboard copy must match. */
   let configuredFrpProxyName: string | undefined
   let frpConfiguredMode: 'deploy' | 'attach' = 'deploy'
@@ -2477,7 +2489,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     if (typeof frpConfiguration.vhostHttpPort === 'number') configuredFrpVhostPort = frpConfiguration.vhostHttpPort
     if (typeof frpConfiguration.publicPort === 'number') configuredFrpPublicPort = frpConfiguration.publicPort
     configuredFrpUser = typeof frpConfiguration.user === 'string' ? frpConfiguration.user : ''
-    if (frpUser.value === '' && configuredFrpUser !== '') frpUser.value = configuredFrpUser
+    if (!frpUserDraft) frpUser.value = configuredFrpUser
+    else if (frpUser.value.trim() === configuredFrpUser) frpUserDraft = false
     configuredFrpProxyName = typeof frpConfiguration.proxyName === 'string' && frpConfiguration.proxyName !== ''
       ? frpConfiguration.proxyName
       : undefined
@@ -2695,7 +2708,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       connecting: cpolar ? t('remoteConnectingCpolar')
         : cloudflared ? t('remoteConnectingCloudflared')
           : frp ? t('remoteConnectingFrp') : iroh ? t('irohConnecting') : t('remoteConnectingTailscale'),
-      ready: origin ? t(managedOrigin ? 'caddyVerified' : 'originReady') : t('remoteReady'),
+      ready: origin ? t(managedOrigin ? 'caddyVerified' : 'originReady') : tailscale ? t('funnelListenerReady') : t('remoteReady'),
       error: t('remoteError'),
     }
     const errorLabels: Record<string, string> = translatedRemoteErrors()
@@ -3187,7 +3200,6 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       serverAddress: String(frpServer.value ?? '').trim(),
       serverPort: Number(frpPort.value),
       token: String(frpToken.value ?? ''),
-      // A blank user keeps the saved value host-side; nothing is sent when unset.
       user: String(frpUser.value ?? '').trim(),
       publicOrigin: String(frpOrigin.value ?? '').trim(),
       mode,
@@ -3244,6 +3256,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   }
   for (const [name, input] of Object.entries(frpInputs)) {
     input.addEventListener(name === 'mode' || name === 'entryTls' ? 'change' : 'input', () => {
+      if (name === 'user') frpUserDraft = true
       if (frpValidationShown) renderFrpIssues(validateFrpForm(frpForm(), frpValidationAllowsSavedToken))
     })
   }
@@ -3622,12 +3635,13 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       && form.entryTls === (frpConfiguredEntryTls === 'self-signed' ? 'self-signed' : 'public-ip-cert')
       && (form.vhostHttpPort ?? configuredFrpVhostPort) === configuredFrpVhostPort
       && (form.publicPort ?? configuredFrpPublicPort) === configuredFrpPublicPort
-      && (form.user === '' ? configuredFrpUser : form.user) === configuredFrpUser
+      && form.user === configuredFrpUser
     if (!unchanged) {
       // Attach mode is validated by the same parser the host uses, so the panel
       // reports the exact code (for example a missing vhostHTTPPort) instead of a
       // generic "invalid input".
-      if (!checkFrpForm(form)) return
+      const sameServer = frpConfigured && form.serverAddress === configuredFrpServer && form.serverPort === configuredFrpPort
+      if (!checkFrpForm(form, sameServer)) return
     }
     renderFrpIssues([])
     remoteProviderBusy = true

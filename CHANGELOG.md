@@ -2,6 +2,16 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.8.3 - Unreleased
+
+- Move the current DSH 0.2.2 compatibility test lane to 0.2.2-rc.1. Preserve the dedicated Mobile layout by default, and route App Back on a foreground upstream drawer to DSH's own dismissal handler.
+- Keep a landscape phone's drawer and panel return action even above the wide-window threshold; a tablet's keyboard does not change its layout band. Update sidebar scroll ownership after the new layout commits. Thanks @LUgABeEEE for [#346](https://github.com/saya-ch/dsh-mobile/pull/346).
+- Align the Plugins panel heading with its content and restore compact built-in plugin cards while keeping their full-card tap area. Stack Web Push categories and actions in General settings without changing delivery or consent. Thanks @chintoleung for [#351](https://github.com/saya-ch/dsh-mobile/pull/351) and [#353](https://github.com/saya-ch/dsh-mobile/pull/353).
+- Support the optional frpc username for shared servers. A saved username can be cleared without reentering the saved token. Thanks @xaxka for [#344](https://github.com/saya-ch/dsh-mobile/pull/344).
+- Update the optional managed cloudflared component from 2026.9.1 to 2026.10.7. Install the new component explicitly from the desktop panel; it is not fetched automatically. Existing tunnel settings are not deleted.
+- Describe Funnel listener startup separately from verified public access. The bundled Funnel remains public-ingress-only; this change neither enables tailnet ingress nor fixes an unverified public-route failure.
+- Plugin-only update. Android 0.7.2 remains the published App; this update does not introduce a native WebView cache.
+
 ## Android 0.7.2 - 2026-11-04
 
 - Android: accept a pinned gateway's WebSocket certificate callback when the secure authority and verified leaf match the paired HTTPS origin. Host, port, CA, certificate validity, signature and SAN checks remain required. Cleartext, foreign authorities and URL credentials remain rejected. Thanks @LUgABeEEE for [#343](https://github.com/saya-ch/dsh-mobile/pull/343).

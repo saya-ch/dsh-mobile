@@ -2086,6 +2086,7 @@ describe('attach-mode control routes', () => {
       mode: 'attach',
       entryTls: 'self-signed',
       publicPort: 33_080,
+      user: 'shared-user',
     }
     const masked = await invoke(mounted.route, 'POST', '/api/mobile-access/remote/frp/attach-plan', JSON.stringify(request))
     expect(masked.status).toBe(200)
@@ -2095,6 +2096,7 @@ describe('attach-mode control routes', () => {
     }
     // The default preview is masked in both artefacts the panel can copy.
     expect(maskedParsed.frpAttachPlan.local.frpcToml).toContain('auth.token = "***"')
+    expect(maskedParsed.frpAttachPlan.local.frpcToml).toContain('user = "shared-user"')
     expect(maskedParsed.frpAttachPlan.local.tokenMasked).toBe(true)
     expect(maskedParsed.frpAttachTemplate).not.toContain(token)
     expect(masked.body).not.toContain(token)
@@ -2116,5 +2118,20 @@ describe('attach-mode control routes', () => {
     // The control snapshot also keeps the saved token private.
     const status = await invoke(mounted.route, 'GET', '/api/mobile-access/remote/control')
     expect(status.body).not.toContain(token)
+    for (const endpoint of [{ serverAddress: '2.3.4.5' }, { serverPort: 7001 }]) {
+      const changedServer = await invoke(mounted.route, 'POST', '/api/mobile-access/remote/frp/configure',
+        JSON.stringify({ ...request, ...endpoint, token: '', user: '' }))
+      expect(changedServer.status).toBe(400)
+      expect(JSON.parse(changedServer.body)).toEqual({ error: 'frp_token_invalid' })
+    }
+    const cleared = await invoke(mounted.route, 'POST', '/api/mobile-access/remote/frp/configure',
+      JSON.stringify({ ...request, token: '', user: '' }))
+    expect(cleared.status).toBe(200)
+    expect(JSON.parse(cleared.body).providers.frp.configuration).not.toHaveProperty('user')
+    expect(cleared.body).not.toContain(token)
+    const previewAfterClear = await invoke(mounted.route, 'POST', '/api/mobile-access/remote/frp/attach-plan', '{}')
+    expect(previewAfterClear.status).toBe(200)
+    expect(JSON.parse(previewAfterClear.body).frpAttachPlan.local.frpcToml).toContain('auth.token = "***"')
+    expect(JSON.parse(previewAfterClear.body).frpAttachPlan.local.frpcToml).not.toContain('user =')
   })
 })
