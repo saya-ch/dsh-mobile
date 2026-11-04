@@ -61,8 +61,10 @@ function scrimOpen(narrow, drawerOpen, detailsOpen) {
 }
 
 function fixture({ narrow, drawerOpen, detailsOpen, portalZ, dialog }) {
+  // The shell carries the layout's wide/narrow decision; this static fixture
+  // states the band its viewport would produce.
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
-<div id="root"><div data-slot="root"><div class="dshm-shell">
+<div id="root"><div data-slot="root"><div class="dshm-shell" data-dshm-wide="${narrow ? '0' : '1'}">
   <main class="dshm-main" data-pane="conversation"><div class="dshm-mainContent">
     <div data-slot="main"><div data-slot="main.conversation">
       <div id="conversation-content">Owned conversation content</div>
