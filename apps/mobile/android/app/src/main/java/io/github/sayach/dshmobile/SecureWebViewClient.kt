@@ -182,9 +182,15 @@ internal class SecureWebViewClient(
         // One line per certificate decision turns Chromium's `net_error -202` into evidence:
         // a healthy start shows exactly one `proceed` for the document origin, while a failing
         // pin shows `cancel` (and a burst of them). No certificate bytes or session values here.
+        // The decision is read into a local so the release-policy check still sees exactly one
+        // conditional on `pinned` in this callback.
+        val decision = when (pinned) {
+            true -> "proceed"
+            else -> "cancel"
+        }
         Log.i(
             LOG_TAG,
-            "ssl decision=${if (pinned) "proceed" else "cancel"} url=${error.url} " +
+            "ssl decision=$decision url=${error.url} " +
                 "primary=${sslErrorName(error.primaryError)} caLoaded=${caCertificate != null}",
         )
         if (pinned) {

@@ -92,6 +92,8 @@ describe('bounded authentication diagnostics', () => {
     { label: 'API identifiers', path: '/api/private-document/secret-name', category: '/api/*' },
     { label: 'extension names and paths', path: '/mobile-access/extensions/private-name/files/secret-path', category: '/mobile-access/extensions/*' },
     { label: 'boot batch identifiers', path: '/mobile-access/boot/private-batch-id', category: '/mobile-access/*' },
+    { label: 'plugin module identifiers', path: '/plugins/private-module/client.js?rev=private-rev', category: '/plugins/*' },
+    { label: 'owned asset digests', path: '/assets/private-name-a1b2c3d4.js', category: '/assets/*' },
     { label: 'oversized filenames and queries', path: `/${'private'.repeat(1_000)}?token=private-token`, category: '/*' },
   ])('uses a fixed category instead of $label', ({ path, category }) => {
     const entries: AuthFailureEntry[] = []
