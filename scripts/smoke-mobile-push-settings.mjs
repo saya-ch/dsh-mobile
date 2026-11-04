@@ -179,7 +179,7 @@ html.fixture-large-text #fixture-root { font-size:20px; }
 <style id="owning-styles"></style>
 </head>
 <body>
-<div id="fixture-root"><div data-dsh-mobile-settings-options><div data-slot="settings.general.item"></div></div></div>
+<div id="fixture-root"><div id="settings-options"><div data-slot="settings.general.item"></div></div></div>
 <script src="/fixture.js"></script>
 </body>
 </html>
@@ -205,6 +205,7 @@ const geometryProbe = `(() => {
   const group = document.querySelector('.dsh-mobile-push-categories')
   if (!group) return { missing: true }
   const groupRect = group.getBoundingClientRect()
+  const sectionRect = group.closest('.dsh-mobile-settings_row').getBoundingClientRect()
   const rows = [...group.querySelectorAll('.dsh-mobile-push-category')].map(row => {
     const control = row.querySelector('button[role="switch"]')
     if (!control) return { missingControl: true }
@@ -218,6 +219,7 @@ const geometryProbe = `(() => {
       switchLabel: control.getAttribute('aria-label'), hasThumb: control.querySelector('span') !== null }
   })
   return { missing: false, rows, groupLeft: groupRect.left, groupRight: groupRect.right, groupBottom: groupRect.bottom,
+    sectionLeft: sectionRect.left, sectionRight: sectionRect.right,
     groupScrollOverflow: group.scrollWidth - group.clientWidth, paintedInputs: group.querySelectorAll('input').length,
     actionsTop: document.querySelector('.dsh-mobile-push-actions')?.getBoundingClientRect().top ?? null,
     docScrollWidth: document.scrollingElement.scrollWidth, viewportWidth: document.documentElement.clientWidth,
@@ -245,9 +247,11 @@ async function assertGeometry(page, caseName) {
   }
   check(caseName, 'no group horizontal overflow', metrics.groupScrollOverflow <= 1, `overflow=${metrics.groupScrollOverflow}`)
   check(caseName, 'no document horizontal overflow', metrics.docScrollWidth <= metrics.viewportWidth + 1, `scroll=${metrics.docScrollWidth} viewport=${metrics.viewportWidth}`)
-  if (metrics.viewportWidth <= 720 && metrics.actionsTop !== null) {
-    check(caseName, 'actions render below the category group', metrics.actionsTop >= metrics.groupBottom - 2, `actionsTop=${metrics.actionsTop} groupBottom=${metrics.groupBottom}`)
-  }
+  check(caseName, 'categories fill the whole section, not a column beside the actions',
+    Math.abs(metrics.groupLeft - metrics.sectionLeft) <= 1.5 && Math.abs(metrics.groupRight - metrics.sectionRight) <= 1.5,
+    `group=${metrics.groupLeft}..${metrics.groupRight} section=${metrics.sectionLeft}..${metrics.sectionRight}`)
+  check(caseName, 'actions render below the category group', metrics.actionsTop !== null && metrics.actionsTop >= metrics.groupBottom - 2,
+    `actionsTop=${metrics.actionsTop} groupBottom=${metrics.groupBottom}`)
   return metrics
 }
 
@@ -259,6 +263,12 @@ const cases = [
   { name: '390-it-light-large', viewport: { width: 390, height: 844 }, locale: 'it', dark: false, largeText: true, reducedMotion: 'no-preference' },
   { name: '900-en-light', viewport: { width: 900, height: 700 }, locale: 'en', dark: false, largeText: false, reducedMotion: 'no-preference' },
   { name: '390-en-dark-reduced', viewport: { width: 390, height: 844 }, locale: 'en', dark: true, largeText: false, reducedMotion: 'reduce' },
+  // Current settings grids omit the legacy marker. Exercise both enabled
+  // actions at the reported phone width as well as narrow, longer-label copy.
+  { name: '440-en-dark-enabled-grid', viewport: { width: 440, height: 956 }, locale: 'en', dark: true, largeText: false, state: 'enabled', screenshot: 'push-settings-440-en-dark-enabled-grid.png' },
+  { name: '320-it-light-enabled-grid', viewport: { width: 320, height: 568 }, locale: 'it', dark: false, largeText: true, state: 'enabled' },
+  { name: '390-en-light-ready-legacy', viewport: { width: 390, height: 844 }, locale: 'en', dark: false, largeText: false, legacyOptions: true },
+  { name: '390-en-light-enabled-legacy', viewport: { width: 390, height: 844 }, locale: 'en', dark: false, largeText: false, legacyOptions: true, state: 'enabled' },
 ]
 
 const browser = await chromium.launch({ headless: true })
@@ -295,8 +305,9 @@ try {
       await page.evaluate(configuration => {
         document.documentElement.classList.toggle('fixture-dark', configuration.dark)
         document.documentElement.classList.toggle('fixture-large-text', configuration.largeText)
-      }, { dark: testCase.dark, largeText: testCase.largeText })
-      await page.evaluate(locale => window.__pushSettingsFixture.render({ locale, state: 'ready', preferences: { ...window.__pushSettingsFixture.basePreferences } }), testCase.locale)
+        document.getElementById('settings-options').toggleAttribute('data-dsh-mobile-settings-options', configuration.legacyOptions)
+      }, { dark: testCase.dark, largeText: testCase.largeText, legacyOptions: testCase.legacyOptions === true })
+      await page.evaluate(configuration => window.__pushSettingsFixture.render({ locale: configuration.locale, state: configuration.state, preferences: { ...window.__pushSettingsFixture.basePreferences } }), { locale: testCase.locale, state: testCase.state ?? 'ready' })
       await page.waitForFunction(() => document.querySelectorAll('.dsh-mobile-push-categories .dsh-mobile-push-category').length === 6, undefined, { timeout: 10_000 })
       const metrics = await assertGeometry(page, caseName)
       if (metrics) metricsLog.push({ case: caseName, metrics })
