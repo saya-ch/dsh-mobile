@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MacFileAccessProbe } from '../src/macos-file-access.js'
+import { MAC_FULL_DISK_ACCESS_PANE, MacFileAccessProbe, openMacFullDiskAccessSettings } from '../src/macos-file-access.js'
 
 const DATABASE = '/Users/tester/Library/Application Support/com.apple.TCC/TCC.db'
 
@@ -74,5 +74,13 @@ describe('macOS Full Disk Access probe', () => {
       readAccess: () => new Promise<void>(() => {}),
     })
     expect(await probe.refresh()).toBe('missing')
+  })
+})
+
+describe('macOS Full Disk Access settings opener', () => {
+  it('opens the pane through the system open command', async () => {
+    const calls: Array<[string, readonly string[]]> = []
+    await openMacFullDiskAccessSettings(async (file, args) => { calls.push([file, args]) })
+    expect(calls).toEqual([['open', [MAC_FULL_DISK_ACCESS_PANE]]])
   })
 })

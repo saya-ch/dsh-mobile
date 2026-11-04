@@ -15,10 +15,12 @@
  * reading one of the protected folders themselves.
  */
 
+import { execFile } from 'node:child_process'
 import { constants } from 'node:fs'
 import { access } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 
 /** Result of the permission probe. */
 export type MacFileAccessStatus = 'ok' | 'missing'
@@ -112,4 +114,22 @@ export class MacFileAccessProbe {
       if (timer !== undefined) clearTimeout(timer)
     }
   }
+}
+
+/** System Settings deep link for the Full Disk Access pane. */
+export const MAC_FULL_DISK_ACCESS_PANE = 'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles'
+
+const execFileAsync = promisify(execFile)
+
+/**
+ * Open the Full Disk Access pane from the host process.
+ *
+ * The desktop app's renderer refuses to navigate to a custom scheme, so the
+ * button cannot use `window.open`; `open` runs on the Mac that owns the app.
+ * @param run - Command runner, injectable for tests.
+ */
+export async function openMacFullDiskAccessSettings(
+  run: (file: string, args: readonly string[]) => Promise<unknown> = execFileAsync as never,
+): Promise<void> {
+  await run('open', [MAC_FULL_DISK_ACCESS_PANE])
 }
