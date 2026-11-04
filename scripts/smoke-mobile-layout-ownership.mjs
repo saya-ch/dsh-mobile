@@ -1,4 +1,4 @@
-/** Check the built mobile shell's geometry and drawer layering with an owned slot/virtual-trace fixture, not a complete DSH or third-party skin runtime. */
+/** Check the built mobile shell's geometry and drawer layering with an owned slot/virtual-trace fixture, not a complete DSH or third-party skin runtime. Also checks panel touch-size overrides and DSH's plugin-manager page geometry inside an open panel. */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -240,6 +240,78 @@ async function checkPanelTouch(styles) {
   }
 }
 
+// DSH's plugin-manager page inside an open panel: its `<header>` must align
+// with the body sections below it (the conversation rail inset ends at the
+// panel's back bar), and each card title is a `cardTitle cardOpen` button whose
+// ::after overlay already owns the whole card hit area, so the generic 44px
+// floor must leave that text box at its natural compact size.
+async function checkPluginPanelPage(styles) {
+  for (const width of [440, 320]) for (const hasTouch of [false, true]) await withContext({ viewport: { width, height: 900 }, hasTouch }, async context => {
+    const page = await context.newPage()
+    await page.setContent(`<style>
+      body{margin:0}[data-slot]{display:contents}h1,h2,p{margin:0}
+      button{box-sizing:border-box;width:28px;height:28px;padding:0;border:0;background:none;font:inherit;color:inherit}
+      .Pkg_page{--inset:20px;box-sizing:border-box;height:100%;padding:0 var(--inset);display:flex;flex-direction:column;align-items:center}
+      .Pkg_pageBody{width:calc(100% + 2*var(--inset));margin-inline:calc(-1*var(--inset));box-sizing:border-box;padding:0 var(--inset) 48px;display:flex;flex-direction:column;flex:1;min-height:0;gap:32px;overflow:hidden auto}
+      .Pkg_pageHead{width:100%;max-width:960px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+      .Pkg_pageTitle{font-size:20px}
+      .Pkg_toolbar{margin-left:auto;display:flex;gap:8px}
+      .Pkg_group{width:100%}
+      .Pkg_groupTitle{font-size:14px}
+      .Pkg_cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+      .Pkg_card{position:relative}
+      .Pkg_cardHead{display:flex;align-items:center;gap:14px;padding:8px}
+      .Pkg_cardMain{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+      .Pkg_cardOpen{width:auto;height:auto;text-align:left}
+      .Pkg_cardOpen::after{content:"";position:absolute;inset:0}
+      .Pkg_cardDesc{font-size:13px;line-height:18px}
+    </style>
+    <div id="root"><div class="dshm-shell"><main class="dshm-main" data-pane="conversation" data-dsh-panel="0">
+      <div class="dshm-panelNav"><button class="dshm-panelBack" type="button">Back to conversation</button></div>
+      <div class="dshm-mainContent"><div data-slot="main"><div class="Pkg_page"><div class="Pkg_pageBody">
+        <header class="Pkg_pageHead"><h1 class="Pkg_pageTitle" id="page-title">Plugins</h1><div class="Pkg_toolbar"><button id="refresh" type="button">Refresh</button><button id="add" type="button">Add</button></div></header>
+        <section class="Pkg_group"><h2 class="Pkg_groupTitle" id="group-title">Built-in plugin settings</h2>
+          <ul class="Pkg_cards"><li class="Pkg_card" id="card"><div class="Pkg_cardHead"><div class="Pkg_cardMain"><div><button type="button" class="Pkg_cardTitle Pkg_cardOpen" id="card-title">Subagent</button></div><span class="Pkg_cardDesc">Run autonomous agents</span></div></div></li></ul>
+        </section>
+      </div></div></div></div></main></div></div>`)
+    await page.addStyleTag({ content: styles.stylesheet })
+    const sizes = () => page.evaluate(() => {
+      const box = id => { const { width, height } = document.getElementById(id).getBoundingClientRect(); return { width, height } }
+      return {
+        headerPaddingLeft: getComputedStyle(document.querySelector('.Pkg_pageHead')).paddingLeft,
+        titleX: document.getElementById('page-title').getBoundingClientRect().x,
+        groupX: document.getElementById('group-title').getBoundingClientRect().x,
+        cardTitle: box('card-title'), refresh: box('refresh'), add: box('add')
+      }
+    })
+    const closed = await sizes()
+    // Prove the base rail inset actually applies in this fixture, so the open
+    // assertions below demonstrate the cascade direction, not a dead selector.
+    assert.equal(closed.headerPaddingLeft, '52px', `width ${width}: the fixture lost the base conversation rail inset`)
+    await page.locator('.dshm-main').evaluate(node => { node.dataset.dshPanel = '1' })
+    const open = await sizes()
+    const key = `${width}/${hasTouch ? 'touch' : 'fine'}`
+    assert.equal(open.headerPaddingLeft, '0px', `${key}: an open panel header kept the conversation rail inset`)
+    assert(Math.abs(open.titleX - open.groupX) < 0.5, `${key}: the panel header no longer aligns with its body sections`)
+    assert.deepEqual(open.cardTitle, closed.cardTitle, `${key}: the card open-button changed size with the panel open`)
+    if (hasTouch) {
+      assert(open.refresh.width >= 44 && open.refresh.height >= 44, `${key}: toolbar actions lost the 44px touch floor`)
+      assert(open.add.width >= 44 && open.add.height >= 44, `${key}: toolbar actions lost the 44px touch floor`)
+      assert.deepEqual(closed.refresh, { width: 28, height: 28 }, `${key}: the touch-floor baseline fixture changed`)
+      await page.locator('#card-title').evaluate(node => { node.addEventListener('click', () => { node.dataset.clicked = 'true' }) })
+      const hit = await page.evaluate(() => {
+        const card = document.getElementById('card').getBoundingClientRect()
+        const x = card.right - 2, y = card.bottom - 2
+        return { x, y, onTitle: document.elementFromPoint(x, y)?.closest('#card-title') !== null }
+      })
+      assert.equal(hit.onTitle, true, `${key}: the card overlay no longer owns the card hit area`)
+      await page.mouse.click(hit.x, hit.y)
+      assert.equal(await page.locator('#card-title').getAttribute('data-clicked'), 'true', `${key}: a tap on the card body did not reach the open-button`)
+    } else assert.deepEqual(open.refresh, closed.refresh, 'fine: toolbar geometry changed with the panel open')
+    cases++
+  })
+}
+
 try {
   browser = await chromium.launch({ headless: true })
   const styles = await captureStyles()
@@ -261,6 +333,7 @@ try {
     })
   } else {
     await checkPanelTouch(styles)
+    await checkPluginPanelPage(styles)
     for (const view of views) for (const open of [false, true]) for (const [theme, tokens] of Object.entries(themes)) for (const order of ['before', 'after']) {
       await withContext({ viewport: view, hasTouch: true }, async context => {
         const page = await context.newPage()

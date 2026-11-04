@@ -1513,6 +1513,27 @@ it('keeps plugin panel controls tappable on coarse pointers, with an opt-out', (
   expect(MOBILE_LAYOUT_STYLES).toContain('overscroll-behavior:contain')
 })
 
+it('excludes plugin card open-buttons from the touch floor; their overlay owns the hit area', () => {
+  // DSH renders each plugin card's title as a `cardTitle cardOpen` button whose
+  // ::after overlay already covers the whole card, so the 44px floor only
+  // inflated the title box and pushed the description away from it.
+  // Fragment scope (DSH 0.2.x): `_cardOpen` exists only in the plugin-manager;
+  // `_cardTitle` also lands on plan-preview / onboarding `<span>`s and a
+  // plugin-inventory `<strong>`, which are not buttons, so the floor's
+  // `:is(button,[role="button"],select,input…)` never matched them anyway.
+  expect(MOBILE_LAYOUT_STYLES).toContain(
+    ':not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],[class*="_cardTitle"],[class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *)'
+  )
+})
+
+it('drops the conversation rail inset from headers inside an open plugin panel', () => {
+  // `.dshm-shell header` reserves the collapsed drawer rail for the conversation
+  // header. An open third-party panel sits under the mobile back bar instead, so
+  // its page headers must align with the panel's own body content.
+  expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell header{min-width:0;padding-left:52px}')
+  expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-main[data-dsh-panel="1"] header{padding-left:0}')
+})
+
 it('stops Android WebView font boosting from inflating fixed-px line boxes', () => {
   expect(MOBILE_LAYOUT_STYLES).toContain('-webkit-text-size-adjust:100%')
   expect(MOBILE_LAYOUT_STYLES).toContain('text-size-adjust:100%')
