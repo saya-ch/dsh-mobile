@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import * as QRCode from 'qrcode'
+import { renderIrohPairingQr } from './iroh-pairing.js'
 import { assertManagedParents } from './managed-files.js'
 import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm/message'
 declare module '@deepseek-ai/dsh-llm' {
@@ -1742,7 +1742,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
             })
           let qrSvg = ''
           try {
-            qrSvg = await QRCode.toString(pairing.encoded, { type: 'svg', margin: 1 })
+            qrSvg = await renderIrohPairingQr(pairing.encoded)
           } catch {
             // keep qrSvg empty
           }

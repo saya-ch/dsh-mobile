@@ -11,6 +11,8 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Update the optional managed cloudflared component from 2026.9.1 to 2026.10.7. Install the new component explicitly from the desktop panel; it is not fetched automatically. Existing tunnel settings are not deleted.
 - Describe Funnel listener startup separately from verified public access. The bundled Funnel remains public-ingress-only; this change neither enables tailnet ingress nor fixes an unverified public-route failure.
 - Add optional folder-permission guidance to the remote panel on macOS. It does not probe or request Full Disk Access, change system settings, or block pairing. Thanks @LunarFeller for [#354](https://github.com/saya-ch/dsh-mobile/issues/354).
+- Render iroh pairing QR codes with a four-module quiet zone and keep the copy action available when a valid pairing descriptor has no QR image. Do not reuse the previous image after opening a new pairing window. This does not establish the cause of the transport failures in [#338](https://github.com/saya-ch/dsh-mobile/issues/338).
+- Update the browser-bundled SHA-256 dependency to @noble/hashes 2.4.0 and adapt its imports and UTF-8 input without changing native notification tags. [#334](https://github.com/saya-ch/dsh-mobile/pull/334)
 - Plugin-only update. Android 0.7.2 remains the published App; this update does not introduce a native WebView cache.
 
 ## Android 0.7.2 - 2026-11-04

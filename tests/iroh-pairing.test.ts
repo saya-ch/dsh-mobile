@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import * as QRCode from 'qrcode'
 import { ensureIrohTls } from '../src/iroh-tls.js'
 import { irohHostname, irohOrigin } from '../src/iroh-origin.js'
 import {
@@ -11,6 +12,7 @@ import {
   MAX_PAIRING_DESCRIPTOR_BYTES,
   PAIRING_DESCRIPTOR_LOCAL_PORT,
   PairingDescriptorError,
+  renderIrohPairingQr,
   validatePairingDescriptor,
 } from '../src/iroh-pairing.js'
 
@@ -62,6 +64,16 @@ describe('iroh pairing descriptor', () => {
     expect(Buffer.byteLength(encoded, 'utf8')).toBeLessThanOrEqual(MAX_PAIRING_DESCRIPTOR_BYTES)
     expect(decodePairingDescriptor(encoded, { now })).toEqual(descriptor)
     expect(validatePairingDescriptor(JSON.parse(encoded) as unknown, { now })).toEqual(descriptor)
+  })
+
+  it('renders a dense pairing QR with four modules of quiet zone on every side', async () => {
+    const now = Date.now()
+    const encoded = encodePairingDescriptor(await fixtureDescriptor(now), { now })
+    const width = QRCode.create(encoded, { errorCorrectionLevel: 'M' }).modules.size
+    const svg = await renderIrohPairingQr(encoded)
+    expect(svg).toContain(`viewBox="0 0 ${width + 8} ${width + 8}"`)
+    expect(svg).toContain('shape-rendering="crispEdges"')
+    expect(svg).toContain('d="M4 4.5h7')
   })
 
   it('rejects endpoint, origin, token, expiry and CA violations with distinct codes', async () => {
