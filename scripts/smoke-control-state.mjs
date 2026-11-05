@@ -415,6 +415,36 @@ try {
     })
     cases++
   }
+  await withControl(browser, 'Mac folder guidance is optional, host-scoped and keyboard-accessible', { managedReady: true, touch: true, width: 320 },
+    async ({ page, state, openRemote, pollRemote }) => {
+      await openRemote()
+      const summary = page.locator('summary').filter({ hasText: /^Before leaving this Mac$/u })
+      const help = summary.locator('..')
+      assert.equal(await summary.isVisible(), false, 'Unknown/non-Mac Host showed the Mac help')
+      state.remote.macosHost = true
+      await pollRemote()
+      await summary.waitFor({ state: 'visible' })
+      assert.equal(await help.evaluate(node => node.open), false, 'Help interrupted the ready view')
+      const mainActions = page.locator('.dsh-mobile-control__remote-workspace > .dsh-mobile-control__actions')
+      assert.equal(await mainActions.isVisible(), true, 'Help blocked the remote actions')
+      const writes = []
+      page.on('request', request => {
+        if (new URL(request.url()).pathname.startsWith(prefix) && request.method() !== 'GET') writes.push(request.method())
+      })
+      await summary.focus()
+      await summary.press('Enter')
+      const note = help.locator('p')
+      await note.waitFor({ state: 'visible' })
+      assert.match(await note.textContent(), /Files and Folders/u)
+      assert(await help.evaluate(node => node.scrollWidth <= node.clientWidth + 1), 'Help overflowed at 320px')
+      await summary.press('Space')
+      await note.waitFor({ state: 'hidden' })
+      Object.assign(state.remote, { state: 'connecting' })
+      await pollRemote()
+      await summary.waitFor({ state: 'hidden' })
+      assert.deepEqual(writes, [], 'Folder guidance must not call an admin write route')
+    })
+  cases++
   for (const provider of ['cloudflared', 'cpolar', 'iroh']) {
     await withControl(browser, `${provider} actions require installation; stable three-button row`, {}, async ({ page, state, consumed, settle, openRemote, pollRemote, count }) => {
       await openRemote()

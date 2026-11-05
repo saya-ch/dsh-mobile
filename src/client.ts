@@ -1742,6 +1742,13 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   // provider page, below the action buttons, regardless of the active provider.
   const setupDetailsRow = element('div', 'dsh-mobile-control__setup-details')
   for (const disclosure of [cpolarDetails, cloudflaredDetails, frpDetails, irohDetails]) { disclosure.hidden = true; setupDetailsRow.append(disclosure) }
+  const macosFolderHelp = element('details', 'dsh-mobile-control__details'); macosFolderHelp.hidden = true
+  const macosFolderHelpSummary = element('summary'); macosFolderHelpSummary.textContent = t('macosFolderHelpTitle')
+  const macosFolderHelpBody = element('div', 'dsh-mobile-control__details-body')
+  const macosFolderHelpNote = element('p'); macosFolderHelpNote.textContent = t('macosFolderHelpNote')
+  macosFolderHelpBody.append(macosFolderHelpNote)
+  macosFolderHelp.append(macosFolderHelpSummary, macosFolderHelpBody)
+  setupDetailsRow.append(macosFolderHelp)
   remoteWorkspace.append(remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteQr, pairingValidity, providerInstallRow, remoteActions, remotePairLink, setupDetailsRow)
   const diagnosticsView = element('div', 'dsh-mobile-control__view is-diagnostics'); diagnosticsView.hidden = true
   // Paired-device management is its own page (like diagnostics), reached from the
@@ -2684,6 +2691,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     remoteSetupUrl = candidateSetupUrl !== '' ? candidateSetupUrl : (fallbackSetupUrls[errorCode] ?? '')
     const needsFunnelSetup = state === 'error' && remoteSetupUrl !== ''
     remoteReady = remoteRunning && state === 'ready' && remoteOrigin !== ''
+    macosFolderHelp.hidden = data.macosHost !== true || !remoteReady
     frpChoiceBadge.textContent = frpConfigured && frpInstalled ? t('ready') : t('advanced')
     originChoiceBadge.textContent = managedOrigin ? t(remoteReady ? 'ready' : 'advanced') : originListening ? t('originBackendReady') : t('advanced')
     // The selected provider and its state already live in the left column. The

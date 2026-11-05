@@ -880,7 +880,9 @@ describe('stock DSH lifecycle', () => {
     expect(JSON.parse(status.body)).toEqual({ running: false, rebindSupported: false })
     const remote = await invoke(mounted.route, 'GET', '/api/mobile-access/remote/control')
     expect(remote.status).toBe(200)
-    expect(JSON.parse(remote.body)).toMatchObject({
+    const remoteBody = JSON.parse(remote.body) as Record<string, unknown>
+    expect(remoteBody.macosHost).toBe(process.platform === 'darwin' ? true : undefined)
+    expect(remoteBody).toMatchObject({
       provider: 'tailscale',
       running: false,
       state: 'off',

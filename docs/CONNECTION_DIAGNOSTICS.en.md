@@ -2,7 +2,7 @@
 
 [中文](CONNECTION_DIAGNOSTICS.md) · [Documentation](README.md)
 
-> Layered reporting applies to the plugin 0.8.2 candidate. Published 0.8.1 has fewer diagnostic fields and explanations. This computer-side change does not advance the App version.
+> Layered reporting is available from plugin 0.8.2; 0.8.1 has fewer diagnostic fields and explanations. This computer-side feature does not require an App update.
 
 On the computer, open **Mobile access → Diagnostics** and start the check. It reads configuration, component state and bounded network observations without model requests or changes to DNS, proxies, firewall or pairings. Duplicate actions are disabled while checking; a redacted report can be copied afterward.
 
@@ -42,6 +42,12 @@ This result requires comparison rather than marking public ingress failed or hea
 - **Unknown**: insufficient evidence to classify; raw errors, URLs and response contents are not copied into the report.
 
 Working conversations with failed customization need separate manifest, CSS, script and event-stream investigation. Transport errors, parser rejection and upstream HTTP rejection are distinct; see [slow-link diagnostics](SLOW_CONNECTIONS.en.md). Local readiness for iroh or an own reverse proxy is not public-route acceptance; see [iroh](IROH.en.md) and [own reverse proxy](SELF_HOSTED_ORIGIN.en.md).
+
+## macOS: timeout when opening a workspace folder
+
+macOS can ask on the computer whether DSH may access a protected location such as Desktop, Documents or Downloads. If remote access times out just as you open a folder, check the Mac for a pending system prompt. The timeout alone does not show that pairing was lost or that permissions caused the failure.
+
+Before leaving the Mac unattended, start DSH the way you normally run it and open the workspace folder you intend to use remotely. Grant only the access you need, and review existing grants in **System Settings → Privacy & Security → Files and Folders**. You can also choose a location for new workspaces that does not require this permission. After addressing a prompt, retry with your existing pairing. Remote access does not require Full Disk Access. See [Apple's guide to file and folder access](https://support.apple.com/en-us/guide/mac-help/mchld5a35146/mac).
 
 ## Share the report
 

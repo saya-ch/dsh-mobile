@@ -1177,7 +1177,8 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     originConfig.status(),
     caddyComponent.status(),
     irohComponent.status(),
-  ), originMode: originController.mode(), caddyConfiguration: caddyConfig.status(), caddyState: caddyController.status() })
+  ), originMode: originController.mode(), caddyConfiguration: caddyConfig.status(), caddyState: caddyController.status(),
+  ...(process.platform === 'darwin' ? { macosHost: true } : {}) })
   const lanPayload = (): Record<string, unknown> => ({
     ...(loaded.kind === 'unconfigured' ? {
       configured: preparedLanSetup !== undefined,
