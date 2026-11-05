@@ -168,6 +168,17 @@ export function installMobileNativeBack(view: Window, page: Document, blocked: (
       if (!escape.defaultPrevented) blocked()
       return
     }
+    if (top.getAttribute('data-shortcut-modal') === 'sidebar' && top.closest('[data-sidebar-drawer]') !== null) {
+      // The DSH drawer owns its focus, mask and dismissal. Route to its
+      // existing keyboard handler instead of guessing a close button.
+      if (layers.some(layer => layer !== top && !top.contains(layer))) { blocked(); return }
+      const focused = page.activeElement
+      const target = focused !== null && top.contains(focused) ? focused : top
+      const escape = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
+      target.dispatchEvent(escape)
+      if (!escape.defaultPrevented) blocked()
+      return
+    }
     if (top.getAttribute('role') === 'dialog') {
       const wrapper = top.parentElement
       const mask = wrapper?.firstElementChild as HTMLElement | null | undefined
@@ -637,6 +648,7 @@ export interface FrpAttachClipboardForm {
   readonly serverAddress: string
   readonly serverPort: number
   readonly token: string
+  readonly user?: string
   readonly publicOrigin: string
   readonly entryTls: 'public-ip-cert' | 'self-signed'
   readonly vhostHttpPort?: number
@@ -679,6 +691,7 @@ function attachClipboardSettings(form: FrpAttachClipboardForm): FrpSettings {
       ? {}
       : { vhostHttpPort: form.vhostHttpPort }),
     ...(form.publicPort === undefined ? {} : { publicPort: form.publicPort }),
+    ...(form.user === undefined || form.user === '' ? {} : { user: form.user }),
   })
 }
 
@@ -1291,6 +1304,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const frpPort = element('input'); frpPort.type = 'number'; frpPort.inputMode = 'numeric'; frpPort.min = '1'; frpPort.max = '65535'; frpPort.value = '7000'
   const frpTokenLabel = element('label', 'dsh-mobile-control__field'); frpTokenLabel.textContent = t('frpToken')
   const frpToken = element('input'); frpToken.type = 'password'; frpToken.autocomplete = 'off'; frpToken.spellcheck = false; frpToken.placeholder = t('frpTokenPlaceholder')
+  const frpUserLabel = element('label', 'dsh-mobile-control__field'); frpUserLabel.textContent = t('frpUser')
+  const frpUser = element('input'); frpUser.type = 'text'; frpUser.autocomplete = 'off'; frpUser.spellcheck = false; frpUser.placeholder = t('frpUserPlaceholder')
+  const frpUserHint = element('p', 'dsh-mobile-control__frp-hint'); frpUserHint.textContent = t('frpUserHint')
+  frpUserLabel.append(frpUser, frpUserHint)
   const frpOriginLabel = element('label', 'dsh-mobile-control__field'); frpOriginLabel.textContent = t('frpPublicOrigin')
   const frpOrigin = element('input'); frpOrigin.type = 'url'; frpOrigin.autocomplete = 'off'; frpOrigin.spellcheck = false; frpOrigin.placeholder = t('frpPublicOriginPlaceholder')
   const frpModeLabel = element('label', 'dsh-mobile-control__field'); frpModeLabel.textContent = t('frpMode')
@@ -1317,15 +1334,15 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   frpPublicPortLabel.append(frpPublicPort, frpPublicPortHint)
   frpServerLabel.append(frpServer); frpPortLabel.append(frpPort); frpTokenLabel.append(frpToken); frpOriginLabel.append(frpOrigin)
   const frpInputs: Record<keyof FrpFormValues, HTMLInputElement | HTMLSelectElement> = {
-    serverAddress: frpServer, serverPort: frpPort, token: frpToken, publicOrigin: frpOrigin,
+    serverAddress: frpServer, serverPort: frpPort, token: frpToken, user: frpUser, publicOrigin: frpOrigin,
     mode: frpMode, entryTls: frpEntryTls, vhostHttpPort: frpVhostPort, publicPort: frpPublicPort,
   }
   const frpInputLabels: Record<keyof FrpFormValues, HTMLLabelElement> = {
-    serverAddress: frpServerLabel, serverPort: frpPortLabel, token: frpTokenLabel, publicOrigin: frpOriginLabel,
+    serverAddress: frpServerLabel, serverPort: frpPortLabel, token: frpTokenLabel, user: frpUserLabel, publicOrigin: frpOriginLabel,
     mode: frpModeLabel, entryTls: frpEntryTlsLabel, vhostHttpPort: frpVhostLabel, publicPort: frpPublicPortLabel,
   }
   const frpLabelKeys: Record<keyof FrpFormValues, string> = {
-    serverAddress: 'frpServerAddress', serverPort: 'frpServerPort', token: 'frpToken', publicOrigin: 'frpPublicOrigin',
+    serverAddress: 'frpServerAddress', serverPort: 'frpServerPort', token: 'frpToken', user: 'frpUser', publicOrigin: 'frpPublicOrigin',
     mode: 'frpMode', entryTls: 'frpEntryTls', vhostHttpPort: 'frpVhostHttpPort', publicPort: 'frpPublicPort',
   }
   const frpErrors = new Map<keyof FrpFormValues, HTMLParagraphElement>()
@@ -1341,7 +1358,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const frpOriginHint = element('p', 'dsh-mobile-control__frp-hint'); frpOriginHint.id = 'dsh-mobile-frp-origin-hint'; frpOriginHint.textContent = t('frpPublicOriginHint')
   frpOriginLabel.append(frpOriginHint)
   frpOrigin.setAttribute('aria-describedby', `${frpOriginHint.id} ${frpOrigin.getAttribute('aria-describedby') ?? ''}`)
-  frpFields.append(frpServerLabel, frpPortLabel, frpTokenLabel, frpOriginLabel, frpModeLabel, frpEntryTlsLabel, frpVhostLabel, frpPublicPortLabel)
+  frpFields.append(frpServerLabel, frpPortLabel, frpTokenLabel, frpUserLabel, frpOriginLabel, frpModeLabel, frpEntryTlsLabel, frpVhostLabel, frpPublicPortLabel)
   frpStep1.append(frpStep1Title, frpStep1Text, frpFields)
   const frpStep2 = element('section', 'dsh-mobile-control__frp-step')
   const frpStep2Title = element('strong'); frpStep2Title.textContent = t('frpStep2Title')
@@ -1498,7 +1515,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const irohPairingTitle = element('p', 'dsh-mobile-control__component-status'); irohPairingTitle.textContent = t('irohPairingTitle')
   const irohPair = element('button', 'dsh-mobile-control__primary'); irohPair.type = 'button'; irohPair.textContent = t('generateIrohQr')
   const irohQr = element('div', 'dsh-mobile-control__qr is-expandable'); irohQr.hidden = true
-  const irohPairStatus = element('p', 'dsh-mobile-control__component-status')
+  const irohPairStatus = element('p', 'dsh-mobile-control__component-status'); irohPairStatus.setAttribute('aria-live', 'polite')
   const irohCopyDescriptor = element('button', 'dsh-mobile-control__secondary'); irohCopyDescriptor.type = 'button'; irohCopyDescriptor.textContent = t('copyPairLink'); irohCopyDescriptor.hidden = true; irohCopyDescriptor.disabled = true
   // The pairing trigger sits beside enable/disable remote access; the QR code and
   // its status stay in the card below as the result area.
@@ -1725,6 +1742,13 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   // provider page, below the action buttons, regardless of the active provider.
   const setupDetailsRow = element('div', 'dsh-mobile-control__setup-details')
   for (const disclosure of [cpolarDetails, cloudflaredDetails, frpDetails, irohDetails]) { disclosure.hidden = true; setupDetailsRow.append(disclosure) }
+  const macosFolderHelp = element('details', 'dsh-mobile-control__details'); macosFolderHelp.hidden = true
+  const macosFolderHelpSummary = element('summary'); macosFolderHelpSummary.textContent = t('macosFolderHelpTitle')
+  const macosFolderHelpBody = element('div', 'dsh-mobile-control__details-body')
+  const macosFolderHelpNote = element('p'); macosFolderHelpNote.textContent = t('macosFolderHelpNote')
+  macosFolderHelpBody.append(macosFolderHelpNote)
+  macosFolderHelp.append(macosFolderHelpSummary, macosFolderHelpBody)
+  setupDetailsRow.append(macosFolderHelp)
   remoteWorkspace.append(remoteStatus, remoteAccess, remoteGuide, providerSetupBody, remoteQr, pairingValidity, providerInstallRow, remoteActions, remotePairLink, setupDetailsRow)
   const diagnosticsView = element('div', 'dsh-mobile-control__view is-diagnostics'); diagnosticsView.hidden = true
   // Paired-device management is its own page (like diagnostics), reached from the
@@ -1852,6 +1876,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   let configuredFrpOrigin = ''
   let configuredFrpVhostPort = 7080
   let configuredFrpPublicPort = 33_080
+  let configuredFrpUser = ''
+  let frpUserDraft = false
   /** Proxy name the host writes into its frpc.toml; the local clipboard copy must match. */
   let configuredFrpProxyName: string | undefined
   let frpConfiguredMode: 'deploy' | 'attach' = 'deploy'
@@ -2193,6 +2219,17 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     irohQr.hidden = false
     irohQr.append(placeholder)
   }
+  const clearIrohPairing = (): void => {
+    activeIrohDescriptor = ''
+    activeIrohPairExpiresAt = 0
+    activeIrohQrSvg = ''
+    clearQrTarget(irohQr)
+    irohQr.hidden = true
+    const wasZoomed = !irohQrZoom.hidden
+    setIrohQrZoomOpen(false)
+    irohQrZoomImage.removeAttribute('src')
+    if (wasZoomed && !irohPair.disabled && !irohPair.hidden) irohPair.focus()
+  }
   const showRemoteQrPlaceholder = (text: string): void => {
     clearQrTarget(remoteQr)
     const placeholder = element('span', 'dsh-mobile-control__qr-placeholder')
@@ -2469,6 +2506,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     if (frpConfigured && !frpEntryTlsDraft) frpEntryTls.value = configuredFrpEntryTls
     if (typeof frpConfiguration.vhostHttpPort === 'number') configuredFrpVhostPort = frpConfiguration.vhostHttpPort
     if (typeof frpConfiguration.publicPort === 'number') configuredFrpPublicPort = frpConfiguration.publicPort
+    configuredFrpUser = typeof frpConfiguration.user === 'string' ? frpConfiguration.user : ''
+    if (!frpUserDraft) frpUser.value = configuredFrpUser
+    else if (frpUser.value.trim() === configuredFrpUser) frpUserDraft = false
     configuredFrpProxyName = typeof frpConfiguration.proxyName === 'string' && frpConfiguration.proxyName !== ''
       ? frpConfiguration.proxyName
       : undefined
@@ -2662,6 +2702,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     remoteSetupUrl = candidateSetupUrl !== '' ? candidateSetupUrl : (fallbackSetupUrls[errorCode] ?? '')
     const needsFunnelSetup = state === 'error' && remoteSetupUrl !== ''
     remoteReady = remoteRunning && state === 'ready' && remoteOrigin !== ''
+    macosFolderHelp.hidden = data.macosHost !== true || !remoteReady
     frpChoiceBadge.textContent = frpConfigured && frpInstalled ? t('ready') : t('advanced')
     originChoiceBadge.textContent = managedOrigin ? t(remoteReady ? 'ready' : 'advanced') : originListening ? t('originBackendReady') : t('advanced')
     // The selected provider and its state already live in the left column. The
@@ -2686,7 +2727,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       connecting: cpolar ? t('remoteConnectingCpolar')
         : cloudflared ? t('remoteConnectingCloudflared')
           : frp ? t('remoteConnectingFrp') : iroh ? t('irohConnecting') : t('remoteConnectingTailscale'),
-      ready: origin ? t(managedOrigin ? 'caddyVerified' : 'originReady') : t('remoteReady'),
+      ready: origin ? t(managedOrigin ? 'caddyVerified' : 'originReady') : tailscale ? t('funnelListenerReady') : t('remoteReady'),
       error: t('remoteError'),
     }
     const errorLabels: Record<string, string> = translatedRemoteErrors()
@@ -2737,15 +2778,15 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     // other remote providers instead of showing a permanently disabled button.
     irohPair.hidden = !iroh
     irohCopyDescriptor.hidden = !iroh
-    if (iroh && irohInstalled && activeIrohQrSvg === '') showIrohQrPlaceholder()
-    else if (!iroh || !irohInstalled) irohQr.hidden = true
-    if ((!iroh || !remoteReady) && activeIrohDescriptor !== '') {
-      activeIrohDescriptor = ''
-      activeIrohPairExpiresAt = 0
-      activeIrohQrSvg = ''
-      showQr('', irohQr)
-      setIrohQrZoomOpen(false)
-      irohPairStatus.textContent = ''
+    const irohPairingExpired = activeIrohPairExpiresAt > 0 && activeIrohPairExpiresAt <= Date.now()
+    if (activeIrohDescriptor !== '' && (!iroh || !irohInstalled || !remoteReady || irohPairingExpired)) {
+      clearIrohPairing()
+      irohPairStatus.textContent = iroh && irohInstalled && remoteReady && irohPairingExpired ? t('pairingExpired') : ''
+    }
+    if (!iroh || !irohInstalled) irohQr.hidden = true
+    else if (activeIrohQrSvg === '') {
+      if (activeIrohDescriptor === '') showIrohQrPlaceholder()
+      else irohQr.hidden = true
     }
     irohCopyDescriptor.disabled = !iroh || !remoteReady || remoteProviderBusy || activeIrohDescriptor === '' || activeIrohPairExpiresAt <= Date.now()
     if (origin) { remoteReconnect.disabled = remoteProviderBusy || remoteReconnectBusy; remoteReset.disabled = remoteProviderBusy }
@@ -2910,8 +2951,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   })
   const openIrohPairing = async (): Promise<void> => {
     const generation = remotePairingGeneration
-    activeIrohDescriptor = ''
-    activeIrohPairExpiresAt = 0
+    clearIrohPairing()
     irohCopyDescriptor.disabled = true
     const data = await controlRequestJson('/api/mobile-access/remote/iroh/pairing/begin', { method: 'POST', body: '{}' })
     if (lifecycle.signal.aborted || remoteProvider !== 'iroh' || !remoteReady || generation !== remotePairingGeneration) return
@@ -2919,8 +2959,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     const qrSvg = typeof record.qrSvg === 'string' ? record.qrSvg : ''
     const code = typeof record.irohCode === 'string' ? record.irohCode : ''
     const expiresAt = typeof record.expiresAt === 'number' && Number.isFinite(record.expiresAt) ? record.expiresAt : 0
-    showQr(qrSvg, irohQr)
-    if (qrSvg === '' || code === '' || expiresAt <= Date.now()) { activeIrohQrSvg = ''; irohPairStatus.textContent = t('keyGenerationFailed'); return }
+    if (!/^\d{6}$/u.test(code) || expiresAt <= Date.now()) { irohPairStatus.textContent = t('keyGenerationFailed'); return }
+    if (qrSvg === '') irohQr.hidden = true
+    else showQr(qrSvg, irohQr)
     activeIrohQrSvg = qrSvg
     // The QR and the copy action share the same one-time window. Re-copying
     // cannot invalidate a code the phone may already be scanning.
@@ -2929,7 +2970,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     for (const field of fields) descriptor[field] = record[field]
     activeIrohDescriptor = JSON.stringify(descriptor)
     activeIrohPairExpiresAt = expiresAt
-    irohPairStatus.textContent = t('irohPairingReady', { code })
+    irohPairStatus.textContent = qrSvg === '' ? t('irohPairingCopyOnly') : t('irohPairingReady', { code })
   }
   irohPair.addEventListener('click', () => {
     if (remoteProviderBusy || !remoteReady || remoteProvider !== 'iroh') return
@@ -3164,6 +3205,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     readonly serverAddress: string
     readonly serverPort: number
     readonly token: string
+    readonly user: string
     readonly publicOrigin: string
     readonly mode: 'deploy' | 'attach'
     readonly entryTls: 'public-ip-cert' | 'self-signed'
@@ -3177,6 +3219,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       serverAddress: String(frpServer.value ?? '').trim(),
       serverPort: Number(frpPort.value),
       token: String(frpToken.value ?? ''),
+      user: String(frpUser.value ?? '').trim(),
       publicOrigin: String(frpOrigin.value ?? '').trim(),
       mode,
       entryTls: frpEntryTls.value === 'self-signed' ? 'self-signed' as const : 'public-ip-cert' as const,
@@ -3200,6 +3243,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     entryTls: form.entryTls,
     ...(form.entryTls === 'self-signed' || form.vhostHttpPort === undefined ? {} : { vhostHttpPort: form.vhostHttpPort }),
     ...(form.publicPort === undefined ? {} : { publicPort: form.publicPort }),
+    ...(form.user === '' ? {} : { user: form.user }),
   })
   const validFrpForm = (form: ReturnType<typeof frpForm>): boolean => {
     return validateFrpForm(form).length === 0
@@ -3231,6 +3275,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   }
   for (const [name, input] of Object.entries(frpInputs)) {
     input.addEventListener(name === 'mode' || name === 'entryTls' ? 'change' : 'input', () => {
+      if (name === 'user') frpUserDraft = true
       if (frpValidationShown) renderFrpIssues(validateFrpForm(frpForm(), frpValidationAllowsSavedToken))
     })
   }
@@ -3403,6 +3448,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       entryTls: form.entryTls,
       ...(form.vhostHttpPort === undefined ? {} : { vhostHttpPort: form.vhostHttpPort }),
       ...(form.publicPort === undefined ? {} : { publicPort: form.publicPort }),
+      user: form.user,
     }
   }
   const validVpsFrpForm = (): boolean => {
@@ -3608,11 +3654,13 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       && form.entryTls === (frpConfiguredEntryTls === 'self-signed' ? 'self-signed' : 'public-ip-cert')
       && (form.vhostHttpPort ?? configuredFrpVhostPort) === configuredFrpVhostPort
       && (form.publicPort ?? configuredFrpPublicPort) === configuredFrpPublicPort
+      && form.user === configuredFrpUser
     if (!unchanged) {
       // Attach mode is validated by the same parser the host uses, so the panel
       // reports the exact code (for example a missing vhostHTTPPort) instead of a
       // generic "invalid input".
-      if (!checkFrpForm(form)) return
+      const sameServer = frpConfigured && form.serverAddress === configuredFrpServer && form.serverPort === configuredFrpPort
+      if (!checkFrpForm(form, sameServer)) return
     }
     renderFrpIssues([])
     remoteProviderBusy = true
@@ -5279,7 +5327,7 @@ export const CONTROL_STYLES = `
    style rule of its own. */
 .dsh-mobile-control__cpolar-setup{margin:0 0 12px;padding:12px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:13px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__cpolar-setup[hidden],.dsh-mobile-control__cpolar-account[hidden],.dsh-mobile-control__details[hidden],.dsh-mobile-control__view.is-remote .dsh-mobile-control__actions[hidden],.dsh-mobile-control__danger[hidden]{display:none}.dsh-mobile-control__component-status,.dsh-mobile-control__component-note{margin:0 0 10px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.55}.dsh-mobile-control__progress{box-sizing:border-box;width:100%;height:6px;margin:0 0 10px}.dsh-mobile-control__progress[hidden]{display:none}.dsh-mobile-control__cpolar-setup>.dsh-mobile-control__primary{width:100%;min-height:44px;padding:9px 12px;border-radius:10px;font:600 12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__cpolar-account{margin-top:10px}.dsh-mobile-control__link-row{display:flex;flex-wrap:wrap;gap:6px 12px;margin:0 0 10px}.dsh-mobile-control__text-link{color:var(--dsw-alias-label-primary-bluish,#2563eb);font-size:11px;text-decoration:none}.dsh-mobile-control__text-link:hover{text-decoration:underline}.dsh-mobile-control__token-label{display:flex;flex-direction:column;gap:5px;margin:0 0 8px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px}.dsh-mobile-control__token{box-sizing:border-box;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-2,#fff));color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__cpolar-connect{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:44px;padding:10px 14px;border-radius:12px;font:650 13px/1.2 system-ui;cursor:pointer;transition:background-color 160ms ease,border-color 160ms ease,opacity 160ms ease}.dsh-mobile-control__cpolar-connect:hover:not(:disabled){border-color:#1d4ed8;background:#1d4ed8}.dsh-mobile-control__cpolar-connect:active:not(:disabled){border-color:#1e40af;background:#1e40af}.dsh-mobile-control__cpolar-connect:disabled{cursor:wait;opacity:.55}.dsh-mobile-control__details{margin:10px 0 0;border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb);padding-top:9px}.dsh-mobile-control__details>summary{min-height:36px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:30px;cursor:pointer}.dsh-mobile-control__details-body{display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;padding:4px 0}.dsh-mobile-control__details-body p{flex:1 0 100%;margin:0;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__storage{display:block;flex:1 0 100%;max-width:100%;overflow:hidden;padding:7px 8px;border-radius:8px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);color:var(--dsw-alias-label-secondary,#475569);font:11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__danger{flex:1 0 100%;min-height:44px;margin-top:3px;padding:7px 10px;border:1px solid var(--dsw-alias-state-error-primary,#dc2626);border-radius:9px;background:transparent;color:var(--dsw-alias-label-primary,#dc2626);font:12px/1.3 system-ui;cursor:pointer}
 .dsh-mobile-control__danger:hover:not(:disabled),.dsh-mobile-control__device-revoke:hover{background:var(--dsw-alias-interactive-bg-hover-danger,rgb(220 38 38 / 8%))}
-.dsh-mobile-control__frp-setup{margin:0;padding:12px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:13px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__frp-setup[hidden]{display:none}.dsh-mobile-control__frp-step{padding:11px 0}.dsh-mobile-control__frp-step + .dsh-mobile-control__frp-step{border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}.dsh-mobile-control__frp-step>strong{display:block;margin-bottom:3px;font-size:12px;line-height:1.4}.dsh-mobile-control__frp-step>p{margin:0 0 9px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__frp-changes{margin:0 0 9px;padding:0;list-style:none;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__frp-changes li{position:relative;margin:0;padding-left:12px}.dsh-mobile-control__frp-changes li+li{margin-top:5px}.dsh-mobile-control__frp-changes li::before{content:"•";position:absolute;left:2px;color:var(--dsw-alias-label-tertiary,#98a1ad)}.dsh-mobile-control__frp-step>.dsh-mobile-control__frp-requirement{padding:8px 9px;border-radius:9px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);color:var(--dsw-alias-label-primary,#384152);font-size:11px}.dsh-mobile-control__frp-fields{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px}.dsh-mobile-control__frp-fields[hidden]{display:none}.dsh-mobile-control__frp-fields>.dsh-mobile-control__field:nth-child(5),.dsh-mobile-control__frp-fields>.dsh-mobile-control__field:nth-child(6){grid-column:1/-1}.dsh-mobile-control__frp-fields>.dsh-mobile-control__field[hidden]{display:none}.dsh-mobile-control__frp-fields select{box-sizing:border-box;width:100%;min-height:44px;padding:9px 32px 9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:14px/1.4 system-ui}.dsh-mobile-control__frp-fields select:disabled{cursor:not-allowed;opacity:.55}.dsh-mobile-control__frp-hint{margin:0;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__field{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px}.dsh-mobile-control__field:nth-child(3),.dsh-mobile-control__field:nth-child(4){grid-column:1/-1}.dsh-mobile-control__field input{box-sizing:border-box;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__frp-action{box-sizing:border-box;width:100%;min-height:44px;padding:9px 12px;border-radius:10px;font:650 12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__frp-action:disabled{cursor:not-allowed;opacity:.5}.dsh-mobile-control__remote-workspace{margin:0;padding:12px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:15px;background:var(--dsw-alias-bg-layer-1,#f7f8fa)}.dsh-mobile-control__stage-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}.dsh-mobile-control__stage-header .dsh-mobile-control__section-title{margin:0}.dsh-mobile-control__stage-meta{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:5px}.dsh-mobile-control__stage-value{max-width:115px;overflow:hidden;color:var(--dsw-alias-label-primary,#16181d);font:650 11px/1.3 system-ui;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__state-badge{flex:none;padding:3px 7px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-secondary,#606873);font:650 11px/1.25 system-ui}.dsh-mobile-control__state-badge.is-ready{background:var(--dsw-alias-state-success-tertiary,#e6f7f0);color:var(--dsw-alias-label-primary,#087454)}.dsh-mobile-control__state-badge.is-busy{background:var(--dsw-alias-state-business-tertiary,#e8f0ff);color:var(--dsw-alias-label-primary,#1d4ed8)}.dsh-mobile-control__state-badge.is-attention{background:var(--dsw-alias-state-warn-tertiary,#fff4dc);color:var(--dsw-alias-label-primary,#935100)}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__status{box-sizing:border-box;margin:0 0 10px;padding:9px 10px;border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);font-size:11px;line-height:1.45}.dsh-mobile-control__provider-setup-body{margin:0 0 10px}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__cpolar-setup{margin:0}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__cpolar-setup>.dsh-mobile-control__section-title,.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__frp-setup>.dsh-mobile-control__section-title{display:none}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__details{margin:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__actions{margin-top:2px}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__qr{margin:10px 0 0}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__manage-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}
+.dsh-mobile-control__frp-setup{margin:0;padding:12px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:13px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__frp-setup[hidden]{display:none}.dsh-mobile-control__frp-step{padding:11px 0}.dsh-mobile-control__frp-step + .dsh-mobile-control__frp-step{border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}.dsh-mobile-control__frp-step>strong{display:block;margin-bottom:3px;font-size:12px;line-height:1.4}.dsh-mobile-control__frp-step>p{margin:0 0 9px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__frp-changes{margin:0 0 9px;padding:0;list-style:none;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__frp-changes li{position:relative;margin:0;padding-left:12px}.dsh-mobile-control__frp-changes li+li{margin-top:5px}.dsh-mobile-control__frp-changes li::before{content:"•";position:absolute;left:2px;color:var(--dsw-alias-label-tertiary,#98a1ad)}.dsh-mobile-control__frp-step>.dsh-mobile-control__frp-requirement{padding:8px 9px;border-radius:9px;background:var(--dsw-alias-bg-layer-1,#f3f5f8);color:var(--dsw-alias-label-primary,#384152);font-size:11px}.dsh-mobile-control__frp-fields{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px}.dsh-mobile-control__frp-fields[hidden]{display:none}.dsh-mobile-control__frp-fields>.dsh-mobile-control__field:nth-child(5),.dsh-mobile-control__frp-fields>.dsh-mobile-control__field:nth-child(6),.dsh-mobile-control__frp-fields>.dsh-mobile-control__field:nth-child(7){grid-column:1/-1}.dsh-mobile-control__frp-fields>.dsh-mobile-control__field[hidden]{display:none}.dsh-mobile-control__frp-fields select{box-sizing:border-box;width:100%;min-height:44px;padding:9px 32px 9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:14px/1.4 system-ui}.dsh-mobile-control__frp-fields select:disabled{cursor:not-allowed;opacity:.55}.dsh-mobile-control__frp-hint{margin:0;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;line-height:1.5}.dsh-mobile-control__field{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--dsw-alias-label-secondary,#606873);font-size:11px}.dsh-mobile-control__field:nth-child(3),.dsh-mobile-control__field:nth-child(4){grid-column:1/-1}.dsh-mobile-control__field input{box-sizing:border-box;width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__frp-action{box-sizing:border-box;width:100%;min-height:44px;padding:9px 12px;border-radius:10px;font:650 12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__frp-action:disabled{cursor:not-allowed;opacity:.5}.dsh-mobile-control__remote-workspace{margin:0;padding:12px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:15px;background:var(--dsw-alias-bg-layer-1,#f7f8fa)}.dsh-mobile-control__stage-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}.dsh-mobile-control__stage-header .dsh-mobile-control__section-title{margin:0}.dsh-mobile-control__stage-meta{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:5px}.dsh-mobile-control__stage-value{max-width:115px;overflow:hidden;color:var(--dsw-alias-label-primary,#16181d);font:650 11px/1.3 system-ui;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__state-badge{flex:none;padding:3px 7px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-secondary,#606873);font:650 11px/1.25 system-ui}.dsh-mobile-control__state-badge.is-ready{background:var(--dsw-alias-state-success-tertiary,#e6f7f0);color:var(--dsw-alias-label-primary,#087454)}.dsh-mobile-control__state-badge.is-busy{background:var(--dsw-alias-state-business-tertiary,#e8f0ff);color:var(--dsw-alias-label-primary,#1d4ed8)}.dsh-mobile-control__state-badge.is-attention{background:var(--dsw-alias-state-warn-tertiary,#fff4dc);color:var(--dsw-alias-label-primary,#935100)}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__status{box-sizing:border-box;margin:0 0 10px;padding:9px 10px;border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);font-size:11px;line-height:1.45}.dsh-mobile-control__provider-setup-body{margin:0 0 10px}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__cpolar-setup{margin:0}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__cpolar-setup>.dsh-mobile-control__section-title,.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__frp-setup>.dsh-mobile-control__section-title{display:none}.dsh-mobile-control__provider-setup-body>.dsh-mobile-control__details{margin:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__actions{margin-top:2px}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__qr{margin:10px 0 0}.dsh-mobile-control__remote-workspace>.dsh-mobile-control__manage-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}
 .dsh-mobile-control__frp-overview{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:10px;margin:0 0 10px;padding:10px;border:1px solid var(--dsw-alias-state-success-primary,#a9dfc9);border-radius:11px;background:var(--dsw-alias-state-success-tertiary,#edf9f4)}.dsh-mobile-control__frp-overview[hidden]{display:none}.dsh-mobile-control__frp-overview-mark{display:grid;width:32px;height:32px;place-items:center;border-radius:50%;background:#087454;color:#fff;font:700 15px/1 system-ui}.dsh-mobile-control__frp-overview-body{display:flex;min-width:0;flex-direction:column;gap:2px}.dsh-mobile-control__frp-overview-body strong{color:var(--dsw-alias-label-primary,#075d46);font-size:12px;line-height:1.35}.dsh-mobile-control__frp-overview-body span{overflow:hidden;color:var(--dsw-alias-label-secondary,#357061);font:11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__frp-group{margin:8px 0 0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-1,#f8fafc)}.dsh-mobile-control__frp-group>summary{box-sizing:border-box;min-height:44px;padding:12px 34px 10px 12px;color:var(--dsw-alias-label-primary,#16181d);font:650 12px/1.4 system-ui;cursor:pointer}.dsh-mobile-control__frp-group[open]>summary{border-bottom:1px solid var(--dsw-alias-border-l2,#e1e5eb);background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__frp-group>.dsh-mobile-control__frp-step{padding:12px}.dsh-mobile-control__frp-group>.dsh-mobile-control__frp-step>strong:first-child{display:none}.dsh-mobile-control__frp-group .dsh-mobile-control__frp-step{border-top:0}.dsh-mobile-control__frp-setup>.dsh-mobile-control__frp-step{margin-bottom:8px;padding:10px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:11px;background:var(--dsw-alias-bg-layer-1,#f8fafc)}.dsh-mobile-control__tunnel{margin:0 0 10px}.dsh-mobile-control__tunnel[hidden]{display:none}
 .dsh-mobile-control__lan-setup{box-sizing:border-box;margin:0 0 12px;padding:14px;border:1px solid #6f96db;border-radius:15px;background:var(--dsw-alias-bg-layer-1,#f5f8ff)}.dsh-mobile-control__lan-setup[hidden],.dsh-mobile-control__lan-setup-form[hidden]{display:none}.dsh-mobile-control__lan-setup>.dsh-mobile-control__section-title{margin-bottom:5px}.dsh-mobile-control__lan-setup>.dsh-mobile-control__intro{margin-bottom:12px}.dsh-mobile-control__lan-setup-form{display:grid;gap:9px}.dsh-mobile-control__lan-setup .dsh-mobile-control__field select{box-sizing:border-box;width:100%;min-height:44px;padding:9px 32px 9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:14px/1.4 system-ui}.dsh-mobile-control__lan-setup .dsh-mobile-control__component-note{margin:0}.dsh-mobile-control__lan-setup-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:8px}.dsh-mobile-control__lan-setup-actions button{box-sizing:border-box;min-width:0;min-height:44px;padding:9px 10px;border-radius:10px;font:650 12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__lan-setup-actions button:disabled{cursor:wait;opacity:.55}.dsh-mobile-control__lan-setup>.dsh-mobile-control__status{margin:10px 0 0;line-height:1.5}.dsh-mobile-control__lan-setup>.dsh-mobile-control__status:empty{display:none}
 .dsh-mobile-control__access{display:flex;align-items:baseline;gap:6px;min-width:0;margin:0 0 12px}.dsh-mobile-control__access[hidden]{display:none}.dsh-mobile-control__access-label{flex:none;color:var(--dsw-alias-label-secondary,#606873);white-space:nowrap}.dsh-mobile-control__access-label::after{content:"："}.dsh-mobile-control__access-link{min-width:0;overflow:hidden;color:var(--dsw-alias-label-primary-bluish,#2563eb);text-decoration:none;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__access-link:hover{text-decoration:underline}.dsh-mobile-control__qr{display:flex;justify-content:center;margin:0 0 12px}.dsh-mobile-control__qr[hidden]{display:none}.dsh-mobile-control__qr img{border-radius:12px;background:#fff;padding:8px}.dsh-mobile-control__qr.is-expandable{cursor:zoom-in}.dsh-mobile-control__qr.is-expandable:focus-visible{outline:3px solid var(--dsw-alias-state-business-primary,#2563eb);outline-offset:2px;border-radius:12px}.dsh-mobile-control__qr-zoom{position:fixed;inset:0;z-index:1001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72)}.dsh-mobile-control__qr-zoom[hidden]{display:none}.dsh-mobile-control__qr-zoom-image{width:min(84vw,360px);height:min(84vw,360px);border-radius:12px;background:#fff;padding:12px}.dsh-mobile-control__qr-zoom-close{position:absolute;top:12px;right:16px;min-width:44px;min-height:44px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:600 18px/1 system-ui;cursor:pointer}

@@ -20,7 +20,7 @@ export const FRP_RESERVED_PORTS: readonly number[] = Object.freeze([3080, 3443, 
 /** Every key `settings.json` may contain. Unknown keys stay rejected. */
 const FRP_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   'version', 'serverAddress', 'serverPort', 'token', 'publicOrigin',
-  'mode', 'entryTls', 'vhostHttpPort', 'publicPort',
+  'mode', 'entryTls', 'vhostHttpPort', 'publicPort', 'user',
 ])
 
 /** Credentials and endpoints required by the restricted FRP provider. */
@@ -41,6 +41,12 @@ export interface FrpSettings {
   readonly vhostHttpPort?: number
   /** Public entry port of the self-signed TCP proxy; defaults to 33080. */
   readonly publicPort?: number
+  /**
+   * Optional frpc `user` field for shared frps services that namespace proxies
+   * per user. When set, frps registers the proxy as `<user>.<proxyName>`;
+   * the locally derived proxy name is unchanged. Absent keeps upstream behaviour.
+   */
+  readonly user?: string
 }
 
 /** Safe FRP configuration fields returned to the desktop UI. */
@@ -60,6 +66,8 @@ export interface FrpConfigurationStatus {
   readonly entryTls?: FrpEntryTls
   /** Present only when a non-default public entry port is saved. */
   readonly publicPort?: number
+  /** Present only when the optional frpc `user` field is saved. */
+  readonly user?: string
 }
 
 function hostname(value: string): boolean {
@@ -89,6 +97,13 @@ export function validateFrpServerPort(value: unknown): number {
 export function validateFrpToken(value: unknown): string {
   if (typeof value !== 'string' || value.length < 16 || value.length > 512
     || /[\s\u0000-\u001f\u007f]/u.test(value)) throw new Error('frp_token_invalid')
+  return value
+}
+
+/** Validate the optional frpc `user` field; it must stay one safe TOML token. */
+export function validateFrpUser(value: unknown): string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 128
+    || !/^[A-Za-z0-9._-]+$/u.test(value)) throw new Error('frp_user_invalid')
   return value
 }
 
@@ -197,6 +212,8 @@ export function parseFrpSettings(value: unknown): FrpSettings {
   const entryTls = record.entryTls === undefined ? undefined : validateFrpEntryTls(record.entryTls)
   const vhostHttpPort = record.vhostHttpPort === undefined ? undefined : validateFrpVhostHttpPort(record.vhostHttpPort)
   const publicPort = record.publicPort === undefined ? undefined : validateFrpPublicPort(record.publicPort)
+  // An empty user field is "absent", so a blank input keeps the legacy artefacts.
+  const user = record.user === undefined || record.user === '' ? undefined : validateFrpUser(record.user)
   const resolvedMode = mode ?? 'deploy'
   const resolvedEntryTls: FrpEntryTls = entryTls ?? 'public-ip-cert'
   if (resolvedEntryTls === 'self-signed' && resolvedMode !== 'attach') throw new Error('frp_entry_tls_invalid')
@@ -217,6 +234,7 @@ export function parseFrpSettings(value: unknown): FrpSettings {
     ...(entryTls === undefined ? {} : { entryTls }),
     ...(vhostHttpPort === undefined ? {} : { vhostHttpPort }),
     ...(publicPort === undefined ? {} : { publicPort }),
+    ...(user === undefined ? {} : { user }),
   })
 }
 
@@ -239,6 +257,8 @@ export function mergeSavedFrpSettings(
   const entryTls = pick('entryTls')
   const vhostHttpPort = pick('vhostHttpPort')
   const publicPort = pick('publicPort')
+  // Unlike a write-only token, this visible optional field can be cleared.
+  const user = partial.user === undefined ? saved?.user : partial.user
   const merged = {
     serverAddress: partial.serverAddress === '' || partial.serverAddress === undefined
       ? saved?.serverAddress : partial.serverAddress,
@@ -251,6 +271,7 @@ export function mergeSavedFrpSettings(
     ...(entryTls === '' || entryTls === undefined ? {} : { entryTls }),
     ...(vhostHttpPort === '' || vhostHttpPort === undefined ? {} : { vhostHttpPort }),
     ...(publicPort === '' || publicPort === undefined ? {} : { publicPort }),
+    ...(user === '' || user === undefined ? {} : { user }),
   }
   if (merged.serverAddress === undefined && merged.serverPort === undefined
     && merged.token === undefined && merged.publicOrigin === undefined) {
@@ -339,6 +360,7 @@ export function createFrpcToml(
     `serverPort = ${String(settings.serverPort)}`,
     'auth.method = "token"',
     `auth.token = ${tomlString(settings.token)}`,
+    ...(settings.user === undefined ? [] : [`user = ${tomlString(settings.user)}`]),
     'transport.tls.enable = true',
     '',
     '[[proxies]]',
@@ -456,6 +478,7 @@ export class FrpConfigStore {
       ...(mode === undefined || mode === 'deploy' ? {} : { mode }),
       ...(entryTls === undefined || entryTls === 'public-ip-cert' ? {} : { entryTls }),
       ...(settings?.publicPort === undefined ? {} : { publicPort: settings.publicPort }),
+      ...(settings?.user === undefined ? {} : { user: settings.user }),
     })
   }
 

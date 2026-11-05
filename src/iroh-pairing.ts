@@ -7,6 +7,7 @@
  * or gateway token.
  */
 import { createHash, X509Certificate } from 'node:crypto'
+import * as QRCode from 'qrcode'
 import { DEFAULT_IROH_LOCAL_PORT, irohOrigin } from './iroh-origin.js'
 
 export const PAIRING_DESCRIPTOR_VERSION = 1
@@ -118,6 +119,11 @@ export function validatePairingDescriptor(value: unknown, options: { now?: numbe
 /** Encode a bounded canonical-field-order QR payload without implicit defaults. */
 export function encodePairingDescriptor(value: unknown, options: { now?: number } = {}): string {
   return JSON.stringify(validatePairingDescriptor(value, options))
+}
+
+/** Draw the canonical pairing payload with its four-module quiet zone inside the SVG. */
+export function renderIrohPairingQr(encoded: string): Promise<string> {
+  return QRCode.toString(encoded, { type: 'svg', margin: 4, errorCorrectionLevel: 'M' })
 }
 
 /** Decode untrusted QR text, validating its expiry and public CA before use. */

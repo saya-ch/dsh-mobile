@@ -141,6 +141,21 @@ describe('mobile push browser controller', () => {
     expect(elements.some(element => element.type === 'input')).toBe(false)
   })
 
+  it.each(['ready', 'enabled'] as const)('owns a full-width category column above its %s actions without a legacy settings wrapper', state => {
+    const snapshot = { state, preferences }
+    const controller = { subscribe: vi.fn(() => () => undefined), getSnapshot: () => snapshot, enableFromGesture: vi.fn(), disable: vi.fn(), updatePreferences: vi.fn(), sendTest: vi.fn(), start: vi.fn(), stop: vi.fn(), refresh: vi.fn() }
+    const row = MobilePushSettings({ controller, locale: 'en', switchComponent: publicSwitchProbe }) as ReactElement<{ style: Record<string, unknown>; children: ReactElement<{ style: Record<string, unknown>; className: string; children: unknown }>[] }>
+    // The component is mounted without an ancestor or shell marker here. Removing
+    // this owned column makes the generic settings row put actions beside all six
+    // categories in the newer settings grid.
+    expect(row.props.style).toMatchObject({ flexDirection: 'column', alignItems: 'stretch' })
+    const [content, actions] = row.props.children
+    expect(content?.props.style.paddingRight).toBe(0)
+    expect(actions?.props.className).toBe('dsh-mobile-push-actions')
+    const buttons = actions?.props.children as ReactElement<{ children: string }>[]
+    expect(buttons.filter(Boolean).map(button => button.props.children)).toEqual(state === 'enabled' ? ['Send test', 'Disable'] : ['Enable'])
+  })
+
   it('sends exactly one guarded update per public Switch boolean change and preserves the other five', () => {
     const snapshot = { state: 'ready' as const, preferences }
     const controller = { subscribe: vi.fn(() => () => undefined), getSnapshot: () => snapshot, enableFromGesture: vi.fn(), disable: vi.fn(), updatePreferences: vi.fn(), sendTest: vi.fn(), start: vi.fn(), stop: vi.fn(), refresh: vi.fn() }

@@ -35,8 +35,10 @@ export function MobilePushSettings({ controller, locale, switchComponent }: Mobi
     if (!prefs) return
     void controller.updatePreferences({ ...prefs, [key]: checked } as PushPreferences)
   }
-  return createElement('div', { className: 'dsh-mobile-settings_row', style: { flexWrap: 'wrap' }, lang: locale === 'zh' ? 'zh-CN' : locale },
-    createElement('div', { className: 'dsh-mobile-settings_rowText', style: { paddingRight: 8 } },
+  // Keep this multi-row section independent of the shell's legacy settings
+  // markers: the native category Switches need the full width, with actions below.
+  return createElement('div', { className: 'dsh-mobile-settings_row', style: { flexDirection: 'column', alignItems: 'stretch', gap: 12 }, lang: locale === 'zh' ? 'zh-CN' : locale },
+    createElement('div', { className: 'dsh-mobile-settings_rowText', style: { paddingRight: 0 } },
       createElement('div', { className: 'dsh-mobile-settings_title' }, copy.title),
       createElement('div', { className: 'dsh-mobile-settings_desc', 'aria-live': 'polite' }, message(snapshot, copy)),
       prefs && Switch !== undefined ? createElement('div', { className: 'dsh-mobile-push-categories' }, ...KEYS.map((key, index) => {

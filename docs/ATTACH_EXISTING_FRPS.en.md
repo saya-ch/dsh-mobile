@@ -25,6 +25,8 @@ Public-CA mode uses HTTPS 443. For self-signed mode, keep `https://PUBLIC_IPV4` 
 
 Plugin 0.6.16 adds Chinese, English and Italian field-level feedback: submission or preview marks invalid fields and focuses the first error; editing rechecks and clears corrected errors. It does not relax the validation above or change server listeners or ports for you.
 
+With plugin 0.8.3 or later, fill **frpc user (optional)** only if your shared frps provider supplies a username for proxy registration. The server uses it as a proxy-name prefix; it does not replace the shared token. To remove a saved username, clear the field and save. If the frps address and control port have not changed, you can reuse the saved token without displaying or reentering it.
+
 ## Public-CA mode
 
 1. In **Self-hosted FRP**, choose **Attach to my existing frps** and **Public CA certificate**. Enter the VPS address, frps control port, high-entropy shared token, public domain or IPv4 HTTPS origin, and the frps instance's actual `vhostHTTPPort`. Do not assume the managed deployment's default of 7080.

@@ -130,7 +130,7 @@ Verify actual visibility, focus and `document.elementFromPoint()` while the draw
 
 When a third-party panel is open in the main slot, the mobile layer provides three safety measures:
 
-- on a coarse pointer, ordinary buttons, selects and text inputs get **44×44 CSS px minimum layout boxes**. This changes visual geometry; it is not an invisible hit-area extension. Switches, checkboxes and ranges keep their own geometry, and the panel owns multiline inputs;
+- on a coarse pointer, ordinary buttons, selects and text inputs get **44×44 CSS px minimum layout boxes**. This changes visual geometry; it is not an invisible hit-area extension. Switches, checkboxes and ranges keep their own geometry, and the panel owns multiline inputs. The built-in plugin-manager page's cards open through a title button whose overlay already owns the whole card hit area, so those title buttons keep their compact size instead of being floored;
 - a panel root that is `width:100vw` or a fixed pixel width is capped to the available width instead of overflowing;
 - the panel content can scroll and contain the gesture without also making the outer main pane a second scroll container; the plugin's own scroll container remains the first choice.
 

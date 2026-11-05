@@ -19,17 +19,17 @@ async function workflow(name: string): Promise<Workflow> {
 }
 
 describe('independent plugin and Android release workflows', () => {
-  it('checks the current alpha.3 preview without dependency overrides or an ignored compatibility failure', async () => {
+  it('checks the current rc.1 candidate without dependency overrides or an ignored compatibility failure', async () => {
     const ci = await workflow('ci')
     const boot = ci.jobs['mobile-client-boot']!
-    expect(boot.strategy!.matrix.dsh).toContain('0.2.2-alpha.3')
+    expect(boot.strategy!.matrix.dsh).toContain('0.2.2-rc.1')
     expect(boot.strategy!.matrix.dsh).not.toContain('0.2.2-alpha.2')
     const installation = boot.steps.find(step => step.name === 'Install DSH and pack the Mobile bundle')!.run!
     expect(installation).toContain('"@deepseek-ai/dsh@${{ matrix.dsh }}"')
     expect(installation).not.toContain('@deepseek-ai/cordis@')
     expect(installation).not.toContain('overrides')
     const current = boot.steps.find(step => step.name === 'Verify current upstream settings, module recovery, picker, attachments and compressed mux')!
-    expect(current.if).toContain("matrix.dsh == '0.2.2-alpha.3'")
+    expect(current.if).toContain("matrix.dsh == '0.2.2-rc.1'")
     for (const check of ['smoke:mobile-settings', 'smoke:module-settings', 'smoke:directory-picker', 'smoke:attachments', 'smoke:mobile-sidebar', '--compressed-websocket --diagnostics']) {
       expect(current.run).toContain(check)
     }
@@ -37,7 +37,7 @@ describe('independent plugin and Android release workflows', () => {
     expect(source).not.toContain('continue-on-error: true')
     for (const script of ['smoke-mobile-push-contract.mjs', 'smoke-mobile-push.mjs']) {
       const probe = await readFile(new URL(`../scripts/${script}`, import.meta.url), 'utf8')
-      expect(probe).toContain("'0.2.2-alpha.3'")
+      expect(probe).toContain("'0.2.2-rc.1'")
       expect(probe).not.toContain("'0.2.2-alpha.2'")
     }
   })

@@ -9,6 +9,7 @@ import { installTaskCompletionWatcher, type TaskNotifyKind } from './task-notify
 import { MOBILE_COMPOSER_TOOLBAR_STYLES } from './mobile-composer-toolbar.js'
 import { pickBrowserFiles } from './browser-file-picker.js'
 import { installMobileSidebarScrollMemory } from './mobile-sidebar-scroll.js'
+import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 
 export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
@@ -1990,7 +1991,8 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   }
   const schedule = (): void => { if (scheduled === 0) scheduled = requestAnimationFrame(sync) }
   const observer = new MutationObserver(schedule)
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'disabled', 'readonly', 'aria-busy', 'aria-selected', 'data-dsh-mobile-session'] })
+  // React publishes the band after resize; read the committed marker.
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'disabled', 'readonly', 'aria-busy', 'aria-selected', 'data-dsh-mobile-session', WIDE_LAYOUT_ATTRIBUTE] })
   overlayQuery.addEventListener('change', schedule)
   backdrop.addEventListener('click', () => { if (sidebar?.dataset.open === 'true') toggle?.click() })
   sync()

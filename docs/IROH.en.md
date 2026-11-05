@@ -20,7 +20,7 @@ iroh replaces public domains and tunnel accounts with an encrypted direct connec
 4. Press **Generate iroh pairing QR code** and scan it with the full App. The descriptor binds the sidecar's six-digit code, the Gateway's one-time token and pinned CA. Generating another descriptor replaces the previous pairing window; pairing a phone redeems the Gateway token through the normal pair endpoint over iroh.
 5. Switching off or switching providers stops the owned process and Gateway without deleting stored pairings. The independent App has a different package identity; its Keystore credentials are not automatically migrated into this App.
 
-Main actions stay hidden before component installation. Afterwards, the toggle, QR generation and Copy pairing link buttons share one row. Copy stays visible but disabled without valid pairing data; copying an existing descriptor does not generate another pairing code.
+Main actions stay hidden before component installation. Afterwards, the toggle, QR generation and Copy pairing link buttons share one row. Copy stays visible but disabled without valid pairing data. From plugin 0.8.3, when pairing data is valid but no QR image was generated, you can copy it and paste it into the App's iroh pairing screen. Copying does not generate another pairing code.
 
 To reclaim component storage, turn off iroh remote access, expand the component details and choose **Remove the downloaded iroh component**. This removes only the pinned program downloaded by this plugin, keeping identities, pairings and external companion packages. Later use can reinstall it or reuse a verified external copy. Removal while enabled is refused by the management API as well as the panel.
 

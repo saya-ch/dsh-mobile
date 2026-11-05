@@ -200,8 +200,8 @@ async function withControl(browser, name, options, run) {
     if (pathname === `${prefix}/remote/iroh/pairing/begin` && request.method === 'POST') {
       json(response, 200, { version: 1, type: 'iroh', endpointId: 'owned-endpoint', instanceId: 'owned-instance',
         origin: 'https://owned.iroh.localhost:3444', localPort: 3444, gatewayToken: 'owned-fixture-token', caCertificate: 'owned-fixture-ca',
-        irohCode: '123456', expiresAt: Date.parse('2026-01-01T12:00:01Z') + 300_000,
-        qrSvg: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>' })
+        irohCode: state.irohQrUnavailable ? '654321' : '123456', expiresAt: Date.parse('2026-01-01T12:00:01Z') + 300_000,
+        qrSvg: state.irohQrUnavailable ? '' : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>' })
       return
     }
     if (pathname === `${prefix}/remote/frp/configure` && request.method === 'POST') {
@@ -415,6 +415,36 @@ try {
     })
     cases++
   }
+  await withControl(browser, 'Mac folder guidance is optional, host-scoped and keyboard-accessible', { managedReady: true, touch: true, width: 320 },
+    async ({ page, state, openRemote, pollRemote }) => {
+      await openRemote()
+      const summary = page.locator('summary').filter({ hasText: /^Before leaving this Mac$/u })
+      const help = summary.locator('..')
+      assert.equal(await summary.isVisible(), false, 'Unknown/non-Mac Host showed the Mac help')
+      state.remote.macosHost = true
+      await pollRemote()
+      await summary.waitFor({ state: 'visible' })
+      assert.equal(await help.evaluate(node => node.open), false, 'Help interrupted the ready view')
+      const mainActions = page.locator('.dsh-mobile-control__remote-workspace > .dsh-mobile-control__actions')
+      assert.equal(await mainActions.isVisible(), true, 'Help blocked the remote actions')
+      const writes = []
+      page.on('request', request => {
+        if (new URL(request.url()).pathname.startsWith(prefix) && request.method() !== 'GET') writes.push(request.method())
+      })
+      await summary.focus()
+      await summary.press('Enter')
+      const note = help.locator('p')
+      await note.waitFor({ state: 'visible' })
+      assert.match(await note.textContent(), /Files and Folders/u)
+      assert(await help.evaluate(node => node.scrollWidth <= node.clientWidth + 1), 'Help overflowed at 320px')
+      await summary.press('Space')
+      await note.waitFor({ state: 'hidden' })
+      Object.assign(state.remote, { state: 'connecting' })
+      await pollRemote()
+      await summary.waitFor({ state: 'hidden' })
+      assert.deepEqual(writes, [], 'Folder guidance must not call an admin write route')
+    })
+  cases++
   for (const provider of ['cloudflared', 'cpolar', 'iroh']) {
     await withControl(browser, `${provider} actions require installation; stable three-button row`, {}, async ({ page, state, consumed, settle, openRemote, pollRemote, count }) => {
       await openRemote()
@@ -452,10 +482,35 @@ try {
       await waitUntil(() => page.evaluate(() => window.fixtureCopiedIroh), value => typeof value === 'string', 'iroh descriptor copy')
       assert.equal(JSON.parse(await page.evaluate(() => window.fixtureCopiedIroh)).irohCode, '123456')
       assert.equal(count('POST', path), 1, 'Copy reminted a pairing window')
+      const qr = page.locator('.dsh-mobile-control__qr.is-expandable')
+      assert.equal(await qr.isVisible(), true)
+      state.irohQrUnavailable = true
+      before = await consumed(path)
+      await row.getByRole('button', { name: 'Generate iroh pairing QR code', exact: true }).click()
+      await settle(path, before)
+      await pollRemote()
+      assert.equal(await qr.isVisible(), false, 'A failed QR render left the previous code visible')
+      assert.equal(await copy.isEnabled(), true, 'A valid descriptor lost its copy fallback')
+      assert.equal(await page.getByText('The QR image could not be generated.', { exact: false }).isVisible(), true)
+      await copy.click()
+      await waitUntil(() => page.evaluate(() => JSON.parse(window.fixtureCopiedIroh).irohCode),
+        value => value === '654321', 'the current descriptor despite missing QR artwork')
+      assert.equal(count('POST', path), 2, 'The fallback copy reminted a pairing window')
+      state.irohQrUnavailable = false
+      before = await consumed(path)
+      await row.getByRole('button', { name: 'Generate iroh pairing QR code', exact: true }).click()
+      await settle(path, before)
+      await qr.locator('img').waitFor({ state: 'visible' })
+      await qr.focus()
+      await qr.press('Enter')
+      const zoom = page.locator('.dsh-mobile-control__qr-zoom')
+      await zoom.waitFor({ state: 'visible' })
       await page.clock.fastForward(300_001)
       await pollRemote()
       assert.equal(await copy.isVisible(), true)
       assert.equal(await copy.isDisabled(), true, 'Expired descriptor was copyable')
+      assert.equal(await qr.locator('img').count(), 0, 'Expired QR artwork remained inline')
+      assert.equal(await zoom.isVisible(), false, 'Expired QR artwork remained zoomed')
     })
     cases++
   }

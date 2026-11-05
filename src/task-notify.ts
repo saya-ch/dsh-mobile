@@ -1,5 +1,5 @@
-import { sha256 } from '@noble/hashes/sha256'
-import { bytesToHex } from '@noble/hashes/utils'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 
 /** Task-completion notifications for the Android shell.
  *
@@ -79,7 +79,7 @@ const MAX_SEEN_QUESTION_KEYS = 20
 
 /** A bounded native identifier derived from the complete, case-sensitive wire ID. */
 function notificationIdentity(value: string): string {
-  return bytesToHex(sha256(JSON.stringify(value)).subarray(0, 16))
+  return bytesToHex(sha256(utf8ToBytes(JSON.stringify(value))).subarray(0, 16))
 }
 
 /** Stable per-turn tag so concurrent sessions keep separate notifications. */

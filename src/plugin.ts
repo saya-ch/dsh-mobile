@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import * as QRCode from 'qrcode'
+import { renderIrohPairingQr } from './iroh-pairing.js'
 import { assertManagedParents } from './managed-files.js'
 import { boundContextSummary, createUserMessage } from '@deepseek-ai/dsh-llm/message'
 declare module '@deepseek-ai/dsh-llm' {
@@ -1177,7 +1177,8 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     originConfig.status(),
     caddyComponent.status(),
     irohComponent.status(),
-  ), originMode: originController.mode(), caddyConfiguration: caddyConfig.status(), caddyState: caddyController.status() })
+  ), originMode: originController.mode(), caddyConfiguration: caddyConfig.status(), caddyState: caddyController.status(),
+  ...(process.platform === 'darwin' ? { macosHost: true } : {}) })
   const lanPayload = (): Record<string, unknown> => ({
     ...(loaded.kind === 'unconfigured' ? {
       configured: preparedLanSetup !== undefined,
@@ -1685,7 +1686,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/frp/configure`) {
           const body = await readJsonObject(request, 4096)
           await remoteProviders.mutate(async () => {
-            await frpConfig.configure(body)
+            const saved = frpConfig.settings()
+            // Only the saved frps endpoint may reuse its write-only token.
+            const reuseToken = body.token === '' && saved !== undefined
+              && body.serverAddress === saved.serverAddress && body.serverPort === saved.serverPort
+            await frpConfig.configure(reuseToken ? { ...body, token: saved.token } : body)
             if (remoteControllers.frp.status().enabled) await remoteControllers.frp.reconnect()
           })
           sendJson(response, 200, remotePayload(), false)
@@ -1737,7 +1742,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
             })
           let qrSvg = ''
           try {
-            qrSvg = await QRCode.toString(pairing.encoded, { type: 'svg', margin: 1 })
+            qrSvg = await renderIrohPairingQr(pairing.encoded)
           } catch {
             // keep qrSvg empty
           }
@@ -1747,8 +1752,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         }
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/frp/attach-plan`) {
           const body = await readJsonObject(request, 8192)
-          // Read-only preview: blank fields keep their saved values, and nothing
-          // on the VPS or the local filesystem is touched.
+          // Read-only preview: the token stays masked and no configuration is written.
           const settings = mergeSavedFrpSettings(body, frpConfig.settings())
           // This route is callable by any same-origin client script. Never return
           // the saved token, even if a caller asks for an unmasked preview.

@@ -92,8 +92,12 @@ class BackNode extends EventTarget {
     this.parentElement.children.splice(this.parentElement.children.indexOf(this), 1)
     this.parentElement = null
   }
-  closest(_selector: string): BackNode | null {
+  closest(selector: string): BackNode | null {
     for (let node: BackNode | null = this; node !== null; node = node.parentElement) {
+      if (selector === '[data-sidebar-drawer]') {
+        if (node.getAttribute('data-sidebar-drawer') !== null) return node
+        continue
+      }
       if (node.hidden || node.inert || node.getAttribute('aria-hidden') === 'true') return node
     }
     return null
@@ -512,6 +516,38 @@ describe('cold push tap navigation across real scoped public providers', () => {
 })
 
 describe('mobile native Back before layout navigation', () => {
+  it.each(['handled', 'missing handler', 'foreground dialog'] as const)('delegates native Back only to an eligible upstream drawer: %s', mode => {
+    vi.stubGlobal('KeyboardEvent', BackKeyboardEvent)
+    const view = new BackWindow()
+    const page = new BackDocument()
+    const frame = new BackNode()
+    frame.setAttribute('data-sidebar-drawer', '')
+    const drawer = new BackNode()
+    drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'true')
+    drawer.setAttribute('data-shortcut-modal', 'sidebar')
+    page.body.append(frame); frame.append(drawer)
+    const focused = new BackNode('BUTTON'); drawer.append(focused); page.activeElement = focused
+    const escape = vi.fn((event: Event) => {
+      expect((event as KeyboardEvent).key).toBe('Escape')
+      if (mode === 'handled') { event.preventDefault(); drawer.remove() }
+    })
+    focused.addEventListener('keydown', escape)
+    if (mode === 'foreground dialog') {
+      const foreground = new BackNode()
+      foreground.setAttribute('role', 'dialog'); foreground.setAttribute('aria-modal', 'true')
+      page.body.append(foreground)
+    }
+    const blocked = vi.fn()
+    const stop = installMobileNativeBack(view as never, page as never, blocked)
+    try {
+      const back = backEvent(); view.dispatchEvent(back)
+      expect(back.defaultPrevented).toBe(true)
+      expect(escape).toHaveBeenCalledTimes(mode === 'foreground dialog' ? 0 : 1)
+      expect(drawer.isConnected).toBe(mode !== 'handled')
+      expect(blocked).toHaveBeenCalledTimes(mode === 'handled' ? 0 : 1)
+    } finally { stop() }
+  })
+
   it.each([false, true])('routes Back to the owned directory dialog before later capture listeners, busy: %s', busy => {
     const view = new BackWindow()
     const page = new BackDocument()

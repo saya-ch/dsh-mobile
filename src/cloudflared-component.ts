@@ -50,7 +50,7 @@ const MAX_ARCHIVE_LIST_BYTES = 1024 * 1024
 const MAX_ARCHIVE_ENTRIES = 256
 const DOWNLOAD_TIMEOUT_MS = 300_000
 
-const CLOUDFLARED_VERSION = '2026.9.1'
+const CLOUDFLARED_VERSION = '2026.10.7'
 
 const releases = [
   {
@@ -58,33 +58,33 @@ const releases = [
     platform: 'win32',
     arch: 'x64',
     downloadUrl: `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-windows-amd64.exe`,
-    downloadBytes: 54_976_432,
-    downloadSha256: '2837888cc0f5d58f15b6dc478376de90b4d3ba5241c7947455d1e0a0df429712',
+    downloadBytes: 55_390_512,
+    downloadSha256: '2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343',
     executableName: 'cloudflared.exe',
-    executableBytes: 54_976_432,
-    executableSha256: '2837888cc0f5d58f15b6dc478376de90b4d3ba5241c7947455d1e0a0df429712',
+    executableBytes: 55_390_512,
+    executableSha256: '2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343',
   },
   {
     version: CLOUDFLARED_VERSION,
     platform: 'linux',
     arch: 'x64',
     downloadUrl: `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64`,
-    downloadBytes: 39_838_488,
-    downloadSha256: '03f1f25d1cc93b9ad6c60569d44060bc4f17ed97075760ed8cfca4b12dcd68cc',
+    downloadBytes: 40_274_445,
+    downloadSha256: '1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872',
     executableName: 'cloudflared',
-    executableBytes: 39_838_488,
-    executableSha256: '03f1f25d1cc93b9ad6c60569d44060bc4f17ed97075760ed8cfca4b12dcd68cc',
+    executableBytes: 40_274_445,
+    executableSha256: '1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872',
   },
   {
     version: CLOUDFLARED_VERSION,
     platform: 'linux',
     arch: 'arm64',
     downloadUrl: `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-arm64`,
-    downloadBytes: 37_466_252,
-    downloadSha256: '3d97437c71848bd8df68041e12436b484a661d95073ea1937f01a845ce88faa3',
+    downloadBytes: 37_667_293,
+    downloadSha256: '3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775',
     executableName: 'cloudflared',
-    executableBytes: 37_466_252,
-    executableSha256: '3d97437c71848bd8df68041e12436b484a661d95073ea1937f01a845ce88faa3',
+    executableBytes: 37_667_293,
+    executableSha256: '3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775',
   },
   // Cloudflare publishes macOS only as a `.tgz`, so these two carry distinct
   // archive and executable digests: 21 MB of gzip in, a 39-42 MB Mach-O out.
@@ -93,11 +93,11 @@ const releases = [
     platform: 'darwin',
     arch: 'x64',
     downloadUrl: `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-darwin-amd64.tgz`,
-    downloadBytes: 21_118_723,
-    downloadSha256: 'ff0d3b51d5ff70eceef89d6b32145fee985018a2174596a5dbe405e2766e2ac4',
+    downloadBytes: 21_834_416,
+    downloadSha256: '02f3edfd87684dd5b705607688e4eb4b323f6e777b81e7b3a85af556aa356848',
     executableName: 'cloudflared',
-    executableBytes: 41_731_488,
-    executableSha256: '1ea07ae775b03236bd6be18ca1848d6bdc4af2f4f3bce398823b5a36e5761b75',
+    executableBytes: 42_430_512,
+    executableSha256: '5c55e77da7012cebca19170357e196176c48c9647cc2ead404702fa125ddbd86',
     archive: { format: 'tgz', member: 'cloudflared' },
   },
   {
@@ -105,11 +105,11 @@ const releases = [
     platform: 'darwin',
     arch: 'arm64',
     downloadUrl: `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-darwin-arm64.tgz`,
-    downloadBytes: 19_217_478,
-    downloadSha256: 'c27ab8fd0aa489449e3d201eb02f957ef460a13b613662928b1b23394bf1bcfe',
+    downloadBytes: 19_847_161,
+    downloadSha256: '3586ccf397e98e5f437e60e7c307ca6ac463e110580503af8bb8e6f9ebf831bd',
     executableName: 'cloudflared',
-    executableBytes: 38_893_072,
-    executableSha256: '9a0b19f67dc7a3011bc6b972c7ce06a5fcea8784ac6bd599ffa382ea4aeb5a6e',
+    executableBytes: 39_487_168,
+    executableSha256: '2136431d5eb467bf447d2ee514b713e192719b143aec1d9e09bf7dc290d5bb12',
     archive: { format: 'tgz', member: 'cloudflared' },
   },
 ] as const satisfies readonly CloudflaredArtifact[]

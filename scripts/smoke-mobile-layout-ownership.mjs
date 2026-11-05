@@ -1,4 +1,4 @@
-/** Check the built mobile shell's geometry and drawer layering with an owned slot/virtual-trace fixture, not a complete DSH or third-party skin runtime. */
+/** Check the built mobile shell's geometry and drawer layering with an owned slot/virtual-trace fixture, not a complete DSH or third-party skin runtime. Also checks panel touch-size overrides and DSH's plugin-manager page geometry inside an open panel. */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -58,8 +58,25 @@ const views = [
   { width: 899, height: 844 },
   { width: 900, height: 844 },
   { width: 901, height: 844 },
+  // A landscape phone is wider than the 900px threshold but its screen's short
+  // side is a phone's, so it keeps the overlay drawer instead of a permanent rail.
+  { width: 932, height: 430 },
+  // The same rule in the other direction: both tablet orientations stay docked.
+  { width: 909, height: 1314 },
+  { width: 1363, height: 860 },
+  // Pad 9 Pro Max landscape with the soft keyboard open: the viewport height
+  // collapses to 441 while the screen is still 1364x909, so the docked layout
+  // must survive the keyboard. A viewport-height rule undocked it here.
+  { width: 1363, height: 441, screen: { width: 1364, height: 909 } },
   { width: 1100, height: 844 },
 ]
+// Mirrors the layout's own rule: the window must be wide enough and the device's
+// shorter side (screen, not viewport) must be tablet-sized.
+const deviceShortSide = view => {
+  const screen = view.screen ?? view
+  return Math.min(screen.width, screen.height)
+}
+const docks = view => view.width >= 900 && deviceShortSide(view) >= 600
 const themes = {
   light: { '--dsw-alias-label-primary': '#171a21', '--dsw-alias-bg-base': '#ffffff' },
   dark: { '--dsw-alias-label-primary': '#f4f5f7', '--dsw-alias-bg-base': '#171a21' },
@@ -68,7 +85,7 @@ const rows = Array.from({ length: 64 }, (_, index) =>
   `<div class="Trajectory_fixture_row">${index === 0 ? '<button id="trace-action" type="button">Owned trace action</button>' : `Owned synthetic trace row ${index}`}</div>`).join('')
 
 function fixture(open, wide) {
-  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body data-foreign-layout-fixture><div id="root"><div data-slot="root"><div class="dshm-shell">
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body data-foreign-layout-fixture><div id="root"><div data-slot="root"><div class="dshm-shell" data-dshm-wide="${wide ? '1' : '0'}">
 <main class="dshm-main" data-pane="conversation"><div class="dshm-mainContent"><div data-slot="main"><div data-slot="main.conversation"><div class="Conversation_fixture_root" data-phase="active">
 <header class="Conversation_fixture_header"><span>Owned populated session</span><div role="tablist"><button role="tab" aria-selected="false">Conversation</button><button role="tab" aria-selected="true">Trajectory</button></div></header>
 <div class="Conversation_fixture_body"><div class="Conversation_fixture_scrollBody"><div data-slot="conversation.session"><div class="Conversation_fixture_viewArea"><div data-slot="conversation.view"><div class="Trajectory_fixture_root"><div class="Trajectory_fixture_ledger"><div class="Trajectory_fixture_viewport">${rows}</div></div></div></div></div></div></div></div>
@@ -128,7 +145,7 @@ async function captureStyles() {
 }
 
 async function setup(page, styles, open, view, tokens, order) {
-  await page.setContent(fixture(open, view.width >= 900))
+  await page.setContent(fixture(open, docks(view)))
   await page.addStyleTag({ content: fixtureStyles })
   await page.evaluate(theme => { for (const [key, value] of Object.entries(theme)) document.body.style.setProperty(key, value) }, tokens)
   if (order === 'before') await page.addStyleTag({ content: foreignStyles })
@@ -182,6 +199,43 @@ async function geometry(page) {
     }
     return result
   })
+}
+
+// The band is one JS decision published as a shell attribute; CSS must never
+// re-decide it from a viewport metric. This check sits exactly on the 900px
+// boundary, forces a document scrollbar, and proves the rendering follows the
+// marker even when the CSS viewport metrics could disagree with the JS read.
+async function checkBandSource(styles) {
+  for (const band of ['1', '0']) {
+    await withContext({ viewport: { width: 900, height: 700 }, hasTouch: true }, async context => {
+      const page = await context.newPage()
+      await page.setContent(`<!doctype html><html><head></head><body><div class="dshm-shell" data-dshm-wide="${band}">
+<main class="dshm-main"><div class="dshm-mainContent"><p style="height:4000px">tall owned content</p></div></main>
+<aside class="dshm-drawer" data-pane="sidebar" data-open="false" data-sidebar-collapsed=""></aside>
+</div></body></html>`)
+      await page.addStyleTag({ content: styles.stylesheet })
+      // Force a classic document scrollbar if this engine draws one.
+      await page.addStyleTag({ content: 'html{overflow-y:scroll!important}' })
+      const measured = await page.evaluate(() => ({
+        innerWidth: window.innerWidth,
+        clientWidth: document.documentElement.clientWidth,
+        visualWidth: window.visualViewport?.width ?? null,
+        mediaWidth: matchMedia('(min-width:900px)').matches,
+        drawer: getComputedStyle(document.querySelector('.dshm-drawer')).position,
+        tracks: getComputedStyle(document.querySelector('.dshm-shell')).gridTemplateColumns.trim().split(/\s+/u).length,
+      }))
+      cases++
+      const at = `band=${band}/900x700`
+      // The three viewport metrics may differ on an engine with space-taking
+      // scrollbars; the band must still be exactly what the marker says.
+      assert(measured.innerWidth === 900, `${at}: innerWidth ${measured.innerWidth}`)
+      assert(measured.clientWidth <= measured.innerWidth, `${at}: clientWidth exceeded innerWidth`)
+      assert.equal(measured.drawer, band === '1' ? 'static' : 'fixed', `${at}: drawer followed a viewport metric instead of the marker`)
+      // A docked shell is a two-track grid; an overlay shell is one track plus a
+      // fixed rail, so the track count is the second, geometry-free witness.
+      assert.equal(measured.tracks, band === '1' ? 2 : 1, `${at}: shell grid followed a viewport metric instead of the marker`)
+    })
+  }
 }
 
 async function checkPanelTouch(styles) {
@@ -240,6 +294,78 @@ async function checkPanelTouch(styles) {
   }
 }
 
+// DSH's plugin-manager page inside an open panel: its `<header>` must align
+// with the body sections below it (the conversation rail inset ends at the
+// panel's back bar), and each card title is a `cardTitle cardOpen` button whose
+// ::after overlay already owns the whole card hit area, so the generic 44px
+// floor must leave that text box at its natural compact size.
+async function checkPluginPanelPage(styles) {
+  for (const width of [440, 320]) for (const hasTouch of [false, true]) await withContext({ viewport: { width, height: 900 }, hasTouch }, async context => {
+    const page = await context.newPage()
+    await page.setContent(`<style>
+      body{margin:0}[data-slot]{display:contents}h1,h2,p{margin:0}
+      button{box-sizing:border-box;width:28px;height:28px;padding:0;border:0;background:none;font:inherit;color:inherit}
+      .Pkg_page{--inset:20px;box-sizing:border-box;height:100%;padding:0 var(--inset);display:flex;flex-direction:column;align-items:center}
+      .Pkg_pageBody{width:calc(100% + 2*var(--inset));margin-inline:calc(-1*var(--inset));box-sizing:border-box;padding:0 var(--inset) 48px;display:flex;flex-direction:column;flex:1;min-height:0;gap:32px;overflow:hidden auto}
+      .Pkg_pageHead{width:100%;max-width:960px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+      .Pkg_pageTitle{font-size:20px}
+      .Pkg_toolbar{margin-left:auto;display:flex;gap:8px}
+      .Pkg_group{width:100%}
+      .Pkg_groupTitle{font-size:14px}
+      .Pkg_cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+      .Pkg_card{position:relative}
+      .Pkg_cardHead{display:flex;align-items:center;gap:14px;padding:8px}
+      .Pkg_cardMain{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+      .Pkg_cardOpen{width:auto;height:auto;text-align:left}
+      .Pkg_cardOpen::after{content:"";position:absolute;inset:0}
+      .Pkg_cardDesc{font-size:13px;line-height:18px}
+    </style>
+    <div id="root"><div class="dshm-shell"><main class="dshm-main" data-pane="conversation" data-dsh-panel="0">
+      <div class="dshm-panelNav"><button class="dshm-panelBack" type="button">Back to conversation</button></div>
+      <div class="dshm-mainContent"><div data-slot="main"><div class="Pkg_page"><div class="Pkg_pageBody">
+        <header class="Pkg_pageHead"><h1 class="Pkg_pageTitle" id="page-title">Plugins</h1><div class="Pkg_toolbar"><button id="refresh" type="button">Refresh</button><button id="add" type="button">Add</button></div></header>
+        <section class="Pkg_group"><h2 class="Pkg_groupTitle" id="group-title">Built-in plugin settings</h2>
+          <ul class="Pkg_cards"><li class="Pkg_card" id="card"><div class="Pkg_cardHead"><div class="Pkg_cardMain"><div><button type="button" class="Pkg_cardTitle Pkg_cardOpen" id="card-title">Subagent</button></div><span class="Pkg_cardDesc">Run autonomous agents</span></div></div></li></ul>
+        </section>
+      </div></div></div></div></main></div></div>`)
+    await page.addStyleTag({ content: styles.stylesheet })
+    const sizes = () => page.evaluate(() => {
+      const box = id => { const { width, height } = document.getElementById(id).getBoundingClientRect(); return { width, height } }
+      return {
+        headerPaddingLeft: getComputedStyle(document.querySelector('.Pkg_pageHead')).paddingLeft,
+        titleX: document.getElementById('page-title').getBoundingClientRect().x,
+        groupX: document.getElementById('group-title').getBoundingClientRect().x,
+        cardTitle: box('card-title'), refresh: box('refresh'), add: box('add')
+      }
+    })
+    const closed = await sizes()
+    // Prove the base rail inset actually applies in this fixture, so the open
+    // assertions below demonstrate the cascade direction, not a dead selector.
+    assert.equal(closed.headerPaddingLeft, '52px', `width ${width}: the fixture lost the base conversation rail inset`)
+    await page.locator('.dshm-main').evaluate(node => { node.dataset.dshPanel = '1' })
+    const open = await sizes()
+    const key = `${width}/${hasTouch ? 'touch' : 'fine'}`
+    assert.equal(open.headerPaddingLeft, '0px', `${key}: an open panel header kept the conversation rail inset`)
+    assert(Math.abs(open.titleX - open.groupX) < 0.5, `${key}: the panel header no longer aligns with its body sections`)
+    assert.deepEqual(open.cardTitle, closed.cardTitle, `${key}: the card open-button changed size with the panel open`)
+    if (hasTouch) {
+      assert(open.refresh.width >= 44 && open.refresh.height >= 44, `${key}: toolbar actions lost the 44px touch floor`)
+      assert(open.add.width >= 44 && open.add.height >= 44, `${key}: toolbar actions lost the 44px touch floor`)
+      assert.deepEqual(closed.refresh, { width: 28, height: 28 }, `${key}: the touch-floor baseline fixture changed`)
+      await page.locator('#card-title').evaluate(node => { node.addEventListener('click', () => { node.dataset.clicked = 'true' }) })
+      const hit = await page.evaluate(() => {
+        const card = document.getElementById('card').getBoundingClientRect()
+        const x = card.right - 2, y = card.bottom - 2
+        return { x, y, onTitle: document.elementFromPoint(x, y)?.closest('#card-title') !== null }
+      })
+      assert.equal(hit.onTitle, true, `${key}: the card overlay no longer owns the card hit area`)
+      await page.mouse.click(hit.x, hit.y)
+      assert.equal(await page.locator('#card-title').getAttribute('data-clicked'), 'true', `${key}: a tap on the card body did not reach the open-button`)
+    } else assert.deepEqual(open.refresh, closed.refresh, 'fine: toolbar geometry changed with the panel open')
+    cases++
+  })
+}
+
 try {
   browser = await chromium.launch({ headless: true })
   const styles = await captureStyles()
@@ -261,8 +387,10 @@ try {
     })
   } else {
     await checkPanelTouch(styles)
+    await checkBandSource(styles)
+    await checkPluginPanelPage(styles)
     for (const view of views) for (const open of [false, true]) for (const [theme, tokens] of Object.entries(themes)) for (const order of ['before', 'after']) {
-      await withContext({ viewport: view, hasTouch: true }, async context => {
+      await withContext({ viewport: view, ...(view.screen === undefined ? {} : { screen: view.screen }), hasTouch: true }, async context => {
         const page = await context.newPage()
         await setup(page, styles, open, view, tokens, order)
         const key = `${view.width}x${view.height}/${open ? 'open' : 'closed'}/${theme}/${order}`
@@ -274,7 +402,7 @@ try {
         assert.deepEqual(await page.locator('body').evaluate((node, names) => Object.fromEntries(names.map(name =>
           [name, getComputedStyle(node).getPropertyValue(name).trim()])), Object.keys(tokens)), tokens,
         `${key}: geometry ownership changed the theme tokens`)
-        if (view.width >= 900) {
+        if (docks(view)) {
           const sidebarWidth = open ? 340 : 56
           assert.equal(boxes['.dshm-drawer'].height, view.height, `${key}: wide sidebar became a horizontal row`)
           assert.equal(boxes['.dshm-drawer'].width, sidebarWidth, `${key}: wide sidebar width`)
@@ -349,4 +477,4 @@ try {
   try { await browser?.close() } catch (error) { recordSmokeFailure(failures, error) }
 }
 completeSmoke(failures, negative ? marker : undefined, observedNegative)
-console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)
+console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, the wide band following its shell marker on the 900px boundary instead of a viewport metric, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)

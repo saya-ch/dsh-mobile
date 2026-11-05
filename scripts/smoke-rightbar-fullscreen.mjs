@@ -41,9 +41,9 @@ const VIEWPORTS = Object.freeze({
  * One fixture per right-panel state. `data-rightbar-fullscreen` is the attribute
  * the layout sets; the docked column width comes from `--dshm-rightbar-width`.
  */
-function fixture({ detailsOpen, fullscreen, docked, rightbarWidth }) {
+function fixture({ detailsOpen, fullscreen, docked, rightbarWidth, wide }) {
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
-<div id="root"><div data-slot="root"><div class="dshm-shell" data-rightbar-docked="${docked}" data-rightbar-fullscreen="${fullscreen}"
+<div id="root"><div data-slot="root"><div class="dshm-shell" data-dshm-wide="${wide ? '1' : '0'}" data-rightbar-docked="${docked}" data-rightbar-fullscreen="${fullscreen}"
   style="--dshm-rightbar-width:${rightbarWidth}px">
   <main class="dshm-main" data-pane="conversation"${fullscreen ? ' inert aria-hidden="true"' : ''}>
     <div class="dshm-mainContent"><div data-slot="main">
@@ -96,6 +96,9 @@ try {
         await page.setContent(fixture({
           detailsOpen: state.detailsOpen, fullscreen: state.fullscreen,
           docked: state.docked, rightbarWidth: state.rightbarWidth ?? 380,
+          // The shell carries the layout's wide/narrow decision; this fixture is
+          // static HTML, so it states the band the viewport would produce.
+          wide: label === 'wide',
         }))
         await page.evaluate(() => {
           window.__ModuleLoader__ = { load: ({ id, factory }) => {

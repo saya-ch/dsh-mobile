@@ -1,5 +1,6 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
+import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 import { MOBILE_LAYOUT_MESSAGES, type MobileLayoutLanguage } from './mobile-layout-messages.js'
 
 export { MOBILE_LAYOUT_MESSAGES } from './mobile-layout-messages.js'
@@ -87,6 +88,27 @@ export function isSidebarRightControl(value: unknown): value is SidebarRightCont
  * keep the overlay behavior byte-for-byte.
  */
 export const WIDE_LAYOUT_MIN_WIDTH_PX = 900
+/**
+ * Shorter-side floor for the persistent sidebar, measured on the *device*: a
+ * landscape phone is wider than the width threshold while its screen's short
+ * side is still a phone's. Docking a 932x430 phone hid the conversation behind a
+ * permanent rail and removed the panel return bar, so width alone is not enough
+ * evidence of a tablet-sized viewport.
+ *
+ * The measurement must come from `screen`, not the viewport: a Pad 9 Pro Max in
+ * landscape (1363x860 viewport, 1364x909 screen) reports `innerHeight: 441`
+ * while the soft keyboard is open, and a viewport-height floor would flip a
+ * docked tablet into the drawer layout mid-sentence.
+ */
+export const WIDE_LAYOUT_MIN_SHORTER_SIDE_PX = 600
+/** Re-exported so the layout's own tests and callers keep one import site. */
+export { WIDE_LAYOUT_ATTRIBUTE }
+/**
+ * Narrow band that still has room for a folded 56px rail beside the
+ * conversation: the pre-existing 721-899px phone rule plus any narrow viewport
+ * that is wide enough for the rail, such as a landscape phone.
+ */
+const FOLDED_RAIL_OFFSET_QUERY = '(min-width:721px)'
 const RIGHTBAR_MIN_WIDTH_PX = 300
 const RIGHTBAR_MAX_WIDTH_PX = 460
 const RIGHTBAR_CENTER_MIN_WIDTH_PX = 400
@@ -94,8 +116,38 @@ const RIGHTBAR_DEFAULT_RATIO = 0.45
 const SIDEBAR_EXPANDED_WIDTH_PX = 340
 const SIDEBAR_COLLAPSED_WIDTH_PX = 56
 
-export function isWideViewportLayout(viewportWidth: number): boolean {
+/**
+ * The device's shorter side in CSS pixels, independent of rotation and of the
+ * soft keyboard. Falls back to the viewport only where `screen` reports nothing
+ * usable (SSR, minimal DOM stubs).
+ * @param screenWidth - `screen.width`, or `undefined` without a screen.
+ * @param screenHeight - `screen.height`, or `undefined` without a screen.
+ * @param viewportWidth - the viewport width, used for the fallback.
+ * @param viewportHeight - the viewport height, used for the fallback.
+ * @returns the shorter side in CSS pixels.
+ */
+export function resolveDeviceShortSide(
+  screenWidth: number | undefined,
+  screenHeight: number | undefined,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  return typeof screenWidth === 'number' && typeof screenHeight === 'number'
+    && screenWidth > 0 && screenHeight > 0
+    ? Math.min(screenWidth, screenHeight)
+    : Math.min(viewportWidth, viewportHeight)
+}
+
+/**
+ * Whether the dedicated layout should dock the sidebar as a persistent column.
+ * @param viewportWidth - the viewport width in CSS pixels; a narrow window is
+ * never wide, whatever the screen behind it measures.
+ * @param deviceShortSide - the device's shorter side, from {@link resolveDeviceShortSide}.
+ * @returns whether the viewport and the device are both large enough.
+ */
+export function isWideViewportLayout(viewportWidth: number, deviceShortSide: number): boolean {
   return viewportWidth >= WIDE_LAYOUT_MIN_WIDTH_PX
+    && deviceShortSide >= WIDE_LAYOUT_MIN_SHORTER_SIDE_PX
 }
 
 /** Resolved right-panel presentation for the dedicated responsive layout. */
@@ -107,17 +159,18 @@ export interface MobileRightbarLayout {
 /** Preserve a readable conversation width before turning a requested right track into a docked column. */
 export function resolveMobileRightbarLayout(
   viewportWidth: number,
+  wideViewport: boolean,
   sidebarOpen: boolean,
   track: boolean,
   fullscreen: boolean,
 ): MobileRightbarLayout {
-  const overlayWidth = isWideViewportLayout(viewportWidth)
+  const overlayWidth = wideViewport
     ? Math.min(viewportWidth * 0.94, RIGHTBAR_MAX_WIDTH_PX)
     : viewportWidth
-  if (!track || fullscreen || (!isWideViewportLayout(viewportWidth) && sidebarOpen)) {
+  if (!track || fullscreen || (!wideViewport && sidebarOpen)) {
     return Object.freeze({ docked: false, width: overlayWidth })
   }
-  const sidebarWidth = isWideViewportLayout(viewportWidth) && sidebarOpen
+  const sidebarWidth = wideViewport && sidebarOpen
     ? SIDEBAR_EXPANDED_WIDTH_PX
     : SIDEBAR_COLLAPSED_WIDTH_PX
   const available = Math.floor(viewportWidth - sidebarWidth - RIGHTBAR_CENTER_MIN_WIDTH_PX)
@@ -334,10 +387,27 @@ export function closeDetailsFromScrim(sidebarRight: unknown, closeDetails: () =>
   closeDetails()
 }
 
-/** Reads the live viewport; unknown environments (SSR, tests) stay narrow. */
+/** The device and viewport facts the layout decision needs, read live. */
+function readViewport(): { width: number, height: number, shortSide: number } {
+  const width = window.innerWidth
+  const height = window.innerHeight
+  const screen = window.screen as { width?: number, height?: number } | undefined
+  return {
+    width,
+    height,
+    shortSide: resolveDeviceShortSide(screen?.width, screen?.height, width, height),
+  }
+}
+
+/**
+ * Reads the live device and viewport; unknown environments (SSR, tests) stay
+ * narrow. `screen` is what distinguishes a tablet from a landscape phone and
+ * what keeps a docked tablet docked while its soft keyboard is open.
+ */
 function viewportIsWide(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia(`(min-width: ${WIDE_LAYOUT_MIN_WIDTH_PX}px)`).matches
+  if (typeof window === 'undefined') return false
+  const viewport = readViewport()
+  return isWideViewportLayout(viewport.width, viewport.shortSide)
 }
 
 /** Resolve the supported language used by the dedicated mobile layout. */
@@ -521,10 +591,12 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
    shell descendants below positive-z-index portals attached to document.body. */
 .dshm-shell{-webkit-text-size-adjust:100%;text-size-adjust:100%;position:relative;isolation:isolate;display:grid;grid-template-rows:minmax(0,1fr);width:100%;height:100%;height:100dvh;min-width:0;overflow:hidden;background:var(--dsw-alias-bg-base,#fff)}
 /* The mobile root owns its Grid geometry. Layered important rules keep broad
-   unlayered skin rules from collapsing virtualized views to the header height. */
+   unlayered skin rules from collapsing virtualized views to the header height.
+   The wide/narrow band is the root attribute, not a media query: the decision
+   needs the device screen size, which a media query cannot read. */
 @layer dsh-mobile-layout{
 .dshm-shell{display:grid!important;grid-template-rows:minmax(0,1fr)!important;grid-template-columns:minmax(0,1fr)!important}
-@media(min-width:900px){.dshm-shell{grid-template-columns:auto minmax(0,1fr)!important}}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"]{grid-template-columns:auto minmax(0,1fr)!important}
 }
 .dshm-main{grid-area:1/1;position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;margin-right:0;overflow:hidden;transition:margin-right var(--ds-transition-duration-slow,190ms) var(--ds-ease-in-out,ease)}
 .dshm-mainContent{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}
@@ -546,14 +618,19 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-drawer[data-open=true]>*{transform:translateX(0);opacity:1}
 .dshm-drawer[data-open=false]>*{width:56px!important}
 /* Folded icon rail: on narrow viewports the drawer is fixed, so give the main
-   content the same 56px offset the wide grid breakpoint already provides. */
-@media(min-width:721px) and (max-width:899px){.dshm-shell:has(.dshm-drawer[data-sidebar-collapsed]:not([data-right-modal=true])) .dshm-main{margin-left:56px}}
+   content the same 56px offset the wide grid already provides. The width floor
+   keeps phone-width headers on their own inset; the band itself is the root
+   attribute, so a landscape phone gets the offset too. */
+@media${FOLDED_RAIL_OFFSET_QUERY}{.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-sidebar-collapsed]:not([data-right-modal=true])) .dshm-main{margin-left:56px}}
 /* display:none also suppresses fixed descendants installed by the phone adapter. */
 .dshm-drawer[data-right-modal=true]{display:none!important}
 .dshm-details{position:fixed;z-index:80;inset:0 0 0 auto;box-sizing:border-box;width:min(94vw,460px);max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background-color:Canvas;background-image:linear-gradient(var(--dsw-alias-bg-layer-1,#fff),var(--dsw-alias-bg-layer-1,#fff));box-shadow:-18px 0 46px rgb(15 23 42 / 18%);transform:translateX(104%);transition:transform 190ms cubic-bezier(.22,1,.36,1)}
 .dshm-details[data-open=true]{transform:translateX(0)}
 .dshm-details[data-open=false]{pointer-events:none;visibility:hidden;transition:transform 190ms cubic-bezier(.22,1,.36,1),visibility 0s linear 190ms}
-@media(max-width:899px){.dshm-details{width:100%;max-width:100%;box-shadow:none}.dshm-details [data-sidebar-right-toggle],.dshm-details [data-sidebar-right-mode]{min-width:48px;min-height:48px}}
+/* An absent marker is the narrow default: static fixtures and the first paint
+   before React mounts keep the overlay geometry rather than a half-docked shell. */
+.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details{width:100%;max-width:100%;box-shadow:none}
+.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details [data-sidebar-right-toggle],.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details [data-sidebar-right-mode]{min-width:48px;min-height:48px}
 .dshm-scrim{position:fixed;z-index:65;inset:0;border:0;background:rgb(15 23 42 / 40%);opacity:0;pointer-events:none;transition:opacity 180ms ease-out}
 .dshm-scrim[data-open=true]{opacity:1;pointer-events:auto}
 .dshm-overlay{position:fixed;z-index:90;inset:0;pointer-events:none}.dshm-overlay>*{pointer-events:auto}
@@ -565,7 +642,9 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-panelBack:disabled{opacity:.5;cursor:default}
 .dshm-panelBack:focus-visible{outline:2px solid var(--dsw-alias-label-primary,#171a21);outline-offset:2px}
 .dshm-panelBack svg{width:20px;height:20px;flex-shrink:0}
-.dshm-shell header{min-width:0;padding-left:52px}
+.dshm-shell header{min-width:0}
+/* A panel owns its header padding; only conversation content clears the rail. */
+.dshm-shell :where(.dshm-main:not([data-dsh-panel="1"])) header{padding-left:52px}
 /* Keep focused editables above Safari's 16px zoom threshold while retaining
    the DSH content-font preference and larger inherited text. Stock menus
    portal into document.body, so the floor scopes from the body itself. */
@@ -594,30 +673,33 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
 .dshm-shell [data-plan-review-key]>section>div:last-child>div:last-child>button:first-child{grid-column:1/-1}
 .dshm-shell [data-plan-review-key]>section>div:last-child button{width:100%;min-height:44px}
 }
-@media(min-width:900px){
-.dshm-shell{grid-template-columns:auto minmax(0,1fr)}
+/* Wide band: the shell carries the decision, so these rules follow the same
+   device+viewport test as the JS. An absent attribute is the narrow default. */
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"]{grid-template-columns:auto minmax(0,1fr)}
 /* The wide drawer is a static grid column, not an overlay: it occupies its own
    track and never overlaps the conversation. Keeping a z-index here made it
    outrank the conversation column, so a dialog a plugin mounts inside the
    composer's own stacking context lost its left edge behind the opaque rail.
    A static column needs no layer, so it stays in normal flow order. */
-.dshm-drawer{position:static;grid-area:1/1;box-shadow:none;z-index:auto}
-.dshm-drawer[data-open=true]{width:340px;box-shadow:none}
-.dshm-drawer[data-open=false]{width:56px}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer{position:static;grid-area:1/1;box-shadow:none;z-index:auto}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{width:340px;box-shadow:none}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=false]{width:56px}
 /* The conversation column outranks that column so an in-shell modal opened from
    it is not clipped by the navigation rail. It stays below the scrim (65), the
    detail panel (80) and the shell overlay (90), so a modal shell surface still
    dims and covers it. Only the wide grid needs this: on a phone the drawer is a
    floating overlay and must keep covering the conversation. */
-.dshm-main{grid-area:1/2;z-index:1}
-}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-main{grid-area:1/2;z-index:1}
 @media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}}
 /* Touch adaptation changes control boxes, not invisible hit regions. Root opt-out
-   retains pane geometry too; nested opt-out preserves a widget's own controls. */
+   retains pane geometry too; nested opt-out preserves a widget's own controls.
+   DSH's plugin cards open through a cardTitle/cardOpen button whose ::after
+   overlay already owns the whole card hit area; the floor only inflated that
+   title box and pushed each description away from its card title. */
 @media(pointer:coarse){
 .dshm-main[data-dsh-panel="1"] .dshm-mainContent:has(>[data-slot="main"]>:not([data-dsh-adapt="off"])):not(:has(>[data-slot="main"]>[data-dsh-adapt="off"])){overflow-y:auto;overscroll-behavior:contain}
 .dshm-main[data-dsh-panel="1"] .dshm-mainContent>[data-slot="main"]>:not([data-dsh-adapt="off"]){max-width:100%;box-sizing:border-box}
-.dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
+.dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],button[class*="_cardTitle"][class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
 .dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],a):not([data-dsh-adapt="off"],[data-dsh-adapt="off"] *){touch-action:manipulation}
 }
 `
@@ -650,14 +732,20 @@ function MobileAppFrame(props: MobileRootProps & {
     const active = document.activeElement
     if (active instanceof HTMLElement && active.matches(COMPOSER_EDITOR_SELECTOR)) active.blur()
   }, [state.panelInfo.activePanelId])
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
+  // The width decides whether the window is big enough and the device's shorter
+  // side decides whether it is a tablet: width alone would dock a landscape
+  // phone, and the viewport height alone would undock a tablet whose soft
+  // keyboard is open (Pad 9 Pro Max reports innerHeight 441 in landscape).
+  // `resize` fires on rotation, window resizing and keyboard-driven viewport
+  // changes, so both facts are re-read with the same frame-coalesced measurement.
+  const [viewport, setViewport] = useState(readViewport)
   useEffect(() => {
     let frame: number | undefined
     const resize = (): void => {
       if (frame !== undefined) return
       frame = window.requestAnimationFrame(() => {
         frame = undefined
-        setViewportWidth(window.innerWidth)
+        setViewport(readViewport())
       })
     }
     window.addEventListener('resize', resize)
@@ -666,9 +754,11 @@ function MobileAppFrame(props: MobileRootProps & {
       if (frame !== undefined) window.cancelAnimationFrame(frame)
     }
   }, [])
-  const wideViewport = isWideViewportLayout(viewportWidth)
+  const viewportWidth = viewport.width
+  const wideViewport = isWideViewportLayout(viewport.width, viewport.shortSide)
   const rightbar = resolveMobileRightbarLayout(
-    viewportWidth,
+    viewport.width,
+    wideViewport,
     state.sidebarOpen,
     state.rightbarTrack,
     state.rightbarFullscreen,
@@ -820,6 +910,10 @@ function MobileAppFrame(props: MobileRootProps & {
 
   return createElement('div', {
     className: 'dshm-shell', lang: language,
+    // The stylesheet follows this marker instead of a media query: the band
+    // depends on `screen`, which CSS cannot read. It is part of the first render,
+    // so a tablet never paints the drawer band and then reflows.
+    [WIDE_LAYOUT_ATTRIBUTE]: wideViewport ? '1' : '0',
     'data-rightbar-docked': rightbarDocked,
     'data-rightbar-fullscreen': rightbarFullscreen,
     style: { '--dshm-rightbar-width': `${rightbar.width}px` },

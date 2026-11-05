@@ -1,7 +1,7 @@
 import {
   parseFrpSettings, validateFrpEntryTls, validateFrpMode, validateFrpPublicOrigin,
   validateFrpPublicPort, validateFrpServerAddress, validateFrpServerPort,
-  validateFrpToken, validateFrpVhostHttpPort,
+  validateFrpToken, validateFrpUser, validateFrpVhostHttpPort,
 } from './frp-config.js'
 
 /** Editable FRP values; invalid numeric input remains invalid rather than becoming a default. */
@@ -9,6 +9,7 @@ export interface FrpFormValues {
   readonly serverAddress: string
   readonly serverPort: number
   readonly token: string
+  readonly user?: string
   readonly publicOrigin: string
   readonly mode: string
   readonly entryTls: string
@@ -29,6 +30,7 @@ export const FRP_FORM_ERRORS: Readonly<Record<string, FrpFormIssue>> = {
   frp_server_port_invalid: { field: 'serverPort', code: 'frp_server_port_invalid', messageKey: 'frpServerPortInvalid' },
   frp_token_invalid: { field: 'token', code: 'frp_token_invalid', messageKey: 'frpTokenInvalid' },
   frp_public_origin_invalid: { field: 'publicOrigin', code: 'frp_public_origin_invalid', messageKey: 'frpPublicOriginInvalid' },
+  frp_user_invalid: { field: 'user', code: 'frp_user_invalid', messageKey: 'frpUserInvalid' },
   frp_attach_mode_requires_vhost_port: { field: 'vhostHttpPort', code: 'frp_attach_mode_requires_vhost_port', messageKey: 'frpAttachModeRequiresVhostPort' },
   frp_entry_tls_invalid: { field: 'entryTls', code: 'frp_entry_tls_invalid', messageKey: 'frpEntryTlsInvalid' },
   frp_self_signed_requires_public_ipv4: { field: 'publicOrigin', code: 'frp_self_signed_requires_public_ipv4', messageKey: 'frpSelfSignedRequiresPublicIpv4' },
@@ -45,6 +47,7 @@ export function validateFrpForm(form: FrpFormValues, allowSavedToken = false): r
   check('serverAddress', 'frpServerAddressInvalid', () => validateFrpServerAddress(form.serverAddress))
   check('serverPort', 'frpServerPortInvalid', () => validateFrpServerPort(form.serverPort))
   if (form.token !== '' || !allowSavedToken) check('token', 'frpTokenInvalid', () => validateFrpToken(form.token))
+  if (form.user !== undefined && form.user !== '') check('user', 'frpUserInvalid', () => validateFrpUser(form.user))
   check('publicOrigin', 'frpPublicOriginInvalid', () => validateFrpPublicOrigin(form.publicOrigin))
   check('mode', 'frpModeInvalid', () => validateFrpMode(form.mode))
   check('entryTls', 'frpEntryTlsInvalid', () => validateFrpEntryTls(form.entryTls))

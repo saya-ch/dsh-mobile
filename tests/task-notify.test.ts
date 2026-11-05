@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   fireTaskNotifyEvent,
@@ -253,6 +254,11 @@ describe('task completion tracker', () => {
     expect(taskCompletionTag('Session-A', 1)).not.toBe(taskCompletionTag('session-a', 1))
     expect(taskCompletionTag('\ud800', 1)).not.toBe(taskCompletionTag('\ud801', 1))
     expect(taskCompletionTag(first.sessionId, first.turn)).toBe(firstTag)
+  })
+
+  it.each(['session-a', '会话／🐋', '\ud800'])('retains the original SHA-256 tag for %j', sessionId => {
+    const digest = createHash('sha256').update(JSON.stringify(sessionId), 'utf8').digest('hex').slice(0, 32)
+    expect(taskCompletionTag(sessionId, 42)).toBe(`dsh-task-done-${digest}-42`)
   })
 })
 

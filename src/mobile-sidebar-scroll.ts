@@ -1,3 +1,5 @@
+import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
+
 /** Page-local scroll memory for the Workspace consumer, which unmounts on collapse. */
 export interface SidebarScrollSnapshot {
   readonly top: number
@@ -38,7 +40,16 @@ export function captureSidebarScroll(element: HTMLElement): SidebarScrollSnapsho
 export function installMobileSidebarScrollMemory(): { sync: () => void; dispose: () => void } {
   const memories = new Map<string, SidebarScrollSnapshot>()
   const stockViewport = window.matchMedia('(max-width:720px)')
-  const dedicatedViewport = window.matchMedia('(max-width:899px)')
+  /**
+   * Whether the dedicated layout currently renders the sidebar as an overlay
+   * drawer. That is the layout's own decision on the shell — a landscape phone
+   * is an overlay there although its viewport is wide — so a width query would
+   * disable this memory exactly where the drawer is hardest to reach.
+   */
+  const drawerBand = (): boolean => {
+    const shell = document.querySelector('.dshm-shell')
+    return shell === null || shell.getAttribute(WIDE_LAYOUT_ATTRIBUTE) !== '1'
+  }
   let root: HTMLElement | undefined
   let open = false
   let ports = new Map<HTMLElement, string>()
@@ -99,7 +110,7 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
     if (disposed) return
     const next = document.querySelector<HTMLElement>('[data-dsh-mobile-sidebar-root]') ?? undefined
     const mobile = next?.closest('[data-pane="sidebar"]') != null
-      ? dedicatedViewport.matches : stockViewport.matches
+      ? drawerBand() : stockViewport.matches
     if (next !== root) { cancel(); ports.clear(); root = next; open = false }
     const nextOpen = mobile && isOpen()
     if (!nextOpen) { cancel(); open = false; ports.clear(); return }
@@ -137,7 +148,6 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
     remember()
   }
   stockViewport.addEventListener('change', sync)
-  dedicatedViewport.addEventListener('change', sync)
   document.addEventListener('scroll', onScroll, true)
   for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown', 'click']) document.addEventListener(type, onIntent, true)
   return {
@@ -146,7 +156,6 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
       disposed = true
       cancel()
       stockViewport.removeEventListener('change', sync)
-      dedicatedViewport.removeEventListener('change', sync)
       document.removeEventListener('scroll', onScroll, true)
       for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown', 'click']) document.removeEventListener(type, onIntent, true)
       ports.clear(); memories.clear(); root = undefined

@@ -13,6 +13,7 @@ const ATTACH_KEYS = [
   'frpMode', 'frpModeDeploy', 'frpModeAttach', 'frpModeHint',
   'frpEntryTls', 'frpEntryTlsPublic', 'frpEntryTlsSelfSigned',
   'frpVhostHttpPort', 'frpVhostHttpPortHint', 'frpPublicPort', 'frpPublicPortHint',
+  'frpUser', 'frpUserPlaceholder', 'frpUserHint', 'frpUserInvalid',
   'frpAttachPlan', 'frpAttachPlanCopied', 'frpAttachPlanFailed',
   'frpAttachCertOk', 'frpAttachCertExpiring', 'frpAttachCertExpired', 'frpAttachCertUnknown',
   'frpAttachSelfCheck', 'frpAttachFrpsReachable', 'frpAttachFrpsUnreachable',
