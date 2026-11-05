@@ -5,7 +5,7 @@ const checker: { checkClientBundleImports: (source: string, runtimeDependencies?
 
 describe('browser client dependency imports', () => {
   it('rejects unbundled runtime libraries and their subpaths while retaining supplied peers', () => {
-    for (const specifier of ['@noble/hashes', '@noble/hashes/sha256', '@noble/hashes/utils']) {
+    for (const specifier of ['@noble/hashes', '@noble/hashes/sha2.js', '@noble/hashes/utils.js']) {
       expect(() => checker.checkClientBundleImports(`const hash = require('${specifier}')`, ['@noble/hashes']))
         .toThrow('runtime dependencies must be bundled')
     }
