@@ -1,14 +1,14 @@
 # 贡献者 / Contributors
 
-GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/contributors) 按进入默认分支的提交自动统计，无法手动加入仅提交 issue 或 PR 提案的成员。本页按截至 2026-11-03 的实际参与方式感谢社区成员；仓库维护者与自动依赖更新仍可在 GitHub 历史记录中查看。
+GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/contributors) 按进入默认分支的提交自动统计，无法手动加入仅提交 issue 或 PR 提案的成员。本页按实际参与方式感谢社区成员；仓库维护者与自动依赖更新仍可在 GitHub 历史记录中查看。
 
-GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed, through 2026-11-03. The repository maintainer and automated dependency updates remain visible in GitHub's history.
+GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
-## 0.8.3 候选贡献 / Candidate contributions for 0.8.3
+## 0.8.3 贡献 / Contributions for 0.8.3
 
-感谢 [@xaxka](https://github.com/xaxka) 在 [#344](https://github.com/saya-ch/dsh-mobile/pull/344) 提供共享 FRP 用户名支持，[@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#346](https://github.com/saya-ch/dsh-mobile/pull/346) 提供横屏布局判断，以及 [@chintoleung](https://github.com/chintoleung) 在 [#351](https://github.com/saya-ch/dsh-mobile/pull/351) 和 [#353](https://github.com/saya-ch/dsh-mobile/pull/353) 修复推送设置与插件页布局。候选保留原作者提交，维护者修正另记。
+感谢 [@xaxka](https://github.com/xaxka) 在 [#344](https://github.com/saya-ch/dsh-mobile/pull/344) 提供共享 FRP 用户名支持，[@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#346](https://github.com/saya-ch/dsh-mobile/pull/346) 提供横屏布局判断，以及 [@chintoleung](https://github.com/chintoleung) 在 [#351](https://github.com/saya-ch/dsh-mobile/pull/351) 和 [#353](https://github.com/saya-ch/dsh-mobile/pull/353) 修复推送设置与插件页布局。原作者提交保留，维护者修正另记。
 
-Thanks [@xaxka](https://github.com/xaxka) for the shared-FRP username in [#344](https://github.com/saya-ch/dsh-mobile/pull/344), [@LUgABeEEE](https://github.com/LUgABeEEE) for the landscape layout in [#346](https://github.com/saya-ch/dsh-mobile/pull/346), and [@chintoleung](https://github.com/chintoleung) for the push-settings and Plugins-page layout fixes in [#351](https://github.com/saya-ch/dsh-mobile/pull/351) and [#353](https://github.com/saya-ch/dsh-mobile/pull/353). The candidate preserves original commits and records maintainer corrections separately.
+Thanks [@xaxka](https://github.com/xaxka) for the shared-FRP username in [#344](https://github.com/saya-ch/dsh-mobile/pull/344), [@LUgABeEEE](https://github.com/LUgABeEEE) for the landscape layout in [#346](https://github.com/saya-ch/dsh-mobile/pull/346), and [@chintoleung](https://github.com/chintoleung) for the push-settings and Plugins-page layout fixes in [#351](https://github.com/saya-ch/dsh-mobile/pull/351) and [#353](https://github.com/saya-ch/dsh-mobile/pull/353). Original commits are retained, with maintainer corrections recorded separately.
 
 ## 0.8.2 贡献 / Contributions for 0.8.2
 
