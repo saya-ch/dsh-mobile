@@ -46,7 +46,9 @@ Plugin 0.6.15 and later repair the idle cutoff and gzip buffering for new dedica
 
 A page view does not migrate to a new authentication Session. Native renewal may retain the WebView and draft without restoring the old module-event stream. A new Session using the old view receives `409 mobile_document_view_invalid`; loading the dedicated page again obtains a new view. This does not require removing a pairing or automatically refresh the current Session.
 
-An ordinary message bubble and cleared draft can precede `POST /api/session/prompt`: they are an optimistic local echo, not Host acceptance. If no corresponding request appears, retain redacted request timing, status codes and DSH logs to distinguish a request never started by the browser, proxy rejection and Host acceptance. The plugin does not automatically replay messages, approvals or other writes; check the Session before retrying an operation with an unknown outcome.
+On some older DSH versions, a message bubble and cleared draft can precede `POST /api/session/prompt`: they are an optimistic local echo, not Host acceptance. If no corresponding request appears, retain redacted request timing, status codes and DSH logs to distinguish a request never started by the browser, proxy rejection and Host acceptance. The plugin does not automatically replay messages, approvals or other writes; check the Session before retrying an operation with an unknown outcome.
+
+In controlled HTTP 400 tests on DSH 0.2.2-rc.1, staying in the same Session showed a send error and restored the text and image draft. Leaving while the request was still pending could lose that draft on return, including in stock DSH without Mobile installed. On a slow link, wait for the current Session to show the send result before switching. If the result is unknown, check whether the message arrived before retrying. This does not identify the original rejection reported in [#234](https://github.com/saya-ch/dsh-mobile/issues/234).
 
 ## Slow transfers can exceed the default deadlines
 
