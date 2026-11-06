@@ -49,6 +49,8 @@ macOS can ask on the computer whether DSH may access a protected location such a
 
 Before leaving the Mac unattended, start DSH the way you normally run it and open the workspace folder you intend to use remotely. Grant only the access you need, and review existing grants in **System Settings → Privacy & Security → Files and Folders**. You can also choose a location for new workspaces that does not require this permission. After addressing a prompt, retry with your existing pairing. Remote access does not require Full Disk Access. See [Apple's guide to file and folder access](https://support.apple.com/en-us/guide/mac-help/mchld5a35146/mac).
 
+Before leaving, use an already paired device on the intended remote channel, open **the same folder** in the web directory picker, and confirm that it lists the contents. Gateway health and terminal `ls` do not test DSH's access to the folder. If macOS prompts, address it and retry with the existing pairing; do not reset system permissions or reinstall the plugin.
+
 ## Share the report
 
 Reports retain versions, interface names, masked endpoint suffixes, failure stages, timings, DNS categories and measurement scope. They do not read conversations or include pairing secrets, Tokens, Cookies, complete hostnames/IPs or proxy credentials. Context such as an interface name can still be identifying; review before posting.

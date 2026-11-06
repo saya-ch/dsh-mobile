@@ -25,6 +25,12 @@ A routed network may not support LAN broadcast discovery. If the computer is not
 
 This setting controls source access to the LAN Gateway, not source CIDRs for an external reverse proxy. Configure that separately with the [own HTTPS reverse proxy guide](SELF_HOSTED_ORIGIN.en.md). Do not expose the LAN Gateway or private HTTP backend directly to the public internet.
 
+## Use an existing virtual LAN
+
+A virtual LAN such as [StarVPN](https://doc.starvpn.cn/) can carry an existing Mobile connection. DSH Mobile does not install the provider's client, sign in to its account, or select direct or relayed paths. Join both devices to the same controlled network, then check that the phone can reach the **actual Mobile HTTPS listener at an address covered by its certificate**. Use that entry to test pairing, resource loading, opening a conversation, and reconnecting. If broadcast discovery is unavailable, use the pairing link copied from the computer. StarVPN has not been tested end to end.
+
+Adding a trusted subnet only changes which sources are allowed. It does not bind the service to another virtual IP or add that IP to its certificate. If the pairing link's address cannot be routed, use an existing controlled route to the original HTTPS address, or configure a reachable address with a valid certificate using the [own HTTPS reverse proxy guide](SELF_HOSTED_ORIGIN.en.md). Do not rewrite the pairing link to an arbitrary virtual IP, bypass certificate validation, or forward the DSH administration port.
+
 ## Accessing the NAS administration page
 
 The administration page's `/api/mobile-access` and the phone Gateway are separate entries. The additional trusted networks above do not open the management API. By default, the management API still accepts only direct loopback peers.

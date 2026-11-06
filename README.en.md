@@ -167,6 +167,8 @@ Browser pairing and reauthentication pages support Simplified Chinese, English a
 
 For manual browser pairing, enter the 43-character pairing code shown on the computer. Keys starting with `dsh1.` or `dsh2.` belong in the Android app, not the browser field. Prefer the pairing link copied from the computer, which fills the code automatically; generate a new link when it expires.
 
+**HarmonyOS phones and tablets:** If you cannot install the Android APK, try opening the browser pairing link copied from the computer, preferably through a trusted HTTPS entry. There is no native HarmonyOS package, and browser use on physical HarmonyOS devices has not been verified. Check pairing, opening a conversation, and reconnecting. If one of these fails, report the device model, system and browser versions, and the failing step without sharing the original pairing link.
+
 ### Remote access
 
 Use this after the phone leaves the computer's network. Remote access is disabled by default, and the phone needs no separate Tailscale, cpolar, cloudflared, or FRP app.
