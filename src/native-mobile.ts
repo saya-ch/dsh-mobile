@@ -266,11 +266,19 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) { box-sizing:border-box !important; width:100% !important; padding:0 0 8px !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) > [class=""]:last-child { display:none !important; }
 }
-@media (max-width:720px) and (max-height:500px) {
+/* Short windows: an open software keyboard shrinks the layout viewport, and that has
+   nothing to do with how wide the window is. A 1363x600 tablet keeps a 340dp keyboard
+   and is as cramped as a phone, but the old width gate skipped it entirely.
+   What keeps these rules inside our shell is not the width query but two markers:
+   html.dsh-native-mobile-active (set by installNativeMobileSurface) and the
+   [data-dsh-mobile-center] wrapper, so stock DSH web matches neither.
+   Thresholds: phone-era 500/400 miss a 1363x860 tablet (860-340=520) and a 1363x600
+   one (600-240=360); 620/520 close that gap. Exact numbers want a device to confirm. */
+@media (max-height:620px) {
   /* An open software keyboard leaves less room for the focused draft. */
   html.dsh-native-mobile-active [data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }
 }
-@media (max-width:720px) and (max-height:400px) {
+@media (max-height:520px) {
   [data-dsh-mobile-center] [data-composer-card] { gap:8px !important; }
   html.dsh-native-mobile-active [data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:48px !important; }
 }
