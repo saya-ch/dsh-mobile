@@ -410,7 +410,7 @@ jobs:
             target: win32-x64
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: dtolnay/rust-toolchain@1.120.0
         with:
           components: rustfmt, clippy
       - uses: actions/setup-node@v7
@@ -499,7 +499,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: dtolnay/rust-toolchain@1.120.0
         with:
           targets: aarch64-linux-android, x86_64-linux-android
       - uses: android-actions/setup-android@v4
