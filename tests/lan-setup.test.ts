@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { prepareManagedLanSetup } from '../src/lan-setup.js'
+import { prepareManagedLanSetup, windowsFirewallSetupScript } from '../src/lan-setup.js'
 import { parseManagedSetup } from '../src/managed-setup.js'
 
 const directories: string[] = []
@@ -13,6 +13,17 @@ afterEach(async () => {
 })
 
 describe('managed LAN setup', () => {
+  it('updates an existing firewall rule without deleting it first and verifies the resulting scope', () => {
+    const script = windowsFirewallSetupScript(3443)
+    expect(script).not.toContain('Remove-NetFirewallRule')
+    expect(script).toContain("$rules = @(Get-NetFirewallRule -DisplayName 'DSH Mobile HTTPS'")
+    expect(script).toContain('$rule | Set-NetFirewallRule -Enabled True -Direction Inbound -Action Allow -Profile Any')
+    expect(script).toContain("$rule | Get-NetFirewallPortFilter | Set-NetFirewallPortFilter -Protocol TCP -LocalPort 3443")
+    expect(script).toContain("$rule | Get-NetFirewallPortFilter | Set-NetFirewallPortFilter -Protocol UDP -LocalPort 3443")
+    expect(script).toContain('$matchingAddress.Count -eq 0')
+    expect(() => windowsFirewallSetupScript(443)).toThrow(/Windows firewall port/)
+  })
+
   it('creates private TLS material and an enabled restart state after explicit confirmation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-lan-setup-'))
     directories.push(directory)

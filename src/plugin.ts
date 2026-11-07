@@ -1083,6 +1083,9 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     component: irohComponent,
     dataDirectory: join(remoteDirectory, 'iroh', 'sidecar'),
     createGateway: endpointId => createIrohGateway(endpointId),
+    onFailure: ({ errorCode, diagnostic }) => {
+      logger.warn('iroh startup failed: %s%s', errorCode, diagnostic === undefined ? '' : `; ${diagnostic}`)
+    },
     /**
      * Read the pairing CA the live gateway advertises. The fingerprint must
      * match the gateway instance id, otherwise a rotated CA would mint QR

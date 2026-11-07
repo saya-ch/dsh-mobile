@@ -43,6 +43,9 @@ if (mode === 'hang') {
 } else if (mode === 'exit-nonzero') {
   process.stdout.write('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n')
   process.exit(3)
+} else if (mode === 'unsafe-directory') {
+  process.stderr.write('private Windows data directory is not secure\nCaused by: private path ACL grants access or replacement rights to another principal\n')
+  process.exit(3)
 } else if (mode === 'invalid-utf8') {
   process.stdout.write(Buffer.from([0xff, 0xfe, 0xfd]))
   process.exit(0)
