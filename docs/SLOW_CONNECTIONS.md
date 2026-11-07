@@ -138,6 +138,14 @@ websocketCompression:
 
 上游未提供校验标识的资源不会因此自动得到一个可靠标识。检查重复下载时，比较同一完整资源 URL 在普通打开、重新加载和 App 冷启动中的 `200`/`304`、缓存命中、`If-None-Match`、编码与实际传输量；不要先清除站点数据再把结果当作正常缓存行为。HTTP 校验语义改善不保证每个 WebView 都会复用缓存，也不能仅凭这些响应头认定 [#107](https://github.com/saya-ch/dsh-mobile/issues/107) 已完全解决。
 
+## 慢速链路上的模型选择器
+
+网关仅对两个目录 RPC（`llm/listProviders` 和 `session/modelCatalog`）保留一个窄范围的 stale-while-revalidate 缓存。符合条件的暖请求会立即由缓存应答，跳过对应的网关→DSH 往返和主机端目录重建；并发请求共享一次上游填充。缓存条目自填充完成起 60 秒内才会被应答，超时后下一个请求会等待新填充；在这段时间内，超过 5 秒的陈旧条目仍会立即应答，同时在调用方关键路径之外执行一次后台刷新。目录响应仍会在每次请求时传输到手机——这里消除的是上游等待，不是手机↔网关的传输，也不会向已经渲染完选择器的页面推送更新。
+
+以这种方式应答的响应携带当前调用方的 RPC ID、`Cache-Control: no-store`，以及用于诊断的 `x-dsh-mobile-catalog: hit | stale | replay | miss-passthrough` 标记。网关可见且会影响目录的改动（凭据、提供方设置、账户登录状态、插件启用状态，以及会话保存的默认模型）会立即使缓存失效；绕过本网关的修改受 60 秒上限和客户端自身重新拉取行为的约束。无法安全共享的响应（错误、异常响应头、超限正文）不会被缓存：手机随后会发起一次普通请求，冷启动且不可缓存的响应因此可能多出一次读取尝试及其延迟。
+
+在 `mobile-access` 条目中设置 `catalogCache: false` 并保存，再重启 DSH（或重新加载插件），即可恢复未改动的代理路径。目录未就绪时立即从已保存的 `modelSelection` 投影恢复标签仍是上游限制：公开的标签插槽不适用于该状态，本插件也不修补 DSH 客户端内部实现（[#290](https://github.com/saya-ch/dsh-mobile/issues/290)）。
+
 ## 手动压缩会话与长时间 API 请求（0.6.0）
 
 手机发出的 `/compact` 等命令要通过移动网关的 HTTP API；DSH 内部触发的自动压缩不经过这次网关请求。旧版网关对所有上游代理请求都使用默认 30 秒的 `upstreamTimeoutMs`，因此模型仍在生成摘要时，手动压缩可能先收到 `502 upstream_unavailable`。[#171](https://github.com/saya-ch/dsh-mobile/issues/171) 记录了这一情况。
