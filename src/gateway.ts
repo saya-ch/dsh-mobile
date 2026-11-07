@@ -781,14 +781,14 @@ export function splitMobileBootBatch(
   for (const entry of entries) {
     const size = sizes.get(entry.url)
     const oversized = passThrough.has(entry.url)
-      || (size !== undefined && size >= MAX_MOBILE_BOOT_ENTRY_BYTES)
+      || (size !== undefined && (size <= 0 || size >= MAX_MOBILE_BOOT_ENTRY_BYTES))
     if (oversized && entry.id !== MOBILE_LAYOUT_MODULE) {
       // A pass-through row never joins a merged batch; it also must not split
       // the open chunk, because chunk contents are independent of row order.
       rows.push({ phase: 'application', url: entry.url, rev: entry.rev, entries: [entry.id] })
       continue
     }
-    const bytes = (size ?? 0) + MOBILE_BOOT_SEPARATOR_BYTES
+    const bytes = (size !== undefined && size > 0 ? size : 0) + MOBILE_BOOT_SEPARATOR_BYTES
     if (chunk !== undefined && chunk.entries.length > 0 && chunk.bytes + bytes > MOBILE_BOOT_CHUNK_BYTES) flush()
     chunk ??= { ids: [], entries: [], bytes: 0 }
     chunk.ids.push(entry.id)
@@ -3349,7 +3349,7 @@ export class MobileAccessGateway {
         const index = cursor++
         const source = candidates[index]!.url
         const size = await this.upstreamBundleSize(source, signal)
-        if (size === undefined || size >= MAX_MOBILE_BOOT_ENTRY_BYTES) passThrough.add(source)
+        if (size === undefined || size <= 0 || size >= MAX_MOBILE_BOOT_ENTRY_BYTES) passThrough.add(source)
         else sizes.set(source, size)
       }
     }

@@ -6,9 +6,9 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 ## 0.8.5 贡献 / Contributions for 0.8.5
 
-感谢 [@lyc0110](https://github.com/lyc0110) 在 [#364](https://github.com/saya-ch/dsh-mobile/issues/364) 报告 Windows 防火墙先删后建的风险，[@fgql](https://github.com/fgql) 在 [#365](https://github.com/saya-ch/dsh-mobile/issues/365) 提供 iroh 私有目录失败的完整诊断，以及 [@LunarFeller](https://github.com/LunarFeller) 在 [#355](https://github.com/saya-ch/dsh-mobile/pull/355) 提供 macOS 完全磁盘访问提示及真机验证。
+感谢 [@lyc0110](https://github.com/lyc0110) 在 [#364](https://github.com/saya-ch/dsh-mobile/issues/364) 报告 Windows 防火墙先删后建的风险，[@fgql](https://github.com/fgql) 在 [#365](https://github.com/saya-ch/dsh-mobile/issues/365) 提供 iroh 私有目录失败的完整诊断，[@LunarFeller](https://github.com/LunarFeller) 在 [#355](https://github.com/saya-ch/dsh-mobile/pull/355) 提供 macOS 完全磁盘访问提示及真机验证，以及 [@chenForbear](https://github.com/chenForbear) 在 [#363](https://github.com/saya-ch/dsh-mobile/issues/363) 提供模块批次测量。
 
-Thanks [@lyc0110](https://github.com/lyc0110) for reporting the Windows firewall replacement risk in [#364](https://github.com/saya-ch/dsh-mobile/issues/364), [@fgql](https://github.com/fgql) for the detailed iroh private-directory diagnosis in [#365](https://github.com/saya-ch/dsh-mobile/issues/365), and [@LunarFeller](https://github.com/LunarFeller) for the macOS Full Disk Access notice and device verification in [#355](https://github.com/saya-ch/dsh-mobile/pull/355).
+Thanks [@lyc0110](https://github.com/lyc0110) for reporting the Windows firewall replacement risk in [#364](https://github.com/saya-ch/dsh-mobile/issues/364), [@fgql](https://github.com/fgql) for the detailed iroh private-directory diagnosis in [#365](https://github.com/saya-ch/dsh-mobile/issues/365), [@LunarFeller](https://github.com/LunarFeller) for the macOS Full Disk Access notice and device verification in [#355](https://github.com/saya-ch/dsh-mobile/pull/355), and [@chenForbear](https://github.com/chenForbear) for the module-batch measurements in [#363](https://github.com/saya-ch/dsh-mobile/issues/363).
 
 ## 0.8.4 贡献 / Contributions for 0.8.4
 

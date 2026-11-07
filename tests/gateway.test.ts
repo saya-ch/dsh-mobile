@@ -17,7 +17,7 @@ import { connect, Socket, type AddressInfo } from 'node:net'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseGatewayConfig } from '../src/config.js'
-import { MobileAccessGateway, type ApiLatencyEntry, type AuthFailureEntry } from '../src/gateway.js'
+import { MobileAccessGateway, splitMobileBootBatch, type ApiLatencyEntry, type AuthFailureEntry } from '../src/gateway.js'
 import { BlockedUpgradePathLog } from '../src/websocket-paths.js'
 import { CSRF_COOKIE, CSRF_HEADER, DEVICE_COOKIE, SESSION_COOKIE } from '../src/http-security.js'
 import { HOST_CSRF_COOKIE, HOST_DEVICE_COOKIE, HOST_SESSION_COOKIE } from '../src/browser-auth-cookies.js'
@@ -698,6 +698,18 @@ async function openWebSocket(
 }
 
 describe('HTTP gateway', () => {
+  it('passes through modules with zero-byte size probes instead of collapsing them into one batch', () => {
+    const entries = Array.from({ length: 12 }, (_, index) => ({
+      id: `module-${String(index)}`,
+      url: `/plugins/module-${String(index)}.js?rev=${String(index)}`,
+      rev: String(index),
+    }))
+    const split = splitMobileBootBatch(entries, new Map(entries.map(entry => [entry.url, 0])), new Set())
+    expect(split.plans).toEqual([])
+    expect(split.rows).toHaveLength(entries.length)
+    expect(split.rows.every(row => row.entries.length === 1 && row.url.startsWith('/plugins/'))).toBe(true)
+  })
+
   it('resolves query-only and relative upstream redirects against the actual request', async () => {
     const upstream = createServer((incoming, response) => {
       if (incoming.url === '/api/file?path=%2Fexample&load=11') {
