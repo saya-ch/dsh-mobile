@@ -4108,9 +4108,24 @@ export class MobileAccessGateway {
       client.destroy()
       upstream.destroy()
     }
+    // At `expiresAt` this stream used to be destroyed outright: the browser saw an abnormal close
+    // (1006) and the page reported "connection lost" while it renewed. A WebSocket close frame
+    // (1000, normal closure) lets the client treat it as an orderly end of stream instead.
+    const finishGracefully = (): void => {
+      const sendCloseFrame = (socket: typeof client): void => {
+        if (socket.destroyed || !socket.writable) return
+        try {
+          socket.write(Buffer.from([0x88, 0x02, 0x03, 0xe8]))
+        } catch {
+          // A socket that cannot take the frame is already gone; the destroy below finishes it.
+        }
+      }
+      sendCloseFrame(client)
+      setTimeout(closeBoth, 50).unref()
+    }
     client.on('error', closeBoth)
     upstream.on('error', closeBoth)
-    const timer = setTimeout(closeBoth, Math.max(1, authorization.expiresAt - Date.now()))
+    const timer = setTimeout(finishGracefully, Math.max(1, authorization.expiresAt - Date.now()))
     timer.unref()
     const record: ActiveWebSocket = Object.freeze({ ...authorization, client, upstream, timer })
     this.activeWebSockets.set(id, record)

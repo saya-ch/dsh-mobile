@@ -42,6 +42,10 @@ function requestPathCategory(path: string): string {
       return path
     default:
       if (path.startsWith('/api/')) return '/api/*'
+      // Plugin bundles and owned assets are the two paths a mobile page re-requests constantly;
+      // collapsing them into `/*` hid which half of the traffic was being rejected.
+      if (path.startsWith('/plugins/')) return '/plugins/*'
+      if (path.startsWith('/assets/')) return '/assets/*'
       if (path.startsWith('/mobile-access/extensions/')) return '/mobile-access/extensions/*'
       // The compatibility bundle is requested by content revision; the digest is not
       // a stable log category, so every revision collapses to the bundle's name.
