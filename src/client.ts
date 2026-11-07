@@ -1578,6 +1578,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   // Shown once per session while the grant is missing, and never on other platforms.
   const remotePermission = element('section', 'dsh-mobile-control__guide'); remotePermission.hidden = true
   remotePermission.setAttribute('aria-label', t('macPermissionTitle'))
+  remotePermission.setAttribute('role', 'status')
   const remotePermissionTitle = element('h3', 'dsh-mobile-control__guide-title'); remotePermissionTitle.textContent = t('macPermissionTitle')
   const remotePermissionSummary = element('p', 'dsh-mobile-control__guide-summary'); remotePermissionSummary.textContent = t('macPermissionSummary')
   const remotePermissionSteps = element('p', 'dsh-mobile-control__guide-note'); remotePermissionSteps.textContent = t('macPermissionSteps')
