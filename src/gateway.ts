@@ -1,4 +1,4 @@
-import { createHash, randomBytes, X509Certificate } from 'node:crypto'
+import { createHash, randomUUID, randomBytes, X509Certificate } from 'node:crypto'
 import { createSocket, type Socket as DatagramSocket } from 'node:dgram'
 import { lstat, readFile, stat } from 'node:fs/promises'
 import { hostname } from 'node:os'
@@ -38,6 +38,15 @@ export type { AuthFailureEntry } from './auth-failure-log.js'
 import { HttpFailureRecorder, type HttpFailureEntry } from './http-failure-log.js'
 export type { HttpFailureEntry } from './http-failure-log.js'
 import { ApiLatencyRecorder, boundedApiPath, type ApiLatencyEntry } from './api-latency-log.js'
+import {
+  CATALOG_MUTATION_METHODS,
+  CatalogCache,
+  checkCatalogRequest,
+  DEFAULT_CATALOG_CACHE_LIMITS,
+  type CatalogFillOutcome,
+  type CatalogMethod,
+  type CatalogServeResult,
+} from './catalog-cache.js'
 export type { ApiLatencyEntry } from './api-latency-log.js'
 import { UpstreamAuthRecorder, type UpstreamAuthEntry, type UpstreamAuthOutcome } from './upstream-auth-log.js'
 export type { UpstreamAuthEntry } from './upstream-auth-log.js'
@@ -140,6 +149,9 @@ type OwnedStaticAsset = {
 }
 const MOBILE_BOOT_BATCH_PREFIX = `${AUTH_PREFIX}/mobile-boot/`
 const MOBILE_DOCUMENT_VIEW_HEADER = 'x-dsh-mobile-view'
+const CATALOG_CACHE_MARKER = 'x-dsh-mobile-catalog'
+/** Eligible catalog envelopes are small fixed-shape JSON; larger declared bodies keep the streaming path. */
+const CATALOG_CANDIDATE_BODY_LIMIT = 64 * 1024
 const MOBILE_PUSH_CONFIG_PATH = `${AUTH_PREFIX}/push/config`
 const MOBILE_PUSH_SUBSCRIPTION_PATH = `${AUTH_PREFIX}/push/subscription`
 const MOBILE_PUSH_PREFERENCES_PATH = `${AUTH_PREFIX}/push/preferences`
@@ -1418,6 +1430,19 @@ export class MobileAccessGateway {
   private upstreamCookie: string | undefined
   private upstreamCookieExpiresAt = 0
   private upstreamCookieTask: Promise<string> | undefined
+  #catalogCache: CatalogCache<{ cookieHeader: string | undefined }> | undefined
+  #upstreamIdentityRevision = 0
+  readonly #catalogFills = new Set<ClientRequest>()
+
+  /** The catalog SWR cache, or undefined when `catalogCache` is disabled. */
+  private get catalogCache(): CatalogCache<{ cookieHeader: string | undefined }> | undefined {
+    if (!this.config.catalogCache) return undefined
+    this.#catalogCache ??= new CatalogCache<{ cookieHeader: string | undefined }>({
+      fetchFill: input => this.catalogFill(input),
+      clock: () => performance.now(),
+    })
+    return this.#catalogCache
+  }
   private upstreamAuthRequest: ClientRequest | undefined
   private nextOperationId = 1
   private closing = false
@@ -2563,6 +2588,29 @@ export class MobileAccessGateway {
       return
     }
     if (stockFrontend && target.decodedPathname === '/') request.url = '/'
+    const candidateContentType = String(request.headers['content-type'] ?? '').split(';', 1)[0]?.trim().toLowerCase()
+    const candidateDeclaredLength = request.headers['content-length'] === undefined ? undefined : Number(request.headers['content-length'])
+    const catalogRouteMethod = this.config.catalogCache && documentView === undefined && request.method === 'POST'
+      && target.search === ''
+      && candidateContentType === 'application/json'
+      && candidateDeclaredLength !== undefined && Number.isFinite(candidateDeclaredLength)
+      && candidateDeclaredLength > 0 && candidateDeclaredLength <= CATALOG_CANDIDATE_BODY_LIMIT
+      && (target.decodedPathname === '/api/llm/listProviders' || target.decodedPathname === '/api/session/modelCatalog')
+      ? target.decodedPathname.slice('/api/'.length)
+      : undefined
+    if (catalogRouteMethod !== undefined) {
+      const candidateBody = await this.readRequestBody(request, Math.min(CATALOG_CANDIDATE_BODY_LIMIT, this.config.maxBodyBytes))
+      const eligible = checkCatalogRequest(catalogRouteMethod, candidateBody.toString('utf8'))
+      if (eligible !== undefined && this.catalogCache !== undefined) {
+        const served = await this.serveCatalogCache(eligible, request, response, authorization)
+        if (served) return
+        response.setHeader(CATALOG_CACHE_MARKER, 'miss-passthrough')
+        await this.proxyHttp(request, response, authorization, documentView, candidateBody)
+        return
+      }
+      await this.proxyHttp(request, response, authorization, documentView, candidateBody)
+      return
+    }
     await this.proxyHttp(request, response, authorization, documentView)
   }
 
@@ -2834,6 +2882,10 @@ export class MobileAccessGateway {
       }
       this.upstreamCookie = pair
       this.upstreamCookieExpiresAt = expiresAt
+      // The upstream identity changed; drop cached catalogs keyed to the old
+      // one and advance the revision so in-flight snapshots are not reused.
+      this.#upstreamIdentityRevision += 1
+      this.catalogCache?.noteIdentity(createHash('sha256').update(pair).digest('hex'))
       this.upstreamAuthDiagnostics.record(attempt, { outcome: 'accepted', stage, status })
       return pair
     } catch (error) {
@@ -3659,6 +3711,192 @@ export class MobileAccessGateway {
     }
   }
 
+  /** Read one bounded request body verbatim; the caller owns replaying it upstream. */
+  private readRequestBody(request: IncomingMessage, limitBytes: number): Promise<Buffer> {
+    const declared = request.headers['content-length']
+    if (declared !== undefined && (!/^\d+$/u.test(declared) || Number(declared) > limitBytes)) {
+      throw new HttpError(413, 'payload_too_large')
+    }
+    return new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = []
+      let received = 0
+      let failed = false
+      request.on('data', (chunk: Buffer) => {
+        if (failed) return
+        received += chunk.length
+        if (received > limitBytes) {
+          failed = true
+          reject(new HttpError(413, 'payload_too_large'))
+          // Drain rather than destroy so the ordinary JSON error can be delivered.
+          request.resume()
+          return
+        }
+        chunks.push(chunk)
+      })
+      request.once('end', () => { if (!failed) resolve(Buffer.concat(chunks)) })
+      request.once('error', error => { if (!failed) reject(error) })
+    })
+  }
+
+  /** One gateway-owned catalog fill: its own socket, rpcId, deadline and byte cap. */
+  private async catalogFill(input: Readonly<{
+    method: CatalogMethod
+    upstream: { cookieHeader: string | undefined }
+  }>): Promise<CatalogFillOutcome> {
+    const rpcId = `dsh-mobile-catalog-${randomUUID()}`
+    const body = JSON.stringify({ type: 'client-request', rpcId, method: input.method, payload: { args: {} } })
+    return await new Promise<CatalogFillOutcome>(resolve => {
+      let settled = false
+      let upstreamRequest!: ClientRequest
+      const finish = (outcome: CatalogFillOutcome): void => {
+        if (settled) return
+        settled = true
+        clearTimeout(absoluteDeadline)
+        this.#catalogFills.delete(upstreamRequest)
+        resolve(outcome)
+      }
+      upstreamRequest = requestHttp({
+        protocol: 'http:',
+        hostname: stripIpv6Brackets(this.config.upstreamOrigin.hostname),
+        port: Number(this.config.upstreamOrigin.port),
+        method: 'POST',
+        path: `/api/${input.method}`,
+        headers: {
+          host: this.config.upstreamOrigin.host,
+          'content-type': 'application/json',
+          accept: 'application/json',
+          'accept-encoding': 'identity',
+          'content-length': String(Buffer.byteLength(body)),
+          ...(input.upstream.cookieHeader === undefined ? {} : { cookie: input.upstream.cookieHeader }),
+        },
+        agent: false,
+      }, response => {
+        const status = response.statusCode ?? 0
+        const rawContentType = String(response.headers['content-type'] ?? '')
+        const mediaType = rawContentType.split(';', 1)[0]?.trim().toLowerCase()
+        const charset = /charset\s*=\s*([^;]+)/iu.exec(rawContentType)?.[1]?.trim().toLowerCase()
+        if (status !== 200
+          || mediaType !== 'application/json'
+          || (charset !== undefined && charset !== 'utf-8' && charset !== 'utf8')
+          || response.headers['set-cookie'] !== undefined
+          || (response.headers['content-encoding'] !== undefined && response.headers['content-encoding'] !== 'identity')) {
+          // The body is unusable and nothing consumes it: tear the socket down
+          // so the flight's accounting matches the settled upstream operation.
+          response.destroy()
+          finish({ shareable: false })
+          return
+        }
+        const chunks: Buffer[] = []
+        let received = 0
+        let overflowed = false
+        response.on('data', (chunk: Buffer) => {
+          if (overflowed) return
+          received += chunk.length
+          if (received > DEFAULT_CATALOG_CACHE_LIMITS.maxEntryBytes) {
+            overflowed = true
+            response.destroy()
+            return
+          }
+          chunks.push(chunk)
+        })
+        response.once('end', () => {
+          if (overflowed) {
+            finish({ shareable: false })
+            return
+          }
+          try {
+            const envelopeJson = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))
+            JSON.parse(envelopeJson)
+            finish({ shareable: true, envelopeJson, upstreamRpcId: rpcId })
+          } catch {
+            finish({ shareable: false })
+          }
+        })
+        response.once('error', () => finish({ shareable: false }))
+        // Destroyed responses (byte-cap abort, socket loss) may close without error.
+        response.once('close', () => finish({ shareable: false }))
+      })
+      // Absolute deadline: a trickling or stalled response must not hold a
+      // fill slot indefinitely; the socket-level timeout below is only secondary.
+      const absoluteDeadline = setTimeout(() => {
+        upstreamRequest.destroy(new Error('catalog fill deadline'))
+      }, this.config.upstreamTimeoutMs)
+      upstreamRequest.setTimeout(this.config.upstreamTimeoutMs, () => {
+        upstreamRequest.destroy(new Error('catalog fill idle timeout'))
+      })
+      upstreamRequest.once('error', () => finish({ shareable: false }))
+      this.#catalogFills.add(upstreamRequest)
+      upstreamRequest.end(body)
+    })
+  }
+
+  /**
+   * Serve one eligible catalog request from the SWR cache.
+   * @returns true when the response was committed here; false for the ordinary path.
+   */
+  private async serveCatalogCache(
+    eligible: Readonly<{ method: CatalogMethod; rpcId: string }>,
+    request: IncomingMessage,
+    response: ServerResponse,
+    authorization: SessionAuthorization,
+  ): Promise<boolean> {
+    const cache = this.catalogCache
+    if (cache === undefined) return false
+    const operation = this.allocateRequest(authorization, response, {})
+    const onClose = (): void => {
+      operation.abort()
+      operation.release()
+    }
+    response.once('close', onClose)
+    try {
+      // Snapshot the upstream identity after body acquisition, immediately
+      // before cache access; fills use exactly this cookie. A renewal that
+      // lands while the snapshot is being taken supersedes it — take the
+      // ordinary path rather than serve or fill under a retired identity.
+      // The gateway's first exchange acquires (not replaces) the identity,
+      // so it does not invalidate the waiting snapshot.
+      const snapshotRevision = this.#upstreamIdentityRevision
+      const hadIdentityBefore = this.upstreamCookie !== undefined
+      const cookieHeader = await waitForRequestTask(this.upstreamCookieHeader(), operation.signal)
+      operation.signal.throwIfAborted()
+      const superseded = hadIdentityBefore && snapshotRevision !== this.#upstreamIdentityRevision
+      if (response.destroyed || superseded) return false
+      const identityDigest = createHash('sha256').update(cookieHeader ?? 'none').digest('hex')
+      cache.noteIdentity(identityDigest)
+      const result: CatalogServeResult = await cache.serve({
+        method: eligible.method,
+        rpcId: eligible.rpcId,
+        identityDigest,
+        upstream: { cookieHeader },
+      })
+      operation.signal.throwIfAborted()
+      if (result.kind === 'passthrough' || !cache.canCommit(result) || response.destroyed) return false
+      const payload = Buffer.from(result.body, 'utf8')
+      const headers: OutgoingHttpHeaders = {
+        'content-type': 'application/json',
+        'cache-control': 'no-store',
+        [CATALOG_CACHE_MARKER]: result.kind,
+      }
+      let body = payload
+      if (acceptsGzip(request.headers['accept-encoding']) && payload.length >= MIN_COMPRESSIBLE_BYTES) {
+        body = await gzipBuffer(payload)
+        headers['content-encoding'] = 'gzip'
+        addVaryAcceptEncoding(headers)
+      }
+      // Asynchronous preparation may straddle an invalidation: recheck the
+      // generation and age immediately before committing response bytes.
+      if (!cache.canCommit(result) || response.destroyed) return false
+      headers['content-length'] = body.length
+      setSecurityHeaders(response, this.tlsEnabled, 'proxied')
+      response.writeHead(200, headers)
+      response.end(body)
+      return true
+    } finally {
+      response.removeListener('close', onClose)
+      operation.release()
+    }
+  }
+
   /**
    * Proxy one request, retrying transient failures for plugin and asset GETs.
    * Only bodyless GETs can be replayed, before response headers reach the client.
@@ -3670,6 +3908,7 @@ export class MobileAccessGateway {
     response: ServerResponse,
     authorization: SessionAuthorization,
     documentView?: MobileDocumentView,
+    bodyOverride?: Buffer,
   ): Promise<void> {
     const declared = request.headers['content-length']
     if (declared !== undefined && (!/^\d+$/u.test(declared) || Number(declared) > this.config.maxBodyBytes)) {
@@ -3711,7 +3950,7 @@ export class MobileAccessGateway {
       for (let attempt = 1; attempt <= attempts; attempt++) {
         operation.signal.throwIfAborted()
         try {
-          await this.proxyHttpOnce(request, response, holder, operation.signal, replayable, documentView)
+          await this.proxyHttpOnce(request, response, holder, operation.signal, replayable, documentView, bodyOverride)
           return
         } catch (error) {
           if (operation.signal.aborted || response.destroyed) return
@@ -3742,6 +3981,7 @@ export class MobileAccessGateway {
     signal: AbortSignal,
     replayable: boolean,
     documentView?: MobileDocumentView,
+    bodyOverride?: Buffer,
   ): Promise<void> {
     let bodyDone: Promise<void> | undefined
     const projections = new Set<Promise<unknown>>()
@@ -3779,7 +4019,8 @@ export class MobileAccessGateway {
         }
         upstreamRequest.once('response', resolve)
         upstreamRequest.once('error', reject)
-        if (replayable) upstreamRequest.end()
+        if (bodyOverride !== undefined) upstreamRequest.end(bodyOverride)
+        else if (replayable) upstreamRequest.end()
         else {
           bodyDone = pipeline(request, new ByteLimitTransform(this.config.maxBodyBytes), upstreamRequest)
           void bodyDone.catch(reject)
@@ -3814,6 +4055,13 @@ export class MobileAccessGateway {
         delete headers['accept-ranges']
       }
       const statusCode = proxied.statusCode ?? 502
+      // Invalidate the catalog cache before a catalog-affecting mutation's 2xx
+      // response is committed downstream (design §7).
+      if (statusCode >= 200 && statusCode < 300 && this.catalogCache !== undefined
+        && pathname.startsWith('/api/')
+        && CATALOG_MUTATION_METHODS.has(pathname.slice('/api/'.length))) {
+        this.catalogCache.noteCatalogMutation()
+      }
       this.httpFailures.recordUpstream(request.method, request.url?.split('?', 1)[0] ?? '', statusCode)
       const cacheControl = graphEvents ? undefined : revisionedStaticCacheControl(request, statusCode)
       if (cacheControl !== undefined) headers['cache-control'] = cacheControl
@@ -4283,6 +4531,9 @@ export class MobileAccessGateway {
 
   private async performClose(): Promise<void> {
     this.closing = true
+    this.#catalogCache?.dispose()
+    for (const fill of this.#catalogFills) fill.destroy(new Error('gateway closing'))
+    this.#catalogFills.clear()
     const detachPushOrigin = this.detachPushOrigin
     this.detachPushOrigin = undefined
     detachPushOrigin?.()

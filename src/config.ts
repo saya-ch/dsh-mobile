@@ -108,6 +108,8 @@ export interface PluginConfig {
   upstreamTimeoutMs?: number
   /** Authenticated /api response and established DSH plugin-event stream idle timeout; zero disables it. */
   upstreamApiTimeoutMs?: number
+  /** Serve the two model-catalog RPCs from a narrow stale-while-revalidate cache. */
+  catalogCache?: boolean
   rateLimitWindowMs?: number
   maxPairingAttempts?: number
   maxRateLimitKeys?: number
@@ -153,6 +155,7 @@ export interface ResolvedGatewayConfig {
   readonly maxBodyBytes: number
   readonly upstreamTimeoutMs: number
   readonly upstreamApiTimeoutMs: number
+  readonly catalogCache: boolean
   readonly rateLimitWindowMs: number
   readonly maxPairingAttempts: number
   readonly maxRateLimitKeys: number
@@ -214,10 +217,18 @@ export const Config: z<PluginConfig> = z.object({
   maxBodyBytes: z.natural(),
   upstreamTimeoutMs: z.natural(),
   upstreamApiTimeoutMs: z.natural(),
+  catalogCache: z.boolean(),
   rateLimitWindowMs: z.natural(),
   maxPairingAttempts: z.natural(),
   maxRateLimitKeys: z.natural(),
 })
+
+/** Resolve one optional boolean with an explicit default; reject other types. */
+function booleanValue(value: unknown, name: string, fallback: boolean): boolean {
+  if (value === undefined) return fallback
+  if (typeof value !== 'boolean') throw new Error(`${name} must be a boolean`)
+  return value
+}
 
 function integer(value: unknown, name: string, fallback: number, minimum: number, maximum: number): number {
   const resolved = value ?? fallback
@@ -441,6 +452,7 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     maxBodyBytes: integer(value.maxBodyBytes, 'maxBodyBytes', 160 * 1024 * 1024, 1024, 256 * 1024 * 1024),
     upstreamTimeoutMs: integer(value.upstreamTimeoutMs, 'upstreamTimeoutMs', 30_000, 1_000, 300_000),
     upstreamApiTimeoutMs: integer(value.upstreamApiTimeoutMs, 'upstreamApiTimeoutMs', 0, 0, 2_147_483_647),
+    catalogCache: booleanValue(value.catalogCache, 'catalogCache', true),
     rateLimitWindowMs: integer(value.rateLimitWindowMs, 'rateLimitWindowMs', 60_000, 1_000, 3_600_000),
     maxPairingAttempts: integer(value.maxPairingAttempts, 'maxPairingAttempts', 8, 1, 100),
     maxRateLimitKeys: integer(value.maxRateLimitKeys, 'maxRateLimitKeys', 256, 1, 4096),
