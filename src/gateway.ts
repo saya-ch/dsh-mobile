@@ -3227,7 +3227,7 @@ export class MobileAccessGateway {
         }
       }
       operation.signal.throwIfAborted()
-      const headers = sanitizeResponseHeaders(index.headers, this.config.upstreamOrigin)
+      const headers = sanitizeResponseHeaders(index.headers, new URL(request.url ?? '/', this.config.upstreamOrigin))
       delete headers['content-length']
       delete headers['content-encoding']
       delete headers.etag
@@ -3801,7 +3801,7 @@ export class MobileAccessGateway {
       // the API): the GUI frames some of its own routes (HTML/diff previews),
       // so they follow the proxied framing policy.
       setSecurityHeaders(response, this.tlsEnabled, 'proxied')
-      const headers = sanitizeResponseHeaders(proxied.headers, this.config.upstreamOrigin)
+      const headers = sanitizeResponseHeaders(proxied.headers, new URL(request.url ?? '/', this.config.upstreamOrigin))
       if (graphEvents) {
         if (proxied.headers['content-encoding'] !== undefined && proxied.headers['content-encoding'] !== 'identity') {
           throw new HttpError(502, 'upstream_unavailable')

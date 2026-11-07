@@ -620,8 +620,11 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 /* Folded icon rail: on narrow viewports the drawer is fixed, so give the main
    content the same 56px offset the wide grid already provides. The width floor
    keeps phone-width headers on their own inset; the band itself is the root
-   attribute, so a landscape phone gets the offset too. */
-@media${FOLDED_RAIL_OFFSET_QUERY}{.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-sidebar-collapsed]:not([data-right-modal=true])) .dshm-main{margin-left:56px}}
+   attribute, so a landscape phone gets the offset too. The gate is the drawer's
+   own folded state: a render path that closes the drawer without also writing
+   the nested-pane convenience marker left the fixed rail painted over the first
+   56px of the conversation. */
+@media${FOLDED_RAIL_OFFSET_QUERY}{.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-open=false]:not([data-right-modal=true])) .dshm-main{margin-left:56px}}
 /* display:none also suppresses fixed descendants installed by the phone adapter. */
 .dshm-drawer[data-right-modal=true]{display:none!important}
 .dshm-details{position:fixed;z-index:80;inset:0 0 0 auto;box-sizing:border-box;width:min(94vw,460px);max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background-color:Canvas;background-image:linear-gradient(var(--dsw-alias-bg-layer-1,#fff),var(--dsw-alias-bg-layer-1,#fff));box-shadow:-18px 0 46px rgb(15 23 42 / 18%);transform:translateX(104%);transition:transform 190ms cubic-bezier(.22,1,.36,1)}
@@ -701,6 +704,8 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
 .dshm-main[data-dsh-panel="1"] .dshm-mainContent>[data-slot="main"]>:not([data-dsh-adapt="off"]){max-width:100%;box-sizing:border-box}
 .dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],button[class*="_cardTitle"][class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
 .dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],a):not([data-dsh-adapt="off"],[data-dsh-adapt="off"] *){touch-action:manipulation}
+.dshm-shell[data-dshm-adapt-chat-floor="1"] .dshm-main:not([data-dsh-panel="1"]) [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],button[class*="_cardTitle"][class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
+.dshm-shell[data-dshm-adapt-chat-floor="1"] .dshm-main:not([data-dsh-panel="1"]) [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],a):not([data-dsh-adapt="off"],[data-dsh-adapt="off"] *){touch-action:manipulation}
 }
 `
 

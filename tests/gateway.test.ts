@@ -698,6 +698,41 @@ async function openWebSocket(
 }
 
 describe('HTTP gateway', () => {
+  it('resolves query-only and relative upstream redirects against the actual request', async () => {
+    const upstream = createServer((incoming, response) => {
+      if (incoming.url === '/api/file?path=%2Fexample&load=11') {
+        response.writeHead(302, { location: '?path=%2Fexample&v=7' }).end()
+      } else if (incoming.url === '/api/file?path=%2Fexample&v=7') {
+        response.writeHead(200, { 'content-type': 'image/png' })
+        response.end(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+      } else if (incoming.url === '/api/external-redirect') {
+        response.writeHead(302, { location: 'https://example.invalid/elsewhere' }).end()
+      } else {
+        response.writeHead(404).end()
+      }
+    })
+    await new Promise<void>((resolve, reject) => {
+      upstream.once('error', reject)
+      upstream.listen(0, '127.0.0.1', () => resolve())
+    })
+    cleanups.push(() => closeServer(upstream))
+    const address = upstream.address() as AddressInfo
+    const instance = await gateway(address.port)
+    const paired = await pair(instance)
+    const headers = { ...browserHeaders(instance), cookie: `${SESSION_COOKIE}=${paired.session}` }
+
+    const queryRedirect = await request(instance.address().port, '/api/file?path=%2Fexample&load=11', { headers })
+    expect(queryRedirect.status).toBe(302)
+    expect(queryRedirect.headers.location).toBe('/api/file?path=%2Fexample&v=7')
+    const image = await request(instance.address().port, queryRedirect.headers.location!, { headers })
+    expect(image.status).toBe(200)
+    expect(image.headers['content-type']).toBe('image/png')
+    expect(image.rawBody.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))).toBe(true)
+
+    const external = await request(instance.address().port, '/api/external-redirect', { headers })
+    expect(external.headers.location).toBe('https://example.invalid/elsewhere')
+  })
+
   it('serves authenticated computer image browsing without proxying filesystem paths', async () => {
     const inner = await upstream()
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-computer-files-'))
