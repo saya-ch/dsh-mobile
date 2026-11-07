@@ -51,6 +51,8 @@ Before leaving the Mac unattended, start DSH the way you normally run it and ope
 
 Before leaving, use an already paired device on the intended remote channel, open **the same folder** in the web directory picker, and confirm that it lists the contents. Gateway health and terminal `ls` do not test DSH's access to the folder. If macOS prompts, address it and retry with the existing pairing; do not reset system permissions or reinstall the plugin.
 
+After a remote channel becomes ready, the Mobile Access panel may also offer Full Disk Access. This is optional guidance for unattended access to protected folders; it does not block pairing or remote access. The button only opens System Settings and the plugin never changes permissions itself.
+
 ## Share the report
 
 Reports retain versions, interface names, masked endpoint suffixes, failure stages, timings, DNS categories and measurement scope. They do not read conversations or include pairing secrets, Tokens, Cookies, complete hostnames/IPs or proxy credentials. Context such as an interface name can still be identifying; review before posting.

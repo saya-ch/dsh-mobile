@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { join } from 'node:path'
 import { MOBILE_CONTROL_MESSAGES, type MobileControlLocale } from '../src/client-messages.js'
 import { MAC_FULL_DISK_ACCESS_PANE, MacFileAccessProbe, openMacFullDiskAccessSettings } from '../src/macos-file-access.js'
 
-const DATABASE = '/Users/tester/Library/Application Support/com.apple.TCC/TCC.db'
+const DATABASE = join('/Users/tester', 'Library', 'Application Support', 'com.apple.TCC', 'TCC.db')
 
 describe('macOS Full Disk Access probe', () => {
   it('never touches the file system on other platforms', async () => {

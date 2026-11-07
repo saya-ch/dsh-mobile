@@ -2719,7 +2719,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     macosFolderHelp.hidden = data.macosHost !== true || !remoteReady
     // Absent on every other platform, so Windows and Linux never see this block.
     const macFileAccess = data.macFileAccess === 'missing' ? 'missing' : data.macFileAccess === 'ok' ? 'ok' : undefined
-    remotePermission.hidden = macFileAccess !== 'missing' || remotePermissionDismissed || !remoteRunning
+    remotePermission.hidden = macFileAccess !== 'missing' || remotePermissionDismissed || !remoteReady
     frpChoiceBadge.textContent = frpConfigured && frpInstalled ? t('ready') : t('advanced')
     originChoiceBadge.textContent = managedOrigin ? t(remoteReady ? 'ready' : 'advanced') : originListening ? t('originBackendReady') : t('advanced')
     // The selected provider and its state already live in the left column. The
