@@ -295,13 +295,10 @@ describe('native mobile presentation', () => {
     expect(loaderStyles).not.toContain('button:disabled')
   })
 
-  it('caps only the draft scrollport when the focused viewport is short, whatever its width', () => {
-    // Height-only gates: a 1363x600 tablet keeps a 340dp keyboard (layout viewport 260-360)
-    // and is as cramped as a phone, so the width half of the old query was the bug.
-    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-height:620px) {')
-    expect(NATIVE_MOBILE_STYLES).not.toContain('@media (max-width:720px) and (max-height:')
+  it('caps only the draft scrollport when the narrow focused viewport is short', () => {
+    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-width:720px) and (max-height:500px)')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-height:520px) {')
+    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-width:720px) and (max-height:400px)')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-center] [data-composer-card] { gap:8px !important; }')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:48px !important; }')
     expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-composer-row] { display:grid')
