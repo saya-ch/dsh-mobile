@@ -6,9 +6,9 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 ## 0.8.4 贡献 / Contributions for 0.8.4
 
-感谢 [@aaalzk](https://github.com/aaalzk) 在 [#361](https://github.com/saya-ch/dsh-mobile/issues/361) 独立确认相对重定向导致移动图片预览失败，以及 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#362](https://github.com/saya-ch/dsh-mobile/pull/362) 提供折叠栏布局修复。原作者提交保留；维护者修正另记。
+感谢 [@owenzhao](https://github.com/owenzhao) 在 [#361](https://github.com/saya-ch/dsh-mobile/issues/361) 报告相对重定向导致移动图片预览失败。感谢 [@aaalzk](https://github.com/aaalzk) 独立确认，以及 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#362](https://github.com/saya-ch/dsh-mobile/pull/362) 提供折叠栏布局修复。原作者提交保留；维护者修正另记。
 
-Thanks [@aaalzk](https://github.com/aaalzk) for the independent confirmation of the mobile image-preview redirect failure in [#361](https://github.com/saya-ch/dsh-mobile/issues/361), and [@LUgABeEEE](https://github.com/LUgABeEEE) for the folded-rail layout fix in [#362](https://github.com/saya-ch/dsh-mobile/pull/362). Original commits are retained, with maintainer corrections recorded separately.
+Thanks [@owenzhao](https://github.com/owenzhao) for reporting the mobile image-preview redirect failure in [#361](https://github.com/saya-ch/dsh-mobile/issues/361). Thanks [@aaalzk](https://github.com/aaalzk) for independently confirming it, and [@LUgABeEEE](https://github.com/LUgABeEEE) for the folded-rail layout fix in [#362](https://github.com/saya-ch/dsh-mobile/pull/362). Original commits are retained, with maintainer corrections recorded separately.
 
 ## 0.8.3 贡献 / Contributions for 0.8.3
 
