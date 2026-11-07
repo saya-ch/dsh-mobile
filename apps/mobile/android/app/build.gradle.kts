@@ -126,7 +126,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.webkit:webkit:1.18.0")
     implementation("com.google.zxing:core:3.5.4")
     if (irohNativeEnabled) {
