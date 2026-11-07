@@ -643,8 +643,10 @@ describe('dedicated mobile layout boot', () => {
     // An absent marker is the narrow default, so a static fixture or the pre-mount
     // paint cannot render a half-docked shell.
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details{width:100%;max-width:100%;box-shadow:none}`)
-    // The folded-rail offset is the narrow band plus its pre-existing width floor.
-    expect(MOBILE_LAYOUT_STYLES).toContain(`@media(min-width:721px){.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-sidebar-collapsed]`)
+    // The folded-rail offset is the narrow band plus its pre-existing width floor,
+    // gated on the drawer's own folded state so a render path that publishes only
+    // `data-open` still keeps the conversation clear of the fixed rail.
+    expect(MOBILE_LAYOUT_STYLES).toContain(`@media(min-width:721px){.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-open=false]`)
     // No viewport-height media query may decide the band: that is what flipped a
     // docked tablet when its keyboard opened.
     expect(MOBILE_LAYOUT_STYLES).not.toContain('min-height:600px')

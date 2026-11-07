@@ -451,7 +451,7 @@ jobs:
 
   cloudflared-macos:
     name: macOS cloudflared component
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

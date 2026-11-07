@@ -4,6 +4,12 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
+## 0.8.4 贡献 / Contributions for 0.8.4
+
+感谢 [@owenzhao](https://github.com/owenzhao) 在 [#361](https://github.com/saya-ch/dsh-mobile/issues/361) 报告相对重定向导致移动图片预览失败。感谢 [@aaalzk](https://github.com/aaalzk) 独立确认，以及 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#362](https://github.com/saya-ch/dsh-mobile/pull/362) 提供折叠栏布局修复。原作者提交保留；维护者修正另记。
+
+Thanks [@owenzhao](https://github.com/owenzhao) for reporting the mobile image-preview redirect failure in [#361](https://github.com/saya-ch/dsh-mobile/issues/361). Thanks [@aaalzk](https://github.com/aaalzk) for independently confirming it, and [@LUgABeEEE](https://github.com/LUgABeEEE) for the folded-rail layout fix in [#362](https://github.com/saya-ch/dsh-mobile/pull/362). Original commits are retained, with maintainer corrections recorded separately.
+
 ## 0.8.3 贡献 / Contributions for 0.8.3
 
 感谢 [@xaxka](https://github.com/xaxka) 在 [#344](https://github.com/saya-ch/dsh-mobile/pull/344) 提供共享 FRP 用户名支持，[@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#346](https://github.com/saya-ch/dsh-mobile/pull/346) 提供横屏布局判断，以及 [@chintoleung](https://github.com/chintoleung) 在 [#351](https://github.com/saya-ch/dsh-mobile/pull/351) 和 [#353](https://github.com/saya-ch/dsh-mobile/pull/353) 修复推送设置与插件页布局。原作者提交保留，维护者修正另记。
