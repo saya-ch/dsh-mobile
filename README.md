@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.3">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.4">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.3**。适配 DSH 0.2.2-rc.1，修复横屏、插件页和网页推送设置布局，支持共享 FRP 用户名，并改进 iroh 配对。插件与 Android App 独立更新。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.3) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.4**。修复移动端图片在相对重定向后加载成首页的问题，并修正折叠侧栏覆盖会话的布局。插件与 Android App 独立更新。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.4) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件独立编号、独立发布，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
@@ -449,7 +449,8 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
-| `0.8.3` | 当前 DSH 0.2.2 验证目标为 `0.2.2-rc.1`，同时保留 `0.2.1-rc.5` 等既有版本检查。使用 rc.1 的 npm CLI 时，按上游要求使用 Node.js 24.9 或更新版本 |
+| `0.8.4` | 插件维护更新，继续使用 `0.2.2-rc.1` 的 DSH 打包验证目标，并保留既有版本检查。使用 rc.1 的 npm CLI 时，按上游要求使用 Node.js 24.9 或更新版本 |
+| `0.8.3` | 当时适配 DSH 0.2.2-rc.1，修复横屏、插件页和网页推送设置布局，支持共享 FRP 用户名，并改进 iroh 配对 |
 | `0.8.2` | 当时的 DSH 0.2.2 预览目标是 `0.2.2-alpha.3`。`0.2.2-alpha.2` 全新安装可能因上游依赖组合不一致而无法保存设置；[独立复现](https://github.com/deepseek-ai/deepseek-harness/discussions/11994#discussioncomment-19373554)。仍在使用 alpha.2 的用户建议升级到 rc.1 |
 | `0.8.1` | 新增 `0.2.1-rc.5`、`0.2.2-alpha.2` 的打包启动与设置、目录选择、附件、侧栏、压缩 Workspace 连接检查；完整版本矩阵见 [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml) |
 | `0.8.0` | 网页推送的公共接口、设置、加密载荷与点击归属检查固定在 `0.2.1-rc.2 / rc.3`；通用启动与布局矩阵见 [CI](https://github.com/saya-ch/dsh-mobile/actions/workflows/ci.yml)。iOS 真机结果采信贡献者实测；浏览器检查不代表所有手机、第三方插件或公网线路已验收 |

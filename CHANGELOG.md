@@ -2,6 +2,13 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.8.4 - 2026-11-07
+
+- Resolve query-only and relative upstream redirects against the URL that actually requested them. This fixes mobile `/api/file` image previews receiving the app document after a redirect, while external redirect targets remain unchanged. Thanks @aaalzk for the independent confirmation in [#361](https://github.com/saya-ch/dsh-mobile/issues/361).
+- Keep the conversation clear of the folded icon rail when the drawer is closed, without changing open-drawer, docked or stock DSH layouts. Thanks @LUgABeEEE for [#362](https://github.com/saya-ch/dsh-mobile/pull/362).
+- Add browser access guidance for HarmonyOS and for using an existing virtual LAN such as StarVPN. Neither new environment is claimed as device- or end-to-end-tested.
+- Plugin-only update. Android 0.7.2 remains the published App; this release contains no native App change or device-cache activation.
+
 ## 0.8.3 - 2026-11-05
 
 - Move the current DSH 0.2.2 compatibility test lane to 0.2.2-rc.1. Preserve the dedicated Mobile layout by default, and route App Back on a foreground upstream drawer to DSH's own dismissal handler.
