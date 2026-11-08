@@ -4055,8 +4055,8 @@ export class MobileAccessGateway {
         delete headers['accept-ranges']
       }
       const statusCode = proxied.statusCode ?? 502
-      // Invalidate the catalog cache before a catalog-affecting mutation's 2xx
-      // response is committed downstream (design §7).
+      // Invalidate before a catalog-affecting mutation's 2xx response is
+      // committed downstream.
       if (statusCode >= 200 && statusCode < 300 && this.catalogCache !== undefined
         && pathname.startsWith('/api/')
         && CATALOG_MUTATION_METHODS.has(pathname.slice('/api/'.length))) {

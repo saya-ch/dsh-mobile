@@ -5,7 +5,7 @@
  * restamping, generation-aware single-flight fills, TTL intervals, admission
  * and resident bounds. All I/O is injected; no Node HTTP imports here. The
  * gateway owns sockets, headers, status codes, compression and the ordinary
- * per-caller fallback path (see the design doc, Revision 3, § Core contract).
+ * per-caller fallback path.
  */
 
 /** The two cacheable, parameterless, host-global catalog reads. */
@@ -22,7 +22,7 @@ export interface CatalogCacheLimits {
   readonly maxInFlightFills: number
 }
 
-/** Catalog-affecting mutations established by the Task 1 registry/emit-site audit. */
+/** Host RPCs whose successful completion can change catalog results. */
 export const CATALOG_MUTATION_METHODS: ReadonlySet<string> = new Set([
   'account/signOut',
   'account/startSignIn',
@@ -358,10 +358,9 @@ export class CatalogCache<TUpstreamSnapshot> {
     if (this.#entries.has(key)) this.#entries.delete(key)
     const evict = (): void => {
       const candidates = [...this.#entries.entries()].sort(([, a], [, b]) => a.lastServedAt - b.lastServedAt)
-      for (const [candidateKey, candidate] of candidates) {
+      for (const [candidateKey] of candidates) {
         if (this.#entries.size < this.#limits.maxEntries && this.residentBytes + bytes <= this.#limits.maxTotalBytes) break
         this.#entries.delete(candidateKey)
-        void candidate
       }
     }
     evict()
