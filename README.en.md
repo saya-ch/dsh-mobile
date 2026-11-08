@@ -108,7 +108,7 @@ Restart DSH, then search for **dsh-mobile** under **Settings → Plugin Market**
 
 </details>
 
-`setup` automatically selects and remembers the current LAN; Wi-Fi, hotspot, and IP changes normally recover without re-pairing. Use `--address 192.168.x.x` only when automatic selection fails. Settings, certificates, devices, and customization files live under `$DSH_HOME/mobile-access/`.
+`setup` automatically selects and remembers the current LAN from RFC1918 and `100.64.0.0/10` candidates; Wi-Fi, hotspot, and IP changes normally recover without re-pairing. Use `--address 192.168.x.x` to name the actual address only when automatic selection fails. Settings, certificates, devices, and customization files live under `$DSH_HOME/mobile-access/`.
 
 ### Install the Android app
 

@@ -108,7 +108,7 @@ dsh plugin --profile web add dshmarket
 
 </details>
 
-`setup` 会自动选择并记住当前局域网，切换 Wi-Fi、热点或 IP 后通常自动恢复；仅在自动选择失败时使用 `--address 192.168.x.x`。设置、证书、设备和自定义文件保存在 `$DSH_HOME/mobile-access/`。
+`setup` 会自动选择并记住当前局域网，候选覆盖 RFC1918 与 `100.64.0.0/10`；切换 Wi-Fi、热点或 IP 后通常自动恢复。仅在自动选择失败时使用 `--address 192.168.x.x` 指定实际地址。设置、证书、设备和自定义文件保存在 `$DSH_HOME/mobile-access/`。
 
 ### 安装 Android App
 

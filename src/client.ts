@@ -836,7 +836,7 @@ const REMOTE_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   frp_exited: 'frpExited',
   iroh_companion_missing: 'irohCompanionMissing',
   iroh_data_directory_invalid: 'irohDataDirectoryInvalid',
-  iroh_data_directory_insecure: 'irohDataDirectoryInvalid',
+  iroh_data_directory_insecure: 'irohDataDirectoryInsecure',
   iroh_sidecar_invalid: 'irohSidecarInvalid',
   iroh_download_failed: 'irohDownloadFailed',
   iroh_download_size_mismatch: 'irohDownloadFailed',

@@ -1306,7 +1306,7 @@ describe('mobile-control localization', () => {
       const copy = messages as Record<string, string>
       for (const key of ['irohName', 'irohExperimental', 'irohDescription', 'prepareIroh', 'irohInstallNote',
         'irohComponentNote', 'irohPhaseNote', 'irohUnavailable', 'irohStarting', 'irohConnecting',
-        'irohCompanionMissing', 'irohDataDirectoryInvalid', 'irohSidecarInvalid', 'irohDownloadFailed', 'irohPlatformUnsupported', 'irohIdentityFailed',
+        'irohCompanionMissing', 'irohDataDirectoryInvalid', 'irohDataDirectoryInsecure', 'irohSidecarInvalid', 'irohDownloadFailed', 'irohPlatformUnsupported', 'irohIdentityFailed',
         'irohLaunchFailed', 'irohTimeout', 'irohInstallConfirm', 'installingIroh', 'switchingIroh',
         'reconnectingIroh', 'resetIrohConfirm', 'irohNotReady', 'irohPairingFailed', 'irohExited',
         'irohPairingTitle', 'generateIrohQr', 'enlargeQr', 'closeEnlargedQr', 'irohPairingReady']) {

@@ -77,6 +77,25 @@ describe('macOS Full Disk Access probe', () => {
     })
     expect(await probe.refresh()).toBe('missing')
   })
+
+  it('shares one pending probe instead of accumulating hung access checks', async () => {
+    let reads = 0
+    let allowRead!: () => void
+    const probe = new MacFileAccessProbe({
+      platform: 'darwin',
+      retryMs: 0,
+      timeoutMs: 1_000,
+      readAccess: () => {
+        reads += 1
+        return new Promise<void>(resolve => { allowRead = resolve })
+      },
+    })
+    const first = probe.refresh()
+    const second = probe.refresh()
+    expect(reads).toBe(1)
+    allowRead()
+    await expect(Promise.all([first, second])).resolves.toEqual(['ok', 'ok'])
+  })
 })
 
 describe('macOS Full Disk Access settings opener', () => {

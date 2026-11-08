@@ -59,6 +59,7 @@ export class MacFileAccessProbe {
   private readonly timeoutMs: number
   private statusValue: MacFileAccessStatus = 'missing'
   private checkedAt = Number.NEGATIVE_INFINITY
+  private activeProbe: Promise<MacFileAccessStatus> | undefined
 
   constructor(options: MacFileAccessOptions = {}) {
     this.platform = options.platform ?? process.platform
@@ -86,11 +87,18 @@ export class MacFileAccessProbe {
   async refresh(): Promise<MacFileAccessStatus> {
     if (!this.applicable) return 'ok'
     if (this.statusValue === 'ok') return 'ok'
+    if (this.activeProbe !== undefined) return this.activeProbe
     const at = this.now()
     if (at - this.checkedAt < this.retryMs) return this.statusValue
     this.checkedAt = at
-    this.statusValue = await this.probe()
-    return this.statusValue
+    const pending = this.probe()
+    this.activeProbe = pending
+    try {
+      this.statusValue = await pending
+      return this.statusValue
+    } finally {
+      if (this.activeProbe === pending) this.activeProbe = undefined
+    }
   }
 
   /** Run one bounded access check and collapse every failure into `missing`. */

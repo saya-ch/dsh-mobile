@@ -1,7 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import { DSH_MOBILE_VERSION } from './version.js'
 
@@ -170,11 +172,48 @@ interface DesktopProfiles {
   readonly current?: { readonly dir?: string }
 }
 
+function profileInstallingModule(dshHome: string, moduleUrl: string): string | undefined {
+  let directory: string
+  try {
+    directory = dirname(fileURLToPath(moduleUrl))
+  } catch {
+    return undefined
+  }
+  const profilesRoot = resolve(dshHome, 'profiles')
+  for (let depth = 0; depth < 16; depth += 1) {
+    const candidate = resolve(directory)
+    const fromProfiles = relative(profilesRoot, candidate)
+    if (fromProfiles !== '' && !fromProfiles.startsWith('..') && !isAbsolute(fromProfiles)) {
+      try {
+        const manifest = JSON.parse(readFileSync(join(candidate, 'package.json'), 'utf8')) as {
+          readonly dependencies?: Readonly<Record<string, unknown>>
+          readonly dsh?: { readonly profile?: unknown }
+        }
+        if (typeof manifest.dependencies?.[PACKAGE_NAME] === 'string'
+          && typeof manifest.dsh?.profile === 'object' && manifest.dsh.profile !== null) {
+          return candidate
+        }
+      } catch { /* Keep walking toward the profile root. */ }
+    }
+    const parent = dirname(candidate)
+    if (parent === candidate) break
+    directory = parent
+  }
+  return undefined
+}
+
 /** Resolve the launcher-owned Desktop profile, or the CLI profile outside Desktop. */
-export function releaseProfileDirectory(ctx: Pick<Context, 'get'>, dshHome: string, argv: readonly string[]): string | undefined {
+export function releaseProfileDirectory(
+  ctx: Pick<Context, 'get'>,
+  dshHome: string,
+  argv: readonly string[],
+  moduleUrl: string = import.meta.url,
+): string | undefined {
   const desktopProfiles = ctx.get('desktopProfiles') as DesktopProfiles | undefined
   const desktopDirectory = desktopProfiles?.current?.dir
   if (typeof desktopDirectory === 'string' && isAbsolute(desktopDirectory)) return desktopDirectory
+  const installedProfile = profileInstallingModule(dshHome, moduleUrl)
+  if (installedProfile !== undefined) return installedProfile
   // Desktop selects its profile outside argv; never update an unrelated Web profile.
   if (desktopProfiles !== undefined || ctx.get('desktopRuntime') !== undefined) return undefined
   return join(dshHome, 'profiles', launchedProfileName(argv))
