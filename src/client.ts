@@ -1562,7 +1562,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const remoteAccessLink = element('a', 'dsh-mobile-control__access-link'); remoteAccessLink.target = '_blank'; remoteAccessLink.rel = 'noreferrer'; remoteAccess.append(remoteAccessLabel, remoteAccessLink)
   const remoteQr = element('div', 'dsh-mobile-control__qr'); remoteQr.hidden = true
   const remoteStatus = element('p', 'dsh-mobile-control__status'); remoteStatus.textContent = t('loadingRemoteStatus'); remoteStatus.setAttribute('aria-live', 'polite')
-  const remoteGuide = element('section', 'dsh-mobile-control__guide'); remoteGuide.hidden = true; remoteGuide.setAttribute('aria-label', t('funnelGuideAria'))
+  const remoteGuide = element('section', 'dsh-mobile-control__guide'); remoteGuide.hidden = true
+  remoteGuide.dataset.dshMobileGuide = 'funnel'
+  remoteGuide.setAttribute('aria-label', t('funnelGuideAria'))
   const remoteGuideTitle = element('h3', 'dsh-mobile-control__guide-title'); remoteGuideTitle.textContent = t('funnelGuideTitle')
   const remoteGuideSummary = element('p', 'dsh-mobile-control__guide-summary'); remoteGuideSummary.textContent = t('funnelGuideSummary')
   const remoteGuideSteps = element('ol', 'dsh-mobile-control__guide-steps')
@@ -1577,6 +1579,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   // macOS only: the host reports whether Full Disk Access is already granted.
   // Shown once per session while the grant is missing, and never on other platforms.
   const remotePermission = element('section', 'dsh-mobile-control__guide'); remotePermission.hidden = true
+  remotePermission.dataset.dshMobileGuide = 'mac-file-access'
   remotePermission.setAttribute('aria-label', t('macPermissionTitle'))
   remotePermission.setAttribute('role', 'status')
   const remotePermissionTitle = element('h3', 'dsh-mobile-control__guide-title'); remotePermissionTitle.textContent = t('macPermissionTitle')
