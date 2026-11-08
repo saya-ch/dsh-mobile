@@ -142,12 +142,9 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
       if (settled) return
       settled = true
       const probeDiagnostic = diagnostic()
-      if (code !== 0) {
-        const errorCode = probeDiagnostic !== undefined
-          && /private (?:Windows )?data directory is not secure|private path ACL grants/iu.test(probeDiagnostic)
-          ? 'iroh_data_directory_insecure'
-          : 'iroh_identity_failed'
-        reject(new IrohIdentityProbeError(errorCode, probeDiagnostic))
+      if (code !== 0 && probeDiagnostic !== undefined
+        && /private (?:Windows )?data directory is not secure|private path ACL grants/iu.test(probeDiagnostic)) {
+        reject(new IrohIdentityProbeError('iroh_data_directory_insecure', probeDiagnostic))
         return
       }
       let metadata: unknown
@@ -155,7 +152,7 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
         reject(new IrohIdentityProbeError('iroh_identity_invalid', probeDiagnostic))
         return
       }
-      if (typeof metadata !== 'object' || metadata === null
+      if (code !== 0 || typeof metadata !== 'object' || metadata === null
         || !('version' in metadata) || metadata.version !== 1
         || !('endpointId' in metadata) || typeof metadata.endpointId !== 'string'
         || !/^[0-9a-f]{64}$/u.test(metadata.endpointId)) reject(new IrohIdentityProbeError('iroh_identity_invalid', probeDiagnostic))

@@ -97,7 +97,7 @@ describe('iroh identity probe lifecycle', () => {
         .rejects.toThrow('iroh_identity_invalid')
     }
     await expect(defaultResolveIdentity('sidecar', root, { launch: launch('exit-nonzero', join(root, 'pid-exit-nonzero')) }))
-      .rejects.toThrow('iroh_identity_failed')
+      .rejects.toThrow('iroh_identity_invalid')
   })
 
   it('classifies an unsafe Windows profile and retains the native explanation', async () => {
