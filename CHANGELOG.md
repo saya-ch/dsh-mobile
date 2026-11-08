@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## 0.8.5 - Unreleased
+## 0.8.5 - 2026-11-08
 
 - Update an existing Windows managed-LAN firewall rule in place and verify its resulting scope instead of deleting the previous rules first. Administrator cancellation or a policy rejection now retains the prior rule and records a bounded error in the plugin log. Thanks @lyc0110 for the reproduction in [#364](https://github.com/saya-ch/dsh-mobile/issues/364).
 - Preserve the bounded stderr explanation from the iroh identity probe. An insecure Windows profile ancestry is now surfaced as a specific error, logged by the plugin, and shown with actionable guidance instead of a generic endpoint failure. Private-directory checks remain strict. Thanks @fgql for the diagnosis in [#365](https://github.com/saya-ch/dsh-mobile/issues/365).

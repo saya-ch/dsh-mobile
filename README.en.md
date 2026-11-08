@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.4">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.5">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.4**. Fix mobile images loading the app document after a relative redirect, and keep the folded rail clear of the conversation. Plugin and Android App releases remain independent. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.4) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.5**. Preserve existing Windows firewall rules, fix Desktop update targeting and CGNAT LAN discovery, and add a bounded catalog cache plus a macOS permission notice. Plugin and Android App releases remain independent. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.5) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: since plugin **0.6.2**, the Android app and plugin use independent version numbers and releases. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
@@ -447,6 +447,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.5` | Maintenance and performance update on the `0.2.2-rc.1` packed-DSH target: catalog cache, Desktop update targeting, CGNAT LAN discovery, firewall protection and a macOS permission notice. The Android App remains 0.7.2 |
 | `0.8.4` | Plugin maintenance update. The packed DSH test target remains `0.2.2-rc.1`, alongside existing compatibility checks. The upstream rc.1 npm CLI requires Node.js 24.9 or later |
 | `0.8.3` | Adapted to DSH 0.2.2-rc.1 with landscape, Plugins and Web Push settings layout fixes, shared FRP usernames and iroh pairing improvements |
 | `0.8.2` | The DSH 0.2.2 preview target for this release was `0.2.2-alpha.3`. Fresh `0.2.2-alpha.2` installs can fail to save settings because of an upstream dependency mismatch; see the [independent reproduction](https://github.com/deepseek-ai/deepseek-harness/discussions/11994#discussioncomment-19373554). Users still on alpha.2 should upgrade to rc.1 |
