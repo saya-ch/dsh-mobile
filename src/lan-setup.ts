@@ -11,6 +11,8 @@ import { restrictPrivateFile } from './private-file.js'
 
 const FIREWALL_TCP_RULE = 'DSH Mobile HTTPS'
 const FIREWALL_UDP_RULE = 'DSH Mobile Discovery'
+const MIN_MANAGED_PORT = 1024
+const MAX_MANAGED_PORT = 65535
 
 /** Files and active address produced by one explicit LAN setup confirmation. */
 export interface ManagedLanSetupResult {
@@ -30,6 +32,21 @@ export interface ManagedLanSetupOptions {
   readonly configureFirewall: boolean
 }
 
+function assertManagedPort(port: number, name: string): void {
+  if (!Number.isSafeInteger(port) || port < MIN_MANAGED_PORT || port > MAX_MANAGED_PORT) {
+    throw new Error(`${name} must be from ${String(MIN_MANAGED_PORT)} through ${String(MAX_MANAGED_PORT)}`)
+  }
+}
+
+function powerShellFailureDetail(error: unknown): string {
+  if (!(error instanceof Error)) return 'unknown failure'
+  const code = 'code' in error && typeof error.code === 'string' ? ` (${error.code})` : ''
+  const stderr = 'stderr' in error && typeof error.stderr === 'string'
+    ? error.stderr.trim().replace(/\s+/gu, ' ').slice(0, 512)
+    : ''
+  return `${code}${stderr === '' ? '' : `: ${stderr}`}`
+}
+
 async function runElevatedPowerShell(script: string): Promise<void> {
   const encoded = Buffer.from(script, 'utf16le').toString('base64')
   const launch = [
@@ -37,20 +54,46 @@ async function runElevatedPowerShell(script: string): Promise<void> {
     `  -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand','${encoded}')`,
     '; exit $process.ExitCode',
   ].join(' ')
-  await execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', launch], { windowsHide: true })
+  try {
+    await execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', launch], { windowsHide: true })
+  } catch (error) {
+    throw new Error(`Windows firewall operation failed${powerShellFailureDetail(error)}`, { cause: error })
+  }
 }
 
-/** Install the two Windows inbound rules used by the managed LAN listener. */
+function firewallRuleScript(name: string, protocol: 'TCP' | 'UDP', port: number): readonly string[] {
+  return [
+    `$rules = @(Get-NetFirewallRule -DisplayName '${name}' -ErrorAction SilentlyContinue)`,
+    'if ($rules.Count -eq 0) {',
+    `  New-NetFirewallRule -DisplayName '${name}' -Direction Inbound -Action Allow -Protocol ${protocol} -LocalPort ${String(port)} -RemoteAddress LocalSubnet -Profile Any | Out-Null`,
+    '} else {',
+    '  foreach ($rule in $rules) {',
+    '    $rule | Set-NetFirewallRule -Enabled True -Direction Inbound -Action Allow -Profile Any',
+    `    $rule | Get-NetFirewallPortFilter | Set-NetFirewallPortFilter -Protocol ${protocol} -LocalPort ${String(port)}`,
+    '    $rule | Get-NetFirewallAddressFilter | Set-NetFirewallAddressFilter -RemoteAddress LocalSubnet',
+    '  }',
+    '}',
+    `$verified = @(Get-NetFirewallRule -DisplayName '${name}' -Enabled True -Direction Inbound -Action Allow -Profile Any -ErrorAction Stop)`,
+    `$matchingPort = @($verified | Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq '${protocol}' -and $_.LocalPort -contains '${String(port)}' })`,
+    `$matchingAddress = @($verified | Get-NetFirewallAddressFilter | Where-Object { $_.RemoteAddress -contains 'LocalSubnet' })`,
+    `if ($verified.Count -eq 0 -or $matchingPort.Count -eq 0 -or $matchingAddress.Count -eq 0) { throw "DSH Mobile firewall rule '${name}' is not active with the expected scope" }`,
+  ]
+}
+
+/** Build the elevated Windows firewall script without removing a working rule first. */
+export function windowsFirewallSetupScript(port: number): string {
+  assertManagedPort(port, 'Windows firewall port')
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    ...firewallRuleScript(FIREWALL_TCP_RULE, 'TCP', port),
+    ...firewallRuleScript(FIREWALL_UDP_RULE, 'UDP', port),
+  ].join('\n')
+}
+
+/** Install or update the two Windows inbound rules used by the managed LAN listener. */
 export async function configureWindowsFirewall(port: number): Promise<void> {
   if (process.platform !== 'win32') return
-  const script = [
-    "$ErrorActionPreference = 'Stop'",
-    `Get-NetFirewallRule -DisplayName '${FIREWALL_TCP_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule`,
-    `Get-NetFirewallRule -DisplayName '${FIREWALL_UDP_RULE}' -ErrorAction SilentlyContinue | Remove-NetFirewallRule`,
-    `New-NetFirewallRule -DisplayName '${FIREWALL_TCP_RULE}' -Direction Inbound -Action Allow -Protocol TCP -LocalPort ${String(port)} -RemoteAddress LocalSubnet -Profile Any | Out-Null`,
-    `New-NetFirewallRule -DisplayName '${FIREWALL_UDP_RULE}' -Direction Inbound -Action Allow -Protocol UDP -LocalPort ${String(port)} -RemoteAddress LocalSubnet -Profile Any | Out-Null`,
-  ].join('; ')
-  await runElevatedPowerShell(script)
+  await runElevatedPowerShell(windowsFirewallSetupScript(port))
 }
 
 /** Remove only the two Windows firewall rules owned by DSH Mobile. */
@@ -68,12 +111,8 @@ export async function prepareManagedLanSetup(options: ManagedLanSetupOptions): P
   if (!isAbsolute(options.setupFile) || !isAbsolute(options.controlFile)) {
     throw new Error('managed LAN setup paths must be absolute')
   }
-  if (!Number.isSafeInteger(options.listenPort) || options.listenPort < 1024 || options.listenPort > 65535) {
-    throw new Error('managed LAN listenPort must be from 1024 through 65535')
-  }
-  if (!Number.isSafeInteger(options.dshPort) || options.dshPort < 1024 || options.dshPort > 65535) {
-    throw new Error('managed LAN dshPort must be from 1024 through 65535')
-  }
+  assertManagedPort(options.listenPort, 'managed LAN listenPort')
+  assertManagedPort(options.dshPort, 'managed LAN dshPort')
   const directory = dirname(options.setupFile)
   const tlsDirectory = join(directory, 'tls')
   await mkdir(tlsDirectory, { recursive: true, mode: 0o700 })

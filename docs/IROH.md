@@ -41,6 +41,7 @@ iroh 身份和证书必须存放在仅当前用户或受信系统账户可写的
 | `iroh_companion_missing` | 还没点安装（或配套不在常规布局旁）；先点安装官方组件，或用 `DSH_MOBILE_IROH_COMPANION` 指向配套绝对路径复用 |
 | `iroh_sidecar_invalid` | 已装文件被改动过；重新点安装即可覆盖修复，配套副本损坏则重装配套 |
 | `iroh_platform_unsupported` | 当前系统/架构没有 sidecar 发布 |
+| `iroh_data_directory_insecure` | Windows 状态目录的某个上级目录允许其他账户写入或替换。请把 `DSH_HOME` 移到私有目录，或修正上级目录 ACL；插件日志会保留 sidecar 的脱敏 stderr 说明 |
 | `iroh_identity_invalid` / `iroh_identity_failed` | 先检查状态目录及父目录是否私有、已有身份是否损坏，保留原文件再排查；`id` 仅检查已有身份，首次创建使用 `tls-prepare`，不是靠复制或删除身份修复 |
 | `iroh_start_timeout` | 查看 DSH 日志中的 iroh 错误及网络连接，确认固定组件可运行；不要反复重新配对来替代进程排查 |
 | 通道 `ready` 但手机连不上 | 检查 App 是否为完整版、设备是否支持打包的 ABI，以及描述符是否有效；电脑就绪不等于手机已连通，连接中继服务也不等于数据一定经过中继 |

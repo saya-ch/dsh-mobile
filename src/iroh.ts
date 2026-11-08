@@ -24,11 +24,20 @@ import { settleRemoteResources, terminateRemoteProcess, type RemoteProviderContr
 const READY_TIMEOUT_MS = 45_000
 const IDENTITY_TIMEOUT_MS = 15_000
 const IDENTITY_METADATA_MAX_BYTES = 8192
+const IDENTITY_DIAGNOSTIC_MAX_BYTES = 4096
 const PAIRING_TIMEOUT_MS = 15_000
 const MAX_LINE_BYTES = 16 * 1024
 /** Gateway pairing windows default to five minutes; the descriptor caps at ten. */
 const MAX_PAIRING_WINDOW_MS = 300_000
 const MIN_PAIRING_WINDOW_MS = 10_000
+
+/** Safe classified failure from the short-lived endpoint identity probe. */
+export class IrohIdentityProbeError extends Error {
+  constructor(readonly code: string, readonly diagnostic?: string) {
+    super(code)
+    this.name = 'IrohIdentityProbeError'
+  }
+}
 
 /** Product-facing states for the experimental iroh transport. */
 export type IrohState = 'off' | 'unavailable' | 'starting' | 'connecting' | 'ready' | 'error'
@@ -50,6 +59,7 @@ export interface IrohControllerOptions {
   readonly onStatus?: (status: IrohStatus) => void
   readonly launchSidecar?: (executable: string, args: readonly string[]) => ChildProcessWithoutNullStreams
   readonly resolveIdentity?: (executable: string, dataDir: string) => Promise<string>
+  readonly onFailure?: (failure: { readonly errorCode: string; readonly diagnostic?: string }) => void
   readonly readyTimeoutMs?: number
   readonly pairingTimeoutMs?: number
 }
@@ -89,15 +99,25 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
     : options.launch(executable, args)
   options.onSpawn?.(child)
   let output = Buffer.alloc(0)
+  let stderrOutput = Buffer.alloc(0)
   let settled = false
+  const diagnostic = (): string | undefined => {
+    const text = stderrOutput.toString('utf8').replaceAll(dataDir, '<data-dir>').trim().replace(/\s+/gu, ' ')
+    return text === '' ? undefined : text.slice(0, IDENTITY_DIAGNOSTIC_MAX_BYTES)
+  }
   const result = await new Promise<string>((resolve, reject) => {
     const fail = (code: string): void => {
       if (settled) return
       settled = true
       clearTimeout(deadline)
       void terminateRemoteProcess(child).then(
-        () => { reject(new Error(code)) },
-        () => { reject(new AggregateError([new Error(code), new Error('iroh_probe_stop_failed')], 'iroh_identity_cleanup_failed')) },
+        () => { reject(new IrohIdentityProbeError(code, diagnostic())) },
+        () => {
+          reject(new AggregateError([
+            new IrohIdentityProbeError(code, diagnostic()),
+            new Error('iroh_probe_stop_failed'),
+          ], 'iroh_identity_cleanup_failed'))
+        },
       )
     }
     const deadline = setTimeout(() => { fail('iroh_identity_timeout') }, options.timeoutMs ?? IDENTITY_TIMEOUT_MS)
@@ -107,9 +127,13 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
       if (output.length + chunk.length > IDENTITY_METADATA_MAX_BYTES) { fail('iroh_identity_output_too_large'); return }
       output = Buffer.concat([output, chunk])
     })
-    // The probe is short-lived and writes nothing useful to stderr; drain it so
-    // a full pipe cannot block the child's exit.
-    child.stderr?.resume()
+    // The successful probe writes metadata to stdout. On failure, stderr is
+    // the only source of the underlying native error, so retain a bounded copy
+    // while continuing to drain the pipe.
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const remaining = IDENTITY_DIAGNOSTIC_MAX_BYTES - stderrOutput.length
+      if (remaining > 0) stderrOutput = Buffer.concat([stderrOutput, chunk.subarray(0, remaining)])
+    })
     child.once('error', () => {
       fail('iroh_identity_failed')
     })
@@ -117,12 +141,21 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
       clearTimeout(deadline)
       if (settled) return
       settled = true
+      const probeDiagnostic = diagnostic()
+      if (code !== 0 && probeDiagnostic !== undefined
+        && /private (?:Windows )?data directory is not secure|private path ACL grants/iu.test(probeDiagnostic)) {
+        reject(new IrohIdentityProbeError('iroh_data_directory_insecure', probeDiagnostic))
+        return
+      }
       let metadata: unknown
-      try { metadata = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(output)) } catch { reject(new Error('iroh_identity_invalid')); return }
+      try { metadata = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(output)) } catch {
+        reject(new IrohIdentityProbeError('iroh_identity_invalid', probeDiagnostic))
+        return
+      }
       if (code !== 0 || typeof metadata !== 'object' || metadata === null
         || !('version' in metadata) || metadata.version !== 1
         || !('endpointId' in metadata) || typeof metadata.endpointId !== 'string'
-        || !/^[0-9a-f]{64}$/u.test(metadata.endpointId)) reject(new Error('iroh_identity_invalid'))
+        || !/^[0-9a-f]{64}$/u.test(metadata.endpointId)) reject(new IrohIdentityProbeError('iroh_identity_invalid', probeDiagnostic))
       else resolve(metadata.endpointId)
     })
   })
@@ -300,9 +333,12 @@ export class IrohController implements RemoteProviderController {
     try { this.options.onStatus?.(this.status()) } catch { /* UI observation cannot own runtime state. */ }
   }
 
-  private async failGeneration(generation: number, errorCode: string, origin?: string): Promise<void> {
+  private async failGeneration(generation: number, errorCode: string, origin?: string, diagnostic?: string): Promise<void> {
     if (generation !== this.generation) return
     this.generation += 1
+    try {
+      this.options.onFailure?.({ errorCode, ...(diagnostic === undefined ? {} : { diagnostic }) })
+    } catch { /* Logging cannot own runtime state. */ }
     this.publish({ enabled: this.enabled, state: 'error', ...(origin === undefined ? {} : { origin }), errorCode })
     await this.stopResources()
   }
@@ -371,7 +407,13 @@ export class IrohController implements RemoteProviderController {
         } })
         : await this.options.resolveIdentity(executable, this.options.dataDirectory)
     } catch (error) {
-      await this.failGeneration(generation, error instanceof AggregateError ? 'iroh_identity_cleanup_failed' : 'iroh_identity_failed')
+      const code = error instanceof AggregateError ? 'iroh_identity_cleanup_failed'
+        : error instanceof IrohIdentityProbeError ? error.code
+        : 'iroh_identity_failed'
+      const diagnostic = error instanceof IrohIdentityProbeError ? error.diagnostic
+        : error instanceof AggregateError && error.errors[0] instanceof IrohIdentityProbeError ? error.errors[0].diagnostic
+        : undefined
+      await this.failGeneration(generation, code, undefined, diagnostic)
       return
     }
     if (generation !== this.generation || !this.enabled) return

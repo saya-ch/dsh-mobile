@@ -794,7 +794,7 @@ try {
         setupUrl: 'https://tailscale.com/s/https',
       })
       await pollRemote()
-      const guide = page.locator('.dsh-mobile-control__guide')
+      const guide = page.locator('[data-dsh-mobile-guide="funnel"]')
       const authorize = guide.locator('.dsh-mobile-control__primary')
       assert.equal(await guide.isVisible(), true, 'The authorization error did not expose its setup guide')
       assert.equal(await authorize.isEnabled(), true, 'The authorization button was disabled')

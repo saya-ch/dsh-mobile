@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { defaultResolveIdentity } from '../src/iroh.js'
+import { defaultResolveIdentity, IrohIdentityProbeError } from '../src/iroh.js'
 
 const probe = fileURLToPath(new URL('./fixtures/iroh-identity-probe.mjs', import.meta.url))
 const ENDPOINT = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -90,12 +90,26 @@ describe('iroh identity probe lifecycle', () => {
     expect(alive(await publishedPid(marker))).toBe(false)
   })
 
-  it('rejects a non-hex id, a nonzero exit and invalid UTF-8 as invalid', async () => {
+  it('distinguishes malformed metadata from a failed probe', async () => {
     const root = await ownedRoot()
-    for (const mode of ['bad-id', 'exit-nonzero', 'invalid-utf8']) {
+    for (const mode of ['bad-id', 'invalid-utf8']) {
       await expect(defaultResolveIdentity('sidecar', root, { launch: launch(mode, join(root, `pid-${mode}`)) }))
         .rejects.toThrow('iroh_identity_invalid')
     }
+    await expect(defaultResolveIdentity('sidecar', root, { launch: launch('exit-nonzero', join(root, 'pid-exit-nonzero')) }))
+      .rejects.toThrow('iroh_identity_invalid')
+  })
+
+  it('classifies an unsafe Windows profile and retains the native explanation', async () => {
+    const root = await ownedRoot()
+    const failure = await defaultResolveIdentity('sidecar', root, {
+      launch: launch('unsafe-directory', join(root, 'pid-unsafe-directory')),
+    }).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(IrohIdentityProbeError)
+    expect(failure).toMatchObject({
+      code: 'iroh_data_directory_insecure',
+      diagnostic: expect.stringContaining('private path ACL grants access or replacement rights to another principal'),
+    })
   })
 
   it('does not report a timeout before the probe has actually exited', async () => {

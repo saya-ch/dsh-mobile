@@ -166,6 +166,31 @@ try {
     { timeout: CLIENT_TIMEOUT_MS })
   assert.equal(providerRequests, 0, 'Selecting a model dispatched a provider request')
 
+  // The gateway catalog SWR cache: both allowlisted RPCs through the real paired
+  // page, warm repeats served as hits with the live caller's RPC ID. The first
+  // direct call may already be warm from UI boot; cold replay coverage is owned
+  // by the gateway unit tests.
+  const catalogProbe = async (method, rpcId) => phone.evaluate(async ({ method, rpcId }) => {
+    const started = performance.now()
+    const result = await fetch(`/api/${method}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args: {} } }),
+      signal: AbortSignal.timeout(60000),
+    })
+    const body = await result.json()
+    return { marker: result.headers.get('x-dsh-mobile-catalog'), rpcIdEcho: body.rpcId === rpcId, ms: Math.round(performance.now() - started) }
+  }, { method, rpcId: `swoke-${method.replaceAll('/', '-')}-${++rpcSequence}` })
+  const catalogObservations = []
+  for (const method of ['session/modelCatalog', 'llm/listProviders']) {
+    const cold = await catalogProbe(method)
+    const warm = await catalogProbe(method)
+    assert.equal(warm.marker, 'hit', `Warm ${method} repeat was not served from the cache (${JSON.stringify(catalogObservations)})`)
+    assert.equal(warm.rpcIdEcho, true, `Warm ${method} repeat did not carry the caller's RPC ID`)
+    assert.equal(cold.rpcIdEcho, true, `First ${method} response did not carry the caller's RPC ID`)
+    catalogObservations.push({ method, cold, warm })
+  }
+  console.log(`Catalog SWR smoke probes: ${JSON.stringify(catalogObservations)}`)
+
   const ordinaryRow = await card.evaluate(node => {
     const add = node.querySelector('[data-dsh-mobile-composer-tools] button')?.getBoundingClientRect()
     const send = node.querySelector('button[class*="_primary"]')?.getBoundingClientRect()

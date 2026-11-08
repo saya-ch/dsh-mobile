@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { X509Certificate } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { IrohController } from '../src/iroh.js'
+import { IrohController, IrohIdentityProbeError } from '../src/iroh.js'
 import type { IrohComponentManager } from '../src/iroh-component.js'
 import { irohOrigin } from '../src/iroh-origin.js'
 import { ensureIrohTls } from '../src/iroh-tls.js'
@@ -168,6 +168,31 @@ describe('iroh controller', () => {
     expect(status.enabled).toBe(true)
     expect(status.state).toBe('unavailable')
     expect(status.errorCode).toBe('iroh_companion_missing')
+    await controller.close()
+  })
+
+  it('surfaces an insecure private directory with the native diagnostic', async () => {
+    const failures: Array<{ errorCode: string; diagnostic?: string }> = []
+    const controller = new IrohController({
+      store: fakeStore(false),
+      component: fakeComponent('/sidecar/host'),
+      dataDirectory: await fixtureDir(),
+      createGateway: async () => { throw new Error('must not create') },
+      resolveIdentity: async () => {
+        throw new IrohIdentityProbeError(
+          'iroh_data_directory_insecure',
+          'private path ACL grants access or replacement rights to another principal',
+        )
+      },
+      onFailure: failure => { failures.push(failure) },
+    })
+    await controller.initialize()
+    const status = await controller.setEnabled(true)
+    expect(status).toMatchObject({ enabled: true, state: 'error', errorCode: 'iroh_data_directory_insecure' })
+    expect(failures).toEqual([{
+      errorCode: 'iroh_data_directory_insecure',
+      diagnostic: 'private path ACL grants access or replacement rights to another principal',
+    }])
     await controller.close()
   })
 

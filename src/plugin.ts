@@ -23,6 +23,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedGatewayConfig } from './config.js'
 import { collectConnectionDiagnostics, hasCompetingRemoteChannelBoot } from './diagnostics.js'
+import { MacFileAccessProbe, openMacFullDiskAccessSettings } from './macos-file-access.js'
 import { buildMobileGuide, type MobileGuideState } from './mobile-guide.js'
 import { createVpsUninstallScript, deployVps, fetchVpsHostKeys, parseVpsDeploymentInput, uninstallVps } from './vps-deploy.js'
 import { TaskEventHub, watchTaskCompletions } from './task-events.js'
@@ -795,6 +796,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const cloudflaredComponent = new CloudflaredComponentManager({ stateDirectory })
   await cloudflaredComponent.initialize()
   const frpComponent = new FrpComponentManager({ stateDirectory })
+  const macFileAccess = new MacFileAccessProbe()
   await frpComponent.initialize()
   // The iroh sidecar is distributed by this plugin from a pinned release; a
   // verified companion copy is still reused without downloading while the
@@ -1083,6 +1085,9 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     component: irohComponent,
     dataDirectory: join(remoteDirectory, 'iroh', 'sidecar'),
     createGateway: endpointId => createIrohGateway(endpointId),
+    onFailure: ({ errorCode, diagnostic }) => {
+      logger.warn('iroh startup failed: %s%s', errorCode, diagnostic === undefined ? '' : `; ${diagnostic}`)
+    },
     /**
      * Read the pairing CA the live gateway advertises. The fingerprint must
      * match the gateway instance id, otherwise a rotated CA would mint QR
@@ -1178,7 +1183,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     caddyComponent.status(),
     irohComponent.status(),
   ), originMode: originController.mode(), caddyConfiguration: caddyConfig.status(), caddyState: caddyController.status(),
-  ...(process.platform === 'darwin' ? { macosHost: true } : {}) })
+  ...(macFileAccess.applicable ? { macosHost: true, macFileAccess: macFileAccess.status() } : {}) })
   const lanPayload = (): Record<string, unknown> => ({
     ...(loaded.kind === 'unconfigured' ? {
       configured: preparedLanSetup !== undefined,
@@ -1500,7 +1505,18 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           return
         }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/control`) {
+          // Re-check while the grant is missing so opening System Settings and
+          // coming back is enough; a granted result is final and skips the I/O.
+          await macFileAccess.refresh()
           sendJson(response, 200, remotePayload(), false)
+          return
+        }
+        if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/macos-file-access/open-settings`) {
+          // The renderer cannot navigate to x-apple.systempreferences, so the
+          // host opens the pane on the Mac that owns the app.
+          if (!macFileAccess.applicable) throw new HttpError(404, 'not_found')
+          await openMacFullDiskAccessSettings()
+          sendJson(response, 200, { opened: true }, false)
           return
         }
         if (request.method === 'POST' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/remote/provider`) {

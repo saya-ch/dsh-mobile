@@ -2,6 +2,17 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.8.5 - 2026-11-08
+
+- Update an existing Windows managed-LAN firewall rule in place and verify its resulting scope instead of deleting the previous rules first. Administrator cancellation or a policy rejection now retains the prior rule and records a bounded error in the plugin log. Thanks @lyc0110 for the reproduction in [#364](https://github.com/saya-ch/dsh-mobile/issues/364).
+- Preserve the bounded stderr explanation from the iroh identity probe. An insecure Windows profile ancestry is now surfaced as a specific error, logged by the plugin, and shown with actionable guidance instead of a generic endpoint failure. Private-directory checks remain strict. Thanks @fgql for the diagnosis in [#365](https://github.com/saya-ch/dsh-mobile/issues/365).
+- On macOS, warn when Full Disk Access is missing after a remote channel becomes ready, with a direct System Settings action and a dismiss control. The notice is advisory and never blocks pairing or remote access. Thanks @LunarFeller for the implementation and macOS testing in [#354](https://github.com/saya-ch/dsh-mobile/issues/354) and [#355](https://github.com/saya-ch/dsh-mobile/pull/355).
+- Treat a missing or zero-byte per-module size probe as unmeasured. Such modules keep their original `/plugins` rows instead of being packed into one oversized mobile boot batch when an intercepting proxy returns empty 200 responses. Thanks @chenForbear for the measurements in [#363](https://github.com/saya-ch/dsh-mobile/issues/363).
+- Add a narrow stale-while-revalidate cache for the two parameterless catalog RPCs (`llm/listProviders` and `session/modelCatalog`). Eligible warm requests share one bounded upstream fill, each caller keeps its own RPC ID, and catalog-affecting mutations invalidate the generation; `catalogCache: false` restores the ordinary proxy path. The cache does not patch upstream client internals or restore labels before the catalog is ready. Thanks @chintoleung for [#367](https://github.com/saya-ch/dsh-mobile/pull/367).
+- Resolve an in-app plugin update against the profile that loaded the running module when a Desktop host omits the current-profile service. The install-path fallback remains limited to profiles below `$DSH_HOME/profiles`, so a launcher that omits `--profile` can no longer silently update `web` instead of `desktop`. Thanks @Kizaemon for the detailed reproduction in [#368](https://github.com/saya-ch/dsh-mobile/issues/368).
+- Accept RFC 6598 `100.64.0.0/10` addresses as managed-LAN candidates, including networks whose router or ISP exposes CGNAT-style addressing for the local Ethernet or Wi-Fi segment. The admin Host-header check continues to reject CGNAT to preserve its DNS-rebinding defence. Thanks @Kizaemon for the diagnosis in [#369](https://github.com/saya-ch/dsh-mobile/issues/369).
+- Plugin-only preparation candidate. Android 0.7.2 remains the published App; no native App change is included.
+
 ## 0.8.4 - 2026-11-07
 
 - Resolve query-only and relative upstream redirects against the URL that actually requested them. This fixes mobile `/api/file` image previews receiving the app document after a redirect, while external redirect targets remain unchanged. Thanks @owenzhao for the report in [#361](https://github.com/saya-ch/dsh-mobile/issues/361). Thanks @aaalzk for independently confirming it.

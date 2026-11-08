@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -269,6 +270,40 @@ describe('profile-local release updates', () => {
     await expect(manager.status()).resolves.toMatchObject({ updateAvailable: true, updateSupported: true })
     await expect(manager.update()).resolves.toEqual({ installedVersion: '0.3.3', restartRequired: true })
     expect(runUpdate).toHaveBeenCalledExactlyOnceWith(directory, '0.3.3')
+  })
+
+  it('resolves the Desktop profile from the module installation when the launcher omits it', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-mobile-home-'))
+    temporaryDirectories.push(dshHome)
+    const desktopProfile = join(dshHome, 'profiles', 'desktop')
+    const moduleDirectory = join(desktopProfile, 'node_modules', 'dsh-mobile', 'lib')
+    await mkdir(moduleDirectory, { recursive: true })
+    await writeFile(join(desktopProfile, 'package.json'), JSON.stringify({
+      dependencies: { 'dsh-mobile': '^0.8.5' },
+      dsh: { profile: { bundles: ['dsh-mobile'] } },
+    }))
+    const ctx = new Context()
+    ctx.provide('desktopRuntime', { platform: 'win32' })
+    const moduleUrl = pathToFileURL(join(moduleDirectory, 'index.mjs')).href
+
+    expect(releaseProfileDirectory(ctx, dshHome, ['--profile', 'web'], moduleUrl)).toBe(desktopProfile)
+  })
+
+  it('does not use a module installation outside the managed profile root as the Desktop fallback', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-mobile-home-'))
+    const externalProfile = await mkdtemp(join(tmpdir(), 'dsh-mobile-external-'))
+    temporaryDirectories.push(dshHome, externalProfile)
+    const moduleDirectory = join(externalProfile, 'node_modules', 'dsh-mobile', 'lib')
+    await mkdir(moduleDirectory, { recursive: true })
+    await writeFile(join(externalProfile, 'package.json'), JSON.stringify({
+      dependencies: { 'dsh-mobile': '^0.8.5' },
+      dsh: { profile: { bundles: ['dsh-mobile'] } },
+    }))
+    const ctx = new Context()
+    ctx.provide('desktopRuntime', { platform: 'win32' })
+
+    expect(releaseProfileDirectory(ctx, dshHome, ['--profile', 'web'],
+      pathToFileURL(join(moduleDirectory, 'index.mjs')).href)).toBeUndefined()
   })
 
   it.each([

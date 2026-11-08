@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  availableLanNetworks,
   ensureManagedCa,
   isNetworkSelectionError,
   materializeManagedSetup,
@@ -165,6 +166,33 @@ describe('managed DHCP setup', () => {
     expect(() => selectLanNetwork(undefined, undefined, table)).toThrow(
       'Ethernet=192.168.10.8, WLAN=192.168.50.23',
     )
+  })
+
+  it('builds LAN candidates from CGNAT addresses without accepting adjacent ranges', () => {
+    expect(availableLanNetworks({ Ethernet: [interfaceEntry('100.64.0.77', 10)] })).toEqual([{
+      name: 'Ethernet',
+      address: '100.64.0.77',
+      cidr: '100.64.0.0/10',
+    }])
+    for (const address of ['100.64.0.0', '100.127.255.255']) {
+      expect(availableLanNetworks({ Ethernet: [interfaceEntry(address)] })).toHaveLength(1)
+    }
+    for (const address of ['100.63.255.255', '100.128.0.0']) {
+      expect(availableLanNetworks({ Ethernet: [interfaceEntry(address)] })).toEqual([])
+    }
+  })
+
+  it('materializes a managed HTTPS origin on a CGNAT LAN interface', async () => {
+    const setup = { ...await fixture(), networkInterface: 'Ethernet' }
+    await ensureManagedCa(setup.tls)
+    const config = await materializeManagedSetup(setup, {
+      Ethernet: [interfaceEntry('100.64.0.180')],
+    })
+    expect(config).toMatchObject({
+      publicOrigin: 'https://100.64.0.180:3443',
+      listenHost: '100.64.0.180',
+      allowedCidrs: ['100.64.0.0/24'],
+    })
   })
 
   it('parses Linux default routes by metric and ignores tunnel interfaces', async () => {

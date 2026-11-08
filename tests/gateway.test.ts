@@ -17,7 +17,7 @@ import { connect, Socket, type AddressInfo } from 'node:net'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseGatewayConfig } from '../src/config.js'
-import { MobileAccessGateway, type ApiLatencyEntry, type AuthFailureEntry } from '../src/gateway.js'
+import { MobileAccessGateway, splitMobileBootBatch, type ApiLatencyEntry, type AuthFailureEntry } from '../src/gateway.js'
 import { BlockedUpgradePathLog } from '../src/websocket-paths.js'
 import { CSRF_COOKIE, CSRF_HEADER, DEVICE_COOKIE, SESSION_COOKIE } from '../src/http-security.js'
 import { HOST_CSRF_COOKIE, HOST_DEVICE_COOKIE, HOST_SESSION_COOKIE } from '../src/browser-auth-cookies.js'
@@ -698,6 +698,18 @@ async function openWebSocket(
 }
 
 describe('HTTP gateway', () => {
+  it('passes through modules with zero-byte size probes instead of collapsing them into one batch', () => {
+    const entries = Array.from({ length: 12 }, (_, index) => ({
+      id: `module-${String(index)}`,
+      url: `/plugins/module-${String(index)}.js?rev=${String(index)}`,
+      rev: String(index),
+    }))
+    const split = splitMobileBootBatch(entries, new Map(entries.map(entry => [entry.url, 0])), new Set())
+    expect(split.plans).toEqual([])
+    expect(split.rows).toHaveLength(entries.length)
+    expect(split.rows.every(row => row.entries.length === 1 && row.url.startsWith('/plugins/'))).toBe(true)
+  })
+
   it('resolves query-only and relative upstream redirects against the actual request', async () => {
     const upstream = createServer((incoming, response) => {
       if (incoming.url === '/api/file?path=%2Fexample&load=11') {
@@ -4044,5 +4056,476 @@ describe('mobile document compression', () => {
     expect(conditional.headers['cache-control']).toBe('no-store')
     expect(conditional.headers.etag).toBeUndefined()
     expect(gunzipSync(conditional.rawBody)).toEqual(plain.rawBody)
+  })
+})
+
+describe('HTTP gateway catalog SWR cache', () => {
+  const CATALOG_MARKER = 'x-dsh-mobile-catalog'
+  const modelCatalogRoute = '/api/session/modelCatalog'
+
+  interface CatalogRoute {
+    readonly status?: number
+    readonly body?: string
+    readonly contentType?: string
+    readonly setCookie?: string
+    readonly chunkedBytes?: number
+    readonly delayMs?: number
+    readonly trickle?: boolean
+  }
+
+  const envelopeFor = (rpcId: string, model = 'composer-model-0'): string =>
+    JSON.stringify({ type: 'server-response', rpcId, result: { ok: true, value: { default: { provider: 'p', model } } } })
+
+  const catalogBody = (method: string, rpcId: string, args: unknown = {}): string =>
+    JSON.stringify({ type: 'client-request', rpcId, method, payload: { args } })
+
+  async function catalogUpstream(route: (url: string) => CatalogRoute | undefined): Promise<{
+    port: number
+    observations: UpstreamObservation[]
+    cookieGenerations: number
+    socketCloses: () => number
+  }> {
+    const observations: UpstreamObservation[] = []
+    let cookieGenerations = 0
+    let socketCloses = 0
+    const fillSockets = new WeakSet<Socket>()
+    const server = createServer((incoming, response) => {
+      const chunks: Buffer[] = []
+      incoming.on('data', chunk => chunks.push(Buffer.from(chunk)))
+      incoming.on('end', () => {
+        const requestBody = Buffer.concat(chunks).toString('utf8')
+        observations.push({
+          method: incoming.method ?? '',
+          url: incoming.url ?? '',
+          headers: incoming.headers,
+          body: requestBody,
+        })
+        if (incoming.url?.startsWith('/?token=') === true) {
+          cookieGenerations += 1
+          response.writeHead(303, {
+            location: '/',
+            'set-cookie': `dsh-upstream-v${cookieGenerations}=gen${cookieGenerations}; Max-Age=70; Path=/; HttpOnly; SameSite=Strict`,
+          })
+          response.end()
+          return
+        }
+        const configured = route(incoming.url ?? '')
+        if (configured === undefined) {
+          response.writeHead(200, { 'content-type': 'application/json' })
+          response.end('{}')
+          return
+        }
+        const respond = (): void => {
+          const headers: Record<string, string> = { 'content-type': configured.contentType ?? 'application/json' }
+          if (configured.setCookie !== undefined) headers['set-cookie'] = configured.setCookie
+          const incomingRpcId = /"rpcId":"([^"]+)"/u.exec(requestBody)?.[1]
+          if (configured.trickle === true && (incomingRpcId ?? '').startsWith('dsh-mobile-catalog-')) {
+            fillSockets.add(incoming.socket)
+            response.writeHead(configured.status ?? 200, headers)
+            const drip = setInterval(() => { response.write('x') }, 150)
+            response.once('close', () => clearInterval(drip))
+            return
+          }
+          if (configured.chunkedBytes !== undefined) {
+            response.writeHead(configured.status ?? 200, headers)
+            const filler = 'x'.repeat(65_536)
+            for (let written = 0; written < configured.chunkedBytes; written += filler.length) response.write(filler)
+            response.end()
+            return
+          }
+          const body = configured.body?.replaceAll('<echo>', incomingRpcId ?? 'none') ?? configured.body
+          response.writeHead(configured.status ?? 200, headers)
+          response.end(body)
+        }
+        if (configured.delayMs !== undefined) setTimeout(respond, configured.delayMs)
+        else respond()
+      })
+    })
+    server.on('connection', socket => { socket.once('close', () => { if (fillSockets.has(socket)) socketCloses += 1 }) })
+    await listen(server)
+    cleanups.push(() => new Promise<void>((resolve, reject) => server.close(error => { if (error === undefined) resolve(); else reject(error) })))
+    return { port: (server.address() as AddressInfo).port, observations, cookieGenerations, socketCloses: () => socketCloses }
+  }
+
+  const authedHeaders = (instance: MobileAccessGateway, paired: Awaited<ReturnType<typeof pair>>): Record<string, string> => ({
+    ...browserHeaders(instance),
+    cookie: `${SESSION_COOKIE}=${paired.session}; ${DEVICE_COOKIE}=${paired.device}; ${CSRF_COOKIE}=${paired.csrf}`,
+    [CSRF_HEADER]: paired.csrf,
+    'content-type': 'application/json',
+  })
+
+  it('serves a cold fill as replay, then hits with per-caller rpcIds and one upstream call', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    const first = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(first.status).toBe(200)
+    expect(first.headers[CATALOG_MARKER]).toBe('replay')
+    expect((JSON.parse(first.body) as { rpcId: string }).rpcId).toBe('caller-1')
+    const second = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })
+    expect(second.headers[CATALOG_MARKER]).toBe('hit')
+    expect((JSON.parse(second.body) as { rpcId: string }).rpcId).toBe('caller-2')
+    const fills = host.observations.filter(observation => observation.url === modelCatalogRoute)
+    expect(fills).toHaveLength(1)
+    expect((JSON.parse(fills[0]?.body ?? '{}') as { rpcId: string }).rpcId).not.toBe('caller-1')
+  })
+
+  it('keeps cached bytes unreachable without authentication or CSRF', async () => {
+    const canary = envelopeFor('<echo>', 'canary-model')
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: canary } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const primed = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(primed.headers[CATALOG_MARKER]).toBe('replay')
+    const anonymous = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: browserHeaders(instance), body: catalogBody('session/modelCatalog', 'anon') })
+    expect(anonymous.status).toBe(401)
+    expect(anonymous.body).not.toContain('canary-model')
+    const csrfMissing = await request(instance.address().port, modelCatalogRoute, {
+      method: 'POST',
+      headers: { ...authedHeaders(instance, paired), [CSRF_HEADER]: '' },
+      body: catalogBody('session/modelCatalog', 'no-csrf'),
+    })
+    expect([401, 403]).toContain(csrfMissing.status)
+    expect(csrfMissing.body).not.toContain('canary-model')
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(1)
+  })
+
+  it('starts no fallback for a disconnected waiter whose fill is unshareable', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { status: 500, body: 'late-failure', delayMs: 300 } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const aborted = beginRequest(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'gone') })
+    await new Promise(resolve => setTimeout(resolve, 80))
+    aborted.outgoing.destroy()
+    await aborted.result.catch(() => undefined)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(1)
+  })
+
+  it('serves gzip when accepted with correct length and Vary', async () => {
+    const padded = (rpcId: string): string => JSON.stringify({
+      type: 'server-response', rpcId,
+      result: { ok: true, value: { default: { provider: 'p', model: 'composer-model-0' }, filler: 'y'.repeat(2_048) } },
+    })
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: padded('<echo>') } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const headers = { ...authedHeaders(instance, paired), 'accept-encoding': 'gzip' }
+    const first = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-1') })
+    const second = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })
+    expect(second.headers[CATALOG_MARKER]).toBe('hit')
+    expect(second.headers['content-encoding']).toBe('gzip')
+    expect(second.headers['content-length']).toBe(String(second.rawBody.length))
+    expect(second.headers.vary).toContain('Accept-Encoding')
+    expect((JSON.parse(gunzipSync(second.rawBody).toString('utf8')) as { rpcId: string }).rpcId).toBe('caller-2')
+    const plain = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-3') })
+    expect(plain.headers['content-encoding']).toBeUndefined()
+    expect((JSON.parse(plain.body) as { rpcId: string }).rpcId).toBe('caller-3')
+  })
+
+  it('collapses concurrent callers into one fill with correct per-caller ids', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    const results = await Promise.all([1, 2, 3].map(index =>
+      request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', `concurrent-${index}`) })))
+    for (const [index, result] of results.entries()) {
+      expect(result.status).toBe(200)
+      expect((JSON.parse(result.body) as { rpcId: string }).rpcId).toBe(`concurrent-${index + 1}`)
+    }
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(1)
+  })
+
+  it('invalidates on mutation-set 2xx responses but not on reads or failed mutations', async () => {
+    const host = await catalogUpstream(url => {
+      if (url === modelCatalogRoute) return { body: envelopeFor('<echo>') }
+      if (url === '/api/credentials/unset') return { status: 500, body: '{"error":"no"}' }
+      return undefined
+    })
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect((await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })).headers[CATALOG_MARKER]).toBe('hit')
+    await request(instance.address().port, '/api/session/list', { method: 'POST', headers, body: catalogBody('session/list', 'read-1', { request: {} }) })
+    expect((await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-3') })).headers[CATALOG_MARKER]).toBe('hit')
+    await request(instance.address().port, '/api/credentials/unset', { method: 'POST', headers, body: catalogBody('credentials/unset', 'mut-1') })
+    expect((await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-4') })).headers[CATALOG_MARKER]).toBe('hit')
+    await request(instance.address().port, '/api/credentials/set', { method: 'POST', headers, body: catalogBody('credentials/set', 'mut-2') })
+    const after = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-5') })
+    expect(after.headers[CATALOG_MARKER]).toBe('replay')
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(2)
+  })
+
+  it('misses again after an upstream identity change', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port, {}, undefined, `http://127.0.0.1:${String(host.port)}/?token=test-launch-token`)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    expect((await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-1') })).headers[CATALOG_MARKER]).toBe('replay')
+    expect((await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })).headers[CATALOG_MARKER]).toBe('hit')
+    host.observations.length = 0
+    // Past the refresh margin the next snapshot exchanges a fresh upstream
+    // cookie; the new identity digest must drop the warmed entry.
+    vi.useFakeTimers({ now: Date.now() + 65_000, toFake: ['Date'] })
+    try {
+      // The renewal-triggering request itself takes the ordinary path once
+      // (its snapshot was superseded mid-acquisition); the next request
+      // fills under the new identity.
+      const transition = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-3') })
+      expect(transition.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+      expect((await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-4') })).headers[CATALOG_MARKER]).toBe('replay')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('falls back per caller with the original bytes when the fill is unshareable', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { status: 500, body: 'boom-upstream' } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const body = catalogBody('session/modelCatalog', 'caller-1')
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body })
+    expect(result.status).toBe(500)
+    expect(result.body).toBe('boom-upstream')
+    expect(result.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    const calls = host.observations.filter(observation => observation.url === modelCatalogRoute)
+    expect(calls).toHaveLength(2)
+    expect(calls[1]?.body).toBe(body)
+  })
+
+  it('never caches or shares a fill that carries Set-Cookie', async () => {
+    let visits = 0
+    const host = await catalogUpstream(url => url === modelCatalogRoute
+      ? { body: envelopeFor('<echo>'), setCookie: 'renewal=1; Path=/' }
+      : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(result.headers['set-cookie']).toBeUndefined()
+    expect(result.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(2)
+  })
+
+  it('aborts an oversize chunked fill at the streaming cap and falls back', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { chunkedBytes: 3_145_728 } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(result.status).toBe(200)
+    expect(result.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    expect(result.body.length).toBe(3_145_728)
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(2)
+  })
+
+  it('falls back when the fill envelope does not echo its own rpcId', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('someone-else') } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(result.status).toBe(200)
+    expect(result.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    // The ordinary path is verbatim: the upstream's mismatched id reaches the caller untouched.
+    expect((JSON.parse(result.body) as { rpcId: string }).rpcId).toBe('someone-else')
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(2)
+  })
+
+  it('bypasses the cache entirely when disabled or when a document view is requested', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const disabled = await gateway(host.port, { catalogCache: false })
+    const pairedDisabled = await pair(disabled)
+    const headersDisabled = authedHeaders(disabled, pairedDisabled)
+    await request(disabled.address().port, modelCatalogRoute, { method: 'POST', headers: headersDisabled, body: catalogBody('session/modelCatalog', 'a') })
+    const second = await request(disabled.address().port, modelCatalogRoute, { method: 'POST', headers: headersDisabled, body: catalogBody('session/modelCatalog', 'b') })
+    expect(second.headers[CATALOG_MARKER]).toBeUndefined()
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(2)
+    host.observations.length = 0
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const viewRejected = await request(instance.address().port, modelCatalogRoute, {
+      method: 'POST',
+      headers: { ...authedHeaders(instance, paired), 'x-dsh-mobile-view': 'not-a-view' },
+      body: catalogBody('session/modelCatalog', 'c'),
+    })
+    expect(viewRejected.status).toBeGreaterThanOrEqual(400)
+    expect(viewRejected.status).toBeLessThan(500)
+    expect(host.observations).toHaveLength(0)
+  })
+
+  it('forwards ineligible candidate bodies byte-for-byte through the ordinary path', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const body = JSON.stringify({ type: 'client-request', rpcId: 'caller-1', method: 'session/modelCatalog', payload: { args: { extra: 1 } }, trailing: 'ignored' })
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body })
+    expect(result.status).toBe(200)
+    expect(result.headers[CATALOG_MARKER]).toBeUndefined()
+    expect(host.observations.find(observation => observation.url === modelCatalogRoute)?.body).toBe(body)
+  })
+
+  it('keeps a fill alive after its leading caller disconnects', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>'), delayMs: 250 } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    const aborted = beginRequest(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'gone') })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    aborted.outgoing.destroy()
+    await aborted.result.catch(() => undefined)
+    await new Promise(resolve => setTimeout(resolve, 400))
+    const later = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'later') })
+    expect(later.headers[CATALOG_MARKER]).toBe('hit')
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(1)
+  })
+
+  it('aborts owned fills on gateway shutdown without unhandled rejections', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>'), delayMs: 5_000 } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const rejections: unknown[] = []
+    const capture = (reason: unknown): void => { rejections.push(reason) }
+    process.on('unhandledRejection', capture)
+    try {
+      const pending = request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+      await vi.waitFor(() => expect(host.observations.some(observation => observation.url === modelCatalogRoute)).toBe(true), { timeout: 5_000 })
+      const closed = instance.close()
+      await Promise.allSettled([pending, closed])
+      await new Promise(resolve => setTimeout(resolve, 100))
+      expect(rejections).toEqual([])
+    } finally {
+      process.off('unhandledRejection', capture)
+    }
+  })
+
+  it('aborts a trickling fill at the absolute deadline and releases its slot', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute
+      ? { body: envelopeFor('fill-id'), trickle: true }
+      : undefined)
+    const instance = await gateway(host.port, { upstreamTimeoutMs: 1_000 })
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    const started = Date.now()
+    const first = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(Date.now() - started).toBeLessThan(5_000)
+    expect(first.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    const second = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })
+    expect(second.status).toBe(200)
+  })
+
+  it('discards a pending fill when the upstream identity changes mid-flight', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>'), delayMs: 400 } : undefined)
+    const instance = await gateway(host.port, {}, undefined, `http://127.0.0.1:${String(host.port)}/?token=test-launch-token`)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    const firstPending = request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-1') })
+    await new Promise(resolve => setTimeout(resolve, 100))
+    vi.useFakeTimers({ now: Date.now() + 65_000, toFake: ['Date'] })
+    let second: HttpResult | undefined
+    try {
+      const secondPending = request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })
+      const first = await firstPending
+      second = await secondPending
+      vi.useRealTimers()
+      expect(first.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+      // The request that triggered the renewal runs ordinary once; a follow-up
+      // fills under the new identity.
+      expect(second.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+      const after = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-3') })
+      expect(after.headers[CATALOG_MARKER]).toBe('replay')
+      expect((JSON.parse(after.body) as { rpcId: string }).rpcId).toBe('caller-3')
+    } finally {
+      vi.useRealTimers()
+    }
+    void second
+  })
+
+  it('sends the captured identity snapshot cookie with the fill', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port, {}, undefined, `http://127.0.0.1:${String(host.port)}/?token=test-launch-token`)
+    const paired = await pair(instance)
+    await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    const fill = host.observations.find(observation => observation.url === modelCatalogRoute)
+    expect(fill?.headers.cookie).toBe('dsh-upstream-v1=gen1')
+  })
+
+  it('serves llm/listProviders replays and hits through the gateway', async () => {
+    const host = await catalogUpstream(url => url === '/api/llm/listProviders' ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    const first = await request(instance.address().port, '/api/llm/listProviders', { method: 'POST', headers, body: catalogBody('llm/listProviders', 'caller-1') })
+    expect(first.headers[CATALOG_MARKER]).toBe('replay')
+    const second = await request(instance.address().port, '/api/llm/listProviders', { method: 'POST', headers, body: catalogBody('llm/listProviders', 'caller-2') })
+    expect(second.headers[CATALOG_MARKER]).toBe('hit')
+    expect((JSON.parse(second.body) as { rpcId: string }).rpcId).toBe('caller-2')
+  })
+
+  it('falls back on a non-JSON media type without caching', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: 'plain-not-json', contentType: 'text/plain' } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(result.status).toBe(200)
+    expect(result.body).toBe('plain-not-json')
+    expect(result.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    expect(result.headers['content-type']).toContain('text/plain')
+  })
+
+  it('starts no fallback request for a waiter that disconnects while blocked on a fill', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>'), delayMs: 300 } : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const aborted = beginRequest(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'gone') })
+    await new Promise(resolve => setTimeout(resolve, 80))
+    aborted.outgoing.destroy()
+    await aborted.result.catch(() => undefined)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    expect(host.observations.filter(observation => observation.url === modelCatalogRoute)).toHaveLength(1)
+  })
+
+  it('destroys the fill socket when headers are unshareable', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute
+      ? { status: 500, body: 'nope', trickle: true }
+      : undefined)
+    const instance = await gateway(host.port)
+    const paired = await pair(instance)
+    const result = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers: authedHeaders(instance, paired), body: catalogBody('session/modelCatalog', 'caller-1') })
+    expect(result.status).toBe(500)
+    expect(result.headers[CATALOG_MARKER]).toBe('miss-passthrough')
+    // The rejected fill's socket must be torn down, not left trickling untracked.
+    await vi.waitFor(() => expect(host.socketCloses()).toBeGreaterThan(0), { timeout: 3_000 })
+  })
+
+  it('enforces the configured body limit on candidate cache requests', async () => {
+    const host = await catalogUpstream(url => url === modelCatalogRoute ? { body: envelopeFor('<echo>') } : undefined)
+    const instance = await gateway(host.port, { maxBodyBytes: 1_024 })
+    const paired = await pair(instance)
+    const headers = authedHeaders(instance, paired)
+    // Trailing whitespace keeps the envelope eligible while exceeding the
+    // configured limit, so only the candidate reader can reject it.
+    const padded = `${catalogBody('session/modelCatalog', 'caller-1')}\n${' '.repeat(2_048)}`
+    const first = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: padded })
+    expect(first.status).toBe(413)
+    const primed = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: catalogBody('session/modelCatalog', 'caller-2') })
+    expect(primed.headers[CATALOG_MARKER]).toBe('replay')
+    const warm = await request(instance.address().port, modelCatalogRoute, { method: 'POST', headers, body: padded })
+    expect(warm.status).toBe(413)
+  })
+
+  it('defaults catalogCache to true, accepts false, and rejects invalid values', () => {
+    const base = {
+      listenHost: '127.0.0.1',
+      listenPort: 0,
+      upstreamOrigin: 'http://127.0.0.1:1',
+      publicAuthorities: ['127.0.0.1'],
+      allowedCidrs: ['127.0.0.0/8'],
+      stateFile: join(tmpdir(), `dsh-mobile-catalog-config-${crypto.randomUUID()}.json`),
+      tls: { mode: 'disabled' as const },
+    }
+    expect(parseGatewayConfig(base).catalogCache).toBe(true)
+    expect(parseGatewayConfig({ ...base, catalogCache: false }).catalogCache).toBe(false)
+    expect(() => parseGatewayConfig({ ...base, catalogCache: 'yes' })).toThrow()
   })
 })
