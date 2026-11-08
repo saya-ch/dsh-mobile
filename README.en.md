@@ -265,8 +265,6 @@ Prefer DSH's built-in file upload for attachments. If an extension must simulate
 
 The 0.6.3 release adds optional [Worker execution](docs/EXTENSION_WORKERS.en.md) for trusted local JavaScript hosts. It is disabled by default, selectable by extension, and recovers explicitly without replaying interrupted actions. It is not a permission sandbox and does not require a matching App version.
 
-<sub>You can even use an extension to connect to SillyTavern running on the same computer, give it a lightweight mobile frontend, and open it from the same app.</sub>
-
 > `host.mjs` has the same privileges as a local program. Create and run only computer-side extensions that you understand and trust.
 
 The examples above, applied:
