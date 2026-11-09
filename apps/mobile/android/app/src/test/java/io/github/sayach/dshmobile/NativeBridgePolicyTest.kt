@@ -208,4 +208,18 @@ class NativeBridgePolicyTest {
         assertEquals("dsh-task", NativeBridgePolicy.sanitizeNotificationTag("!!!"))
         assertTrue(NativeBridgePolicy.sanitizeNotificationTag("x".repeat(100)).length <= 64)
     }
+
+    @Test
+    fun notificationNavigateAcceptsOnlySameOriginRelativeRoutes() {
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate(""))
+        assertEquals("/", NativeBridgePolicy.sanitizeNotificationNavigate("/"))
+        assertEquals("/?dsh-notify=abc123", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=abc123"))
+        assertEquals("/?dsh-notify=abc-123_xyz", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=abc-123_xyz"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("https://evil.example"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("//evil.example/x"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?other=value"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=a b"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/path/to/page"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=" + "x".repeat(300)))
+    }
 }

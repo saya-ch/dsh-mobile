@@ -201,6 +201,7 @@ class MainActivity : Activity() {
     // WebView exposes grants, not reliable track-ended events. Refuse migration for this document.
     private var audioCaptureGrantedBrowser: WebView? = null
     private var gatewayOrigin: GatewayOrigin? = null
+    private var pendingNotificationNavigate: String? = null
     private var accessMode = AccessMode.LAN
     private var setupBackAction: (() -> Unit)? = null
     private data class PendingWebFileChooser(
@@ -252,6 +253,7 @@ class MainActivity : Activity() {
         applyStatusBarIconContrast(window, getColor(R.color.app_background))
         nearbyPermissionLimited = preferences.getBoolean(PREFERENCE_NEARBY_PERMISSION_LIMITED, false)
         migrateLegacyDeviceSlots()
+        pendingNotificationNavigate = intent.getStringExtra(NativeBridgePolicy.EXTRA_NOTIFICATION_NAVIGATE)
         val retainedHandoff = lastNonConfigurationInstance as? RetainedBridgeHandoff
         restoredNativeBridgeState = retainedHandoff?.bridgeState
             ?: savedInstanceState?.getBundle(STATE_NATIVE_BRIDGE)
@@ -284,6 +286,27 @@ class MainActivity : Activity() {
             restoreColdStartConnection(
                 restoredMode ?: AccessMode.parse(preferences.getString(PREFERENCE_LAST_ACCESS_MODE, null)),
             )
+        }
+    }
+
+    /**
+     * A task-notification tap can arrive while the app is already foregrounded. Route it to the
+     * same pending-navigate path used at cold start (see showBrowser), so the page lands on the
+     * exact conversation the notification referred to.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val navigate = intent.getStringExtra(NativeBridgePolicy.EXTRA_NOTIFICATION_NAVIGATE) ?: return
+        pendingNotificationNavigate = navigate
+        val origin = gatewayOrigin
+        val browser = webView
+        if (origin != null && browser != null && !isFinishing) {
+            val full = origin.serialized.trimEnd('/') + navigate
+            if (GatewayUrlPolicy.isSameOrigin(origin, full)) {
+                browser.loadUrl(full)
+                pendingNotificationNavigate = null
+            }
         }
     }
 
@@ -3727,8 +3750,13 @@ class MainActivity : Activity() {
         }
         root.requestApplyInsets()
         root.post { if (webView === browser && !isFinishing) offerWebViewEngineUpdate(browser) }
-        val initialUrl = requestedInitialUrl.takeIf { GatewayUrlPolicy.isSameOrigin(origin, it) }
+        val baseUrl = requestedInitialUrl.takeIf { GatewayUrlPolicy.isSameOrigin(origin, it) }
             ?: origin.serialized
+        val initialUrl = pendingNotificationNavigate?.let { nav ->
+            val full = origin.serialized.trimEnd('/') + nav
+            if (GatewayUrlPolicy.isSameOrigin(origin, full)) full else baseUrl
+        } ?: baseUrl
+        pendingNotificationNavigate = null
         retryUrl = initialUrl
         startIrohStatusMonitor()
         if (stagedBrowser == null) browser.loadUrl(initialUrl)

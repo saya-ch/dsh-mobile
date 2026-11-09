@@ -882,6 +882,7 @@ internal class NativeBridge(
             input.optString("body", ""), NativeBridgePolicy.TASK_NOTIFICATION_BODY_CHARS,
         )
         val tag = NativeBridgePolicy.sanitizeNotificationTag(input.optString("tag", ""))
+        val navigate = NativeBridgePolicy.sanitizeNotificationNavigate(input.optString("navigate", ""))
         if (title.isEmpty() && body.isEmpty()) {
             finishPending(requestId, errorJson("bad_message", "notification text is empty", requestId))
             return
@@ -895,14 +896,14 @@ internal class NativeBridge(
         }
         activity.runOnUiThread {
             try {
-                postTaskNotification(requestId, title, body, tag)
+                postTaskNotification(requestId, title, body, tag, navigate)
             } catch (_: Exception) {
                 finishPending(requestId, errorJson("failed", "native operation failed", requestId))
             }
         }
     }
 
-    private fun postTaskNotification(requestId: String, title: String, body: String, tag: String) {
+    private fun postTaskNotification(requestId: String, title: String, body: String, tag: String, navigate: String) {
         val manager = activity.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             ?: throw IllegalStateException("notification service is unavailable")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -914,11 +915,15 @@ internal class NativeBridge(
                 ).apply { description = activity.getString(R.string.notification_channel_tasks_description) },
             )
         }
+        // Distinct requestCode per notification tag so each PendingIntent carries its own
+        // extras (a shared requestCode + FLAG_UPDATE_CURRENT would overwrite navigate).
+        val requestCode = (tag.hashCode() and 0x7fffffff)
         val openApp = PendingIntent.getActivity(
             activity,
-            NativeBridgePolicy.TASK_NOTIFICATION_ID,
+            requestCode,
             Intent(activity, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                if (navigate.isNotEmpty()) putExtra(NativeBridgePolicy.EXTRA_NOTIFICATION_NAVIGATE, navigate)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
