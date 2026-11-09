@@ -20,6 +20,8 @@ describe('managed LAN setup', () => {
     expect(script).toContain('$rule | Set-NetFirewallRule -Enabled True -Direction Inbound -Action Allow -Profile Any')
     expect(script).toContain("$rule | Get-NetFirewallPortFilter | Set-NetFirewallPortFilter -Protocol TCP -LocalPort 3443")
     expect(script).toContain("$rule | Get-NetFirewallPortFilter | Set-NetFirewallPortFilter -Protocol UDP -LocalPort 3443")
+    expect(script).toContain("Get-NetFirewallRule -DisplayName 'DSH Mobile HTTPS' -ErrorAction Stop | Where-Object { $_.Enabled -eq 'True'")
+    expect(script).not.toContain("Get-NetFirewallRule -DisplayName 'DSH Mobile HTTPS' -Enabled True")
     expect(script).toContain('$matchingAddress.Count -eq 0')
     expect(() => windowsFirewallSetupScript(443)).toThrow(/Windows firewall port/)
   })

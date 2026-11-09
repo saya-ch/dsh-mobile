@@ -13,14 +13,14 @@ export interface PushNavigationOptions {
   readonly resolve: (reference: string) => Promise<PushTarget | undefined>
   /** Stable neutral UI notice keys: session-unavailable or session-resolved. */
   readonly notify: (key: string) => void
+  /** Query parameter owned by this consumer. */
+  readonly parameter?: string
   /** Browser adapters are injectable for tests/embedded hosts; defaults to public Window APIs. */
   readonly browser?: {
     readonly location: Pick<Location, 'search' | 'pathname' | 'hash'>
     readonly history: Pick<History, 'replaceState'>
   }
 }
-
-const REF_PARAMETER = 'mobile-push'
 
 /**
  * Consume one authenticated tap reference after the public Workspace and Session
@@ -29,16 +29,17 @@ const REF_PARAMETER = 'mobile-push'
 export function installPushNavigation(ctx: Context, options: PushNavigationOptions): () => void {
   const context = ctx as unknown as PushNavigationContext
   const browser = options.browser ?? { location: window.location, history: window.history }
+  const refParameter = options.parameter ?? 'mobile-push'
   const params = new URLSearchParams(browser.location.search)
-  const reference = params.get(REF_PARAMETER)
+  const reference = params.get(refParameter)
   let disposed = false
   let consumed = false
   let resolving = false
   let opened = false
 
   const clearReference = (): void => {
-    if (!params.has(REF_PARAMETER)) return
-    params.delete(REF_PARAMETER)
+    if (!params.has(refParameter)) return
+    params.delete(refParameter)
     const query = params.toString()
     const url = `${browser.location.pathname}${query ? `?${query}` : ''}${browser.location.hash}`
     browser.history.replaceState(null, '', url)

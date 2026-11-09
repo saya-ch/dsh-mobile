@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
+  decodeTaskNotificationNavigate,
   fireTaskNotifyEvent,
   hasPendingInputQuestion,
   isDeviceRevokedPayload,
@@ -12,6 +13,7 @@ import {
   TASK_NOTIFY_LIMITS,
   TASK_NOTIFY_QUIET_MS,
   taskCompletionTag,
+  taskNotificationNavigate,
   TaskNotifyTracker,
 } from '../src/task-notify.js'
 
@@ -229,6 +231,27 @@ describe('task completion tracker', () => {
     expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done' })).toBe(false)
   })
 
+  it('passes the optional same-origin target through the native bridge', async () => {
+    const invoke = vi.fn(async () => undefined)
+    const previous = (globalThis as { window?: unknown }).window
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { __DSH_MOBILE_NATIVE__: { capabilities: async () => ['notification.notify'], invoke } },
+    })
+    try {
+      expect(fireTaskNotifyEvent({
+        kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done',
+        navigate: '/?dsh-session=YWJj',
+      })).toBe(true)
+      await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('notification.notify', {
+        title: 't', body: 'b', tag: 'dsh-task-done', navigate: '/?dsh-session=YWJj',
+      }))
+    } finally {
+      if (previous === undefined) delete (globalThis as { window?: unknown }).window
+      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
+    }
+  })
+
   it('uses safe bounded tags for arbitrary question keys', () => {
     const { tracker } = trackerAt()
     const event = tracker.evaluate(hiddenSnapshot({ pendingQuestion: true, questionKey: 'Q 1/2: pick!' }))
@@ -254,6 +277,16 @@ describe('task completion tracker', () => {
     expect(taskCompletionTag('Session-A', 1)).not.toBe(taskCompletionTag('session-a', 1))
     expect(taskCompletionTag('\ud800', 1)).not.toBe(taskCompletionTag('\ud801', 1))
     expect(taskCompletionTag(first.sessionId, first.turn)).toBe(firstTag)
+  })
+
+  it('round-trips bounded Unicode notification routes', () => {
+    const route = taskNotificationNavigate('会话-a')
+    expect(route).toMatch(/^\/\?dsh-session=[A-Za-z0-9_-]+$/u)
+    const encoded = route?.slice(route.indexOf('dsh-session=') + 'dsh-session='.length)
+    expect(decodeTaskNotificationNavigate(encoded)).toBe('会话-a')
+    expect(decodeTaskNotificationNavigate('not base64')).toBeUndefined()
+    expect(decodeTaskNotificationNavigate('A'.repeat(257))).toBeUndefined()
+    expect(taskNotificationNavigate('x'.repeat(300))).toBeUndefined()
   })
 
   it.each(['session-a', '会话／🐋', '\ud800'])('retains the original SHA-256 tag for %j', sessionId => {

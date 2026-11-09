@@ -48,13 +48,18 @@ export function buildDeclarativePayload(
   locale: PushLocale,
   navigate: string,
   tag: string,
+  custom?: { readonly title: string; readonly body: string },
 ): string {
   validateNavigate(navigate, category)
   if (!(locale in messages) || !(category in messages[locale])
     || typeof tag !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/u.test(tag)) {
     throw new TypeError('push_payload_invalid')
   }
-  const [title, body] = messages[locale][category]
+  if (custom !== undefined && (typeof custom.title !== 'string' || custom.title.length === 0 || custom.title.length > 80
+    || typeof custom.body !== 'string' || custom.body.length === 0 || custom.body.length > 200)) {
+    throw new TypeError('push_payload_invalid')
+  }
+  const [title, body] = custom === undefined ? messages[locale][category] : [custom.title, custom.body]
   const payload = JSON.stringify({
     web_push: 8030,
     notification: { title, body, lang: locale, navigate, tag },

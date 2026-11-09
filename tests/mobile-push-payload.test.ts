@@ -43,6 +43,21 @@ describe('declarative Web Push payloads', () => {
     expect(() => buildDeclarativePayload('response', 'en', '/?mobile-push=opaque-123', '')).toThrow()
   })
 
+  it('uses explicitly supplied custom text without changing navigation or locale', () => {
+    const payload = JSON.parse(buildDeclarativePayload(
+      'response', 'zh-CN', '/?mobile-push=opaque-123', 'push-tag-1',
+      { title: '会话甲', body: '回复已准备好' },
+    ))
+    expect(payload.notification).toEqual({
+      title: '会话甲', body: '回复已准备好', lang: 'zh-CN',
+      navigate: '/?mobile-push=opaque-123', tag: 'push-tag-1',
+    })
+    expect(() => buildDeclarativePayload('response', 'en', '/?mobile-push=opaque-123', 'push-tag-1',
+      { title: '', body: 'x' })).toThrow('push_payload_invalid')
+    expect(() => buildDeclarativePayload('response', 'en', '/?mobile-push=opaque-123', 'push-tag-1',
+      { title: 'x', body: 'x'.repeat(201) })).toThrow('push_payload_invalid')
+  })
+
   it('allows the exact bare app root only for the test category', () => {
     const testTitles = [['en', 'Test notification'], ['zh-CN', '测试通知'], ['it', 'Notifica di prova']] as const
     for (const [locale, title] of testTitles) {
