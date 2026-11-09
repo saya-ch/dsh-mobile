@@ -1086,6 +1086,20 @@ function sanitizeRequestHeaders(
     const value = request.headers[name]
     if (value !== undefined) headers[name] = value
   }
+  // Forward DSH plugin namespace headers (x-dsh-*) so plugin-side custom
+  // authentication/validation markers survive the gateway proxy. These
+  // requests still pass the gateway's pairing authentication and CSRF
+  // checks before reaching upstream, so opening this namespace does not
+  // add cross-site risk (mirrors the dsh-web remote forwarding fix).
+  // The x-dsh-mobile-* namespace is reserved for internal gateway markers
+  // (CSRF, view, catalog, size-probe, admin, capabilities) and must not
+  // leak upstream.
+  for (const name of Object.keys(request.headers)) {
+    const lower = name.toLowerCase()
+    if (!lower.startsWith('x-dsh-') || lower.startsWith('x-dsh-mobile-')) continue
+    const value = request.headers[name]
+    if (value !== undefined) headers[name] = Array.isArray(value) ? value[0] : value
+  }
   return headers
 }
 
