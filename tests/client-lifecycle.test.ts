@@ -1532,6 +1532,21 @@ describe('mobile-control localization', () => {
     expect(activity).toContain('bridge.onOpenTaskNotificationSettings = ::openTaskNotificationSettings')
   })
 
+  it('registers the opt-in background notification bridge without enabling it implicitly', () => {
+    const source = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8')
+    const bridge = readFileSync(new URL('../apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/NativeBridge.kt', import.meta.url), 'utf8')
+    const activity = readFileSync(new URL('../apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/MainActivity.kt', import.meta.url), 'utf8')
+    expect(source).toContain("id: 'dsh-mobile-background-notifications'")
+    expect(source).toContain("notification.background.get")
+    expect(source).toContain("notification.background.set")
+    expect(source).toContain("installTaskNotificationNavigation")
+    expect(source).toContain("parameter: 'dsh-session'")
+    expect(bridge).toContain('"notification.background.get" -> activity.runOnUiThread')
+    expect(bridge).toContain('"notification.background.set" -> activity.runOnUiThread')
+    expect(activity).toContain('bridge.onSetBackgroundNotifications = ::setBackgroundNotifications')
+    expect(activity).toContain('BackgroundNotificationService.resumeIfEnabled(this, record.key)')
+  })
+
   it('owns locale persistence as an independent disposable client effect', () => {
     let deliver = () => {}
     let disconnected = false

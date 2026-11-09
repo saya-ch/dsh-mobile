@@ -132,7 +132,7 @@ DSH records audio through `getUserMedia` and sends it to the configured computer
 
 ## Notifications and extensions
 
-Task reminders use Host completion events and pending-input cards while the page remains alive. Lock-screen text is generic and tapping returns to the app. They are not an offline push service: completion reminders require SSE, with no event replay after disconnection. Cloudflare Quick Tunnels do not support this stream; see [channel limits](../../docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits).
+Task reminders use Host completion events and pending-input cards. While the page is alive it sends notifications through the native bridge; **Settings → General → Task notifications** can explicitly enable **background reminders**, a dismissible foreground service that keeps the active paired-computer connection alive after Android suspends the page. The service remains subject to foreground-service time limits, battery policy and connectivity, displays a persistent notification, does not yet support iroh pairings, and does not replay events across disconnection. A tap may carry the page-provided same-origin `dsh-notify` route; built-in background reminders use an opaque `dsh-session` route to open the matching conversation. Cloudflare Quick Tunnels do not support the event stream; see [channel limits](../../docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits).
 
 The authenticated page may use the `dshMobile` bridge for `files.pick`, `camera.capture`, `share`, clipboard read/write, task notifications/settings, computer switching and page scaling. The separate extension `files.pick` returns one file, follows its requested MIME types and limits bridge-returned file bytes to 8 MiB. This is not the standard DSH attachment selector's limit.
 
@@ -147,7 +147,7 @@ Computer-side `host.mjs` extensions are trusted Node.js code, separate from this
 | Transport | HTTPS only; Manifest cleartext traffic is disabled. |
 | Trust | Exact-Origin platform trust or a privately pinned pairing CA. User-installed system CAs are not broadly trusted. |
 | Navigation | Same-origin main frames remain inside; explicit external HTTPS links open in the system browser. |
-| Permissions | Camera for explicit scanning/capture, microphone for DSH recording, notifications through a foreground permission/settings action; standard file selection needs no storage permission. |
+| Permissions | Camera for explicit scanning/capture, microphone for DSH recording, notifications through a foreground permission/settings action, and an explicitly enabled `dataSync` foreground service for background reminders; standard file selection needs no storage permission. |
 | Bridge | WebMessage listener validates exact top-level Origin and main frame; no `addJavascriptInterface` or arbitrary Android API. |
 | Limits | Inbound message 1 MiB, clipboard 256 KiB, binary bridge result 8 MiB, reply 12 MiB. |
 | Credentials | Bridge replies do not automatically include stored pairing credentials; there is no direct bridge API for reading the credential store or private keys. Clipboard contents and selected files may contain sensitive data: use only trusted extensions. |
@@ -183,6 +183,8 @@ The verified stable release is [Android 0.7.2](https://github.com/saya-ch/dsh-mo
 ## Acceptance and known limits
 
 - Both public App 0.7.1 APKs passed checksum, manifest, established-signer, notice and alignment checks. The full APK additionally passed ABI and retained JVM TLS/JNI entry checks; compatibility contains no native libraries. There is no new physical-device or public-relay run for 0.7.1. Earlier arm64 development traffic remains historical evidence, not proof that a current connection uses the relay.
+
+- A current-source Debug build was installed beside the official App on TB710FU (Android API 36) and paired to an isolated DSH 0.2.2-rc.1 gateway with a pinned local CA. The DSH page opened, system Back returned to the launcher, the task-notification permission flow opened, and enabling then disabling background reminders started and stopped a `dataSync` foreground service with its persistent notification. This was an isolated Debug package, not the official signer, and did not deliver a real task-completion event through a model run.
 
 - App 0.6.8's public APK passed identity, checksum and established-signer verification. A matching-signer Debug upgrade opened DSH and retained the saved device; controlled slow-link fault injection was interrupted before pairing and is not counted as passed.
 

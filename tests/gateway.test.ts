@@ -1238,6 +1238,32 @@ describe('HTTP gateway', () => {
     }
   })
 
+  it('forwards plugin x-dsh-* headers on a paired write while excluding internal and account markers', async () => {
+    const inner = await upstream()
+    const instance = await gateway(inner.port)
+    const paired = await pair(instance)
+    const headers = {
+      ...browserHeaders(instance), accept: 'application/json', 'content-type': 'application/json',
+      cookie: `${SESSION_COOKIE}=${paired.session}`,
+      'x-dsh-im-connect-client': '1',
+      'x-dsh-custom-marker': 'abc123',
+      'x-dsh-auth-token': 'must-not-forward',
+      [CSRF_HEADER]: paired.csrf,
+    }
+    const body = '{"channel":"im-1"}'
+    const result = await request(instance.address().port, '/api/plugins/im-connect/sessions/ensure', {
+      method: 'POST', headers, body,
+    })
+    expect(result.status).toBe(200)
+    const observed = inner.observations.find(entry => entry.url === '/api/plugins/im-connect/sessions/ensure')
+    expect(observed?.method).toBe('POST')
+    expect(observed?.body).toBe(body)
+    expect(observed?.headers['x-dsh-im-connect-client']).toBe('1')
+    expect(observed?.headers['x-dsh-custom-marker']).toBe('abc123')
+    expect(observed?.headers['x-dsh-auth-token']).toBeUndefined()
+    expect(observed?.headers[CSRF_HEADER]).toBeUndefined()
+  })
+
   it('protects compatibility assets and refuses missing, oversized, or non-GET requests', async () => {
     const inner = await upstream()
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-compat-route-'))

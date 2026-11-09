@@ -387,7 +387,7 @@ describe('mobile push browser controller', () => {
     controller.stop()
   })
 
-  it('persists host opt-out before unsubscribe and leaves consent disabled on cleanup failure', async () => {
+  it('persists host opt-out without unsubscribing the browser subscription', async () => {
     const order: string[] = []
     const { controller, api, pushManager, subscription } = setup({}, {
       disable: vi.fn(async () => { order.push('disable') }),
@@ -397,8 +397,9 @@ describe('mobile push browser controller', () => {
     await flush()
     await controller.enableFromGesture()
     await controller.disable()
-    expect(order).toEqual(['disable', 'unsubscribe'])
+    expect(order).toEqual(['disable'])
     expect(api.disable).toHaveBeenCalledTimes(1)
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(controller.getSnapshot().state).toBe('disabled')
     controller.stop()
   })
@@ -531,7 +532,7 @@ describe('mobile push browser controller', () => {
     const firstEnable = controller.enableFromGesture()
     const first = await firstCommitted.promise
     await controller.disable()
-    expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     const secondEnable = controller.enableFromGesture()
     await secondEnable
     const secondConsent = await service.config(owner, installationId)
@@ -541,7 +542,7 @@ describe('mobile push browser controller', () => {
     const finalConsent = await service.config(owner, installationId)
     expect(finalConsent.status).toBe('enabled')
     expect(finalConsent.ownerGeneration).toBe(secondConsent.ownerGeneration)
-    expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
     expect(disableCalls).toEqual([{ installationId }, { installationId, ifGeneration: first.mutationGeneration }])
     controller.stop()
     await service.close()
