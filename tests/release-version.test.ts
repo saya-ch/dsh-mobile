@@ -159,6 +159,24 @@ describe('release version and documentation gate', () => {
     expect(result.output).toContain(`README.en.md still marks ${version} is not released as in development`)
   })
 
+  it('rejects stale release-state claims across shipped guides', async () => {
+    const result = await check({
+      'docs/CLIENT_MODULES.md': '插件 0.5.5 候选仍将设置入口列为启动必需项。\n',
+      'docs/CLIENT_MODULES.en.md': 'The plugin 0.5.5 candidate remains current.\n',
+    })
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('docs/CLIENT_MODULES.md:1: 0.5.5 候选 describes 0.5.5 as unreleased')
+    expect(result.output).toContain('docs/CLIENT_MODULES.en.md:1: 0.5.5 candidate describes 0.5.5 as unreleased')
+  })
+
+  it('rejects a preparation candidate label in release documentation', async () => {
+    const result = await check({
+      'CHANGELOG.md': `${releasedFiles()['CHANGELOG.md']}\n- Plugin-only preparation candidate.\n`,
+    })
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('CHANGELOG.md:5: Plugin-only preparation candidate remains in release documentation')
+  })
+
   it('requires one root stable release statement', async () => {
     const missing = await check({ 'README.en.md': `[App](${apkLink})\n[Release](${releaseLink})\n` })
     expect(missing.status).toBe(1)

@@ -24,13 +24,13 @@ Thanks [@xaxka](https://github.com/xaxka) for the shared-FRP username in [#344](
 
 ## 0.8.2 贡献 / Contributions for 0.8.2
 
-感谢 [@LUgABeEEE](https://github.com/LUgABeEEE) 通过 [#343](https://github.com/saya-ch/dsh-mobile/pull/343) 修正 Android 固定证书的 WebSocket 地址判断。原作者提交保留；维护者补充完整证书决策组合回归。该原生改动归入独立编号的 Android 0.7.2 候选，不由 npm 升级替代。
+感谢 [@LUgABeEEE](https://github.com/LUgABeEEE) 通过 [#343](https://github.com/saya-ch/dsh-mobile/pull/343) 修正 Android 固定证书的 WebSocket 地址判断。原作者提交保留；维护者补充完整证书决策组合回归。该原生改动已随独立编号的 Android 0.7.2 发布，不由 npm 升级替代。
 
-Thanks [@LUgABeEEE](https://github.com/LUgABeEEE) for the Android pinned-WebSocket authority fix in [#343](https://github.com/saya-ch/dsh-mobile/pull/343). Original commits are retained alongside maintainer combined-certificate regressions. This native change belongs to the independently versioned Android 0.7.2 candidate, not an npm-only update.
+Thanks [@LUgABeEEE](https://github.com/LUgABeEEE) for the Android pinned-WebSocket authority fix in [#343](https://github.com/saya-ch/dsh-mobile/pull/343). Original commits are retained alongside maintainer combined-certificate regressions. This native change shipped in the independently versioned Android 0.7.2 release, not an npm-only update.
 
-感谢 [@LunarFeller](https://github.com/LunarFeller) 在 [#341](https://github.com/saya-ch/dsh-mobile/issues/341) 定位 FRP 接入模式的标题与 SSH 字段残留，并通过 [#342](https://github.com/saya-ch/dsh-mobile/pull/342) 提交修复；候选保留原作者提交，并补充浏览器回归。
+感谢 [@LunarFeller](https://github.com/LunarFeller) 在 [#341](https://github.com/saya-ch/dsh-mobile/issues/341) 定位 FRP 接入模式的标题与 SSH 字段残留，并通过 [#342](https://github.com/saya-ch/dsh-mobile/pull/342) 提交修复；发布保留原作者提交，并补充浏览器回归。
 
-Thanks [@LunarFeller](https://github.com/LunarFeller) for diagnosing the FRP attach-mode heading and SSH-field remnants in [#341](https://github.com/saya-ch/dsh-mobile/issues/341) and contributing the fix in [#342](https://github.com/saya-ch/dsh-mobile/pull/342). The candidate preserves the original commit and adds browser regression coverage.
+Thanks [@LunarFeller](https://github.com/LunarFeller) for diagnosing the FRP attach-mode heading and SSH-field remnants in [#341](https://github.com/saya-ch/dsh-mobile/issues/341) and contributing the fix in [#342](https://github.com/saya-ch/dsh-mobile/pull/342). The release preserves the original commit and adds browser regression coverage.
 
 感谢 [@madlogos](https://github.com/madlogos) 在[后续反馈](https://github.com/saya-ch/dsh-mobile/issues/337#issuecomment-6593356950)中指出最小加载后的设置访问与全量恢复问题，推动旧选择重启恢复流程的验收和说明。
 

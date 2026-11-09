@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -42,6 +42,59 @@ function compareStableVersions(left, right) {
     if (a[index] !== b[index]) return Math.sign(a[index] - b[index])
   }
   return 0
+}
+
+async function releaseDocumentation() {
+  const selected = ['README.md', 'README.en.md', 'CHANGELOG.md', 'CONTRIBUTORS.md']
+  async function collect(relativeDirectory) {
+    let entries
+    try {
+      entries = await readdir(resolve(root, relativeDirectory), { withFileTypes: true })
+    } catch (error) {
+      if (error?.code === 'ENOENT') return
+      throw error
+    }
+    for (const entry of entries) {
+      const relativePath = `${relativeDirectory}/${entry.name}`
+      if (entry.isDirectory()) await collect(relativePath)
+      else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) selected.push(relativePath)
+    }
+  }
+  await collect('docs')
+  return [...new Set(selected)]
+}
+
+function lineNumber(source, offset) {
+  return source.slice(0, offset).split('\n').length
+}
+
+async function staleReleaseClaims(packageVersion) {
+  const findings = []
+  const statusPatterns = [
+    /(?:^|[\s(（`])v?(\d+\.\d+\.\d+)\s+(?:候选|尚未发布|还未发布|未发布)/gu,
+    /(?:^|[\s(（`])v?(\d+\.\d+\.\d+)\s+(?:candidate|not released|not yet released)\b/giu,
+    /\bVersion\s+(\d+\.\d+\.\d+)\s+is\s+not\s+released(?:\s+yet)?\b/giu,
+  ]
+  for (const file of await releaseDocumentation()) {
+    let source
+    try {
+      source = await read(file)
+    } catch (error) {
+      if (error?.code === 'ENOENT') continue
+      throw error
+    }
+    for (const pattern of statusPatterns) {
+      for (const match of source.matchAll(pattern)) {
+        if (match[1] !== undefined && compareStableVersions(match[1], packageVersion) <= 0) {
+          findings.push(`${file}:${lineNumber(source, match.index)}: ${match[0].trim()} describes ${match[1]} as unreleased`)
+        }
+      }
+    }
+    for (const match of source.matchAll(/\bPlugin-only preparation candidate\b/giu)) {
+      findings.push(`${file}:${lineNumber(source, match.index)}: ${match[0]} remains in release documentation`)
+    }
+  }
+  return [...new Set(findings)]
 }
 
 async function main() {
@@ -144,6 +197,10 @@ async function main() {
         `${label} stable App version`)
       if (stableVersion !== publishedAppVersion) throw new Error(`${label} stable App version ${JSON.stringify(stableVersion)} must equal published Android version ${JSON.stringify(publishedAppVersion)} before tagging`)
       if (candidateHeading.test(source)) throw new Error(`${label} still has a ${publishedAppVersion} candidate changes headline before tagging`)
+    }
+    const staleClaims = await staleReleaseClaims(packageVersion)
+    if (staleClaims.length > 0) {
+      throw new Error(`release documentation still contains stale claims:\n${staleClaims.join('\n')}`)
     }
     for (const screenshot of [
       'assets/screenshots/lan-access.png',

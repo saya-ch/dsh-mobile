@@ -40,7 +40,7 @@ Close, Escape and the App's Back action ask before discarding unsaved changes. A
 
 Computer pages and `?frontend=stock` pages are unaffected. DSH or community-plugin updates can change the catalog and dependencies. When a saved selection prevents the mobile page from starting, the page offers “Load all modules for this device and retry”; it changes this device’s selection only when you click, without changing computer defaults, other devices or pairing authorization. Settings APIs still reject invalid selections and enforce required-module and dependency checks.
 
-The plugin 0.8.2 candidate marks the installed General settings provider as required for boot, fixing old minimal selections that made the settings entry unavailable. If an old record excludes that provider, reopening the mobile page shows recovery without requiring settings access first. Only selecting Load all saves and retries; a failure retains the old selection for an explicit retry. Pairings need not be deleted. Version 0.8.2 is not released yet; see [CHANGELOG](../CHANGELOG.md) for release status.
+Since plugin 0.8.2, the installed General settings provider has been required for boot, fixing old minimal selections that made the settings entry unavailable. If an old record excludes that provider, reopening the mobile page shows recovery without requiring settings access first. Only selecting Load all saves and retries; a failure retains the old selection for an explicit retry. Pairings need not be deleted.
 
 ## Measure sizes and minimize loading
 
