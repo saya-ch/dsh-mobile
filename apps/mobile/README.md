@@ -132,7 +132,7 @@ DSH records audio through `getUserMedia` and sends it to the configured computer
 
 ## Notifications and extensions
 
-Task reminders use Host completion events and pending-input cards. While the page is alive it sends notifications through the native bridge; **Settings → General → Task notifications** can explicitly enable **background reminders**, a dismissible foreground service that keeps the active paired-computer connection alive after Android suspends the page. The service remains subject to foreground-service time limits, battery policy and connectivity, displays a persistent notification, does not yet support iroh pairings, and does not replay events across disconnection. A tap may carry a bounded same-origin `dsh-session` route, which opens the matching conversation after a cold or warm start; any other target falls back to the app root. Cloudflare Quick Tunnels do not support the event stream; see [channel limits](../../docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits).
+Task reminders use Host completion events and pending-input cards while the page remains alive. Lock-screen text is generic and tapping returns to the app. They are not an offline push service: completion reminders require SSE, with no event replay after disconnection. Cloudflare Quick Tunnels do not support this stream; see [channel limits](../../docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits).
 
 The authenticated page may use the `dshMobile` bridge for `files.pick`, `camera.capture`, `share`, clipboard read/write, task notifications/settings, computer switching and page scaling. The separate extension `files.pick` returns one file, follows its requested MIME types and limits bridge-returned file bytes to 8 MiB. This is not the standard DSH attachment selector's limit.
 
@@ -147,7 +147,7 @@ Computer-side `host.mjs` extensions are trusted Node.js code, separate from this
 | Transport | HTTPS only; Manifest cleartext traffic is disabled. |
 | Trust | Exact-Origin platform trust or a privately pinned pairing CA. User-installed system CAs are not broadly trusted. |
 | Navigation | Same-origin main frames remain inside; explicit external HTTPS links open in the system browser. |
-| Permissions | Camera for explicit scanning/capture, microphone for DSH recording, notifications through a foreground permission/settings action, and an explicitly enabled `dataSync` foreground service for background reminders; standard file selection needs no storage permission. |
+| Permissions | Camera for explicit scanning/capture, microphone for DSH recording, notifications through a foreground permission/settings action; standard file selection needs no storage permission. |
 | Bridge | WebMessage listener validates exact top-level Origin and main frame; no `addJavascriptInterface` or arbitrary Android API. |
 | Limits | Inbound message 1 MiB, clipboard 256 KiB, binary bridge result 8 MiB, reply 12 MiB. |
 | Credentials | Bridge replies do not automatically include stored pairing credentials; there is no direct bridge API for reading the credential store or private keys. Clipboard contents and selected files may contain sensitive data: use only trusted extensions. |
