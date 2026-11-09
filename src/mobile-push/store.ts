@@ -23,13 +23,18 @@ function owner(value: unknown): value is OwnerFields { return object(value) && t
 function recipient(value: unknown): boolean { return owner(value) && typeof value.installationId === 'string' && value.installationId.length > 0 }
 function only(value: Record<string, unknown>, keys: readonly string[]): boolean { return Object.keys(value).every(key => keys.includes(key)) }
 function validSource(value: unknown): boolean {
-  if (!object(value) || !only(value, ['sourceId', 'sessionId', 'targetSessionId', 'category', 'createdAt', 'expiresAt', 'lifetime', 'turn', 'callId', 'goal'])) return false
+  if (!object(value) || !only(value, ['sourceId', 'sessionId', 'targetSessionId', 'category', 'createdAt', 'expiresAt', 'lifetime', 'turn', 'callId', 'goal', 'custom'])) return false
   const categories = ['question', 'plan', 'approval', 'response', 'goal', 'failure']
   return [value.sourceId, value.sessionId, value.targetSessionId].every(v => typeof v === 'string' && v.length > 0 && v.length <= 4096)
     && categories.includes(String(value.category)) && Number.isFinite(value.createdAt) && Number.isFinite(value.expiresAt)
     && ['live', 'projected', 'committed'].includes(String(value.lifetime))
     && (value.turn === undefined || Number.isSafeInteger(value.turn)) && (value.callId === undefined || typeof value.callId === 'string')
     && (value.goal === undefined || (object(value.goal) && only(value.goal, ['id', 'revision']) && typeof value.goal.id === 'string' && Number.isSafeInteger(value.goal.revision)))
+    && (value.custom === undefined || (object(value.custom) && only(value.custom, ['title', 'body'])
+      && typeof value.custom.title === 'string' && value.custom.title.length > 0 && value.custom.title.length <= 80
+      && !/[\u0000-\u001f\u007f]/u.test(value.custom.title)
+      && typeof value.custom.body === 'string' && value.custom.body.length > 0 && value.custom.body.length <= 200
+      && !/[\u0000-\u001f\u007f]/u.test(value.custom.body)))
 }
 function scopedCounts(rows: readonly unknown[], scope: (row: unknown) => unknown, maximum = 1024): boolean {
   const counts = new Map<unknown, number>()

@@ -201,6 +201,7 @@ class MainActivity : Activity() {
     // WebView exposes grants, not reliable track-ended events. Refuse migration for this document.
     private var audioCaptureGrantedBrowser: WebView? = null
     private var gatewayOrigin: GatewayOrigin? = null
+    private var pendingNotificationNavigate: String? = null
     private var accessMode = AccessMode.LAN
     private var setupBackAction: (() -> Unit)? = null
     private data class PendingWebFileChooser(
@@ -252,6 +253,9 @@ class MainActivity : Activity() {
         applyStatusBarIconContrast(window, getColor(R.color.app_background))
         nearbyPermissionLimited = preferences.getBoolean(PREFERENCE_NEARBY_PERMISSION_LIMITED, false)
         migrateLegacyDeviceSlots()
+        pendingNotificationNavigate = NativeBridgePolicy.sanitizeNotificationNavigate(
+            intent.getStringExtra(NativeBridgePolicy.EXTRA_NOTIFICATION_NAVIGATE).orEmpty(),
+        ).ifEmpty { null }
         val retainedHandoff = lastNonConfigurationInstance as? RetainedBridgeHandoff
         restoredNativeBridgeState = retainedHandoff?.bridgeState
             ?: savedInstanceState?.getBundle(STATE_NATIVE_BRIDGE)
@@ -284,6 +288,29 @@ class MainActivity : Activity() {
             restoreColdStartConnection(
                 restoredMode ?: AccessMode.parse(preferences.getString(PREFERENCE_LAST_ACCESS_MODE, null)),
             )
+        }
+    }
+
+    /**
+     * A task-notification tap can arrive while the app is already foregrounded. Route it to the
+     * same pending-navigate path used at cold start (see showBrowser), so the page lands on the
+     * exact conversation the notification referred to.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val navigate = NativeBridgePolicy.sanitizeNotificationNavigate(
+            intent.getStringExtra(NativeBridgePolicy.EXTRA_NOTIFICATION_NAVIGATE).orEmpty(),
+        ).ifEmpty { return }
+        pendingNotificationNavigate = navigate
+        val origin = gatewayOrigin
+        val browser = webView
+        if (origin != null && browser != null && !isFinishing) {
+            val full = origin.serialized.trimEnd('/') + navigate
+            if (GatewayUrlPolicy.isSameOrigin(origin, full)) {
+                browser.loadUrl(full)
+                pendingNotificationNavigate = null
+            }
         }
     }
 
@@ -1139,6 +1166,7 @@ class MainActivity : Activity() {
                 if (withCredentialStorage { pairedDeviceStore.remove(device.key) } != true) return@setPositiveButton
                 if (activeDeviceKey == device.key) {
                     stopIrohTransport()
+                    BackgroundNotificationService.disable(this)
                     activeDeviceKey = null
                     destroyWebView()
                 }
@@ -2535,6 +2563,7 @@ class MainActivity : Activity() {
             .putLong(lastConnectedPreference(record.mode), record.lastConnectedAt ?: System.currentTimeMillis())
             .putString(originPreference(record.mode), record.origin.serialized)
             .apply()
+        runCatching { BackgroundNotificationService.resumeIfEnabled(this, record.key) }
     }
 
     private fun showPairedDeviceNamePrompt(record: PairedDeviceRecord, complete: () -> Unit) {
@@ -2573,6 +2602,7 @@ class MainActivity : Activity() {
         withCredentialStorage { pairedDeviceStore.update(key) { it.copy(status = PairedDeviceStatus.REVOKED) } }
         runOnUiThread {
             if (activeDeviceKey != key || isFinishing || isDestroyed) return@runOnUiThread
+            BackgroundNotificationService.disable(this)
             activeDeviceKey = null
             destroyWebView()
             Toast.makeText(this, R.string.device_revoked_message, Toast.LENGTH_LONG).show()
@@ -3682,6 +3712,10 @@ class MainActivity : Activity() {
             bridge.onCancelRenewSession = ::cancelPageSessionRenewal
             bridge.onSwitchComputer = ::showDeviceList
             bridge.onOpenTaskNotificationSettings = ::openTaskNotificationSettings
+            bridge.onGetBackgroundNotifications = {
+                BackgroundNotificationService.isEnabled(this) && activeDeviceKey != null
+            }
+            bridge.onSetBackgroundNotifications = ::setBackgroundNotifications
             bridge.onGetDisplayScale = { displayScale.percent }
             bridge.onSetDisplayScale = { percent ->
                 displayScale.set(percent)
@@ -3727,8 +3761,13 @@ class MainActivity : Activity() {
         }
         root.requestApplyInsets()
         root.post { if (webView === browser && !isFinishing) offerWebViewEngineUpdate(browser) }
-        val initialUrl = requestedInitialUrl.takeIf { GatewayUrlPolicy.isSameOrigin(origin, it) }
+        val baseUrl = requestedInitialUrl.takeIf { GatewayUrlPolicy.isSameOrigin(origin, it) }
             ?: origin.serialized
+        val initialUrl = pendingNotificationNavigate?.let { nav ->
+            val full = origin.serialized.trimEnd('/') + nav
+            if (GatewayUrlPolicy.isSameOrigin(origin, full)) full else baseUrl
+        } ?: baseUrl
+        pendingNotificationNavigate = null
         retryUrl = initialUrl
         startIrohStatusMonitor()
         if (stagedBrowser == null) browser.loadUrl(initialUrl)
@@ -3756,6 +3795,29 @@ class MainActivity : Activity() {
         } catch (_: ActivityNotFoundException) {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
+    }
+
+    /**
+     * Opt-in persistent delivery is owned by the active paired computer. An iroh
+     * device stays on the in-page path until the native transport can expose the
+     * same exact public-key/TLS identity to a foreground service.
+     */
+    private fun setBackgroundNotifications(enabled: Boolean): Boolean {
+        if (!enabled) {
+            runCatching { BackgroundNotificationService.disable(this) }
+            return true
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            openTaskNotificationSettings()
+            return false
+        }
+        val key = activeDeviceKey ?: return false
+        if (gatewayOrigin == null) return false
+        val device = pairedDeviceStore.load().firstOrNull { it.key == key } ?: return false
+        if (device.iroh != null) return false
+        return runCatching { BackgroundNotificationService.enable(this, key) }.getOrDefault(false)
     }
 
     private fun showFileChooser(

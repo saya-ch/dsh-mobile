@@ -78,6 +78,77 @@ function publicStatus(status: IrohStatus): IrohStatus {
   return Object.freeze({ ...status })
 }
 
+function diagnosticText(value: Buffer, dataDir: string): string | undefined {
+  const text = value.toString('utf8').replaceAll(dataDir, '<data-dir>').trim().replace(/\s+/gu, ' ')
+  return text === '' ? undefined : text.slice(0, IDENTITY_DIAGNOSTIC_MAX_BYTES)
+}
+
+/** The wrapper `tls-prepare` prints when it discards the underlying native cause. */
+const HOST_TLS_PREPARATION_FAILURE = 'Error: host TLS preparation failed'
+
+/**
+ * Whether the wrapper is the only explanation stderr carries.
+ *
+ * Compare lines, never the whole buffer: the probe collapses whitespace for
+ * reporting, and a preceding warning or a CRLF terminator must not hide the
+ * fact that no cause chain was printed. A `Caused by:` section means the
+ * native explanation already reached us, so the extra host run cannot add
+ * anything the caller does not already have.
+ */
+function isBareHostTlsPreparationFailure(value: Buffer, dataDir: string): boolean {
+  const lines = value.toString('utf8').replaceAll(dataDir, '<data-dir>')
+    .split(/\r?\n/gu)
+    .map(line => line.trim())
+    .filter(line => line !== '')
+  return lines.includes(HOST_TLS_PREPARATION_FAILURE)
+    && !lines.some(line => /^Caused by:/u.test(line))
+}
+
+/**
+ * Ask the host entry point for the cause chain when `tls-prepare` reports only
+ * its top-level wrapper. The command is local-only and bounded; it never
+ * downloads a component or enables relay/discovery.
+ */
+async function hostIdentityDiagnostic(
+  executable: string,
+  dataDir: string,
+  launch: ((executable: string, args: readonly string[]) => ChildProcessWithoutNullStreams) | undefined,
+  onSpawn: ((child: ChildProcess) => void) | undefined,
+): Promise<string | undefined> {
+  const args = ['--lang', 'en', 'host', '--data-dir', dataDir, '--local-only']
+  const child = launch === undefined
+    ? spawn(executable, args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+    : launch(executable, args)
+  onSpawn?.(child)
+  let stderrOutput = Buffer.alloc(0)
+  let settled = false
+  let deadline: ReturnType<typeof setTimeout> | undefined
+  return await new Promise<string | undefined>((resolve) => {
+    const finish = (value: string | undefined): void => {
+      if (settled) return
+      settled = true
+      if (deadline !== undefined) clearTimeout(deadline)
+      resolve(value)
+    }
+    deadline = setTimeout(() => {
+      void terminateRemoteProcess(child).then(
+        () => { finish(diagnosticText(stderrOutput, dataDir)) },
+        () => { finish(diagnosticText(stderrOutput, dataDir)) },
+      )
+    }, 5_000)
+    deadline.unref?.()
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const remaining = IDENTITY_DIAGNOSTIC_MAX_BYTES - stderrOutput.length
+      if (remaining > 0) stderrOutput = Buffer.concat([stderrOutput, chunk.subarray(0, remaining)])
+    })
+    child.once('error', () => { finish(diagnosticText(stderrOutput, dataDir)) })
+    child.once('close', () => { finish(diagnosticText(stderrOutput, dataDir)) })
+    // The host waits on stdin after a successful startup. Closing it makes a
+    // successful diagnostic finite instead of leaving an idle local endpoint.
+    child.stdin?.end()
+  })
+}
+
 /**
  * Prepare the sidecar's private identity/TLS state and resolve its endpoint.
  *
@@ -142,6 +213,21 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
       if (settled) return
       settled = true
       const probeDiagnostic = diagnostic()
+      if (code !== 0 && probeDiagnostic !== undefined
+        && isBareHostTlsPreparationFailure(stderrOutput, dataDir)) {
+        void hostIdentityDiagnostic(executable, dataDir, options.launch, options.onSpawn).then(
+          detail => {
+            const resolvedDiagnostic = detail ?? probeDiagnostic
+            const insecure = /private (?:Windows )?data directory is not secure|private path ACL grants/iu.test(resolvedDiagnostic)
+            reject(new IrohIdentityProbeError(
+              insecure ? 'iroh_data_directory_insecure' : 'iroh_identity_invalid',
+              resolvedDiagnostic,
+            ))
+          },
+          () => { reject(new IrohIdentityProbeError('iroh_identity_invalid', probeDiagnostic)) },
+        )
+        return
+      }
       if (code !== 0 && probeDiagnostic !== undefined
         && /private (?:Windows )?data directory is not secure|private path ACL grants/iu.test(probeDiagnostic)) {
         reject(new IrohIdentityProbeError('iroh_data_directory_insecure', probeDiagnostic))

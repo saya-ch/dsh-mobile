@@ -204,23 +204,37 @@ function remoteSuffix(origin: string | undefined): string {
   }
 }
 
+/**
+ * Read-only PowerShell that reports whether both managed LAN rules are usable.
+ *
+ * The verdict mirrors `windowsFirewallSetupScript`'s post-condition: enabled,
+ * inbound, allow, and `Profile` exactly `Any`. A Domain/Private-scoped rule is
+ * active only on those networks, so reporting it as ready would tell a user on
+ * a Public network that nothing needs fixing. The script only reads: it never
+ * enables, creates or deletes a rule, and the caller keeps its 3s budget.
+ * @param port - managed LAN listener port the rules must cover.
+ */
+export function windowsFirewallProbeScript(port: number): string {
+  return [
+    "$specs = @(@{ Name = 'DSH Mobile HTTPS'; Protocol = 'TCP' }, @{ Name = 'DSH Mobile Discovery'; Protocol = 'UDP' })",
+    '$ready = $true',
+    '$specs | ForEach-Object {',
+    '  $spec = $_',
+    "  $rule = Get-NetFirewallRule -DisplayName $spec.Name -ErrorAction SilentlyContinue | Where-Object { $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' -and $_.Profile -eq 'Any' } | Select-Object -First 1",
+    '  if ($null -eq $rule) { $ready = $false; return }',
+    '  $filters = @($rule | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue)',
+    `  $matching = @($filters | Where-Object { $_.Protocol -eq $spec.Protocol -and ($_.LocalPort -eq 'Any' -or $_.LocalPort -eq '${String(port)}') })`,
+    '  if ($matching.Count -eq 0) { $ready = $false }',
+    '}',
+    "if ($ready) { 'ready' } else { 'missing' }",
+  ].join('; ')
+}
+
 function defaultFirewallProbe(platform: NodeJS.Platform = process.platform): (port: number | undefined) => Promise<FirewallObservation> {
   return async (port) => {
     if (platform !== 'win32') return { state: 'not-applicable' }
     if (port === undefined) return { state: 'unknown' }
-    const script = [
-      "$specs = @(@{ Name = 'DSH Mobile HTTPS'; Protocol = 'TCP' }, @{ Name = 'DSH Mobile Discovery'; Protocol = 'UDP' })",
-      '$ready = $true',
-      '$specs | ForEach-Object {',
-      '  $spec = $_',
-      "  $rule = Get-NetFirewallRule -DisplayName $spec.Name -ErrorAction SilentlyContinue | Where-Object { $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' } | Select-Object -First 1",
-      '  if ($null -eq $rule) { $ready = $false; return }',
-      '  $filters = @($rule | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue)',
-      `  $matching = @($filters | Where-Object { $_.Protocol -eq $spec.Protocol -and ($_.LocalPort -eq 'Any' -or $_.LocalPort -eq '${String(port)}') })`,
-      '  if ($matching.Count -eq 0) { $ready = $false }',
-      '}',
-      "if ($ready) { 'ready' } else { 'missing' }",
-    ].join('; ')
+    const script = windowsFirewallProbeScript(port)
     try {
       const result = await execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
         encoding: 'utf8',

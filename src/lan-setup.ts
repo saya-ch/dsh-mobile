@@ -1,5 +1,6 @@
 import { execFileText as execFile } from './exec-file.js'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import {
   ensureManagedCa,
@@ -38,17 +39,88 @@ function assertManagedPort(port: number, name: string): void {
   }
 }
 
-function powerShellFailureDetail(error: unknown): string {
+/** Longest failure detail carried in the thrown message. */
+const MAX_FAILURE_DETAIL_CHARS = 512
+
+/**
+ * Strip the elevated invocation and filesystem locations from PowerShell text.
+ *
+ * The launcher's stderr quotes the command it ran, including the base64
+ * `-EncodedCommand` payload, and the elevated script quotes its own scratch
+ * path. Neither helps an operator, and both can push the one useful line past
+ * the length bound, so they are replaced before the detail is bounded.
+ */
+function redactPowerShellDetail(value: string): string {
+  return value
+    .replace(/EncodedCommand\s+\S+/giu, 'EncodedCommand <redacted>')
+    .replace(/\b[A-Za-z0-9+/]{64,}={0,2}\b/gu, '<redacted>')
+    .replace(/(?<![A-Za-z])[A-Za-z]:[\\/][^\s'"]*/gu, '<path>')
+}
+
+/** Bounded, redacted detail for a failed elevated Windows operation. */
+export function powerShellFailureDetail(error: unknown, innerError = ''): string {
   if (!(error instanceof Error)) return 'unknown failure'
-  const code = 'code' in error && typeof error.code === 'string' ? ` (${error.code})` : ''
-  const stderr = 'stderr' in error && typeof error.stderr === 'string'
-    ? error.stderr.trim().replace(/\s+/gu, ' ').slice(0, 512)
+  // A non-zero exit surfaces as a numeric code; a spawn failure uses a string.
+  const code = 'code' in error && (typeof error.code === 'string' || typeof error.code === 'number')
+    ? ` (${String(error.code)})`
     : ''
-  return `${code}${stderr === '' ? '' : `: ${stderr}`}`
+  // The elevated process cannot write to the launcher's stderr, so its own
+  // catch block persists the record first; that text wins over the launcher's.
+  const stderr = innerError.trim() === '' && 'stderr' in error && typeof error.stderr === 'string'
+    ? error.stderr
+    : innerError
+  const detail = redactPowerShellDetail(stderr).trim().replace(/\s+/gu, ' ').slice(0, MAX_FAILURE_DETAIL_CHARS)
+  return `${code}${detail === '' ? '' : `: ${detail}`}`
+}
+
+/** Default sink for a scratch directory that could not be removed. */
+function warnFirewallCleanupFailure(detail: string): void {
+  process.emitWarning(`Windows firewall temporary cleanup failed (${detail})`, {
+    code: 'DSH_MOBILE_FIREWALL_CLEANUP_FAILED',
+  })
+}
+
+/**
+ * Remove the elevated helper's scratch directory without touching the run's outcome.
+ *
+ * The directory is created before elevation and removed in a `finally`, so a
+ * cleanup failure must not replace the firewall error that explains the
+ * failure, and must not fail a run that already succeeded. It stays observable
+ * instead: the removal error's code is reported to the warning sink, whose own
+ * failure is ignored for the same reason.
+ * @param directory - scratch path created for this run.
+ * @param options - injectable removal and warning sink for tests.
+ */
+export async function discardFirewallScratch(
+  directory: string,
+  options: { readonly remove?: (path: string) => Promise<void>; readonly warn?: (detail: string) => void } = {},
+): Promise<void> {
+  const remove = options.remove ?? ((path: string) => rm(path, { recursive: true, force: true }))
+  try {
+    await remove(directory)
+  } catch (error) {
+    const code = error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : 'unknown'
+    const warn = options.warn ?? warnFirewallCleanupFailure
+    try { warn(code) } catch { /* a warning observer must not replace the primary outcome */ }
+  }
 }
 
 async function runElevatedPowerShell(script: string): Promise<void> {
-  const encoded = Buffer.from(script, 'utf16le').toString('base64')
+  const temporary = await mkdtemp(join(tmpdir(), 'dsh-mobile-firewall-'))
+  const errorFile = join(temporary, 'error.log')
+  const escapedErrorFile = errorFile.replaceAll("'", "''")
+  const wrapped = [
+    `$__dshMobileErrorFile = '${escapedErrorFile}'`,
+    'try {',
+    script,
+    '} catch {',
+    '  try { [IO.File]::WriteAllText($__dshMobileErrorFile, ($_ | Out-String)) } catch {}',
+    '  throw',
+    '}',
+  ].join('\n')
+  const encoded = Buffer.from(wrapped, 'utf16le').toString('base64')
   const launch = [
     "$ErrorActionPreference = 'Stop'; $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -WindowStyle Hidden -Wait -PassThru",
     `  -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand','${encoded}')`,
@@ -57,7 +129,15 @@ async function runElevatedPowerShell(script: string): Promise<void> {
   try {
     await execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', launch], { windowsHide: true })
   } catch (error) {
-    throw new Error(`Windows firewall operation failed${powerShellFailureDetail(error)}`, { cause: error })
+    let innerError = ''
+    try {
+      innerError = (await readFile(errorFile, 'utf8')).replace(/^\uFEFF/u, '')
+    } catch {
+      // The elevated process may not have started or reached its catch block.
+    }
+    throw new Error(`Windows firewall operation failed${powerShellFailureDetail(error, innerError)}`, { cause: error })
+  } finally {
+    await discardFirewallScratch(temporary)
   }
 }
 
@@ -73,7 +153,7 @@ function firewallRuleScript(name: string, protocol: 'TCP' | 'UDP', port: number)
     '    $rule | Get-NetFirewallAddressFilter | Set-NetFirewallAddressFilter -RemoteAddress LocalSubnet',
     '  }',
     '}',
-    `$verified = @(Get-NetFirewallRule -DisplayName '${name}' -Enabled True -Direction Inbound -Action Allow -Profile Any -ErrorAction Stop)`,
+    `$verified = @(Get-NetFirewallRule -DisplayName '${name}' -ErrorAction Stop | Where-Object { $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' -and $_.Profile -eq 'Any' })`,
     `$matchingPort = @($verified | Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq '${protocol}' -and $_.LocalPort -contains '${String(port)}' })`,
     `$matchingAddress = @($verified | Get-NetFirewallAddressFilter | Where-Object { $_.RemoteAddress -contains 'LocalSubnet' })`,
     `if ($verified.Count -eq 0 -or $matchingPort.Count -eq 0 -or $matchingAddress.Count -eq 0) { throw "DSH Mobile firewall rule '${name}' is not active with the expected scope" }`,

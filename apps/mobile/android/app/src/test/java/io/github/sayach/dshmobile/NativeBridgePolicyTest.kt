@@ -189,6 +189,8 @@ class NativeBridgePolicyTest {
     fun taskNotificationChannelStaysStable() {
         assertEquals("dsh_task_completion", NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)
         assertEquals(7101, NativeBridgePolicy.TASK_NOTIFICATION_ID)
+        assertEquals(NativeBridgePolicy.notificationRequestCode("same"), NativeBridgePolicy.notificationRequestCode("same"))
+        assertTrue(NativeBridgePolicy.notificationRequestCode("first") != NativeBridgePolicy.notificationRequestCode("second"))
         assertEquals(80, NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS)
         assertEquals(200, NativeBridgePolicy.TASK_NOTIFICATION_BODY_CHARS)
         assertEquals(64, NativeBridgePolicy.TASK_NOTIFICATION_TAG_CHARS)
@@ -207,5 +209,46 @@ class NativeBridgePolicyTest {
         assertEquals("q-1-2-pick", NativeBridgePolicy.sanitizeNotificationTag("Q 1/2: pick!"))
         assertEquals("dsh-task", NativeBridgePolicy.sanitizeNotificationTag("!!!"))
         assertTrue(NativeBridgePolicy.sanitizeNotificationTag("x".repeat(100)).length <= 64)
+    }
+
+    @Test
+    fun notificationNavigateAcceptsOnlyTheRouteThePluginProduces() {
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate(""))
+        assertEquals("/", NativeBridgePolicy.sanitizeNotificationNavigate("/"))
+        assertEquals("/?dsh-session=YWJj", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=YWJj"))
+        assertEquals("/?dsh-session=abc-123_xyz", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=abc-123_xyz"))
+        // 270 = "/?dsh-session=" (14) + 256 opaque characters.
+        assertEquals(270, NativeBridgePolicy.NOTIFICATION_NAVIGATE_CHARS)
+        val longest = "/?dsh-session=" + "x".repeat(256)
+        assertEquals(270, longest.length)
+        assertEquals(longest, NativeBridgePolicy.sanitizeNotificationNavigate(longest))
+        // dsh-notify has no producer in src/; the retired route is rejected rather than carried.
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=abc123"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=" + "x".repeat(256)))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("https://evil.example"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("//evil.example/x"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?other=value"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=a b"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=a/b"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/path/to/page"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=" + "x".repeat(257)))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=" + "x".repeat(300)))
+    }
+
+    @Test
+    fun notificationIntentDataSeparatesTagsThatShareARequestCode() {
+        // "Aa" and "BB" are the classic String.hashCode collision pair, and the request code is a
+        // masked hash of the tag: a shared request code alone cannot keep their extras apart.
+        assertEquals("Aa".hashCode(), "BB".hashCode())
+        assertEquals(NativeBridgePolicy.notificationRequestCode("Aa"), NativeBridgePolicy.notificationRequestCode("BB"))
+        assertEquals(NativeBridgePolicy.notificationIntentData("Aa"), NativeBridgePolicy.notificationIntentData("Aa"))
+        assertTrue(NativeBridgePolicy.notificationIntentData("Aa") != NativeBridgePolicy.notificationIntentData("BB"))
+        assertEquals(
+            "dshmobile://task-notification/dsh-task-done-1",
+            NativeBridgePolicy.notificationIntentData("dsh-task-done-1"),
+        )
+        // Arbitrary input never escapes its single URI segment.
+        assertFalse(NativeBridgePolicy.notificationIntentData("a b/../c").contains(' '))
+        assertFalse(NativeBridgePolicy.notificationIntentData("a b/../c").removePrefix("dshmobile://task-notification/").contains('/'))
     }
 }

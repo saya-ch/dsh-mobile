@@ -2,6 +2,18 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.8.6 - 2026-11-10
+
+- Forward paired plugin `x-dsh-*` request headers through the mobile Gateway while continuing to strip internal `x-dsh-mobile-*` markers and the DSH account credential header. This restores third-party plugin write routes that validate their own request marker. Thanks @mekswhy for the reproduction in [#375](https://github.com/saya-ch/dsh-mobile/issues/375) and @lnuxe for [#376](https://github.com/saya-ch/dsh-mobile/pull/376).
+- Send a bounded same-origin session route with Android task notifications and keep the full opaque Session ID instead of truncating it, so a tap can open the matching conversation. The page and Gateway half ships here; the native half is prepared as Android App 0.7.3 below and released separately. Thanks @owenzhao for the reproduction in [#371](https://github.com/saya-ch/dsh-mobile/issues/371), and @lnuxe for the implementation in [#374](https://github.com/saya-ch/dsh-mobile/pull/374).
+- Add a background-only task event stream to the paired Gateway, so a native client can receive completion events after Android suspends the page instead of relying on the page stream. Credential renewal, pinned TLS, the persistent notification and the deliberate iroh rejection belong to the App half prepared below; the plugin alone does not deliver a background reminder.
+- Keep the browser push subscription after an explicit web-push Disable so iOS can reuse it safely instead of creating an unusable replacement after a quick unsubscribe/subscribe cycle. Thanks @owenzhao for [#373](https://github.com/saya-ch/dsh-mobile/issues/373).
+- Expose the trusted Host-plugin `mobilePush.notify` service for bounded, category-checked custom web-push title/body text and session targets while retaining opaque click references. Thanks @owenzhao for [#372](https://github.com/saya-ch/dsh-mobile/issues/372).
+- Verify updated Windows firewall rules with a name query followed by property filtering, and retain the elevated child's failure text plus its numeric exit code in the plugin log. This removes the PowerShell parameter-set conflict that made managed LAN setup fail after creating only the TCP rule. Thanks @zustttt for the diagnosis in [#379](https://github.com/saya-ch/dsh-mobile/issues/379).
+- Recover the longer iroh private-directory cause chain by following a generic `tls-prepare` failure with a bounded local-only host probe. This keeps the existing sidecar compatible while classifying the reported Windows ACL failure explicitly. Thanks @fgql for the follow-up reproduction in [#365](https://github.com/saya-ch/dsh-mobile/issues/365).
+- Recognize the wrapper failure on any stderr line instead of requiring the whole buffer to equal it, so a preceding warning or an extra diagnostic no longer hides that cause chain. A failed managed-LAN firewall operation now keeps its own error when the scratch directory cannot be removed, and its detail omits the encoded command and local paths; the firewall diagnostics check the same rule profile as the managed setup before reporting a rule as ready.
+- Plugin-only update. Android 0.7.2 remains the published App; the Android 0.7.3 changes below are prepared in this repository and are released separately.
+
 ## 0.8.5 - 2026-11-08
 
 - Update an existing Windows managed-LAN firewall rule in place and verify its resulting scope instead of deleting the previous rules first. Administrator cancellation or a policy rejection now retains the prior rule and records a bounded error in the plugin log. Thanks @lyc0110 for the reproduction in [#364](https://github.com/saya-ch/dsh-mobile/issues/364).
@@ -12,6 +24,12 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Resolve an in-app plugin update against the profile that loaded the running module when a Desktop host omits the current-profile service. The install-path fallback remains limited to profiles below `$DSH_HOME/profiles`, so a launcher that omits `--profile` can no longer silently update `web` instead of `desktop`. Thanks @Kizaemon for the detailed reproduction in [#368](https://github.com/saya-ch/dsh-mobile/issues/368).
 - Accept RFC 6598 `100.64.0.0/10` addresses as managed-LAN candidates, including networks whose router or ISP exposes CGNAT-style addressing for the local Ethernet or Wi-Fi segment. The admin Host-header check continues to reject CGNAT to preserve its DNS-rebinding defence. Thanks @Kizaemon for the diagnosis in [#369](https://github.com/saya-ch/dsh-mobile/issues/369).
 - Plugin-only update. Android 0.7.2 remains the published App; no native App change is included.
+
+## Android 0.7.3 - Unreleased
+
+- Make task notification navigation preserve the full bounded opaque Session ID and open the exact conversation after a cold or warm tap. Each notification identifies its tap target by its tag, so two notifications cannot overwrite one another's target even when their request codes collide. Only the built-in `dsh-session` route is accepted. Thanks @owenzhao for the report in [#371](https://github.com/saya-ch/dsh-mobile/issues/371) and @lnuxe for the original implementation in [#374](https://github.com/saya-ch/dsh-mobile/pull/374).
+- Add an explicit, opt-in `dataSync` foreground service for completion alerts after Android suspends the WebView. It renews the paired credential, pins the configured CA, keeps a persistent notification, stops on device removal or revocation, and deliberately rejects iroh pairings until the native transport exposes the same authenticated identity. Notification permission remains a separate Android setting. Thanks @owenzhao for the background-delivery analysis in [#377](https://github.com/saya-ch/dsh-mobile/issues/377).
+- A background-service start that the platform rejects no longer leaves the setting reported as enabled, and the service withdraws the opt-in when Android ends its foreground time budget instead of being killed as unresponsive.
 
 ## 0.8.4 - 2026-11-07
 
