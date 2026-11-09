@@ -83,6 +83,27 @@ function diagnosticText(value: Buffer, dataDir: string): string | undefined {
   return text === '' ? undefined : text.slice(0, IDENTITY_DIAGNOSTIC_MAX_BYTES)
 }
 
+/** The wrapper `tls-prepare` prints when it discards the underlying native cause. */
+const HOST_TLS_PREPARATION_FAILURE = 'Error: host TLS preparation failed'
+
+/**
+ * Whether the wrapper is the only explanation stderr carries.
+ *
+ * Compare lines, never the whole buffer: the probe collapses whitespace for
+ * reporting, and a preceding warning or a CRLF terminator must not hide the
+ * fact that no cause chain was printed. A `Caused by:` section means the
+ * native explanation already reached us, so the extra host run cannot add
+ * anything the caller does not already have.
+ */
+function isBareHostTlsPreparationFailure(value: Buffer, dataDir: string): boolean {
+  const lines = value.toString('utf8').replaceAll(dataDir, '<data-dir>')
+    .split(/\r?\n/gu)
+    .map(line => line.trim())
+    .filter(line => line !== '')
+  return lines.includes(HOST_TLS_PREPARATION_FAILURE)
+    && !lines.some(line => /^Caused by:/u.test(line))
+}
+
 /**
  * Ask the host entry point for the cause chain when `tls-prepare` reports only
  * its top-level wrapper. The command is local-only and bounded; it never
@@ -193,7 +214,7 @@ export async function defaultResolveIdentity(executable: string, dataDir: string
       settled = true
       const probeDiagnostic = diagnostic()
       if (code !== 0 && probeDiagnostic !== undefined
-        && /^Error: host TLS preparation failed$/u.test(probeDiagnostic)) {
+        && isBareHostTlsPreparationFailure(stderrOutput, dataDir)) {
         void hostIdentityDiagnostic(executable, dataDir, options.launch, options.onSpawn).then(
           detail => {
             const resolvedDiagnostic = detail ?? probeDiagnostic

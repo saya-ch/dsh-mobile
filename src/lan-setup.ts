@@ -39,16 +39,72 @@ function assertManagedPort(port: number, name: string): void {
   }
 }
 
-function powerShellFailureDetail(error: unknown, innerError = ''): string {
+/** Longest failure detail carried in the thrown message. */
+const MAX_FAILURE_DETAIL_CHARS = 512
+
+/**
+ * Strip the elevated invocation and filesystem locations from PowerShell text.
+ *
+ * The launcher's stderr quotes the command it ran, including the base64
+ * `-EncodedCommand` payload, and the elevated script quotes its own scratch
+ * path. Neither helps an operator, and both can push the one useful line past
+ * the length bound, so they are replaced before the detail is bounded.
+ */
+function redactPowerShellDetail(value: string): string {
+  return value
+    .replace(/EncodedCommand\s+\S+/giu, 'EncodedCommand <redacted>')
+    .replace(/\b[A-Za-z0-9+/]{64,}={0,2}\b/gu, '<redacted>')
+    .replace(/(?<![A-Za-z])[A-Za-z]:[\\/][^\s'"]*/gu, '<path>')
+}
+
+/** Bounded, redacted detail for a failed elevated Windows operation. */
+export function powerShellFailureDetail(error: unknown, innerError = ''): string {
   if (!(error instanceof Error)) return 'unknown failure'
+  // A non-zero exit surfaces as a numeric code; a spawn failure uses a string.
   const code = 'code' in error && (typeof error.code === 'string' || typeof error.code === 'number')
     ? ` (${String(error.code)})`
     : ''
+  // The elevated process cannot write to the launcher's stderr, so its own
+  // catch block persists the record first; that text wins over the launcher's.
   const stderr = innerError.trim() === '' && 'stderr' in error && typeof error.stderr === 'string'
     ? error.stderr
     : innerError
-  const detail = stderr.trim().replace(/\s+/gu, ' ').slice(0, 512)
+  const detail = redactPowerShellDetail(stderr).trim().replace(/\s+/gu, ' ').slice(0, MAX_FAILURE_DETAIL_CHARS)
   return `${code}${detail === '' ? '' : `: ${detail}`}`
+}
+
+/** Default sink for a scratch directory that could not be removed. */
+function warnFirewallCleanupFailure(detail: string): void {
+  process.emitWarning(`Windows firewall temporary cleanup failed (${detail})`, {
+    code: 'DSH_MOBILE_FIREWALL_CLEANUP_FAILED',
+  })
+}
+
+/**
+ * Remove the elevated helper's scratch directory without touching the run's outcome.
+ *
+ * The directory is created before elevation and removed in a `finally`, so a
+ * cleanup failure must not replace the firewall error that explains the
+ * failure, and must not fail a run that already succeeded. It stays observable
+ * instead: the removal error's code is reported to the warning sink, whose own
+ * failure is ignored for the same reason.
+ * @param directory - scratch path created for this run.
+ * @param options - injectable removal and warning sink for tests.
+ */
+export async function discardFirewallScratch(
+  directory: string,
+  options: { readonly remove?: (path: string) => Promise<void>; readonly warn?: (detail: string) => void } = {},
+): Promise<void> {
+  const remove = options.remove ?? ((path: string) => rm(path, { recursive: true, force: true }))
+  try {
+    await remove(directory)
+  } catch (error) {
+    const code = error !== null && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : 'unknown'
+    const warn = options.warn ?? warnFirewallCleanupFailure
+    try { warn(code) } catch { /* a warning observer must not replace the primary outcome */ }
+  }
 }
 
 async function runElevatedPowerShell(script: string): Promise<void> {
@@ -81,7 +137,7 @@ async function runElevatedPowerShell(script: string): Promise<void> {
     }
     throw new Error(`Windows firewall operation failed${powerShellFailureDetail(error, innerError)}`, { cause: error })
   } finally {
-    await rm(temporary, { recursive: true, force: true })
+    await discardFirewallScratch(temporary)
   }
 }
 

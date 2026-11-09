@@ -196,15 +196,35 @@ internal object NativeBridgePolicy {
     fun notificationRequestCode(tag: String): Int = tag.hashCode() and 0x7fffffff
 
     /**
-     * Bound page-supplied notification navigate target: only a same-origin relative path,
-     * mirroring the web-push rule (src/mobile-push/payload.ts validateNavigate). Empty means
-     * the page opened at the app root; unusable input is rejected, never coerced.
+     * Stable per-tag data URI for a notification tap. PendingIntent identity compares the component,
+     * action, data and categories but never the extras, so a request code derived from a 31-bit hash
+     * cannot separate two notifications that carry different navigation targets: the second one
+     * silently replaces the first one's extras. Encoding the tag in the data URI makes every tag its
+     * own PendingIntent regardless of hash collisions.
+     */
+    fun notificationIntentData(tag: String): String = buildString {
+        append(NOTIFICATION_INTENT_SCHEME)
+        for (character in tag) {
+            if (character.isNotificationDataChar()) append(character)
+            else append('%').append(character.code.toString(16).padStart(2, '0'))
+        }
+    }
+
+    private fun Char.isNotificationDataChar(): Boolean = this in 'a'..'z' || this in 'A'..'Z'
+        || this in '0'..'9' || this == '-' || this == '.' || this == '_' || this == '~'
+
+    private const val NOTIFICATION_INTENT_SCHEME = "dshmobile://task-notification/"
+
+    /**
+     * Bound page-supplied notification navigate target: only a same-origin relative path carrying the
+     * built-in opaque Session route. `dsh-session` is the only route the plugin produces
+     * (src/task-notify.ts `taskNotificationNavigate`); an unknown parameter is rejected, never coerced.
      */
     fun sanitizeNotificationNavigate(value: String): String {
         val trimmed = value.trim()
         if (trimmed.isEmpty()) return ""
         if (trimmed == "/") return "/"
         if (trimmed.length > NOTIFICATION_NAVIGATE_CHARS) return ""
-        return trimmed.takeIf { Regex("^/[?](?:dsh-notify|dsh-session)=[A-Za-z0-9_-]{1,256}$").matches(it) } ?: ""
+        return trimmed.takeIf { Regex("^/[?]dsh-session=[A-Za-z0-9_-]{1,256}$").matches(it) } ?: ""
     }
 }

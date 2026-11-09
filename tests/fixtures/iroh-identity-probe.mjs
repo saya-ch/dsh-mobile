@@ -49,9 +49,47 @@ if (mode === 'hang') {
 } else if (mode === 'generic-tls-failure') {
   process.stderr.write('Error: host TLS preparation failed\n')
   process.exit(3)
-} else if (mode === 'host-unsafe-directory') {
-  process.stderr.write('Error: private Windows data directory is not secure\nCaused by: private path ACL grants access or replacement rights to another principal\n')
+} else if (mode === 'generic-tls-failure-crlf') {
+  // Windows native tools and Rust's line buffering can surface CRLF; the
+  // wrapper must still be recognized as the bare failure.
+  process.stderr.write('Error: host TLS preparation failed\r\n')
   process.exit(3)
+} else if (mode === 'generic-tls-failure-prefixed') {
+  // Any preceding diagnostic line must not hide the fact that the wrapper is
+  // the only explanation available.
+  process.stderr.write('warning: iroh relay disabled\r\nError: host TLS preparation failed\r\n')
+  process.exit(3)
+} else if (mode === 'unrelated-failure') {
+  process.stderr.write('Error: cannot open profile lock\n')
+  process.exit(3)
+} else if (mode === 'oversized-stderr') {
+  // More than the bounded diagnostic budget: the parent must truncate instead
+  // of buffering the whole stream.
+  process.stderr.write('x'.repeat(8192))
+  process.stderr.write('\n')
+  process.exit(3)
+} else if (mode === 'host-unsafe-directory' || mode === 'host-wait-stdin' || mode === 'host-hang') {
+  // A fallback host run advertises itself so a test can prove whether it was
+  // launched at all, and with which pid.
+  writeFileSync(`${marker}.host`, String(process.pid))
+  if (mode === 'host-unsafe-directory') {
+    process.stderr.write('Error: private Windows data directory is not secure\nCaused by: private path ACL grants access or replacement rights to another principal\n')
+    process.exit(3)
+  }
+  if (mode === 'host-wait-stdin') {
+    // A real host waits on stdin after startup; only the parent closing it
+    // makes this run finite, so a hang here proves stdin was left open.
+    process.stdin.on('end', () => {
+      process.stderr.write('Error: private Windows data directory is not secure\nCaused by: private path ACL grants access or replacement rights to another principal\n', () => process.exit(3))
+    })
+    process.stdin.resume()
+    setInterval(() => {}, 1_000)
+  }
+  if (mode === 'host-hang') {
+    // Ignores SIGTERM so the fallback budget must escalate to SIGKILL.
+    process.on('SIGTERM', () => { setTimeout(() => process.exit(0), 60_000) })
+    setInterval(() => {}, 1_000)
+  }
 } else if (mode === 'invalid-utf8') {
   process.stdout.write(Buffer.from([0xff, 0xfe, 0xfd]))
   process.exit(0)

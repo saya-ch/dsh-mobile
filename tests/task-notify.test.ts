@@ -289,6 +289,73 @@ describe('task completion tracker', () => {
     expect(taskNotificationNavigate('x'.repeat(300))).toBeUndefined()
   })
 
+  it('keeps the longest session id that still fits the 270-character native route', () => {
+    // '/?dsh-session=' is 14 characters and base64url turns 3 bytes into 4, so a
+    // 192-byte id encodes to 256 characters and the whole route lands exactly on
+    // the cap NativeBridgePolicy.NOTIFICATION_NAVIGATE_CHARS publishes (270).
+    const sessionId = 'a'.repeat(192)
+    const route = taskNotificationNavigate(sessionId)
+    expect(route).toMatch(/^\/\?dsh-session=[A-Za-z0-9_-]{1,256}$/u)
+    expect(route).toHaveLength(270)
+    const encoded = route!.slice(route!.indexOf('dsh-session=') + 'dsh-session='.length)
+    expect(encoded).toHaveLength(256)
+    expect(decodeTaskNotificationNavigate(encoded)).toBe(sessionId)
+  })
+
+  it('omits an over-long target instead of truncating it and still notifies at the app root', async () => {
+    expect(taskNotificationNavigate('a'.repeat(191))).toHaveLength(269)
+    expect(taskNotificationNavigate('a'.repeat(193))).toBeUndefined()
+    const invoke = vi.fn(async () => undefined)
+    const previous = (globalThis as { window?: unknown }).window
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { __DSH_MOBILE_NATIVE__: { capabilities: async () => ['notification.notify'], invoke } },
+    })
+    try {
+      // Known degradation: no target is invented or cut short, so the shell opens
+      // its own root page while the completion alert itself still fires.
+      const navigate = taskNotificationNavigate('a'.repeat(193))
+      expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done', navigate })).toBe(true)
+      await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('notification.notify', {
+        title: 't', body: 'b', tag: 'dsh-task-done',
+      }))
+    } finally {
+      if (previous === undefined) delete (globalThis as { window?: unknown }).window
+      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
+    }
+  })
+
+  it('leaves target validation to the native shell instead of rewriting the page value', async () => {
+    // A live-WebView tap is the Android shell's decision: NativeBridgePolicy
+    // .sanitizeNotificationNavigate accepts only /?dsh-session= with 1-256
+    // url-safe characters and rejects everything else. This module is not a
+    // second validator and must forward what the page produced unchanged.
+    const invoke = vi.fn(async () => undefined)
+    const previous = (globalThis as { window?: unknown }).window
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { __DSH_MOBILE_NATIVE__: { capabilities: async () => ['notification.notify'], invoke } },
+    })
+    try {
+      const targets = ['/?dsh-notify=abc123', 'https://evil.example/x', '/?dsh-session=YWJj&extra=1']
+      for (const [index, navigate] of targets.entries()) {
+        const tag = `dsh-task-done-${String(index)}`
+        expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag, navigate })).toBe(true)
+        await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('notification.notify', { title: 't', body: 'b', tag, navigate }))
+      }
+    } finally {
+      if (previous === undefined) delete (globalThis as { window?: unknown }).window
+      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
+    }
+  })
+
+  it('rejects navigation values that are not a bounded base64url session reference', () => {
+    for (const value of ['/?dsh-session=YWJj', 'https://evil.example/', 'YWJj&extra=1', 'YWJj extras', 'dsh-notify=abc', 'A'.repeat(257), '']) {
+      expect(decodeTaskNotificationNavigate(value)).toBeUndefined()
+    }
+    expect(decodeTaskNotificationNavigate('YWJj')).toBe('abc')
+  })
+
   it.each(['session-a', '会话／🐋', '\ud800'])('retains the original SHA-256 tag for %j', sessionId => {
     const digest = createHash('sha256').update(JSON.stringify(sessionId), 'utf8').digest('hex').slice(0, 32)
     expect(taskCompletionTag(sessionId, 42)).toBe(`dsh-task-done-${digest}-42`)

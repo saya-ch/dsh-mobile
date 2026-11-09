@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 
@@ -19,6 +20,10 @@ internal object TaskNotificationPublisher {
             NativeBridgePolicy.notificationRequestCode(tag),
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                // PendingIntent identity ignores extras, so two tags whose request codes collide would
+                // overwrite each other's navigation target. The tag in the data URI keeps them apart;
+                // the Activity reads only its extras, so navigation itself is unchanged.
+                data = Uri.parse(NativeBridgePolicy.notificationIntentData(tag))
                 if (navigate.isNotEmpty()) putExtra(NativeBridgePolicy.EXTRA_NOTIFICATION_NAVIGATE, navigate)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

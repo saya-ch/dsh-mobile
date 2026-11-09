@@ -62,6 +62,35 @@ internal class BackgroundNotificationService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * Bounded foreground service types reach this callback once their platform time budget is
+     * spent: Android 14 (API 34) for `shortService`, Android 15+ (API 35) for `dataSync`.
+     *
+     * The callbacks are overridden rather than delegated because the platform default raises an
+     * exception for a timed-out service. Declaring them is safe below their API level: an override
+     * that the runtime superclass does not know is simply never invoked.
+     */
+    override fun onTimeout(startId: Int) {
+        handleForegroundTimeout()
+    }
+
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        handleForegroundTimeout()
+    }
+
+    /**
+     * Stop the timed-out stream the same way a revoked device does, and withdraw the persisted
+     * opt-in so `notification.background.get` cannot keep claiming an enabled service.
+     */
+    private fun handleForegroundTimeout() {
+        running.set(false)
+        connection?.disconnect()
+        connection = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        setEnabled(this, false)
+        stopSelf()
+    }
+
     private fun runLoop() {
         var failedAttempts = 0
         while (running.get()) {
@@ -97,7 +126,13 @@ internal class BackgroundNotificationService : Service() {
                 connection = null
             }
             if (!running.get()) break
-            Thread.sleep(minOf(30_000L, 1_000L shl failedAttempts))
+            try {
+                Thread.sleep(minOf(30_000L, 1_000L shl failedAttempts))
+            } catch (_: InterruptedException) {
+                // Teardown interrupts this backoff; leaving the exception uncaught would reach the
+                // process-wide handler and kill the app from a worker thread.
+                break
+            }
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -224,20 +259,37 @@ internal class BackgroundNotificationService : Service() {
         fun isEnabled(context: Context): Boolean = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             .getBoolean(KEY_ENABLED, false)
 
+        /**
+         * Opt in and start the foreground stream. The persisted claim is written before the start
+         * because [onStartCommand] refuses to run without it, and is rolled back when the platform
+         * rejects the start; otherwise a rejected start keeps `isEnabled` claiming a service that
+         * is not running.
+         */
         fun enable(context: Context, deviceKey: String): Boolean {
             if (deviceKey.isEmpty()) return false
             val device = runCatching {
                 PairedDeviceStore(context.applicationContext).load().firstOrNull { it.key == deviceKey }
             }.getOrNull() ?: return false
             if (device.iroh != null) return false
-            context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
-                .putBoolean(KEY_ENABLED, true)
-                .putString(KEY_DEVICE, deviceKey)
-                .commit()
+            val persisted = runCatching {
+                context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
+                    .putBoolean(KEY_ENABLED, true)
+                    .putString(KEY_DEVICE, deviceKey)
+                    .commit()
+            }.getOrDefault(false)
+            if (!persisted) {
+                clearEnabled(context)
+                return false
+            }
             val intent = Intent(context, BackgroundNotificationService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_DEVICE_KEY, deviceKey)
-            context.startForegroundService(intent)
+            // A rejected start (a background-start restriction, for example) must not survive as a claim.
+            val started = runCatching { context.startForegroundService(intent) }.getOrNull() != null
+            if (!started) {
+                clearEnabled(context)
+                return false
+            }
             return true
         }
 
@@ -248,14 +300,21 @@ internal class BackgroundNotificationService : Service() {
 
         fun resumeIfEnabled(context: Context, deviceKey: String) {
             val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-            if (prefs.getBoolean(KEY_ENABLED, false) && prefs.getString(KEY_DEVICE, null) == deviceKey) {
-                enable(context, deviceKey)
-            }
+            if (!prefs.getBoolean(KEY_ENABLED, false) || prefs.getString(KEY_DEVICE, null) != deviceKey) return
+            if (!enable(context, deviceKey)) clearEnabled(context)
         }
 
         private fun setEnabled(context: Context, enabled: Boolean) {
             context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
                 .putBoolean(KEY_ENABLED, enabled)
+                .apply()
+        }
+
+        /** Withdraw the opt-in flag and its device binding so no reader can report an enabled service. */
+        private fun clearEnabled(context: Context) {
+            context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_ENABLED, false)
+                .remove(KEY_DEVICE)
                 .apply()
         }
 

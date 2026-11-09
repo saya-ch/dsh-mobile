@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.6">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.5">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.6**. Add plugin request-header forwarding, task-notification navigation, opt-in Android background reminders and custom Host web-push text, while fixing Windows firewall verification, iroh directory diagnostics and iOS push-disable semantics. Plugin and Android App releases remain independent. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.6) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.5**. Preserve existing Windows firewall rules, fix Desktop update targeting and CGNAT LAN discovery, and add a bounded catalog cache plus a macOS permission notice. Plugin and Android App releases remain independent. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.5) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: since plugin **0.6.2**, the Android app and plugin use independent version numbers and releases. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
@@ -61,7 +61,7 @@ It also lets you customize the phone from a DSH conversation: `/mobile <what you
 - **Pairing and multi-device**: pair once via QR code, link, or key; Wi-Fi, hotspot, or IP changes normally recover automatically; the app lists LAN and remote paired computers together, checks their reachability periodically, and lets you switch, re-pair, or delete a local record.
 - **One-click diagnostics and approval**: check versions, gateway, network interface, firewall, and the remote path with a redacted report; approve blocked third-party plugin connections per exact path.
 - **iPhone / iPad Web Push**: add the page to your Home Screen and explicitly enable notifications in DSH General settings. Choose from six categories and receive alerts while the page is closed or the screen is locked, without conversation text on the lock screen. [Requirements and setup](docs/WEB_PUSH.en.md).
-- **Android task notifications**: enable completion and pending-input alerts in DSH General settings inside the app, using its separate native notification channel with redacted lock-screen text; optionally enable a persistent background reminder that receives completion events after Android suspends the page.
+- **Android task notifications**: enable completion and pending-input alerts in DSH General settings inside the app, using its separate native notification channel with redacted lock-screen text.
 - **Defense in depth**: a private CA pinned for LAN, trusted HTTPS for public remote paths, and a remote CA pinned by the 0.4.6 app for the self-signed FRP entry. Credentials are Keystore-backed, device tokens go only to their exact Origin, and third-party WebSockets are blocked by default.
 
 A paired device can operate DSH on the computer and must be treated as fully trusted. Enable LAN access only on trusted networks, and use a reliable HTTPS channel for remote access. Revoke a lost phone from the computer immediately.
@@ -221,7 +221,7 @@ After selecting the channel in the panel:
 <details>
 <summary>Remote notifications, server maintenance and security limits</summary>
 
-> **Remote notifications**: Android task reminders default to the page event path; an explicit persistent background service can keep the active paired connection available after the WebView is suspended, with separate limits for iroh, foreground-service time and battery policy. [iPhone/iPad Web Push](docs/WEB_PUSH.en.md) is explicitly enabled from a capable Safari Home Screen app and does not need an open page. Both require DSH to keep running on the computer; networks, Focus settings and platform scheduling can delay delivery, so neither is a guaranteed alarm service. Independently configured channels such as dsh-ping remain unchanged.
+> **Remote notifications**: Android task reminders use the page/SSE path and need the app's WebView to remain alive. [iPhone/iPad Web Push](docs/WEB_PUSH.en.md) is explicitly enabled from a capable Safari Home Screen app and does not need an open page. Both require DSH to keep running on the computer; networks, Focus settings and platform scheduling can delay delivery, so neither is a guaranteed alarm service. Independently configured channels such as dsh-ping remain unchanged.
 
 The Funnel runtime ties the public listener to the parent process and a bounded control channel; parent exit, channel closure, or an explicit stop ends the current generation and cleans up its resources. An unregistered domain on a mainland-China VPS may be intercepted by the cloud provider; public IPv4 mode avoids that dependency. The plugin validates pinned on-demand components; locally managed configuration and binaries live under `$DSH_HOME/mobile-access/` and can be cleaned up from the panel. VPS files require separate cleanup through the self-hosted connection guide.
 
@@ -445,7 +445,6 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `0.8.6` | On the `0.2.2-rc.1` packed target, add gateway plugin-header forwarding, task-notification navigation, opt-in Android background reminders, custom Host web-push text and Windows/iroh diagnostic fixes; Android App 0.7.3 is released separately |
 | `0.8.5` | Maintenance and performance update on the `0.2.2-rc.1` packed-DSH target: catalog cache, Desktop update targeting, CGNAT LAN discovery, firewall protection and a macOS permission notice. The Android App remains 0.7.2 |
 | `0.8.4` | Plugin maintenance update. The packed DSH test target remains `0.2.2-rc.1`, alongside existing compatibility checks. The upstream rc.1 npm CLI requires Node.js 24.9 or later |
 | `0.8.3` | Adapted to DSH 0.2.2-rc.1 with landscape, Plugins and Web Push settings layout fixes, shared FRP usernames and iroh pairing improvements |
