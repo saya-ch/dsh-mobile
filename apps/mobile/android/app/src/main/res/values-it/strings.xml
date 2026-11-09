@@ -121,12 +121,6 @@
     <string name="cpolar_address_unreachable_message">L\'indirizzo cpolar temporaneo può cambiare dopo il riavvio di DSH o del tunnel. Apri Accesso remoto sul computer, genera il codice QR corrente e scansionalo per verificare di nuovo la connessione. Non è necessario cancellare i dati dell\'app.</string>
     <string name="notification_channel_tasks">Promemoria attività</string>
     <string name="notification_channel_tasks_description">Notifica quando un\'attività DSH termina o richiede conferma</string>
-    <string name="notification_channel_background">Promemoria attività in background</string>
-    <string name="notification_channel_background_description">Mantiene disponibile la connessione DSH associata per le notifiche quando l\'app non è aperta</string>
-    <string name="background_notifications_running">Promemoria DSH in background connessi</string>
-    <string name="background_notifications_running_text">Apri DSH per gestire i promemoria</string>
-    <string name="background_notifications_done_title">Attività completata</string>
-    <string name="background_notifications_done_body">Il tuo task DSH è terminato</string>
     <string name="task_notification_settings">Impostazioni notifiche attività</string>
     <string name="task_notifications_enabled">Notifiche attività attivate.</string>
     <string name="task_notifications_denied">Le notifiche attività restano disattivate. Puoi riprovare dalle impostazioni Generali di DSH.</string>

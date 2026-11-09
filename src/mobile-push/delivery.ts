@@ -4,9 +4,6 @@ import {
   MAX_ATTEMPTS,
   MAX_CONCURRENT_SENDS,
   MAX_PENDING_PER_SCOPE,
-  OUTCOME_TTL_MS,
-  type PushCustomNotification,
-  type PushCustomNotificationResult,
   type PushIntent,
   type PushOwner,
   type PushPreferences,
@@ -57,12 +54,6 @@ function keyId(value: PushRecipientKey): string { return JSON.stringify([value.s
 function sameKey(a: PushRecipientKey, b: PushRecipientKey): boolean { return keyId(a) === keyId(b) }
 function sourceId(source: PushSource, key: PushRecipientKey): string { return `${source.sourceId}\u0000${keyId(key)}` }
 function isPreferenceEnabled(preferences: PushPreferences, category: PushSource['category']): boolean { return preferences[category] === true }
-function notificationText(value: unknown, maximum: number, label: string): string {
-  if (typeof value !== 'string') throw new TypeError(`push_${label}_invalid`)
-  const text = value.trim().replace(/[\u0000-\u001f\u007f]+/gu, ' ')
-  if (text.length === 0 || text.length > maximum) throw new TypeError(`push_${label}_invalid`)
-  return text
-}
 function pendingHas(snapshot: PushSnapshot, intent: PushIntent): boolean { return snapshot.pending.some(item => item.id === intent.id && sameKey(item.key, intent.key)) }
 function recipientCurrent(snapshot: PushSnapshot, intent: PushIntent): boolean {
   const registration = snapshot.registrations.find(row => sameKey(row, intent.key))
@@ -180,43 +171,6 @@ export class PushDelivery {
     })
   }
 
-  /**
-   * Queue trusted Host-plugin text for every enabled web-push recipient that
-   * opted into the selected notification category. The source keeps its own
-   * short expiry; a restart may still retry it only inside that window.
-   */
-  async notifyCustom(input: PushCustomNotification): Promise<PushCustomNotificationResult> {
-    if (!this.#started || this.#closed || !this.#admitting) throw new Error('push_unavailable')
-    const sessionId = typeof input.sessionId === 'string' ? input.sessionId.trim() : ''
-    if (sessionId === '' || sessionId.length > 4_096) throw new TypeError('push_session_id_invalid')
-    const title = notificationText(input.title, 80, 'title')
-    const body = notificationText(input.body, 200, 'body')
-    const category = input.category ?? 'response'
-    if (!['question', 'plan', 'approval', 'response', 'goal', 'failure'].includes(category)) {
-      throw new TypeError('push_category_invalid')
-    }
-    const now = this.#now()
-    const maximumExpiry = now + OUTCOME_TTL_MS
-    if (input.expiresAt !== undefined && (!Number.isSafeInteger(input.expiresAt) || input.expiresAt <= now)) {
-      throw new TypeError('push_expiry_invalid')
-    }
-    const expiresAt = Math.min(input.expiresAt ?? maximumExpiry, maximumExpiry)
-    if (!await this.#host.sessionExists(sessionId)) throw new Error('push_session_unavailable')
-    const source: PushSource = {
-      sourceId: `custom:${randomUUID()}`,
-      sessionId,
-      targetSessionId: sessionId,
-      category,
-      createdAt: now,
-      expiresAt,
-      lifetime: 'committed',
-      custom: { title, body },
-    }
-    const queued = await this.#admit(source)
-    this.#kick()
-    return { queued, expiresAt }
-  }
-
   async resolve(owner: PushOwner, reference: string): Promise<PushTarget | undefined> {
     if (this.#closed || !reference) return undefined
     let snapshot: PushSnapshot
@@ -251,22 +205,17 @@ export class PushDelivery {
     this.#origins.clear()
   }
 
-  async #admit(source: PushSource): Promise<number> {
-    if (!this.#admitting || source.expiresAt <= this.#now()) return 0
+  async #admit(source: PushSource): Promise<void> {
+    if (!this.#admitting || source.expiresAt <= this.#now()) return
     let eligible = false
-    try {
-      eligible = source.custom === undefined
-        ? this.#host.available && await this.#host.eligible(source)
-        : this.#host.available && await this.#host.sessionExists(source.sessionId)
-    } catch { eligible = false }
-    if (!eligible || source.expiresAt <= this.#now()) return 0
-    let queued = 0
+    try { eligible = this.#host.available && await this.#host.eligible(source) } catch { eligible = false }
+    if (!eligible || source.expiresAt <= this.#now()) return
     for (const origin of this.#origins.values()) {
       if (!origin.active || this.#closed) continue
       const devices = await this.#readAuthorized(origin)
       if (!devices || !this.#admitting || this.#closed || !origin.active || this.#origins.get(this.#originId(origin)) !== origin) continue
       let snapshot: PushSnapshot
-      try { snapshot = this.#registry.snapshot() } catch { return queued }
+      try { snapshot = this.#registry.snapshot() } catch { return }
       const registrations = snapshot.registrations.filter(reg => reg.scopeId === origin.scopeId && reg.origin === origin.origin
         && devices.has(reg.deviceId) && reg.enabled && reg.health === 'ready' && isPreferenceEnabled(reg.preferences, source.category)
         && snapshot.keys?.fingerprint === reg.keyFingerprint)
@@ -291,13 +240,11 @@ export class PushDelivery {
             recipientGeneration: registration.generation,
             attempts: 0, nextAttemptAt: this.#now(),
           })
-          queued += 1
         }
         return { ...clean, pending }
       })
     }
     this.#kick()
-    return queued
   }
 
   async #reconcileKnownScopes(): Promise<void> {
@@ -454,13 +401,7 @@ export class PushDelivery {
     if (this.#closed) controller.abort()
     const remaining = Math.floor((intent.source.expiresAt - this.#now()) / 1000)
     if (remaining < 1) { await this.#removeIntent(intent); return }
-    const payload = buildDeclarativePayload(
-      intent.source.category,
-      registration.locale,
-      `/?mobile-push=${reference}`,
-      intent.source.sourceId.replace(/[^A-Za-z0-9._:-]/gu, '_').slice(0, 128) || 'push',
-      intent.source.custom,
-    )
+    const payload = buildDeclarativePayload(intent.source.category, registration.locale, `/?mobile-push=${reference}`, intent.source.sourceId.replace(/[^A-Za-z0-9._:-]/gu, '_').slice(0, 128) || 'push')
     let result: PushSendResult
     try {
       result = await this.#sender.send({
@@ -540,9 +481,6 @@ export class PushDelivery {
   /** Maps the Host tri-state for durable-work decisions; boolean eligible() would collapse transient uncertainty into denial. */
   async #sourceGuard(source: PushSource): Promise<GuardResult> {
     if (!this.#host.available) return 'unverifiable'
-    if (source.custom !== undefined) {
-      try { return await this.#host.sessionExists(source.sessionId) ? 'allowed' : 'denied' } catch { return 'unverifiable' }
-    }
     let result: PushReconcileResult
     try { result = await this.#host.reconcile(source) } catch { return 'unverifiable' }
     if (result === 'eligible') return 'allowed'

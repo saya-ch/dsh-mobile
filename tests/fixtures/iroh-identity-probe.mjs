@@ -46,12 +46,6 @@ if (mode === 'hang') {
 } else if (mode === 'unsafe-directory') {
   process.stderr.write('private Windows data directory is not secure\nCaused by: private path ACL grants access or replacement rights to another principal\n')
   process.exit(3)
-} else if (mode === 'generic-tls-failure') {
-  process.stderr.write('Error: host TLS preparation failed\n')
-  process.exit(3)
-} else if (mode === 'host-unsafe-directory') {
-  process.stderr.write('Error: private Windows data directory is not secure\nCaused by: private path ACL grants access or replacement rights to another principal\n')
-  process.exit(3)
 } else if (mode === 'invalid-utf8') {
   process.stdout.write(Buffer.from([0xff, 0xfe, 0xfd]))
   process.exit(0)

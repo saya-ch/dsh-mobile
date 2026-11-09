@@ -16,8 +16,6 @@ export interface PushSource {
   readonly turn?: number
   readonly callId?: string
   readonly goal?: { readonly id: string; readonly revision: number }
-  /** Host-plugin supplied lock-screen text. */
-  readonly custom?: { readonly title: string; readonly body: string }
 }
 export interface PushOwner { readonly scopeId: string; readonly deviceId: string; readonly origin: string }
 export interface PushRecipientKey extends PushOwner { readonly installationId: string }
@@ -45,14 +43,6 @@ export interface PushIntent {
 }
 export interface PushReceipt { readonly sourceId: string; readonly key: PushRecipientKey; readonly recipientGeneration: number; readonly expiresAt: number }
 export interface PushTapReference { readonly reference: string; readonly key: PushRecipientKey; readonly source: PushSource; readonly expiresAt: number }
-export interface PushCustomNotification {
-  readonly sessionId: string
-  readonly title: string
-  readonly body: string
-  readonly category?: Exclude<PushCategory, 'test'>
-  readonly expiresAt?: number
-}
-export interface PushCustomNotificationResult { readonly queued: number; readonly expiresAt: number }
 export interface PushSnapshot {
   readonly version: 1
   readonly keys?: VapidKeys & { readonly fingerprint: string }

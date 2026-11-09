@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createElement, useEffect, useState, useSyncExternalStore } from 'react'
 import {
   DIAGNOSTIC_REASON_MESSAGES,
   DIAGNOSTIC_NETWORK_MESSAGES,
@@ -19,15 +19,7 @@ import { MobileDisplayScaleRow } from './mobile-display-scale.js'
 import { MobileNativeSettingsActionController, type MobileNativeSettingsAction } from './mobile-native-settings-action.js'
 import { CLIENT_MODULE_STYLES, ClientModuleSettingsRow, closeClientModuleDialog, disposeClientModuleDialogs } from './client-module-ui.js'
 import { isDesktopAdminSurface, localAdminRequestHeaders } from './local-admin-host.js'
-import {
-  decodeTaskNotificationNavigate,
-  fireDeviceRevoked,
-  fireTaskNotifyEvent,
-  isDeviceRevokedPayload,
-  parseTaskNotifyPayload,
-  taskCompletionTag,
-  taskNotificationNavigate,
-} from './task-notify.js'
+import { fireDeviceRevoked, fireTaskNotifyEvent, isDeviceRevokedPayload, parseTaskNotifyPayload, taskCompletionTag } from './task-notify.js'
 import { EXTENSION_RECOVERY_STYLES, installExtensionRecoveryControl } from './extension-recovery-ui.js'
 import { invokeBoundNativeCapability } from './native-capability.js'
 import { pickBrowserFiles } from './browser-file-picker.js'
@@ -529,115 +521,6 @@ function MobileTaskNotificationRow(): unknown {
       'aria-busy': state === 'busy' ? 'true' : undefined,
       onClick: invoke,
     }, state === 'busy' ? copy.busy : state === 'success' ? copy.reopen : state === 'error' ? copy.retry : copy.action),
-  )
-}
-
-interface MobileBackgroundNotificationCopy {
-  readonly title: string
-  readonly description: string
-  readonly enabled: string
-  readonly disabled: string
-  readonly busy: string
-  readonly error: string
-}
-
-function mobileBackgroundNotificationCopy(locale: MobileControlLocale): MobileBackgroundNotificationCopy {
-  if (locale === 'zh') return {
-    title: '后台任务提醒',
-    description: 'App 页面被系统挂起后，通过可关闭的常驻连接继续接收任务完成提醒。',
-    enabled: '关闭后台提醒',
-    disabled: '开启后台提醒',
-    busy: '正在处理…',
-    error: '无法更新后台提醒；请确认任务通知权限和当前连接。',
-  }
-  if (locale === 'it') return {
-    title: 'Promemoria in background',
-    description: 'Continua a ricevere gli avvisi quando Android sospende la pagina, tramite una connessione persistente disattivabile.',
-    enabled: 'Disattiva promemoria',
-    disabled: 'Attiva promemoria',
-    busy: 'Operazione…',
-    error: 'Impossibile aggiornare i promemoria; controlla il permesso notifiche e la connessione attiva.',
-  }
-  return {
-    title: 'Background task reminders',
-    description: 'Keep receiving completion alerts after Android suspends the page, through a dismissible persistent connection.',
-    enabled: 'Disable background reminders',
-    disabled: 'Enable background reminders',
-    busy: 'Working…',
-    error: 'Could not update background reminders. Check notification permission and the active connection.',
-  }
-}
-
-/** Android-only opt-in for the foreground SSE fallback when the WebView is suspended. */
-function MobileBackgroundNotificationRow(): unknown {
-  const [supported, setSupported] = useState(false)
-  const [enabled, setEnabled] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(false)
-  const generation = useRef(0)
-  useEffect(() => {
-    let active = true
-    const refresh = (): void => {
-      const attempt = ++generation.current
-      const bridge = window.__DSH_MOBILE_NATIVE__
-      if (bridge === undefined) {
-        if (active) { setSupported(false); setError(false) }
-        return
-      }
-      void Promise.resolve(bridge.capabilities()).then(async capabilities => {
-        const available = capabilities.includes('notification.background.get') && capabilities.includes('notification.background.set')
-        if (!active || attempt !== generation.current) return
-        setSupported(available)
-        if (!available) return
-        const result = await bridge.invoke('notification.background.get', {}) as { readonly enabled?: unknown }
-        if (!active || attempt !== generation.current) return
-        if (typeof result?.enabled !== 'boolean') throw new Error('invalid background notification status')
-        setEnabled(result.enabled)
-        setError(false)
-      }).catch(() => {
-        if (active && attempt === generation.current) { setSupported(true); setError(true) }
-      })
-    }
-    refresh()
-    window.addEventListener('dsh-mobile-native-ready', refresh)
-    return () => {
-      active = false
-      generation.current += 1
-      window.removeEventListener('dsh-mobile-native-ready', refresh)
-    }
-  }, [])
-  if (!supported) return null
-  const locale = selectedMobileControlLocale()
-  const copy = mobileBackgroundNotificationCopy(locale)
-  const toggle = (): void => {
-    const bridge = window.__DSH_MOBILE_NATIVE__
-    if (bridge === undefined || busy) return
-    const attempt = ++generation.current
-    setBusy(true); setError(false)
-    void bridge.invoke('notification.background.set', { enabled: !enabled }).then(result => {
-      if (attempt !== generation.current) return
-      const next = (result as { readonly enabled?: unknown } | undefined)?.enabled
-      if (typeof next !== 'boolean') throw new Error('invalid background notification status')
-      setEnabled(next)
-    }).catch(() => {
-      if (attempt === generation.current) setError(true)
-    }).finally(() => {
-      if (attempt === generation.current) setBusy(false)
-    })
-  }
-  return createElement('div', { className: 'dsh-mobile-settings_row', lang: locale },
-    createElement('div', { className: 'dsh-mobile-settings_rowText' },
-      createElement('div', { className: 'dsh-mobile-settings_title' }, copy.title),
-      createElement('div', { className: 'dsh-mobile-settings_desc', 'aria-live': 'polite' }, error ? copy.error : copy.description),
-    ),
-    createElement('button', {
-      type: 'button',
-      className: 'dsh-mobile-settings_selector',
-      disabled: busy,
-      'aria-busy': busy ? 'true' : undefined,
-      'aria-pressed': enabled ? 'true' : 'false',
-      onClick: toggle,
-    }, busy ? copy.busy : enabled ? copy.enabled : copy.disabled),
   )
 }
 
@@ -5399,7 +5282,6 @@ export function installCustomAssets(recovery?: {
         title: label('Attività completata', 'Task finished', '任务已完成'),
         body: label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成'),
         tag: taskCompletionTag(parsed.sessionId, parsed.turn),
-        navigate: taskNotificationNavigate(parsed.sessionId),
       })
     },
     () => { fireDeviceRevoked() },
@@ -5594,45 +5476,6 @@ function showMobilePushNavigationNotice(page: Document, view: Window, key: 'sess
   view.setTimeout(() => node.remove(), 3_000)
 }
 
-/** Consume the Android background service's opaque Session route on cold or warm launch. */
-export function installTaskNotificationNavigation(ctx: ClientContext, page: Document, view: Window): () => void {
-  if (view.__DSH_MOBILE_FRONTEND__ !== 'dedicated' || ctx.inject === undefined) return () => undefined
-  const pending = new URLSearchParams(view.location.search).get('dsh-session')
-  if (pending === null) return () => undefined
-  let closed = false
-  let removeNavigation: (() => void) | undefined
-  const fiber = ctx.inject(mobilePushNavigationServices, navigationContext => {
-    if (closed) return () => undefined
-    const reference = new URLSearchParams(view.location.search).get('dsh-session')
-    if (reference === null) return () => undefined
-    const remove = installPushNavigation(navigationContext as unknown as Parameters<typeof installPushNavigation>[0], {
-      parameter: 'dsh-session',
-      resolve: async value => {
-        const sessionId = decodeTaskNotificationNavigate(value)
-        return sessionId === undefined ? undefined : { sessionId, interaction: 'current' }
-      },
-      notify: key => {
-        if (key === 'session-unavailable' || key === 'session-resolved') {
-          showMobilePushNavigationNotice(page, view, key)
-        }
-      },
-      browser: { location: view.location, history: view.history },
-    })
-    removeNavigation = remove
-    return () => {
-      if (removeNavigation === remove) removeNavigation = undefined
-      remove()
-    }
-  })
-  return () => {
-    if (closed) return
-    closed = true
-    removeNavigation?.()
-    removeNavigation = undefined
-    void fiber.dispose()
-  }
-}
-
 /** Own the browser-only push controller, settings row, and optional authenticated tap navigation. */
 export function installMobilePushBrowserClient(ctx: ClientContext, runtime: MobilePushEntryRuntime): () => void {
   const { page, view } = runtime
@@ -5738,7 +5581,6 @@ export function apply(ctx: ClientContext): void {
   }, 'dsh-mobile: connection recovery')
 
   ctx.effect(() => installMobilePushBrowserClient(ctx, { page: document, view: window }), 'dsh-mobile: authenticated browser push lifecycle')
-  ctx.effect(() => installTaskNotificationNavigation(ctx, document, window), 'dsh-mobile: native task notification navigation')
 
   ctx.effect(() => {
     const desktopAdmin = isDesktopAdminSurface(location.hostname, location.search, window.__DSH_MOBILE_FRONTEND__, location.protocol)
@@ -5781,18 +5623,7 @@ export function apply(ctx: ClientContext): void {
           id: 'dsh-mobile-task-notifications',
           order: 110,
         }, MobileTaskNotificationRow)
-        const removeBackgroundNotifications = ctx.slots.register({
-          name: 'settings.general.item',
-          id: 'dsh-mobile-background-notifications',
-          order: 111,
-        }, MobileBackgroundNotificationRow)
-        return () => {
-          removeBackgroundNotifications()
-          removeTaskNotifications()
-          removeSwitchComputer()
-          removeDisplayScale()
-          removeFontSize()
-        }
+        return () => { removeTaskNotifications(); removeSwitchComputer(); removeDisplayScale(); removeFontSize() }
       })
       const removeSurface = installDshLanguageBoundSurface(() => installNativeMobileSurface({
         getLayout: () => ctx.get('layout'),

@@ -1,7 +1,5 @@
 import type {
   PushConfig,
-  PushCustomNotification,
-  PushCustomNotificationResult,
   PushEnrollment,
   PushEnrollmentResult,
   PushHost,
@@ -46,7 +44,6 @@ export interface PushGatewayService {
   logout(owner: PushOwner): Promise<void>
   /** Resolves only an owned, still-valid opaque reference. */
   test(owner: PushOwner, installationId: string): Promise<void>
-  notifyCustom?(input: PushCustomNotification): Promise<PushCustomNotificationResult>
   resolve(owner: PushOwner, reference: string): Promise<PushTarget | undefined>
 }
 
@@ -138,11 +135,6 @@ export class PushGatewayCoordinator implements PushGatewayService {
     if (!this.host.available) throw new Error('push_unavailable')
     await this.authorize(owner)
     await this.delivery.test({ ...owner, installationId })
-  }
-
-  async notifyCustom(input: PushCustomNotification): Promise<PushCustomNotificationResult> {
-    if (!this.host.available) throw new Error('push_unavailable')
-    return await this.delivery.notifyCustom(input)
   }
 
   async resolve(owner: PushOwner, reference: string): Promise<PushTarget | undefined> {

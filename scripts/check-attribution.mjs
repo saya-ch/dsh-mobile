@@ -164,18 +164,6 @@ async function main () {
     process.exit(2)
   }
 
-  async function requestIssue (number) {
-    const query = `repos/${repo}/issues/${number}`
-    if (ghAvailable()) return JSON.parse(execFileSync('gh', ['api', query], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }))
-    const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
-    if (token === undefined) throw new Error('no GitHub CLI or token')
-    const response = await fetch(`https://api.github.com/${query}`, {
-      headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'user-agent': 'dsh-mobile-attribution-check' }
-    })
-    if (!response.ok) throw new Error(`GitHub API returned ${response.status}`)
-    return await response.json()
-  }
-
   function readCache () {
     try {
       const stat = fs.statSync(cacheFile)
@@ -212,27 +200,7 @@ async function main () {
   const index = await loadIndex()
   const tracked = execFileSync('git', ['ls-files', '*.md'], { cwd: root, encoding: 'utf8' }).split('\n').filter((line) => line !== '')
   const documents = tracked.map((relative) => ({ path: relative, text: fs.readFileSync(path.join(root, relative), 'utf8') }))
-  let { findings, pairs } = collectFindings(documents, index)
-  const missingNumbers = [...new Set(findings
-    .filter(finding => finding.kind === 'missing')
-    .map(finding => finding.number))]
-  let resolvedMissing = false
-  for (const number of missingNumbers) {
-    try {
-      const item = await requestIssue(number)
-      if (item?.number === number) {
-        index[item.number] = {
-          author: item.user?.login ?? '',
-          isPullRequest: item.pull_request !== undefined,
-          title: item.title ?? ''
-        }
-        resolvedMissing = true
-      }
-    } catch {
-      // The ordinary missing-reference finding below owns the failure.
-    }
-  }
-  if (resolvedMissing) ({ findings, pairs } = collectFindings(documents, index))
+  const { findings, pairs } = collectFindings(documents, index)
 
   const active = findings.filter((finding) => !isReviewed(finding))
   const mismatches = active.filter((finding) => finding.kind === 'mismatch')

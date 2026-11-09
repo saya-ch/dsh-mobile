@@ -12,8 +12,6 @@
          at install, while RECORD_AUDIO still controls microphone access. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -139,10 +137,6 @@
             android:name=".ScanActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-        <service
-            android:name=".BackgroundNotificationService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -91,7 +91,7 @@ async function checkBrandAndStoreIcon() {
 }
 
 async function checkAndroid() {
-  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, taskNotificationPublisher, backgroundNotificationService, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
+  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
     read('apps/mobile/android/app/build.gradle.kts', 'utf8'),
     read('apps/mobile/android/app/src/main/AndroidManifest.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/xml/network_security_config.xml', 'utf8'),
@@ -105,8 +105,6 @@ async function checkAndroid() {
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/ScanActivity.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/QrDecoder.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/NativeBridge.kt', 'utf8'),
-    read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/TaskNotificationPublisher.kt', 'utf8'),
-    read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/BackgroundNotificationService.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/NativeBridgePolicy.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/MainActivity.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values/strings.xml', 'utf8'),
@@ -183,17 +181,8 @@ async function checkAndroid() {
   for (const marker of ['WebViewCompat.addWebMessageListener', 'setOf(origin.serialized)', 'MAX_MESSAGE_BYTES', 'MAX_PENDING', 'files.pick', 'camera.capture']) {
     if (!nativeBridge.includes(marker)) fail(`Android native bridge is missing ${marker}`)
   }
-  for (const marker of ['notification.notify']) {
+  for (const marker of ['notification.notify', 'NotificationChannel', 'notification_channel_tasks', 'ic_task_notification', 'VISIBILITY_PRIVATE']) {
     if (!nativeBridge.includes(marker)) fail(`Android task reminders are missing ${marker}`)
-  }
-  for (const marker of ['NotificationChannel', 'notification_channel_tasks', 'ic_task_notification', 'VISIBILITY_PRIVATE']) {
-    if (!taskNotificationPublisher.includes(marker)) fail(`Android task notification publisher is missing ${marker}`)
-  }
-  if (!manifest.includes('android.permission.FOREGROUND_SERVICE_DATA_SYNC')) {
-    fail('Android background notification service must declare FOREGROUND_SERVICE_DATA_SYNC')
-  }
-  for (const marker of ['/mobile-access/background-events', 'NativeAuthClient.renew', 'PinnedTls.socketFactory']) {
-    if (!backgroundNotificationService.includes(marker)) fail(`Android background notification service is missing ${marker}`)
   }
   for (const marker of ['event.target instanceof Element', 'scrollPositions.get(scroller)', "event: 'page.scroll'"]) {
     if (!nativeBridge.includes(marker)) fail(`Android floating toolbar scroll tracking is missing ${marker}`)

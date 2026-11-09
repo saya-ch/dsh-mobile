@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.6">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.5">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.6**。加入第三方插件请求头透传、任务通知导航、可选 Android 后台提醒和自定义网页推送文案，同时修复 Windows 防火墙校验、iroh 目录诊断和 iOS 推送停用语义。插件与 Android App 独立更新。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.6) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.5**。保留 Windows 防火墙旧规则，修复 Desktop 插件更新目标与 CGNAT 局域网识别，并加入有界目录缓存和 macOS 权限提示。插件与 Android App 独立更新。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.5) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件独立编号、独立发布，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
@@ -61,7 +61,7 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 - **配对与多设备**：扫码、链接或密钥配对一次；切换 Wi-Fi、热点或 IP 后通常自动恢复；App 在一个列表中显示局域网和远程配对的电脑，定期检测可达状态，并支持切换、重新配对或删除本地记录。
 - **一键诊断与放行**：检查版本、网关、网卡、防火墙和远程通道，生成脱敏报告；被拦截的第三方插件连接按确切路径一键放行。
 - **iPhone / iPad 网页推送**：将页面添加到主屏幕后，在 DSH“通用设置”中主动开启；支持六类提醒和分类开关，页面关闭或锁屏后也可接收，锁屏文字不含会话正文。[使用条件与设置](docs/WEB_PUSH.md)。
-- **Android 任务通知**：在 App 内 DSH“通用设置”中开启任务完成与待输入提醒，使用独立的原生通知通道，锁屏文本脱敏；可另行开启带常驻通知的后台提醒，在页面被系统挂起后继续接收完成事件。
+- **Android 任务通知**：在 App 内 DSH“通用设置”中开启任务完成与待输入提醒，使用独立的原生通知通道，锁屏文本脱敏。
 - **纵深安全**：局域网固定私有 CA，公开远程入口使用受信任 HTTPS；自签 FRP 入口由 0.4.6 App 固定远程 CA。凭据存 Keystore，设备令牌只发往精确 Origin，第三方 WS 默认拦截。
 
 配对设备可以操作电脑上的 DSH，应视为完全受信任的设备。局域网只在可信网络开启；远程访问应使用可靠的 HTTPS 通道。手机丢失时，请立即从电脑端撤销设备。
@@ -223,7 +223,7 @@ dsh plugin --profile web add dshmarket
 <details>
 <summary>远程通知、服务器运维与安全限制</summary>
 
-> **远程通知说明**：Android 默认任务提醒使用页面事件路径；可在设置中显式开启带常驻通知的后台服务，在 WebView 被挂起时保持当前配对连接，iroh、前台服务时限和电池策略仍有限制。[iPhone/iPad 网页推送](docs/WEB_PUSH.md)由具备能力的 Safari 主屏幕 App 主动启用，不依赖页面一直打开。两者都需要电脑端 DSH 运行，通知可能受网络、专注模式和系统调度影响，不是保证送达的警报服务。独立配置的 dsh-ping 等通道不受影响。
+> **远程通知说明**：Android 任务提醒使用页面／SSE 路径，须保持 App 的 WebView 存活；[iPhone/iPad 网页推送](docs/WEB_PUSH.md)则由具备能力的 Safari 主屏幕 App 主动启用，不依赖页面一直打开。两者都需要电脑端 DSH 运行，通知可能受网络、专注模式和系统调度影响，不是保证送达的警报服务。独立配置的 dsh-ping 等通道不受影响。
 
 Funnel 的运行组件把公开监听生命周期绑定到父进程和受限控制通道；父进程退出、控制通道关闭或显式停止时会结束当前代次并清理资源。中国大陆 VPS 上的未备案域名可能被云厂商拦截，此时可使用公网 IPv4 模式。插件会校验按需下载的固定版本组件；本机托管的配置与程序保存在 `$DSH_HOME/mobile-access/`，可在面板中清理。VPS 侧的文件须按自建连接指南单独清理。
 
@@ -447,7 +447,6 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
-| `0.8.6` | 在 `0.2.2-rc.1` 打包目标上加入网关插件请求头透传、任务通知导航、可选 Android 后台提醒、自定义 Host 网页推送文案和 Windows/iroh 诊断修复；Android App 单独发布为 `0.7.3` |
 | `0.8.5` | 插件维护与性能更新，继续使用 `0.2.2-rc.1` 的 DSH 打包验证目标；新增目录缓存、Desktop 更新目标修复、CGNAT 局域网识别、防火墙保护与 macOS 权限提示。Android App 仍为 0.7.2 |
 | `0.8.4` | 插件维护更新，继续使用 `0.2.2-rc.1` 的 DSH 打包验证目标，并保留既有版本检查。使用 rc.1 的 npm CLI 时，按上游要求使用 Node.js 24.9 或更新版本 |
 | `0.8.3` | 当时适配 DSH 0.2.2-rc.1，修复横屏、插件页和网页推送设置布局，支持共享 FRP 用户名，并改进 iroh 配对 |

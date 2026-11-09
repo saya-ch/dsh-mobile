@@ -9,14 +9,8 @@ function fixture(search: string) {
   const workspaceState = { phase: 'pending' as 'pending' | 'ready', items: [] as unknown[] }
   const opened: string[] = []
   const notices: string[] = []
-  const location = { href: `https://mobile.example.test/${search}`, search, pathname: '/', hash: '' }
-  const history = {
-    replaceState: vi.fn((_state: unknown, _title: string, url?: string | URL | null) => {
-      const next = new URL(String(url), location.href)
-      location.href = next.href
-      location.search = next.search
-    }),
-  }
+  const history = { replaceState: vi.fn((_state: unknown, _title: string, url?: string | URL | null) => { location.search = new URL(String(url), location.href).search }) }
+  const location = { href: `https://mobile.example.test/${search}`, search }
   const ctx = {
     sessions: { list: { getSnapshot: () => sessionState, subscribe: (fn: () => void) => { sessionListener = fn; return () => { sessionListener = () => {} } } } },
     workspaces: { list: { getSnapshot: () => workspaceState, subscribe: (fn: () => void) => { workspaceListener = fn; return () => { workspaceListener = () => {} } } } },
@@ -65,19 +59,5 @@ describe('authenticated mobile push navigation', () => {
     const f = fixture('')
     const stop = installPushNavigation(f.ctx as never, { resolve: vi.fn(), notify: key => f.notices.push(key), browser: { location: f.location as never, history: f.history as never } })
     expect(f.notices).toEqual(['session-unavailable']); expect(f.opened).toEqual([]); stop()
-  })
-
-  it('supports the native task-session parameter without removing unrelated query state', async () => {
-    const f = fixture('?dsh-session=YWJj&keep=1'); f.addSession('session-native')
-    const stop = installPushNavigation(f.ctx as never, {
-      parameter: 'dsh-session',
-      resolve: async () => ({ sessionId: 'session-native', interaction: 'current' }),
-      notify: key => f.notices.push(key),
-      browser: { location: f.location as never, history: f.history as never },
-    })
-    f.ready(); await vi.waitFor(() => expect(f.opened).toEqual(['session-native']))
-    expect(f.location.search).toBe('?keep=1')
-    expect(f.history.replaceState).toHaveBeenCalledOnce()
-    stop()
   })
 })

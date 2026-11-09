@@ -1,6 +1,5 @@
 import { execFileText as execFile } from './exec-file.js'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import {
   ensureManagedCa,
@@ -39,32 +38,17 @@ function assertManagedPort(port: number, name: string): void {
   }
 }
 
-function powerShellFailureDetail(error: unknown, innerError = ''): string {
+function powerShellFailureDetail(error: unknown): string {
   if (!(error instanceof Error)) return 'unknown failure'
-  const code = 'code' in error && (typeof error.code === 'string' || typeof error.code === 'number')
-    ? ` (${String(error.code)})`
+  const code = 'code' in error && typeof error.code === 'string' ? ` (${error.code})` : ''
+  const stderr = 'stderr' in error && typeof error.stderr === 'string'
+    ? error.stderr.trim().replace(/\s+/gu, ' ').slice(0, 512)
     : ''
-  const stderr = innerError.trim() === '' && 'stderr' in error && typeof error.stderr === 'string'
-    ? error.stderr
-    : innerError
-  const detail = stderr.trim().replace(/\s+/gu, ' ').slice(0, 512)
-  return `${code}${detail === '' ? '' : `: ${detail}`}`
+  return `${code}${stderr === '' ? '' : `: ${stderr}`}`
 }
 
 async function runElevatedPowerShell(script: string): Promise<void> {
-  const temporary = await mkdtemp(join(tmpdir(), 'dsh-mobile-firewall-'))
-  const errorFile = join(temporary, 'error.log')
-  const escapedErrorFile = errorFile.replaceAll("'", "''")
-  const wrapped = [
-    `$__dshMobileErrorFile = '${escapedErrorFile}'`,
-    'try {',
-    script,
-    '} catch {',
-    '  try { [IO.File]::WriteAllText($__dshMobileErrorFile, ($_ | Out-String)) } catch {}',
-    '  throw',
-    '}',
-  ].join('\n')
-  const encoded = Buffer.from(wrapped, 'utf16le').toString('base64')
+  const encoded = Buffer.from(script, 'utf16le').toString('base64')
   const launch = [
     "$ErrorActionPreference = 'Stop'; $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -WindowStyle Hidden -Wait -PassThru",
     `  -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand','${encoded}')`,
@@ -73,15 +57,7 @@ async function runElevatedPowerShell(script: string): Promise<void> {
   try {
     await execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', launch], { windowsHide: true })
   } catch (error) {
-    let innerError = ''
-    try {
-      innerError = (await readFile(errorFile, 'utf8')).replace(/^\uFEFF/u, '')
-    } catch {
-      // The elevated process may not have started or reached its catch block.
-    }
-    throw new Error(`Windows firewall operation failed${powerShellFailureDetail(error, innerError)}`, { cause: error })
-  } finally {
-    await rm(temporary, { recursive: true, force: true })
+    throw new Error(`Windows firewall operation failed${powerShellFailureDetail(error)}`, { cause: error })
   }
 }
 
@@ -97,7 +73,7 @@ function firewallRuleScript(name: string, protocol: 'TCP' | 'UDP', port: number)
     '    $rule | Get-NetFirewallAddressFilter | Set-NetFirewallAddressFilter -RemoteAddress LocalSubnet',
     '  }',
     '}',
-    `$verified = @(Get-NetFirewallRule -DisplayName '${name}' -ErrorAction Stop | Where-Object { $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' -and $_.Profile -eq 'Any' })`,
+    `$verified = @(Get-NetFirewallRule -DisplayName '${name}' -Enabled True -Direction Inbound -Action Allow -Profile Any -ErrorAction Stop)`,
     `$matchingPort = @($verified | Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq '${protocol}' -and $_.LocalPort -contains '${String(port)}' })`,
     `$matchingAddress = @($verified | Get-NetFirewallAddressFilter | Where-Object { $_.RemoteAddress -contains 'LocalSubnet' })`,
     `if ($verified.Count -eq 0 -or $matchingPort.Count -eq 0 -or $matchingAddress.Count -eq 0) { throw "DSH Mobile firewall rule '${name}' is not active with the expected scope" }`,
