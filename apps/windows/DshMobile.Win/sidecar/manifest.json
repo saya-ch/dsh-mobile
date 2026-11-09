@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "packageVersion": "0.1.0-alpha.1",
+  "artifacts": {
+    "win32-x64": {
+      "file": "dsh-mobile-iroh-host-win32-x64.exe",
+      "bytes": 14865920,
+      "sha256": "883987c636a379dc999a7f15fd1f9addbb7d28f430ed1f952ad5a610c37cc032"
+    },
+    "linux-x64": {
+      "file": "dsh-mobile-iroh-host-linux-x64",
+      "bytes": 24451352,
+      "sha256": "be391dfba3f0f1323d4fe9989e56a0554ceaf74e00a44acdf4a3bfd163bdcab5"
+    }
+  }
+}

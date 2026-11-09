@@ -1,0 +1,51 @@
+<Window x:Class="DshMobile.Win.RenameDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="重命名" Height="280" Width="380"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+    <Border Margin="6" Background="{StaticResource CardBrush}"
+            BorderBrush="{StaticResource OutlineBrush}"
+            BorderThickness="1" CornerRadius="10">
+        <Border.Effect>
+            <DropShadowEffect Color="#33000000" BlurRadius="14" ShadowDepth="2" Opacity="0.32" />
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="16,10,10,8">
+                <TextBlock Text="重命名" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           VerticalAlignment="Center" />
+                <Button Width="40" Height="40" MinWidth="36" MinHeight="36"
+                        HorizontalAlignment="Right" Content="×" FontSize="18" Padding="0"
+                        Background="Transparent" BorderThickness="0"
+                        ToolTip="关闭" Click="Cancel_Click" />
+            </Grid>
+
+            <Border Grid.Row="1" Height="1" Background="{DynamicResource OutlineBrush}" />
+
+            <StackPanel Grid.Row="2" Margin="16,12,16,12">
+                <TextBlock Text="给这台电脑起个名字" FontSize="13"
+                           Foreground="{DynamicResource PrimaryTextBrush}" />
+                <TextBox x:Name="NameBox" Margin="0,10,0,0" Height="40"
+                         MaxLength="32"
+                         ToolTip="1–32 个字符，仅用于本机显示" />
+                <TextBlock Margin="0,8,0,0" FontSize="12"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           Text="名称只保存在本机，不影响配对与连接" />
+                <StackPanel Margin="0,14,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Width="80" Content="取消" Click="Cancel_Click" />
+                    <Button Width="80" Margin="8,0,0,0" Content="保存"
+                            Style="{StaticResource PrimaryButton}"
+                            Click="Save_Click" IsDefault="True" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
