@@ -112,6 +112,23 @@ describe('iroh identity probe lifecycle', () => {
     })
   })
 
+  it('uses the local-only host cause chain when tls-prepare hides the native explanation', async () => {
+    const root = await ownedRoot()
+    const marker = join(root, 'pid-generic-tls-failure')
+    const failure = await defaultResolveIdentity('sidecar', root, {
+      launch: (_executable, args) => spawn(process.execPath, [
+        probe,
+        args.includes('tls-prepare') ? 'generic-tls-failure' : 'host-unsafe-directory',
+        marker,
+      ], { stdio: ['pipe', 'pipe', 'pipe'] as const, windowsHide: true }),
+    }).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(IrohIdentityProbeError)
+    expect(failure).toMatchObject({
+      code: 'iroh_data_directory_insecure',
+      diagnostic: expect.stringContaining('private path ACL grants access or replacement rights to another principal'),
+    })
+  })
+
   it('does not report a timeout before the probe has actually exited', async () => {
     const root = await ownedRoot()
     const marker = join(root, 'pid')

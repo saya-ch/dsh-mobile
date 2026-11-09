@@ -158,6 +158,7 @@ const MOBILE_PUSH_PREFERENCES_PATH = `${AUTH_PREFIX}/push/preferences`
 const MOBILE_PUSH_DISABLE_PATH = `${AUTH_PREFIX}/push/disable`
 const MOBILE_PUSH_TEST_PATH = `${AUTH_PREFIX}/push/test`
 const MOBILE_PUSH_RESOLVE_PATH = `${AUTH_PREFIX}/push/resolve`
+const BACKGROUND_EVENT_PATH = `${AUTH_PREFIX}/background-events`
 const MOBILE_PUSH_PREFERENCE_KEYS = ['question', 'plan', 'approval', 'response', 'goal', 'failure'] as const
 const DEFAULT_PUSH_PREFERENCES: PushPreferences = Object.freeze({ question: true, plan: true, approval: true, response: true, goal: true, failure: true })
 
@@ -1085,6 +1086,21 @@ function sanitizeRequestHeaders(
   for (const name of allowed) {
     const value = request.headers[name]
     if (value !== undefined) headers[name] = value
+  }
+  // Forward DSH plugin namespace headers (x-dsh-*) so plugin-side custom
+  // authentication/validation markers survive the gateway proxy. These
+  // requests still pass the gateway's pairing authentication and CSRF
+  // checks before reaching upstream, so opening this namespace does not
+  // add cross-site risk (mirrors the dsh-web remote forwarding fix).
+  // The x-dsh-mobile-* namespace is reserved for internal gateway markers
+  // (CSRF, view, catalog, size-probe, admin, capabilities) and must not
+  // leak upstream. DSH also owns x-dsh-auth-token for account credentials;
+  // that header is never a plugin marker and remains excluded.
+  for (const name of Object.keys(request.headers)) {
+    const lower = name.toLowerCase()
+    if (!lower.startsWith('x-dsh-') || lower.startsWith('x-dsh-mobile-') || lower === 'x-dsh-auth-token') continue
+    const value = request.headers[name]
+    if (value !== undefined) headers[name] = Array.isArray(value) ? value[0] : value
   }
   return headers
 }
@@ -2312,6 +2328,7 @@ export class MobileAccessGateway {
     const workspaceDirectories = (request.method === 'GET' || request.method === 'POST')
       && target.decodedPathname === `${AUTH_PREFIX}/workspace-directories`
     const clientModules = target.decodedPathname === `${AUTH_PREFIX}/client-modules`
+    const backgroundEvents = target.decodedPathname === BACKGROUND_EVENT_PATH
     const mobilePushRoute = [MOBILE_PUSH_CONFIG_PATH, MOBILE_PUSH_SUBSCRIPTION_PATH, MOBILE_PUSH_PREFERENCES_PATH,
       MOBILE_PUSH_DISABLE_PATH, MOBILE_PUSH_TEST_PATH, MOBILE_PUSH_RESOLVE_PATH].includes(target.decodedPathname)
     const requestedExtension = extensionTarget(target.decodedPathname)
@@ -2351,7 +2368,7 @@ export class MobileAccessGateway {
                     digest: requestedCompatRevision,
                   }
       : undefined
-    if (customAsset === undefined && requestedMobileBootBatch === undefined && !computerImages && !computerImage && !workspaceDirectories && !clientModules && !mobilePushRoute
+    if (customAsset === undefined && requestedMobileBootBatch === undefined && !computerImages && !computerImage && !workspaceDirectories && !clientModules && !backgroundEvents && !mobilePushRoute
       && extensionTarget(target.decodedPathname) === undefined
       && (target.decodedPathname === AUTH_PREFIX || target.decodedPathname.startsWith(`${AUTH_PREFIX}/`))) {
       throw new HttpError(404, 'not_found')
@@ -2397,6 +2414,13 @@ export class MobileAccessGateway {
     }
     if (mobilePushRoute) {
       await this.handleMobilePushRequest(target, request, response, authorization)
+      return
+    }
+    if (backgroundEvents) {
+      if (request.method !== 'GET' || target.search !== '') {
+        throw new HttpError(request.method === 'GET' ? 400 : 405, request.method === 'GET' ? 'bad_request' : 'method_not_allowed')
+      }
+      this.openBackgroundEventStream(request, response, authorization)
       return
     }
     if (clientModules) {
@@ -4220,6 +4244,59 @@ export class MobileAccessGateway {
     })
     response.write('retry: 2000\n: ready\n\n')
     this.extensionEventListeners.add(send)
+    this.taskEventListeners.add(sendTask)
+    const deviceListeners = this.deviceEventListeners.get(authorization.deviceId) ?? new Set<(payload: string) => void>()
+    deviceListeners.add(sendDevice)
+    this.deviceEventListeners.set(authorization.deviceId, deviceListeners)
+    heartbeat = setInterval(() => {
+      if (!closed && !response.destroyed && !response.writableEnded) response.write(': heartbeat\n\n')
+    }, EXTENSION_EVENT_HEARTBEAT_MS)
+    heartbeat.unref()
+    request.once('aborted', close)
+    response.once('close', close)
+  }
+
+  /**
+   * Native background notifications need only Host task and revocation events.
+   * They use the paired session cookie but no mobile document view, because the
+   * App has no live WebView while this stream is serving a suspended page.
+   */
+  private openBackgroundEventStream(
+    request: IncomingMessage,
+    response: ServerResponse,
+    authorization: SessionAuthorization,
+  ): void {
+    const operation = this.allocateRequest(authorization, response, {})
+    let closed = false
+    let heartbeat: NodeJS.Timeout | undefined
+    const close = (): void => {
+      if (closed) return
+      closed = true
+      if (heartbeat !== undefined) clearInterval(heartbeat)
+      this.taskEventListeners.delete(sendTask)
+      const deviceListeners = this.deviceEventListeners.get(authorization.deviceId)
+      deviceListeners?.delete(sendDevice)
+      if (deviceListeners?.size === 0) this.deviceEventListeners.delete(authorization.deviceId)
+      request.removeListener('aborted', close)
+      response.removeListener('close', close)
+      operation.release()
+    }
+    const sendTask = (payload: string): void => {
+      if (closed || response.destroyed || response.writableEnded) return
+      response.write(`event: task-notify\ndata: ${payload}\n\n`)
+    }
+    const sendDevice = (payload: string): void => {
+      if (closed || response.destroyed || response.writableEnded) return
+      response.write(`event: device-revoked\ndata: ${payload}\n\n`)
+    }
+    setSecurityHeaders(response, this.tlsEnabled)
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    })
+    response.write('retry: 2000\n: ready\n\n')
     this.taskEventListeners.add(sendTask)
     const deviceListeners = this.deviceEventListeners.get(authorization.deviceId) ?? new Set<(payload: string) => void>()
     deviceListeners.add(sendDevice)

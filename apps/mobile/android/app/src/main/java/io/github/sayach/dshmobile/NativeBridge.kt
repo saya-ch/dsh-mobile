@@ -2,9 +2,6 @@ package io.github.sayach.dshmobile
 
 import android.Manifest
 import android.app.Activity
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -19,7 +16,6 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.WebView
-import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.FileProvider
 import androidx.webkit.JavaScriptReplyProxy
@@ -146,6 +142,10 @@ internal class NativeBridge(
 
     /** Called by DSH General settings to show the Android notification permission UI. */
     var onOpenTaskNotificationSettings: (() -> Unit)? = null
+
+    /** Read or update the opt-in foreground background-notification stream. */
+    var onGetBackgroundNotifications: (() -> Boolean)? = null
+    var onSetBackgroundNotifications: ((Boolean) -> Boolean)? = null
 
     /** App-local base page scale read by the paired page's General settings. */
     var onGetDisplayScale: (() -> Int)? = null
@@ -499,6 +499,27 @@ internal class NativeBridge(
                             finishPending(requestId, successJson(requestId, JSONObject().put("ok", true)))
                         } catch (_: Exception) {
                             finishPending(requestId, errorJson("failed", "notification settings could not open", requestId))
+                        }
+                    }
+                }
+                "notification.background.get" -> activity.runOnUiThread {
+                    val callback = onGetBackgroundNotifications
+                    if (!available || preservingForConfiguration || callback == null) {
+                        finishPending(requestId, errorJson("unavailable", "background notifications are unavailable", requestId))
+                    } else {
+                        finishPending(requestId, successJson(requestId, JSONObject().put("enabled", callback.invoke())))
+                    }
+                }
+                "notification.background.set" -> activity.runOnUiThread {
+                    val callback = onSetBackgroundNotifications
+                    if (!available || preservingForConfiguration || callback == null) {
+                        finishPending(requestId, errorJson("unavailable", "background notifications are unavailable", requestId))
+                    } else {
+                        val enabled = input.optBoolean("enabled", false)
+                        if (callback.invoke(enabled)) {
+                            finishPending(requestId, successJson(requestId, JSONObject().put("enabled", enabled)))
+                        } else {
+                            finishPending(requestId, errorJson("unavailable", "the active paired computer cannot use background notifications", requestId))
                         }
                     }
                 }
@@ -882,6 +903,7 @@ internal class NativeBridge(
             input.optString("body", ""), NativeBridgePolicy.TASK_NOTIFICATION_BODY_CHARS,
         )
         val tag = NativeBridgePolicy.sanitizeNotificationTag(input.optString("tag", ""))
+        val navigate = NativeBridgePolicy.sanitizeNotificationNavigate(input.optString("navigate", ""))
         if (title.isEmpty() && body.isEmpty()) {
             finishPending(requestId, errorJson("bad_message", "notification text is empty", requestId))
             return
@@ -895,44 +917,15 @@ internal class NativeBridge(
         }
         activity.runOnUiThread {
             try {
-                postTaskNotification(requestId, title, body, tag)
+                postTaskNotification(requestId, title, body, tag, navigate)
             } catch (_: Exception) {
                 finishPending(requestId, errorJson("failed", "native operation failed", requestId))
             }
         }
     }
 
-    private fun postTaskNotification(requestId: String, title: String, body: String, tag: String) {
-        val manager = activity.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            ?: throw IllegalStateException("notification service is unavailable")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID,
-                    activity.getString(R.string.notification_channel_tasks),
-                    NotificationManager.IMPORTANCE_DEFAULT,
-                ).apply { description = activity.getString(R.string.notification_channel_tasks_description) },
-            )
-        }
-        val openApp = PendingIntent.getActivity(
-            activity,
-            NativeBridgePolicy.TASK_NOTIFICATION_ID,
-            Intent(activity, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val shownTitle = title.ifEmpty { body }
-        val shownBody = if (title.isEmpty() || body.isEmpty()) "" else body
-        val notification = NotificationCompat.Builder(activity, NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_task_notification)
-            .setContentTitle(shownTitle)
-            .setContentText(if (shownBody.isEmpty()) null else shownBody)
-            .setContentIntent(openApp)
-            .setAutoCancel(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .build()
-        manager.notify(tag, NativeBridgePolicy.TASK_NOTIFICATION_ID, notification)
+    private fun postTaskNotification(requestId: String, title: String, body: String, tag: String, navigate: String) {
+        TaskNotificationPublisher.post(activity, title, body, tag, navigate)
         finishPending(requestId, successJson(requestId, JSONObject().put("ok", true)))
     }
 
@@ -1175,7 +1168,7 @@ internal class NativeBridge(
           bridge.onmessage = handleReply;
           window.__DSH_MOBILE_NATIVE_STATE__ = { pending };
           window.__DSH_MOBILE_NATIVE__ = {
-            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write','auth.renew','notification.notify','notification.settings','mobile.switch-computer','mobile.display-scale.get','mobile.display-scale.set']),
+            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write','auth.renew','notification.notify','notification.settings','notification.background.get','notification.background.set','mobile.switch-computer','mobile.display-scale.get','mobile.display-scale.set']),
             invoke: (action, input = {}, options = {}) => new Promise((resolve, reject) => {
               const signal = action === 'auth.renew' ? options.signal : undefined;
               const cancellation = () => Object.assign(new Error('session renewal was cancelled'), { name: 'AbortError', code: 'cancelled' });

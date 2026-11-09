@@ -256,6 +256,41 @@ describe('push delivery coordination', () => {
     expect(store.inspect().receipts.map(row => row.sourceId)).toEqual(['new-generation'])
   })
 
+  it('queues Host-supplied custom text only for enabled recipients', async () => {
+    const { registry, registrations } = await makeRegistry()
+    const payloads: Array<{ notification: { title: string; body: string; navigate: string } }> = []
+    const sender = senderDouble(async input => {
+      payloads.push(JSON.parse(input.payload) as { notification: { title: string; body: string; navigate: string } })
+      return { kind: 'accepted' }
+    })
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender })
+    opened.push(() => delivery.close())
+    delivery.attachOrigin({ scopeId: 'scope-a', origin: 'https://mobile.example.test', authorizedDevices: async () => [{ id: 'device-a', expiresAt: Date.now() + 60_000 }] })
+    await delivery.start()
+    const recipient = registrations[0]!
+    await registry.preferences({ ...owner(recipient.deviceId), installationId: recipient.installationId }, { ...preferences, response: false }, {
+      ownerGeneration: registry.snapshot().ownerGenerations.find(row => row.deviceId === 'device-a')?.generation ?? 0,
+      registrationGeneration: recipient.generation,
+    })
+    await expect(delivery.notifyCustom({ sessionId: 'session-a', title: 'A', body: 'B' })).resolves.toMatchObject({ queued: 0 })
+
+    const current = registry.snapshot().registrations[0]!
+    await registry.preferences({ ...owner(current.deviceId), installationId: current.installationId }, preferences, {
+      ownerGeneration: registry.snapshot().ownerGenerations.find(row => row.deviceId === 'device-a')?.generation ?? 0,
+      registrationGeneration: current.generation,
+    })
+    await expect(delivery.notifyCustom({ sessionId: 'session-a', title: '会话甲', body: '回复第一行' })).resolves.toMatchObject({ queued: 1 })
+    await vi.waitFor(() => expect(payloads).toHaveLength(1))
+    expect(payloads[0]!.notification.title).toBe('会话甲')
+    expect(payloads[0]!.notification.body).toBe('回复第一行')
+    expect(payloads[0]!.notification.navigate).toMatch(/^\/\?mobile-push=[A-Za-z0-9_-]+$/u)
+    const navigate = payloads[0]!.notification.navigate
+    const reference = navigate.slice(navigate.indexOf('mobile-push=') + 'mobile-push='.length)
+    await expect(delivery.resolve(owner('device-a'), reference)).resolves.toEqual({
+      sessionId: 'session-a', interaction: 'current',
+    })
+  })
+
   it('cancels at the real sender boundary when another AccessController revokes during DNS', async () => {
     const deviceId = 'a'.repeat(32)
     const now = Date.now()

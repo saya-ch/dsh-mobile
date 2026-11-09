@@ -231,11 +231,11 @@ export function createMobilePushController(api: MobilePushApiAdapter, environmen
         config = { ...base, status: 'disabled' }; publish({ state: 'disabled', preferences: base.preferences })
         if (currentHostSubscription) consentedSubscriptions.delete(currentHostSubscription)
         currentHostSubscription = undefined
-        const sub = ownedSubscription
-        if (sub) {
-          const removed = await sub.unsubscribe().catch(() => false)
-          if (removed && ownedSubscription === sub) ownedSubscription = undefined
-        }
+        // Keep the browser subscription after an explicit Disable. The Host
+        // registration above stops delivery, and reusing this subscription
+        // avoids WebKit/iOS producing an unusable replacement after a quick
+        // unsubscribe/subscribe cycle.
+        ownedSubscription = undefined
         if (await refresh(token) && current(token) && operation === attempt && config?.status === 'disabled') {
           publish({ state: 'disabled', preferences: config.preferences })
         }

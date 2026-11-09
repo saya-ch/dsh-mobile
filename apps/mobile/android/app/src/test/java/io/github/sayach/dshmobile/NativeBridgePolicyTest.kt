@@ -189,6 +189,8 @@ class NativeBridgePolicyTest {
     fun taskNotificationChannelStaysStable() {
         assertEquals("dsh_task_completion", NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)
         assertEquals(7101, NativeBridgePolicy.TASK_NOTIFICATION_ID)
+        assertEquals(NativeBridgePolicy.notificationRequestCode("same"), NativeBridgePolicy.notificationRequestCode("same"))
+        assertTrue(NativeBridgePolicy.notificationRequestCode("first") != NativeBridgePolicy.notificationRequestCode("second"))
         assertEquals(80, NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS)
         assertEquals(200, NativeBridgePolicy.TASK_NOTIFICATION_BODY_CHARS)
         assertEquals(64, NativeBridgePolicy.TASK_NOTIFICATION_TAG_CHARS)
@@ -207,5 +209,22 @@ class NativeBridgePolicyTest {
         assertEquals("q-1-2-pick", NativeBridgePolicy.sanitizeNotificationTag("Q 1/2: pick!"))
         assertEquals("dsh-task", NativeBridgePolicy.sanitizeNotificationTag("!!!"))
         assertTrue(NativeBridgePolicy.sanitizeNotificationTag("x".repeat(100)).length <= 64)
+    }
+
+    @Test
+    fun notificationNavigateAcceptsOnlySameOriginRelativeRoutes() {
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate(""))
+        assertEquals("/", NativeBridgePolicy.sanitizeNotificationNavigate("/"))
+        assertEquals("/?dsh-notify=abc123", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=abc123"))
+        assertEquals("/?dsh-session=YWJj", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-session=YWJj"))
+        assertEquals("/?dsh-notify=abc-123_xyz", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=abc-123_xyz"))
+        val longest = "/?dsh-notify=" + "x".repeat(256)
+        assertEquals(longest, NativeBridgePolicy.sanitizeNotificationNavigate(longest))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("https://evil.example"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("//evil.example/x"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?other=value"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=a b"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/path/to/page"))
+        assertEquals("", NativeBridgePolicy.sanitizeNotificationNavigate("/?dsh-notify=" + "x".repeat(300)))
     }
 }

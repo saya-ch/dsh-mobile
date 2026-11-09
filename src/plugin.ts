@@ -94,6 +94,7 @@ import { PushRegistry } from './mobile-push/registry.js'
 import { PushDelivery } from './mobile-push/delivery.js'
 import { createVapidKeys, PushSender } from './mobile-push/sender.js'
 import { PushGatewayCoordinator, type PushGatewayOriginBinding, type PushGatewayService } from './mobile-push/gateway.js'
+import { MobilePushService } from './mobile-push/service.js'
 import type { ContextLike, PushConfig } from './mobile-push/contracts.js'
 import { loadOrCreateInstallationId } from './installation-id.js'
 import { withInstallationIdentity } from './gateway-identity.js'
@@ -641,6 +642,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     if (service === undefined) throw new Error('push_unavailable')
     return service
   }
+  new MobilePushService(ctx, async input => (await requiredPushGatewayService()).notifyCustom(input))
   const queueDeviceInvalidations = (scopeId: string, deviceIds: readonly string[]): void => {
     let queued = pendingDeviceInvalidations.get(scopeId)
     if (queued === undefined) pendingDeviceInvalidations.set(scopeId, queued = new Set())
@@ -707,6 +709,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       }
     },
     async test(owner, installationId) { await (await requiredPushGatewayService()).test(owner, installationId) },
+    async notifyCustom(input) {
+      const service = await requiredPushGatewayService()
+      if (service.notifyCustom === undefined) throw new Error('push_unavailable')
+      return await service.notifyCustom(input)
+    },
     async resolve(owner, reference) { return (await requiredPushGatewayService()).resolve(owner, reference) },
   }
   const closePushRuntime = async (coordinatorOverride?: PushGatewayCoordinator): Promise<void> => {
