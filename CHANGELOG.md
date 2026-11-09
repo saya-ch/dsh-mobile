@@ -2,12 +2,6 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## 0.8.6 - 2026-11-09
-
-- Correct release-status documentation left stale after earlier releases: 0.8.2 is now described as released, 0.8.5 is no longer called a preparation candidate, and the released Android 0.7.2 contribution is no longer described as a candidate.
-- Extend the release-documentation gate to scan shipped guides for versioned `candidate` and `not released` claims, so a release tag fails when post-release prose still describes an earlier or current version as unreleased.
-- Plugin-only documentation correction. Android 0.7.2 remains the published App; no native App change is included.
-
 ## 0.8.5 - 2026-11-08
 
 - Update an existing Windows managed-LAN firewall rule in place and verify its resulting scope instead of deleting the previous rules first. Administrator cancellation or a policy rejection now retains the prior rule and records a bounded error in the plugin log. Thanks @lyc0110 for the reproduction in [#364](https://github.com/saya-ch/dsh-mobile/issues/364).
