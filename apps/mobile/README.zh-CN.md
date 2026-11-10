@@ -4,14 +4,14 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.7.2**；构建号为 87。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.7.2 更新](#072-更新)。
+当前正式 App 为 **0.7.3**；构建号为 88。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.7.3 更新](#073-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
 ## 安装与配对
 
 1. 按[项目快速开始](../../README.md#快速开始)安装并启用插件。局域网配置可通过命令行或电脑端的 **移动访问** 面板完成。
-2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.2) 安装已签名 APK。原有 HTTPS 通道可选兼容版 `.apk`；arm64-v8a/x86_64 设备使用实验性 iroh 时选完整版 `-iroh.apk`。两包使用相同包名和正式签名，选一个原位升级即可保留配对；不同签名的 Debug 包不能直接覆盖正式版，不要为绕过签名不匹配而卸载或清除数据。
+2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3) 安装已签名 APK。原有 HTTPS 通道可选兼容版 `.apk`；arm64-v8a/x86_64 设备使用实验性 iroh 时选完整版 `-iroh.apk`。两包使用相同包名和正式签名，选一个原位升级即可保留配对；不同签名的 Debug 包不能直接覆盖正式版，不要为绕过签名不匹配而卸载或清除数据。
 3. 在电脑 **移动访问 → 局域网访问** 中生成密钥／配对链接，或配置远程通道并生成远程配对二维码。在 App 选择对应方式，扫码或粘贴链接。
 4. 为电脑命名。每条局域网或远程配对单独保存；手机无需安装 cpolar、Cloudflare 或 Tailscale App。
 
@@ -35,6 +35,10 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 页面缩放影响整个网页，与按地址保存的文字偏好不同。App 专属操作只在原生 Bridge 支持时显示。原生页面跟随 Android 系统语言，支持简体中文、英文和意大利文；网页跟随 DSH 选择的语言，当前 DSH 尚未提供意大利语。
 
 删除本机记录会移除保存的设备令牌和固定 CA，不等于撤销电脑授权或清除所有 WebView 短期 Cookie。需要立即终止访问时，请在电脑的 **移动访问** 中撤销设备。Android“清除应用数据”会删除全部配对和网页数据，不是普通重连的处理步骤。
+
+## 0.7.3 更新
+
+任务通知点击可携带经校验的同源 `dsh-session` 路由，冷启动或热启动后打开对应会话；并新增可显式开启的 `dataSync` 前台服务，在 Android 挂起页面后继续接收当前已配对电脑的完成事件。该服务显示常驻通知，不支持 iroh 配对，断连期间不补发，仍受 Android 前台服务时限与电池策略限制。两种 APK 均沿用正式签名，可原位升级并保留已有配对；后台事件流需要插件 0.8.6 或更高版本。
 
 ## 0.7.2 更新
 
@@ -132,7 +136,7 @@ DSH 通过 `getUserMedia` 录音并交给电脑已配置的语音提供方，不
 
 ## 通知与扩展
 
-任务提醒依赖页面仍存活时收到的 Host 完成事件和待确认卡片。锁屏只显示通用文案，点击返回 App；它不是离线推送服务，完成事件需要 SSE，断连后不会补发。Cloudflare 快速隧道不支持该事件流，详见[通道限制](../../docs/CLOUDFLARE_TUNNEL.md#快速隧道的功能限制)。
+任务提醒依赖 Host 完成事件和待确认卡片。页面仍存活时由网页走原生 Bridge 发通知；在**设置 → 通用设置 → 任务通知**下可显式开启**后台提醒**，由可关闭的前台服务保持与当前已配对电脑的连接，页面被系统挂起后仍可收到完成事件。该服务会显示常驻通知，受 Android 前台服务时限、电池策略和网络影响；iroh 配对暂不支持，断连期间不补发。点击通知可携带有界的同源 `dsh-session` 路由，冷启动或热启动后打开对应会话；其他目标一律回退到 App 根入口。Cloudflare 快速隧道不支持事件流，详见[通道限制](../../docs/CLOUDFLARE_TUNNEL.md#快速隧道的功能限制)。
 
 认证页面可通过 `dshMobile` Bridge 调用 `files.pick`、`camera.capture`、分享、剪贴板读写、任务通知／设置、切换电脑及页面缩放。扩展单独调用的 `files.pick` 返回一个文件，遵循声明的 MIME 类型，通过 Bridge 返回的文件最多 8 MiB；这不是 DSH 标准附件选择器的大小限制。
 
@@ -147,7 +151,7 @@ Bridge 文件／相机操作串行执行，最长等待五分钟。取消、文�
 | 传输 | 仅 HTTPS，Manifest 禁止明文流量。 |
 | 信任 | 按精确 Origin 使用系统信任或私有配对 CA，不广泛信任用户另装的系统 CA。 |
 | 导航 | 同源主页面保留，明确点击的外部 HTTPS 链接交给系统浏览器。 |
-| 权限 | 明确扫码／拍照时申请相机权限，DSH 录音时申请麦克风权限，通过前台操作申请或设置通知；标准选文件无需存储权限。 |
+| 权限 | 明确扫码／拍照时申请相机权限，DSH 录音时申请麦克风权限，通过前台操作申请或设置通知；后台提醒使用用户显式开启的 `dataSync` 前台服务；标准选文件无需存储权限。 |
 | Bridge | WebMessage listener 校验精确顶层 Origin 和主框架，不使用 `addJavascriptInterface`，不暴露任意 Android API。 |
 | 限额 | 入站消息 1 MiB、剪贴板 256 KiB、二进制 Bridge 结果 8 MiB、回复 12 MiB。 |
 | 凭据 | Bridge 回复不自动附带已保存的配对凭据，也不提供直接读取凭据存储或私钥的接口；剪贴板和所选文件仍可能包含敏感内容，请仅使用可信扩展。 |
@@ -178,9 +182,11 @@ Set-Location apps/mobile/android
 
 当前源码的 Debug 构建使用包名 `io.github.sayach.dshmobile.debug` 与 `-debug` 版本后缀，可与正式 App 并存，存储和配对彼此独立。它不会升级或迁移旧版无后缀 Debug 应用；切换包名时应保留旧应用和数据，不要为此卸载或清除。Release 构建继续使用 `io.github.sayach.dshmobile` 与既定正式签名。
 
-已核验的正式版本为 [Android 0.7.2](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.2)，构建 87。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
+已核验的正式版本为 [Android 0.7.3](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3)，构建 88。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
 
 ## 验收与已知限制
+
+- 当前源码 Debug 构建（0.7.3／构建 88）经 cloudflared 远程入口配对后，在 App 退到后台且锁屏时收到了真实回合完成通知；点击后打开对应会话的 `dsh-session` 路由，关闭该选项后服务停止并移除通知。这是单台设备、公网隧道和 Debug 签名的验证，不代表正式 APK、iroh 或所有网络与厂商行为。
 
 - App 0.7.1 的两份公开 APK 均通过校验值、Manifest、既定正式签名、许可文本和对齐检查；完整版另检查两个 ABI 及保留的 JVM TLS／JNI 入口，兼容版确认没有原生库。本版未新增真机或公网中继回归。较早 arm64 开发构建的链路记录仍属历史证据，不能据此断言当前连接的数据已经过中继。
 
