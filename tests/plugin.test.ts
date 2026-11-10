@@ -1247,6 +1247,48 @@ describe('stock DSH lifecycle', () => {
     expect(after.references).toEqual([])
   })
 
+  it('queues a custom web-push notification through the trusted Host route', async () => {
+    const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
+    const mounted = await mount(false, 3080, {}, requestRejection, [], true)
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER, cookie: 'dsh-session=valid', 'content-type': 'application/json' }
+    const response = await invoke(mounted.route, 'POST', '/api/mobile-access/push/notify',
+      JSON.stringify({ sessionId: 'session-a', title: '自定义标题', body: '自定义正文' }), '127.0.0.1', marker)
+    expect(response.status).toBe(200)
+    const payload = JSON.parse(response.body) as { queued: number; expiresAt: number }
+    expect(typeof payload.queued).toBe('number')
+    expect(typeof payload.expiresAt).toBe('number')
+  })
+
+  it('accepts an optional category on push/notify', async () => {
+    const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
+    const mounted = await mount(false, 3080, {}, requestRejection, [], true)
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER, cookie: 'dsh-session=valid', 'content-type': 'application/json' }
+    const response = await invoke(mounted.route, 'POST', '/api/mobile-access/push/notify',
+      JSON.stringify({ sessionId: 'session-a', title: '标题', body: '正文', category: 'response' }), '127.0.0.1', marker)
+    expect(response.status).toBe(200)
+  })
+
+  it('rejects malformed push/notify requests', async () => {
+    const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
+    const mounted = await mount(false, 3080, {}, requestRejection, [], true)
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER, cookie: 'dsh-session=valid', 'content-type': 'application/json' }
+    const missingBody = await invoke(mounted.route, 'POST', '/api/mobile-access/push/notify',
+      JSON.stringify({ sessionId: 'session-a', title: '标题' }), '127.0.0.1', marker)
+    expect(missingBody.status).toBe(400)
+    const wrongMethod = await invoke(mounted.route, 'GET', '/api/mobile-access/push/notify', '', '127.0.0.1', marker)
+    expect(wrongMethod.status).toBe(405)
+  })
+
+  it('returns push_unavailable when the push runtime is down', async () => {
+    const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
+    const mounted = await mount(false, 3080, {}, requestRejection)
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER, cookie: 'dsh-session=valid', 'content-type': 'application/json' }
+    const response = await invoke(mounted.route, 'POST', '/api/mobile-access/push/notify',
+      JSON.stringify({ sessionId: 'session-a', title: '标题', body: '正文' }), '127.0.0.1', marker)
+    expect(response.status).toBe(503)
+    expect(JSON.parse(response.body)).toEqual({ error: 'push_unavailable' })
+  })
+
   it('keeps Mobile controls alive when only push state initialization fails', async () => {
     const requestRejection = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid' ? undefined : 401)
     const mounted = await mount(false, 3080, {}, requestRejection, [], true, true)

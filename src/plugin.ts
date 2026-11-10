@@ -1305,6 +1305,9 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       && connection.requestRejection(request) === undefined
   }
 
+  /** Categories a Host plugin may request for a custom web-push notification (#372). */
+  const CUSTOM_NOTIFY_CATEGORIES: ReadonlySet<string> = new Set(['question', 'plan', 'approval', 'response', 'goal', 'failure'])
+
   const adminRoute: WebRoute = {
     kind: 'prefix',
     path: LOCAL_ADMIN_PREFIX,
@@ -1315,10 +1318,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         // source boundary; explicitly admitted, Core-authenticated NAS
         // administration continues to cover every other management route.
         const pushReset = target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/push/reset`
+        const pushNotify = target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/push/notify`
         assertLocalAdminTrust(request, request.method === 'POST', () => (
           (isLoopbackAddress(request.socket.remoteAddress ?? '') || supportsRemoteAdminAuthentication)
           && authenticateDesktopAdmin(request)
-        ), pushReset ? [] : baseTemplate.adminAllowedCidrs)
+        ), (pushReset || pushNotify) ? [] : baseTemplate.adminAllowedCidrs)
         if (adminClosing) throw new HttpError(503, 'unavailable')
         if (target.search !== '') throw new HttpError(400, 'bad_request')
         if (pushReset) {
@@ -1328,6 +1332,24 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           if (pushGatewayService === undefined) throw new HttpError(503, 'push_unavailable')
           await pushGatewayService.reset()
           sendJson(response, 200, { reset: true }, false)
+          return
+        }
+        if (pushNotify) {
+          if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed')
+          const body = await readJsonObject(request, 4096)
+          if (typeof body.sessionId !== 'string' || typeof body.title !== 'string' || typeof body.body !== 'string'
+            || body.sessionId === '' || body.title === '' || body.body === '') throw new HttpError(400, 'bad_request')
+          const category = (typeof body.category === 'string' && CUSTOM_NOTIFY_CATEGORIES.has(body.category)
+            ? body.category as 'question' | 'plan' | 'approval' | 'response' | 'goal' | 'failure'
+            : undefined)
+          if (pushGatewayService === undefined || pushGatewayService.notifyCustom === undefined) throw new HttpError(503, 'push_unavailable')
+          const result = await pushGatewayService.notifyCustom({
+            sessionId: body.sessionId,
+            title: body.title,
+            body: body.body,
+            ...(category !== undefined ? { category } : {}),
+          })
+          sendJson(response, 200, result, false)
           return
         }
         const lanControl = target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/control`

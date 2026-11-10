@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Expose the trusted `POST /api/mobile-access/push/notify` endpoint so a Host plugin can deliver a custom web-push notification (custom title/body and a session target) through the existing paired push pipeline, instead of only the locale-table defaults. The underlying `mobilePush.notify` service already existed; this adds the loopback-only HTTP entrypoint, request validation, and `503 push_unavailable` handling. Thanks @lnuxe for the implementation.
+
 ## 0.8.6 - 2026-11-10
 
 - Forward paired plugin `x-dsh-*` request headers through the mobile Gateway while continuing to strip internal `x-dsh-mobile-*` markers and the DSH account credential header. This restores third-party plugin write routes that validate their own request marker. Thanks @mekswhy for the reproduction in [#375](https://github.com/saya-ch/dsh-mobile/issues/375) and @lnuxe for [#376](https://github.com/saya-ch/dsh-mobile/pull/376).

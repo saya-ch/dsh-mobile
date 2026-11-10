@@ -121,6 +121,14 @@ await ctx.mobilePush.notify({
 
 已有注册而 VAPID 材料丢失／损坏时，功能安全关闭。主机管理员可以通过现有受信任本机桌面管理 API，向 `POST /api/mobile-access/push/reset` 发送 JSON `{ "confirm": "reset-web-push" }`，明确重置**通知状态而非配对**。这是破坏性的通知重置，不是手机接口或自动修复按钮；之后各浏览器须重新明确注册，配对保留。该重置**作用于主机整个注册表**——会清空所有已连接设备与 Origin 的注册，而不只是之后遇到冲突的那台浏览器——因此旧订阅可能让普通重新启用持续失败；此处不承诺任何经过验证的破坏性修复步骤。保留正常桌面 Host／Origin／来源保护，不能公开暴露此管理路径，也不要手动删除配对设备文件。
 
+受信任的 Host 插件还可以通过 `POST /api/mobile-access/push/notify` 主动投递一条自定义网页推送，把主机侧事件（例如任务完成、需要人工关注等）直接告诉用户。请求体为 JSON：
+
+```json
+{ "sessionId": "当前会话标识", "title": "通知标题", "body": "通知正文", "category": "response" }
+```
+
+`sessionId`、`title`、`body` 必填（标题最长 80 字符、正文最长 200 字符），`category` 可选，取值 `question`／`plan`／`approval`／`response`／`goal`／`failure`。该接口仅向已配对且启用了网页推送的浏览器投递，点击通知会打开 `sessionId` 对应的会话。成功返回 `{ "queued": 数量, "expiresAt": 过期时间戳 }`；推送运行时不可用时返回 `503 push_unavailable`。
+
 ## 独立通道与验收
 
 Android 原生权限／SSE 路径与 iOS 网页推送相互独立。新版 Android App 可在“任务通知”下显式开启后台提醒：它会以前台服务保持配对连接，页面被系统挂起后仍接收任务完成事件。该选项需要额外常驻通知，受 Android 前台服务时限、电池策略和网络影响；iroh 暂不参与该后台服务。独立维护的 **dsh-ping** 不被修改或自动停用；同时开启可能收到不同通道的重复提醒。网页推送不增加跨通道去重，也不因页面在前台而压制通知。

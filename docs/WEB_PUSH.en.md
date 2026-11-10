@@ -121,6 +121,14 @@ The sender accepts only validated Apple HTTPS push endpoints, rejects redirects 
 
 Lost/corrupt VAPID material with existing registrations fails closed. A host administrator may deliberately reset **notification state only** with `POST /api/mobile-access/push/reset` and JSON `{ "confirm": "reset-web-push" }` through the existing trusted local desktop-admin API. This is a destructive notification reset, not a phone endpoint or an automatic repair button: all browser push consents require explicit re-enrollment afterwards, while pairings remain intact. The reset is **host-registry-wide** — it clears registrations across attached devices and origins, not only the browser that later meets the conflict — so an existing subscription can keep ordinary re-enable failing; no validated destructive repair recipe is promised here. Keep the normal desktop Host/Origin/source protections; never expose this administration path publicly or manually remove paired-device files.
 
+A trusted Host plugin can also deliver a custom web push through `POST /api/mobile-access/push/notify` to surface host-side events (for example a finished task, or something needing attention) directly to the user. The request body is JSON:
+
+```json
+{ "sessionId": "current-session-id", "title": "Notification title", "body": "Notification body", "category": "response" }
+```
+
+`sessionId`, `title`, and `body` are required (title up to 80 characters, body up to 200), and `category` is optional with values `question`/`plan`/`approval`/`response`/`goal`/`failure`. The endpoint only delivers to browsers that are paired and have web push enabled; tapping the notification opens the `sessionId` conversation. On success it returns `{ "queued": count, "expiresAt": expiry-timestamp }`; when the push runtime is unavailable it returns `503 push_unavailable`.
+
 ## Independent channels and acceptance
 
 Android's native permission/SSE path stays independent of iOS Web Push. A newer Android App can explicitly enable background reminders below Task notifications: a foreground service keeps the paired connection available after Android suspends the page. This requires an additional persistent notification and remains subject to foreground-service time limits, battery policy and connectivity; iroh does not participate in this background service yet. The independently maintained **dsh-ping** channel is not modified or automatically disabled; enabling both can produce separate alerts. Web Push adds no cross-channel deduplication or foreground suppression.
