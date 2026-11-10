@@ -2,7 +2,7 @@
 
 iroh replaces public domains and tunnel accounts with an encrypted direct connection (relay fallback when direct fails): the phone finds the computer's cryptographic identity first, then traffic returns to the loopback gateway. You need no domain, port mapping, or separate HTTPS tunnel.
 
-> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport. The feature is off by default and remains experimental. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
+> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. This guide matches plugin 0.8.6 and the full Android App 0.7.3 (build 88); iroh has been available since 0.7.0. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
 > The design lives in the companion's [integration seam](https://github.com/saya-ch/dsh-mobile-iroh/blob/main/docs/INTEGRATION_SEAM.md).
 
 ## Prerequisites
@@ -26,13 +26,13 @@ To reclaim component storage, turn off iroh remote access, expand the component 
 
 ## Security boundaries
 
-- The sidecar proxies only to a `127.0.0.1`/`::1` loopback gateway with end-to-end TLS; commands and events are versioned, bounded, and rejected closed on unknown fields.
-- A rotated fingerprint, replaced binary, or moved file fails verification and parks the channel at `unavailable` instead of silently running a stale one.
+- The sidecar proxies only to a `127.0.0.1`/`::1` loopback gateway with end-to-end TLS; commands and events are versioned and bounded (16 KiB command lines, 64 KiB peer lines), and rejected closed on unknown fields.
+- A rotated fingerprint, replaced binary, or moved file fails verification instead of silently running a stale one: a missing or damaged component parks the channel at `unavailable`, while an identity or TLS fingerprint mismatch reports `error` (`iroh_tls_ca_invalid`).
 - Transport revocation and device-token revocation are separate authorizations; their unified management is Phase 2 work. Computer-side revocation keeps working through the existing device management.
 
 ## Troubleshooting
 
-Store the iroh identity and certificates in a directory tree writable only by the current user or trusted system accounts. DSH's default state under the Windows user profile is intended for this; custom locations also need private ancestors. Some AppData or shared locations grant other accounts write access and are rejected. Do not loosen ACLs, delete real identities or move state into untrusted storage to bypass the check. Back up and preserve existing identity files.
+Store the iroh identity and certificates in a directory tree writable only by the current user or trusted system accounts. DSH's default state under the Windows user profile usually qualifies; custom locations also need private ancestors, and even the default location is rejected when an ancestor grants write or replacement rights to another account (some AppData, shared or redirected profiles). Do not loosen ACLs, delete real identities or move state into untrusted storage to bypass that refusal. Back up and preserve existing identity files.
 
 Before a component release, verify first use with the exact catalog-pinned executable, not only a locally compiled host or a directory initialized by hand. The controller invokes `tls-prepare` because `id` only reads existing identity state. On Windows, `DSH_IROH_PINNED_FIRST_USE=<verified executable> npx vitest run tests/iroh-pinned-first-use.test.ts` checks initialization, reuse and corruption refusal in owned private storage. A failure blocks component acceptance; do not loosen directory ACL checks or replace real identities to make it pass.
 

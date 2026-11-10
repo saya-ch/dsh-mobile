@@ -12,7 +12,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Verify updated Windows firewall rules with a name query followed by property filtering, and retain the elevated child's failure text plus its numeric exit code in the plugin log. This removes the PowerShell parameter-set conflict that made managed LAN setup fail after creating only the TCP rule. Thanks @zustttt for the diagnosis in [#379](https://github.com/saya-ch/dsh-mobile/issues/379).
 - Recover the longer iroh private-directory cause chain by following a generic `tls-prepare` failure with a bounded local-only host probe. This keeps the existing sidecar compatible while classifying the reported Windows ACL failure explicitly. Thanks @fgql for the follow-up reproduction in [#365](https://github.com/saya-ch/dsh-mobile/issues/365).
 - Recognize the wrapper failure on any stderr line instead of requiring the whole buffer to equal it, so a preceding warning or an extra diagnostic no longer hides that cause chain. A failed managed-LAN firewall operation now keeps its own error when the scratch directory cannot be removed, and its detail omits the encoded command and local paths; the firewall diagnostics check the same rule profile as the managed setup before reporting a rule as ready.
-- Plugin-only update. Android 0.7.2 remains the published App; the Android 0.7.3 changes below are prepared in this repository and are released separately.
+- Plugin-only update. At the time of this plugin release, Android 0.7.2 was the published App; the Android 0.7.3 changes below were prepared here and have since shipped as android-v0.7.3.
 
 ## 0.8.5 - 2026-11-08
 

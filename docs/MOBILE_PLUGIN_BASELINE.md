@@ -27,7 +27,7 @@ Web、iOS 和 Android 的单位与适用范围不同。项目建议不代替平�
 | 48dp | [Android 交互组件最小尺寸](https://developer.android.com/reference/kotlin/androidx/compose/material/minimumInteractiveComponentSize.modifier) | 只适用于原生控件；不要换算成 CSS px 写进 Web 面板 |
 | 输入字号 ≥16px | [设计参考](https://github.com/saya-ch/dsh-mobile/blob/main/design-system/dsh-mobile/MASTER.md)（移动外壳已强制）；iOS 在聚焦字号小于 16px 的表单控件时会自动放大页面 | 插件不要把输入框写成更小的固定字号来「塞进」布局 |
 | `env(safe-area-inset-*)` | [MDN · env()](https://developer.mozilla.org/en-US/docs/Web/CSS/env) | 需要 `viewport-fit=cover`；只在确实贴边、且外壳未处理的区域追加，避免重复留白 |
-| `@container` | [MDN · 容器查询](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries) | 组件按容器宽度排版；主流浏览器自 2023 年起支持，更旧的引擎要保留流式回退 |
+| `@container` | [MDN · 容器查询](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_containment/Container_queries) | 组件按容器宽度排版；主流浏览器自 2022–2023 年起陆续支持（Chrome 105 / Safari 16 / Firefox 110），更旧的引擎要保留流式回退 |
 | `overscroll-behavior: contain` | [MDN · overscroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior) | 阻止滚动链：面板到底时不要把背后的页面带走 |
 | `prefers-reduced-motion` | [MDN · prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) | 收起装饰性动画；加载指示可以保留 |
 

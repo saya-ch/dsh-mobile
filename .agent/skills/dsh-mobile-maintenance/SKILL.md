@@ -35,7 +35,7 @@ This skill has no required external-skill dependency; its references and reposit
 - Treat paired devices and local extension hosts as trusted operators, not a sandbox. Preserve exact-Origin, authentication, CSRF, certificate and revocation checks. Hiding a frontend module is not revoking authorization or disabling a Host plugin.
 - Optional frontend modules can be excluded as whole modules, subject to required/dependency checks. This is not arbitrary per-widget hiding or a promise to adapt every third-party plugin combination.
 - Trace behavior to its actual consumer. Saved preferences, CSS variables and visible controls do not prove a feature affects a canvas, editor or native API. Withdraw a nonworking control rather than claiming support or introducing a speculative service patch.
-- Keep product text locale-owned and update Chinese, English and Italian where the feature has those dictionaries. App language follows the system; plugin copy follows the supported DSH locale. Developer instructions do not need to become user-facing UI.
+- Keep product text locale-owned: update Chinese and English dictionaries together, and keep the Italian dictionaries in place pending DSH support. App language follows the system; plugin copy follows the DSH locale first and falls back to the browser language (`selectMobileControlLocale` in `src/client.ts`). Developer instructions do not need to become user-facing UI.
 
 ## Match evidence to the claim
 
@@ -51,6 +51,6 @@ Hand off with the outcome, affected client/Host/App, relevant checks, limitation
 
 When a demonstrated failure teaches a reusable lesson, update the relevant reference with the symptom, owning implementation and evidence that distinguishes it from similar failures. When architecture changes, replace or remove the obsolete guidance in the same task. Prefer a link to an existing guide over copying its commands or policy.
 
-Keep version numbers, open issue lists, candidate hashes, temporary paths and ongoing tasks in release metadata, the changelog or local test evidence. They are not skill content. Do not add hardcoded maintainer machines, credentials, universal plugin whitelists, fixed task templates or an approval checklist for ordinary local edits. Preserve the user's explicit choices and require authority at the action that actually changes external state.
+Keep version numbers, open issue lists, candidate hashes, temporary paths and ongoing tasks in release metadata, the changelog or local test evidence. They are not skill content. Do not add hardcoded maintainer machines, credentials, universal plugin whitelists, fixed task templates or an approval checklist for ordinary local edits. Preserve the user's explicit choices; publication authorization is owned by [Collaboration and releases](references/collaboration-and-releases.md).
 
 Review substantial skill changes with a realistic task and an independent Agent when available. Check the Agent's decisions and evidence, not whether it repeats this document's wording. Maintaining this skill does not create a scheduled monitor or grant permission to publish.

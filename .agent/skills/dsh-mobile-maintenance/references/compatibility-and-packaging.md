@@ -42,7 +42,7 @@ A newer stock shell can retain a hidden, inert desktop sidebar while a public op
 
 For skin conflicts, inspect the attached images as well as the installed package bytes: a missing background, unreadable drawer, shadowed header and blank trace are separate observations. A fix in the skin repository does not establish that the same-version npm package includes it. Reproduce the reported artifact before widening compatibility claims; [skin guidance](../../../../docs/SKIN_COMPATIBILITY.en.md) distinguishes existing semantic markers and per-device module selection from recreating a skin's private layout.
 
-Keep implementation changes within the plugin and leave DSH source and installed artifacts unchanged. Prefer an existing optional capability or version-independent feature detection to a brittle version allowlist. When the documented DSH seam cannot provide the requested behavior, explain the limitation and retain an isolated upstream reproduction rather than patching private implementation or bundles.
+Keep implementation changes within the plugin; the read-only rule for DSH source and installed artifacts is owned by the [cross-layer decisions](../SKILL.md#cross-layer-decisions). Prefer an existing optional capability or version-independent feature detection to a brittle version allowlist. When the documented DSH seam cannot provide the requested behavior, explain the limitation and retain an isolated upstream reproduction rather than patching private implementation or bundles.
 
 ### Scoped optional services
 
@@ -74,7 +74,7 @@ When converting an existing `link:` dependency to an archive, a successful `pnpm
 
 ## Older WebViews
 
-Check the actual WebView engine and missing feature, not only Android's OS version or the vendor's package-version naming. Current compatibility helpers live in `src/mobile-compat.ts` and the early authenticated boot path. Preserve native implementations, CSP/nonces, cancellation semantics and owned listener cleanup.
+Check the actual WebView engine and missing feature, not only Android's OS version or the vendor's package-version naming. The compatibility entry is `src/mobile-compat.ts`; the helpers it installs live in `src/mobile-abort-signal.ts` and `src/mobile-boot-feedback.ts`, and the authenticated early-boot injection is served from `src/mobile-compat-bootstrap.ts`. Preserve native implementations, CSP/nonces, cancellation semantics and owned listener cleanup.
 
 A compatibility script must run before code that needs its APIs. Pair a failing missing-feature fixture with a negative control that fails for the intended marker; an unrelated install or timeout failure is not a passing negative control. Height compatibility must preserve a real conversation scroll range, not merely replace `dvh` text in a stylesheet.
 

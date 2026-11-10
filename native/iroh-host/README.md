@@ -5,11 +5,11 @@ This crate owns one authenticated iroh endpoint and its paired peer registry. It
 ## Commands
 
 ```powershell
-cargo build --locked -p dsh-mobile-iroh-host
-./target/debug/dsh-mobile-iroh-host host --data-dir <private-directory> --pair --proxy-target 127.0.0.1:3443
+cargo build --locked --manifest-path native/Cargo.toml -p dsh-mobile-iroh-host
+./native/target/debug/dsh-mobile-iroh-host host --data-dir <private-directory> --pair --proxy-target 127.0.0.1:3443
 ```
 
-The parent owns stdin and stdout. Closing stdin or sending `shutdown` closes the endpoint, active peer connections and their proxy tasks, then emits `stopped`. One OS file lock prevents simultaneous hosts from using the same data directory. Corrupt or unreadable identity/paired-device files fail startup rather than generating a new identity or opening a new pairing window.
+Run both commands from the repository root; the workspace root is `native/`, so cargo still writes to `native/target` (on Windows the debug binary is `dsh-mobile-iroh-host.exe`). The parent owns stdin and stdout. Closing stdin or sending `shutdown` closes the endpoint, active peer connections and their proxy tasks, then emits `stopped`. One OS file lock prevents simultaneous hosts from using the same data directory. Corrupt or unreadable identity/paired-device files fail startup rather than generating a new identity or opening a new pairing window.
 
 Windows opens the verified private lock file without delete sharing, so its active pathname cannot be unlinked or renamed to bypass the lock. On Unix, the profile directory must remain exclusively application-owned and its `host.lock` pathname must not be manually removed while a host runs: advisory file locking does not prevent a process with the same UID from unlinking a locked inode. A compromised current user is outside the local credential isolation model.
 
@@ -61,6 +61,12 @@ The control stream remains owned for the entire connection. EOF, protocol error,
 
 Each later bidirectional stream begins with `{"version":1,"type":"proxy"}` plus a newline, then carries unmodified TCP bytes. QUIC's authenticated transport protects network replay; this carrier does not accept standalone approvals or decisions. The host bounds concurrent connections, per-peer/global proxy streams, handshake time, proxy discriminator time and loopback connect time. Streams that exceed capacity are reset rather than queued indefinitely. Long-running authenticated payload streams remain open until the gateway, peer or owner closes them.
 
+## Downloaded release and pin
+
+The plugin does not build this crate on the user's machine. It downloads the pinned `dsh-mobile-iroh 0.1.0-alpha.1` release for the current platform from the npm CDN, verifies the byte length and SHA-256, and only then promotes the executable into plugin-private storage; an already installed companion with a verified copy is reused instead of downloading. The authoritative bytes and hashes are `src/iroh-component.ts` line 14 (`IROH_VERSION`) and lines 36-47 (per-platform entries: Windows x64 14,865,920 bytes, Linux x64 24,451,352 bytes).
+
+Local and CI builds use `npm run build:iroh-host` (`scripts/build-iroh-host.mjs`), not the debug command above. It builds the release profile through `native/Cargo.toml`, copies the binary from `native/target/release` to `bin/` under its published name (`dsh-mobile-iroh-host-win32-x64.exe` or `dsh-mobile-iroh-host-linux-x64`), checks the executable header and prints `bytes`/`sha256` for the release manifest. CI runs the same script on both targets (`.github/workflows/ci.yml:436`).
+
 ## Verification
 
-`cargo test --locked -p dsh-mobile-iroh-core -p dsh-mobile-iroh-host` includes real offline QUIC endpoints, handshake rejection, durable pairing and Hello ACK, same-peer replacement, raw HTTP/cookies/WebSocket/binary forwarding, revocation, control EOF and persistence failure. These checks do not establish Android WebView integration, production DSH authorization or public-network support. Process-level smoke is owned by the repository's JavaScript harness.
+`cargo test --locked --manifest-path native/Cargo.toml -p dsh-mobile-iroh-core -p dsh-mobile-iroh-host` includes real offline QUIC endpoints, handshake rejection, durable pairing and Hello ACK, same-peer replacement, raw HTTP/cookies/WebSocket/binary forwarding, revocation, control EOF and persistence failure. These checks do not establish Android WebView integration, production DSH authorization or public-network support. Process-level smoke is owned by the repository's JavaScript harness.
