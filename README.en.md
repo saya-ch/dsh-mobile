@@ -395,7 +395,9 @@ flowchart LR
   DSH -->|"same workspace, sessions and event stream"| Phone
 ```
 
-Three layers: the Host face for discovery, pairing, HTTPS, loopback proxying, and extension registration; the Client face for the dedicated mobile layout and extension SDK; and the Android app for a narrow native bridge. The bridge uses `androidx.webkit` WebMessage, verifies the exact top-level origin and main frame on every bounded message, and never uses `addJavascriptInterface`. The plugin does not rewrite source or webpage files in the DeepSeek Harness installation. Its mobile gateway serves the startup compatibility layer and dedicated layout per request; installation and removal use the plugin mechanism. The upstream DSH Web port defaults to 3080 and is configurable through `dsh web --port`.
+Three layers: the Host face for discovery, pairing, HTTPS, loopback proxying, and extension registration; the Client face for the dedicated mobile layout and extension SDK; and the Android app for a narrow native bridge. The bridge uses `androidx.webkit` WebMessage, which verifies the exact top-level origin and main frame on every bounded message, and never uses `addJavascriptInterface`. The plugin does not rewrite source or webpage files in the DeepSeek Harness installation. Its mobile gateway serves the startup compatibility layer and dedicated layout per request; installation and removal use the plugin mechanism. The upstream DSH Web port defaults to 3080 and is configurable through `dsh web --port`.
+
+Switching sessions tears down the client Session instance and its live stream. The dedicated layout ships an opt-in, off-by-default session prefetch ([#291](https://github.com/saya-ch/dsh-mobile/issues/291)): after a switch settles, it issues one bounded, read-only `session/projections` request for the session the user just left, so a follow-back hits DSH session-query's prepared cache instead of re-parsing the whole log. Guarded by a per-session cooldown and a bounded timeout, failures are silent and never disturb normal requests or live streams; the behavior stays disabled until enabled in the mobile layout's session-prefetch configuration.
 
 ## Security
 

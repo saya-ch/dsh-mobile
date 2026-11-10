@@ -397,6 +397,8 @@ flowchart LR
 
 插件包含三层：Host face 负责发现、配对、HTTPS、回环代理和扩展注册表；Client face 提供独立的移动布局与扩展 SDK；Android App 提供受限的原生 Bridge。Bridge 使用 `androidx.webkit` WebMessage，每条消息都校验精确顶层 Origin 和主 Frame，并限制消息大小；不使用 `addJavascriptInterface`。插件不改写 DeepSeek Harness 安装目录中的源码或网页文件；移动网关按请求提供启动兼容层与专用布局，安装和卸载通过插件机制完成。DSH Web 上游端口默认为 3080，可通过 `dsh web --port` 修改。
 
+会话切换后会重建客户端 Session 与实时流。插件提供默认关闭的会话预取（对应 [#291](https://github.com/saya-ch/dsh-mobile/issues/291)）：切换稳定后，仅对刚离开的会话发起一次有界、只读的 `session/projections` 预热，让切回命中 DSH session-query 的已准备缓存，避免重新解析整个会话日志。该行为受每会话冷却与超时约束，失败静默，且绝不打扰正常请求或实时流；在移动布局的会话预取配置中显式开启后才生效。
+
 ## 安全
 
 - 局域网监听只用于可信家庭、办公网络或可信热点；不要自行做端口转发。

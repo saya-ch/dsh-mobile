@@ -2,6 +2,11 @@ import { createElement, useEffect, useLayoutEffect, useRef, useState, useSyncExt
 import type { ReactNode } from 'react'
 import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 import { MOBILE_LAYOUT_MESSAGES, type MobileLayoutLanguage } from './mobile-layout-messages.js'
+import {
+  SESSION_PREFETCH_DEFAULTS,
+  SessionPrefetchTracker,
+  prefetchSession,
+} from './session-prefetch.js'
 
 export { MOBILE_LAYOUT_MESSAGES } from './mobile-layout-messages.js'
 export type { MobileLayoutLanguage } from './mobile-layout-messages.js'
@@ -784,6 +789,27 @@ function MobileAppFrame(props: MobileRootProps & {
   })
   const hasSession = activeSessionId !== undefined
 
+  // Warm DSH session-query's prepared-session cache for the session the user just
+  // left after a switch settles (issue #291). Opt-in via the session-prefetch
+  // configuration; silent, read-only and bounded so it never disturbs normal
+  // requests or live streams.
+  const prefetchTracker = useRef<SessionPrefetchTracker | undefined>(undefined)
+  const prefetchTimer = useRef<number | undefined>(undefined)
+  if (prefetchTracker.current === undefined) {
+    prefetchTracker.current = new SessionPrefetchTracker(SESSION_PREFETCH_DEFAULTS)
+  }
+  useEffect(() => {
+    if (activeSessionId === undefined) return
+    const decision = prefetchTracker.current!.switchTo(activeSessionId)
+    if (decision.action !== 'warm') return
+    const target = decision.target
+    if (prefetchTimer.current !== undefined) clearTimeout(prefetchTimer.current)
+    prefetchTimer.current = window.setTimeout(() => {
+      prefetchSession(fetch, target, SESSION_PREFETCH_DEFAULTS.timeoutMs)
+    }, SESSION_PREFETCH_DEFAULTS.settleMs)
+    return () => { if (prefetchTimer.current !== undefined) { clearTimeout(prefetchTimer.current); prefetchTimer.current = undefined } }
+  }, [activeSessionId])
+
   useEffect(() => {
     const observer = new MutationObserver(() => { setDocumentLanguage(document.documentElement.lang) })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] })
@@ -1094,3 +1120,6 @@ export function apply(ctx: MobileClientContext): void {
 
 /** Preserve the official layout module's dependency ordering. */
 export const inject: readonly string[] = ['slots', 'theme']
+
+
+
