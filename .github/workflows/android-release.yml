@@ -12,24 +12,24 @@ jobs:
     name: Signed Android package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24.x
       - run: npm run check:android-release-tag
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: 17
-      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
         with:
           targets: aarch64-linux-android, x86_64-linux-android
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
         with:
           packages: platform-tools
       - name: Install Android API 36 and NDK
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;25.2.9519653"
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@7ca78c16c887dc6c5f36fd6d0cb0f5c23d940e69 # v6
       - name: Configure release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -105,7 +105,7 @@ jobs:
           version="${GITHUB_REF_NAME#android-v}"
           for apk in dsh-mobile-android-v*.apk; do sha256sum "$apk" > "$apk.sha256"; done
           node --input-type=module -e 'import {readFileSync,writeFileSync} from "node:fs"; const gradle=readFileSync("apps/mobile/android/app/build.gradle.kts","utf8"); const version=gradle.match(/^\s*versionName\s*=\s*"([^"]+)"\s*$/m)[1]; const versionCode=Number(gradle.match(/^\s*versionCode\s*=\s*(\d+)\s*$/m)[1]); writeFileSync("dsh-mobile-android-release.json", JSON.stringify({version, versionCode, releaseTag:process.env.GITHUB_REF_NAME}, null, 2)+"\n");'
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-package
           path: |
@@ -122,7 +122,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: android-package
           path: release-assets

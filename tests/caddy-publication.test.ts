@@ -1,6 +1,7 @@
 import { chmod, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, win32 } from 'node:path'
+import { runInNewContext } from 'node:vm'
 import { afterEach, expect, it } from 'vitest'
 import { execFileText } from '../src/exec-file.js'
 
@@ -76,7 +77,11 @@ it('evaluates the actual YAML publisher route with exclusive native-success chan
   const workflow = (await readFile(new URL('../.github/workflows/caddy-component.yml', import.meta.url), 'utf8')).replaceAll('\r\n', '\n')
   const expression = /    if: >-\n([\s\S]*?)    runs-on:/u.exec(workflow)?.[1]?.trim()
   if (!expression) throw new Error('Publisher predicate missing')
-  const route = new Function('github', 'inputs', 'needs', 'startsWith', 'toJSON', 'return (' + expression.replaceAll('needs.caddy-review-artifact', 'needs.native') + ')')
+  const predicate = '(' + expression.replaceAll('needs.caddy-review-artifact', 'needs.native') + ')'
+  const route = (
+    github: unknown, inputs: unknown, needs: unknown,
+    startsWith: (value: string, prefix: string) => boolean, toJSON: (value: unknown) => string,
+  ): boolean => runInNewContext(predicate, { github, inputs, needs, startsWith, toJSON }) as boolean
   const base = { event_name: 'workflow_dispatch', repository: 'saya-ch/dsh-mobile',
     ref: 'refs/tags/caddy-component-2.11.7-tencentcloud-0.4.3-r1', event: { repository: { private: false } } }
   const inputs = { publish_official_release: true, publish_review_prerelease: false }

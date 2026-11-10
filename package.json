@@ -10,12 +10,12 @@
   "bin": {
     "dsh-mobile": "lib/cli.js"
   },
-  "main": "./lib/index.mjs",
+  "main": "./index.mjs",
   "types": "./lib/index.d.mts",
   "exports": {
     ".": {
       "types": "./lib/index.d.mts",
-      "default": "./lib/index.mjs"
+      "default": "./index.mjs"
     },
     "./client": {
       "default": "./lib/client.js"
@@ -23,6 +23,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "index.mjs",
     "lib/**/*.mjs",
     "lib/cli.js",
     "lib/**/*.d.mts",

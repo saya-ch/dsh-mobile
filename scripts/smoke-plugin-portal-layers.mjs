@@ -152,7 +152,7 @@ try {
             await page.locator('#plugin-menu-item').waitFor({ state: 'visible', timeout: 10_000 })
             assert.deepEqual(pageErrors, [], `${at}: page errors`)
 
-            const probe = await page.evaluate(new Function(`return (() => {
+            const probe = await page.evaluate(`(() => {
               const hit = ${HIT};
               const q = selector => document.querySelector(selector)
               const zOf = node => {
@@ -172,7 +172,7 @@ try {
                 drawerActionHit: hit(q('#sidebar-action')),
                 scrimActive: q('.dshm-scrim').dataset.open === 'true',
               }
-            })()`))
+            })()`)
 
             // The property that makes every portal level work.
             assert.equal(probe.shellIsolation, 'isolate',
@@ -247,7 +247,7 @@ try {
           await mount(page, { narrow, drawerOpen, detailsOpen, portalZ: 60, dialog: true })
           await page.locator('#plugin-dialog-action').waitFor({ state: 'visible', timeout: 10_000 })
           assert.deepEqual(pageErrors, [], `${at}: page errors`)
-          const probe = await page.evaluate(new Function(`return (() => {
+          const probe = await page.evaluate(`(() => {
             const hit = ${HIT};
             const dialog = document.querySelector('#plugin-dialog')
             const action = document.querySelector('#plugin-dialog-action')
@@ -259,7 +259,7 @@ try {
               scrimActive: scrim.dataset.open === 'true',
               drawerAction: hit(document.querySelector('#sidebar-action')),
             }
-          })()`))
+          })()`)
           // Focus must never be stolen by the layering fix.
           assert.equal(probe.focused, true, `${at}: the dialog action lost focus`)
           if (!probe.scrimActive) {
