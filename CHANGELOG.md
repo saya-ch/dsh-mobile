@@ -25,7 +25,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Accept RFC 6598 `100.64.0.0/10` addresses as managed-LAN candidates, including networks whose router or ISP exposes CGNAT-style addressing for the local Ethernet or Wi-Fi segment. The admin Host-header check continues to reject CGNAT to preserve its DNS-rebinding defence. Thanks @Kizaemon for the diagnosis in [#369](https://github.com/saya-ch/dsh-mobile/issues/369).
 - Plugin-only update. Android 0.7.2 remains the published App; no native App change is included.
 
-## Android 0.7.3 - Unreleased
+## Android 0.7.3 - 2026-11-10
 
 - Make task notification navigation preserve the full bounded opaque Session ID and open the exact conversation after a cold or warm tap. Each notification identifies its tap target by its tag, so two notifications cannot overwrite one another's target even when their request codes collide. Only the built-in `dsh-session` route is accepted. Thanks @owenzhao for the report in [#371](https://github.com/saya-ch/dsh-mobile/issues/371) and @lnuxe for the original implementation in [#374](https://github.com/saya-ch/dsh-mobile/pull/374).
 - Add an explicit, opt-in `dataSync` foreground service for completion alerts after Android suspends the WebView. It renews the paired credential, pins the configured CA, keeps a persistent notification, stops on device removal or revocation, and deliberately rejects iroh pairings until the native transport exposes the same authenticated identity. Notification permission remains a separate Android setting. Thanks @owenzhao for the background-delivery analysis in [#377](https://github.com/saya-ch/dsh-mobile/issues/377).

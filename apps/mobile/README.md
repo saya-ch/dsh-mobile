@@ -4,14 +4,14 @@
 
 DeepSeek Harness is the display name of this community-maintained Android WebView app. It opens the plugin's authenticated HTTPS page rather than bundling another DSH frontend. The app and mobile browsers receive the same DSH features and computer-side mobile customizations.
 
-The current stable app is **0.7.2** (build 87). The npm plugin and Android App have independent versions: a plugin update does not automatically require another APK. See the [0.7.2 changes](#072-update).
+The current stable app is **0.7.3** (build 88). The npm plugin and Android App have independent versions: a plugin update does not automatically require another APK. See the [0.7.3 changes](#073-update).
 
 This APK supports Android 10 or later. iPhone and iPad use the [Safari Home Screen web app and optional Web Push](../../docs/WEB_PUSH.en.md), not this Android package; no native iOS app is distributed.
 
 ## Install and pair
 
 1. Install and enable the plugin using the [project quick start](../../README.en.md#quick-start). Complete LAN setup from the command line or the computer's **Mobile Access** panel.
-2. Install a signed Android APK from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.2). Choose the compatibility `.apk` for existing HTTPS channels, or the full `-iroh.apk` for experimental iroh on arm64-v8a/x86_64. Both have the same package ID and official signer; install only one and upgrade in place to retain pairings. A differently signed Debug APK cannot replace it; do not uninstall or clear data just to bypass that mismatch.
+2. Install a signed Android APK from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3). Choose the compatibility `.apk` for existing HTTPS channels, or the full `-iroh.apk` for experimental iroh on arm64-v8a/x86_64. Both have the same package ID and official signer; install only one and upgrade in place to retain pairings. A differently signed Debug APK cannot replace it; do not uninstall or clear data just to bypass that mismatch.
 3. On the computer, generate a pairing key/link under **Mobile Access → Local network**, or configure a remote provider and generate its remote pairing QR code. In the app, choose the matching connection mode and scan or paste the link.
 4. Name the computer. The app stores each LAN or remote pairing as its own record. The phone does not need a cpolar, Cloudflare or Tailscale app.
 
@@ -35,6 +35,10 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in Simplified Chinese, English or Italian; webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
+
+## 0.7.3 update
+
+Open the matching conversation after a task-notification tap by carrying a bounded same-origin `dsh-session` route through the native notification, and add an explicit, opt-in `dataSync` foreground service that keeps the current paired-computer event stream alive for completion alerts after Android suspends the page. The service shows a persistent notification, refuses iroh pairings, does not replay events across disconnection, and remains subject to Android foreground-service time limits and battery policy. Both APK variants retain the established signer and existing pairings; the background stream needs plugin 0.8.6 or later.
 
 ## 0.7.2 update
 
@@ -132,7 +136,7 @@ DSH records audio through `getUserMedia` and sends it to the configured computer
 
 ## Notifications and extensions
 
-Task reminders use Host completion events and pending-input cards while the page remains alive. Lock-screen text is generic and tapping returns to the app. They are not an offline push service: completion reminders require SSE, with no event replay after disconnection. Cloudflare Quick Tunnels do not support this stream; see [channel limits](../../docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits).
+Task reminders use Host completion events and pending-input cards. While the page is alive it sends notifications through the native bridge; **Settings → General → Task notifications** can explicitly enable **background reminders**, a dismissible foreground service that keeps the active paired-computer connection alive after Android suspends the page. The service remains subject to foreground-service time limits, battery policy and connectivity, displays a persistent notification, does not yet support iroh pairings, and does not replay events across disconnection. A tap may carry a bounded same-origin `dsh-session` route, which opens the matching conversation after a cold or warm start; any other target falls back to the app root. Cloudflare Quick Tunnels do not support the event stream; see [channel limits](../../docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits).
 
 The authenticated page may use the `dshMobile` bridge for `files.pick`, `camera.capture`, `share`, clipboard read/write, task notifications/settings, computer switching and page scaling. The separate extension `files.pick` returns one file, follows its requested MIME types and limits bridge-returned file bytes to 8 MiB. This is not the standard DSH attachment selector's limit.
 
@@ -147,7 +151,7 @@ Computer-side `host.mjs` extensions are trusted Node.js code, separate from this
 | Transport | HTTPS only; Manifest cleartext traffic is disabled. |
 | Trust | Exact-Origin platform trust or a privately pinned pairing CA. User-installed system CAs are not broadly trusted. |
 | Navigation | Same-origin main frames remain inside; explicit external HTTPS links open in the system browser. |
-| Permissions | Camera for explicit scanning/capture, microphone for DSH recording, notifications through a foreground permission/settings action; standard file selection needs no storage permission. |
+| Permissions | Camera for explicit scanning/capture, microphone for DSH recording, notifications through a foreground permission/settings action, and an explicitly enabled `dataSync` foreground service for background reminders; standard file selection needs no storage permission. |
 | Bridge | WebMessage listener validates exact top-level Origin and main frame; no `addJavascriptInterface` or arbitrary Android API. |
 | Limits | Inbound message 1 MiB, clipboard 256 KiB, binary bridge result 8 MiB, reply 12 MiB. |
 | Credentials | Bridge replies do not automatically include stored pairing credentials; there is no direct bridge API for reading the credential store or private keys. Clipboard contents and selected files may contain sensitive data: use only trusted extensions. |
@@ -178,9 +182,11 @@ Native builds also include the JVM TLS verifier matching `native/Cargo.lock`, fr
 
 Current-source Debug builds use package `io.github.sayach.dshmobile.debug` with a `-debug` version suffix. They install beside the official App with separate storage and pairings. They do not upgrade or migrate an older unsuffixed Debug installation; preserve that app and its data rather than uninstalling or clearing it to switch packages. Release builds keep `io.github.sayach.dshmobile` and the established signer.
 
-The verified stable release is [Android 0.7.2](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.2), build 87. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
+The verified stable release is [Android 0.7.3](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3), build 88. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
 
 ## Acceptance and known limits
+
+- A current-source Debug build (0.7.3/build 88) paired over a cloudflared remote origin received a real completed-turn notification while the app was backgrounded and the screen locked, and tapping it opened the `dsh-session` route to the matching conversation; disabling the opt-in stopped the service and removed the notification. This was the Debug signer on one test device over a public tunnel; it does not establish the published APK, iroh, or every network and OEM behavior.
 
 - Both public App 0.7.1 APKs passed checksum, manifest, established-signer, notice and alignment checks. The full APK additionally passed ABI and retained JVM TLS/JNI entry checks; compatibility contains no native libraries. There is no new physical-device or public-relay run for 0.7.1. Earlier arm64 development traffic remains historical evidence, not proof that a current connection uses the relay.
 

@@ -36,14 +36,14 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.6**. Forward paired third-party plugin request headers, keep the browser push subscription after a Disable, and expose bounded custom web-push text to trusted Host plugins; also fix Windows firewall verification, iroh directory diagnostics and the LAN diagnostic scope. Plugin and Android App releases remain independent; the background-reminder App update ships separately as Android 0.7.3. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.6) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.6**. Forward paired third-party plugin request headers, keep the browser push subscription after a Disable, and expose bounded custom web-push text to trusted Host plugins; also fix Windows firewall verification, iroh directory diagnostics and the LAN diagnostic scope. Plugin and Android App releases remain independent; the background-reminder Android App 0.7.3 is available. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.6) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: since plugin **0.6.2**, the Android app and plugin use independent version numbers and releases. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.2/dsh-mobile-android-v0.7.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.2/dsh-mobile-android-v0.7.2.apk"><strong>Download Android app 0.7.2 (compatibility)</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.2/dsh-mobile-android-v0.7.2-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.2">Release notes and checksums</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.3/dsh-mobile-android-v0.7.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.3/dsh-mobile-android-v0.7.3.apk"><strong>Download Android app 0.7.3 (compatibility)</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.3/dsh-mobile-android-v0.7.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3">Release notes and checksums</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -445,7 +445,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `0.8.6` | On the `0.2.2-rc.1` packed target, forward paired third-party plugin `x-dsh-*` headers, keep the push subscription after a Disable, expose the trusted Host push-text service, and fix Windows firewall verification, iroh directory diagnostics and the LAN diagnostic scope. The Android App remains 0.7.2; background reminders ship with 0.7.3 separately |
+| `0.8.6` | On the `0.2.2-rc.1` packed target, forward paired third-party plugin `x-dsh-*` headers, keep the push subscription after a Disable, expose the trusted Host push-text service, and fix Windows firewall verification, iroh directory diagnostics and the LAN diagnostic scope. The Android App is 0.7.3 with opt-in background reminders |
 | `0.8.5` | Maintenance and performance update on the `0.2.2-rc.1` packed-DSH target: catalog cache, Desktop update targeting, CGNAT LAN discovery, firewall protection and a macOS permission notice. The Android App remains 0.7.2 |
 | `0.8.4` | Plugin maintenance update. The packed DSH test target remains `0.2.2-rc.1`, alongside existing compatibility checks. The upstream rc.1 npm CLI requires Node.js 24.9 or later |
 | `0.8.3` | Adapted to DSH 0.2.2-rc.1 with landscape, Plugins and Web Push settings layout fixes, shared FRP usernames and iroh pairing improvements |
