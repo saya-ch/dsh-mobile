@@ -4,6 +4,7 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
@@ -12,6 +13,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.RenderProcessGoneDetail
+import java.io.ByteArrayInputStream
 import java.security.cert.X509Certificate
 
 /** A matching secure authority alone cannot authorize an untrusted certificate callback. */
@@ -78,6 +80,7 @@ internal class SecureWebViewClient(
     private val onBeforeTopLevelNavigation: () -> Unit,
     private val onContentVisible: (documentGeneration: Int) -> Unit = {},
     private val connectionDeadlineActive: () -> Boolean = { false },
+    private val bootAssets: BootAssetResponder? = null,
 ) : WebViewClient() {
     private val handler = Handler(Looper.getMainLooper())
     private val document = WebViewDocumentState(origin)
@@ -95,6 +98,8 @@ internal class SecureWebViewClient(
 
     fun dispose() {
         clearTimeout()
+        // A destroyed page must not keep a download, its socket or its `.part` file alive.
+        bootAssets?.cancelInFlight()
     }
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -117,6 +122,8 @@ internal class SecureWebViewClient(
 
     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
         document.started()
+        // The previous document's boot batches are moot; stop any download it still owns.
+        bootAssets?.cancelInFlight()
         onTopLevelUrlChanged(url)
         if (url != "about:blank" && !GatewayUrlPolicy.isSameOrigin(origin, url)) {
             clearTimeout()
@@ -141,12 +148,51 @@ internal class SecureWebViewClient(
         }
     }
 
+    /**
+     * Answers only revisioned boot batches that [BootAssetResponder] revalidated for this session.
+     * Everything else returns null so the WebView's own navigation, TLS, cookie and error paths
+     * remain authoritative; a cache miss is never a new failure mode. Chromium calls this on a
+     * background thread, and the responder's bounded worker owns the download so it can be cancelled
+     * from [dispose] or the next [onPageStarted].
+     */
+    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+        val served = bootAssets?.response(request.method, request.isForMainFrame, request.url.toString()) ?: return null
+        // Building the response can still throw (a header value or stream the current WebView
+        // implementation rejects); a throw here would abort the subresource instead of loading it.
+        return runCatching {
+            WebResourceResponse(served.contentType, "utf-8", ByteArrayInputStream(served.body)).apply {
+                setResponseHeaders(
+                    buildMap {
+                        put("Content-Type", "${served.contentType}; charset=utf-8")
+                        put("Content-Length", served.body.size.toString())
+                        put("Cache-Control", "private, max-age=30, must-revalidate")
+                        served.etag?.let { put("ETag", it) }
+                    },
+                )
+            }
+        }.getOrNull()
+    }
+
     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
         // A WebSocket handshake reaches this callback with a `wss:` URL, so an exact `https:`
         // origin check rejects the page's own stream channel and cancels the document it belongs
         // to. Host and port must still match exactly, and the leaf must pin.
         val pinned = acceptsPinnedWebViewSslError(origin, caCertificate, error.primaryError,
             error.url, error.certificate.x509Certificate)
+        // One line per certificate decision turns Chromium's `net_error -202` into evidence:
+        // a healthy start shows exactly one `proceed` for the document origin, while a failing
+        // pin shows `cancel` (and a burst of them). No certificate bytes or session values here.
+        // The decision is read into a local so the release-policy check still sees exactly one
+        // conditional on `pinned` in this callback.
+        val decision = when (pinned) {
+            true -> "proceed"
+            else -> "cancel"
+        }
+        Log.i(
+            LOG_TAG,
+            "ssl decision=$decision url=${error.url} " +
+                "primary=${sslErrorName(error.primaryError)} caLoaded=${caCertificate != null}",
+        )
         if (pinned) {
             handler.proceed()
         } else {
@@ -219,5 +265,19 @@ internal class SecureWebViewClient(
         timeout?.let(handler::removeCallbacks)
         timeout = null
         loadingUrl = null
+    }
+
+    private fun sslErrorName(primary: Int): String = when (primary) {
+        SslError.SSL_IDMISMATCH -> "SSL_IDMISMATCH"
+        SslError.SSL_UNTRUSTED -> "SSL_UNTRUSTED"
+        SslError.SSL_DATE_INVALID -> "SSL_DATE_INVALID"
+        SslError.SSL_EXPIRED -> "SSL_EXPIRED"
+        SslError.SSL_NOTYETVALID -> "SSL_NOTYETVALID"
+        SslError.SSL_INVALID -> "SSL_INVALID"
+        else -> "SSL_OTHER"
+    }
+
+    private companion object {
+        const val LOG_TAG = "DSHMobile-TLS"
     }
 }
