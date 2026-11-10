@@ -12,7 +12,7 @@ Issue replies must match actual evidence and publication state. A local fix is n
 
 Do not post issue or PR replies announcing unreleased fixes or candidate progress. Keep that work in local verification records and the draft PR description; after publication, reply only with shipped behavior and its actual verification. This does not authorize posting replies or closing issues by itself.
 
-Credit code authors and issue reporters by actual participation in `CONTRIBUTORS.md`. GitHub's Contributors graph follows commits in default-branch history; it cannot be populated by falsely attributing code to every reporter. Preserve contribution history even when a PR is incorporated with later corrections rather than directly merged on GitHub.
+Credit code authors and issue reporters by actual participation in `CONTRIBUTORS.md`. GitHub's Contributors graph follows commits in default-branch history; it cannot be populated by falsely attributing code to every reporter. The [maintenance invariant](../SKILL.md) to preserve contributor history also applies when a PR is incorporated with later corrections rather than directly merged on GitHub.
 
 ## Documentation
 
@@ -20,7 +20,7 @@ Credit code authors and issue reporters by actual participation in `CONTRIBUTORS
 
 Check the implemented behavior before writing an instruction: does the entry exist, which App capability is required, does saving require restart or page reopening, and is this a native function or a community-plugin example? Captions should describe the image simply. Do not imply that phone and tablet are different Apps or that a compatible community sidebar is a native feature.
 
-Maintain paired English/Chinese guides together and product dictionaries for their supported locales. Use actual relative asset paths and compare against current original screenshots. Remove obsolete QR examples when replaced; do not silently rewrite historical release evidence. Run `npm run check:docs`, but also inspect facts and rendered structure: link validation does not prove prose, HTML grouping, captions or image layout.
+Maintain paired English/Chinese guides together and product dictionaries for their supported locales. Use actual relative asset paths and compare against current original screenshots. Remove obsolete QR examples when replaced; do not silently rewrite historical release evidence. Run the documentation check described in [CONTRIBUTING](../../../../CONTRIBUTING.md#local-setup-and-baseline), but also inspect facts and rendered structure: link validation does not prove prose, HTML grouping, captions or image layout.
 
 ## Independent versions
 
@@ -40,9 +40,9 @@ Before a real release, verify cleanly scoped changes, original contributor ances
 
 After authorized publication, independently check npm metadata and dist-tag, downloaded npm artifact/integrity, GitHub non-draft release/tag/commit/assets, package byte equality/checksum and any new APK's manifest/signer. A successful workflow dispatch, green job or skipped upload is not proof that users can download/install the intended artifact. An existing version may not be overwritten; reconcile what actually published before any retry.
 
-Registry metadata can briefly lag a successful upload. Use bounded read-only propagation checks against the official version URL and retain initial failures; a temporary404 or ETARGET is not permission to republish. Accept only complete downloaded files whose size, integrity and checksum match. EOF, TLS errors and partial files are failed observations, not usable artifacts. If an authorized existing proxy is needed, keep it command-local rather than changing global settings or disabling TLS verification.
+Registry metadata can briefly lag a successful upload. Use bounded read-only propagation checks against the official version URL and retain initial failures; a temporary 404 or ETARGET is not permission to republish. Accept only complete downloaded files whose size, integrity and checksum match. EOF, TLS errors and partial files are failed observations, not usable artifacts. If an authorized existing proxy is needed, keep it command-local rather than changing global settings or disabling TLS verification.
 
-Check the previous plugin release explicitly when preparing release notes: an independently published Android or component tag can make automatically generated notes choose the wrong comparison base. Keep plugin and App notes separate, credit the actual contributions, and link the complete plugin-to-plugin changes.
+Before preparing release notes, verify that the workflow-selected notes base is the previous stable plugin tag, not an App or component release; keep plugin and App notes separate, credit the actual contributions, and link the complete plugin-to-plugin changes.
 
 Before continuing a partially published plugin release, compare the occupied npm version's integrity with the exact candidate tarball using [the reconciliation helper](../../../../scripts/check-npm-release-integrity.mjs). Only a matching artifact permits completion; network/metadata errors are not absence. Optional component publication follows the maintainer-authorized manual workflow. Do not invent a second-person approval requirement for this single-maintainer project. Retain exact tag/source, native test, size/hash, occupied-release and post-publication checks. Contributor real-world evidence can be accepted within its stated scope; do not relabel it as independent testing of another candidate or deployment.
 

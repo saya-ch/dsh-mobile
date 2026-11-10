@@ -22,7 +22,7 @@ The region must match the reservation. The official command example uses `cn_vip
 
 Find the current profile directory, for example `$DSH_HOME/profiles/<profile>/cordis.patch.yml`. Update the existing `mobile-access` configuration override. If none exists, add the override below to a profile that already loads the DSH Mobile bundle. **Do not create a second `mobile-access` instance or copy the bundle's `insert` list again.**
 
-The DSH loader replaces an entry's entire `config`, rather than merging individual keys. Do not paste an override containing only the subdomain and region. This example includes every configuration field from this repository's standard bundle, followed by the two new settings; **it is only suitable for a standard installation without custom configuration for this entry**:
+The DSH loader replaces an entry's entire `config`, rather than merging individual keys. Do not paste an override containing only the subdomain and region. This example includes every field of the standard bundle's `config` block in this repository, followed by the two new settings; **it is only suitable for a standard installation without custom configuration for this entry**:
 
 ```yaml
 - id: mobile-access

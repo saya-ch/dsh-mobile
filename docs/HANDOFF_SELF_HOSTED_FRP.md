@@ -1,5 +1,7 @@
 # 自建 FRP 历史维护记录
 
+> 本文件不包含在 npm 包中，仅在仓库阅读。
+
 本文保留 0.4.6 开发时的代码地图和验证记录，供维护者核对；当前用户操作以 [SELF_HOSTED_FRP.md](SELF_HOSTED_FRP.md) 和 [ATTACH_EXISTING_FRPS.md](ATTACH_EXISTING_FRPS.md) 为准。既有 frps 接入与自签入口从 0.4.6 起提供；自签档需要 0.4.6 或更新的 Android App。下文的 2026-09-03 真机记录只验证托管部署的公开证书 IP 档，不是 attach 档验收结果。
 
 ## 两档置备方式（`mode`）与两档入口证书（`entryTls`）

@@ -2,7 +2,7 @@
 
 [简体中文](MOBILE_COMPOSER_TOOLBAR.md) · [Third-party compatibility](../README.en.md#third-party-plugin-compatibility)
 
-> Layout changes have been available since plugin 0.6.3, with public-slot wrapper touch-target corrections since 0.6.4. Android and mobile browsers use the plugin-served page; these web changes do not require reinstalling the App.
+> Compact, wrapping narrow-screen composer controls have been available since plugin 0.6.0; toolbar layout corrections since 0.6.3; and public-slot wrapper touch-target corrections since 0.6.4. Android and mobile browsers use the plugin-served page; these web changes do not require reinstalling the App.
 
 The narrow-screen composer preserves DSH's native structure and handlers. Model names truncate when space is limited, additional controls wrap, and Send/Stop retain touch dimensions. Entire native groups wrap according to their actual width. Switches are not stretched into action buttons, and inline dialogs, menus and lists do not receive compact toolbar sizing.
 
@@ -18,7 +18,7 @@ The layout preserves native parent groups and adjusts wrapping, spacing and reac
 
 Public-slot checks also cover compact shapes representing an auto-continue switch, Fast icon, quota summary and existing-task recovery entry. These are presentation fixtures without service behavior, not evidence that a particular community plugin's interfaces, task operations or quota requests work.
 
-On small screens, direct span/div wrappers with a non-switch button in the public left/right slots reserve room for the 44px target, preventing it from escaping a 30px wrapper into adjacent controls. The rule does not identify third-party classes; pure switches, popup wrappers and wrappers containing buttons only deeper in their trees are excluded, as are wide viewports.
+On small screens, direct span/div wrappers with a non-switch button in the public left/right slots reserve room for the 44px target, preventing it from escaping the upstream slot wrapper into adjacent controls. The rule does not identify third-party classes; pure switches, popup wrappers and wrappers containing buttons only deeper in their trees are excluded, as are wide viewports.
 
 ## Display size and available space
 

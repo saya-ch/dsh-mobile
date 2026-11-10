@@ -22,7 +22,7 @@ cpolar 默认分配临时公网地址。账号预留子域名后，可请求使�
 
 找到当前 profile 目录，例如 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`。修改已有的 `mobile-access` 配置覆盖条目；没有时，可在已加载 DSH Mobile bundle 的 profile 中添加下面的覆盖。**不要新增第二个 `mobile-access` 实例，也不要重新复制 bundle 的 `insert` 列表。**
 
-DSH 加载器会整体替换条目的 `config`，不是逐键合并。因此不能只粘贴子域名和地区两个字段。下面展示本仓库标准 bundle 的全部配置，再追加两个设置；**仅适用于尚未自定义该条目的标准安装**：
+DSH 加载器会整体替换条目的 `config`，不是逐键合并。因此不能只粘贴子域名和地区两个字段。下面展示本仓库标准 bundle 的 `config` 块全部字段，再追加两个设置；**仅适用于尚未自定义该条目的标准安装**：
 
 ```yaml
 - id: mobile-access

@@ -4,7 +4,7 @@
 
 > The plugin requires **0.4.6 or later**; the self-signed entry also requires **Android app 0.4.6 or later**. Apps 0.3.3–0.4.5 can use the public-CA entry, not self-signed ingress. Do not downgrade a newer app.
 
-Use this path when you already run frps on a public VPS. The plugin does not install, edit, or restart that frps and does not automatically change your Caddyfile; public-CA mode requires **you** to add a Caddy snippet and import. Inspect the server's listeners before choosing an entry mode. The panel's **Copy attachment plan** action only produces a masked local `frpc.toml` preview and VPS instructions; it neither connects to the VPS nor writes configuration. To copy a token-bearing local config, re-enter the token and explicitly click its copy button; a saved token is never returned to the page.
+Use this path when you already run frps on a public VPS. The plugin does not install, edit, or restart that frps and does not automatically change your Caddyfile; public-CA mode requires **you** to add a Caddy snippet and import. Inspect the server's listeners before choosing an entry mode. The panel's **Copy attachment plan** action only produces a masked local `frpc.toml` preview and VPS instructions; it neither connects to the VPS nor writes configuration. To copy a token-bearing local config, re-enter the token and explicitly click its copy button; a saved token is never returned to the page. Nothing on the computer side changes DSH's own configuration.
 
 ## Choose the HTTPS entry
 
@@ -15,7 +15,7 @@ Use this path when you already run frps on a public VPS. The plugin does not ins
 
 frps `proxyBindAddr` is global to proxy listeners, not a per-entry switch. Binding it to `127.0.0.1` protects the HTTP vhost but also makes a TCP `remotePort` unreachable from the public network. Binding it publicly for the TCP entry may expose plaintext vhosts already running on that frps. Inspect every listener and firewall rule; use a separate frps instance or the public-CA mode when the requirements conflict. Neither mode permits arbitrary FRP proxy configuration or editing the operator's server from the plugin.
 
-The [official frps configuration reference](https://gofrp.org/en/docs/reference/server-configures/) defines `proxyBindAddr` as the proxy listening address and `vhostHTTPPort` as the HTTP-proxy listening port; use the values actually configured on your server.
+The [official frps configuration reference](https://gofrp.org/en/docs/reference/server-configures/) defines `proxyBindAddr` as the proxy listening address and `vhostHTTPPort` as the HTTP-proxy listening port; use the values actually configured on your server. A guessed `vhostHTTPPort` is a safety failure, not a cosmetic one: the plaintext-exposure check probes that port, so a wrong value can report a publicly reachable vhost as safe.
 
 ## Enter addresses and ports separately
 

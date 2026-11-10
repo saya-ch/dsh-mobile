@@ -4,7 +4,7 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
-## 下一版本贡献 / Contributions for the next release
+## 0.8.6 贡献 / Contributions in 0.8.6
 
 感谢 [@mekswhy](https://github.com/mekswhy) 在 [#375](https://github.com/saya-ch/dsh-mobile/issues/375) 报告插件请求头被移动网关丢弃，[@lnuxe](https://github.com/lnuxe) 提供 [#376](https://github.com/saya-ch/dsh-mobile/pull/376) 的网关修复与 [#374](https://github.com/saya-ch/dsh-mobile/pull/374) 的通知导航实现；维护者保留原作者提交并补充安全过滤、完整长度校验、并发与真机验收路径。感谢 [@owenzhao](https://github.com/owenzhao) 在 [#371](https://github.com/saya-ch/dsh-mobile/issues/371)、[#372](https://github.com/saya-ch/dsh-mobile/issues/372)、[#373](https://github.com/saya-ch/dsh-mobile/issues/373) 和 [#377](https://github.com/saya-ch/dsh-mobile/issues/377) 提供通知链路场景、复现和边界说明。感谢 [@zustttt](https://github.com/zustttt) 在 [#379](https://github.com/saya-ch/dsh-mobile/issues/379) 定位 Windows 局域网一键配置失败的 PowerShell 参数集冲突。
 

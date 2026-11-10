@@ -113,6 +113,7 @@
     "build:iroh-host": "node ./scripts/build-iroh-host.mjs",
     "check:funnel-licenses": "node ./scripts/funnel-third-party-licenses.mjs",
     "check:funnel-licenses:full": "node ./scripts/funnel-third-party-licenses.mjs --full-check",
+    "check:notices": "node ./scripts/check-third-party-notices.mjs",
     "check:mobile-release": "node ./scripts/check-mobile-release.mjs",
     "check:dsh-compatibility": "node ./scripts/check-dsh-compatibility.mjs",
     "smoke:dsh-boot": "node ./scripts/smoke-dsh-mobile-boot.mjs",
@@ -166,7 +167,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run check:version && npm run check:docs && npm run check:funnel-licenses && npm run build",
-    "verify": "npm run check:version && npm run check:docs && npm run check:companion-package && npm run check:funnel-licenses && npm run check:mobile-release && npm run typecheck && npm run test && npm run build && npm pack --dry-run",
+    "verify": "npm run check:version && npm run check:docs && npm run check:companion-package && npm run check:funnel-licenses && npm run check:notices && npm run check:mobile-release && npm run typecheck && npm run test && npm run build && npm pack --dry-run",
     "smoke:plugin-portal-layers": "node ./scripts/smoke-plugin-portal-layers.mjs",
     "smoke:opaque-chrome": "node ./scripts/smoke-opaque-chrome.mjs",
     "smoke:rightbar-fullscreen": "node ./scripts/smoke-rightbar-fullscreen.mjs"
