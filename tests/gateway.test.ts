@@ -14,6 +14,7 @@ import { request as requestHttps } from 'node:https'
 import { isAbsolute, join, relative } from 'node:path'
 import { tmpdir } from 'node:os'
 import { connect, Socket, type AddressInfo } from 'node:net'
+import { runInNewContext, Script } from 'node:vm'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseGatewayConfig } from '../src/config.js'
@@ -1508,9 +1509,9 @@ describe('HTTP gateway', () => {
       __DSH_FILE_UPLOAD__?: { fetch: typeof fetch }
     } = { fetch: nativeFetch }
     const pageLocation = { href: `${instance.address().origin}/`, origin: instance.address().origin }
-    new Function('window', 'document', 'location', 'Request', 'Headers', 'URL', dedicated.body.slice(bootstrapStart, bootstrapEnd))(
-      page, { cookie: `${CSRF_COOKIE}=${paired.csrf}` }, pageLocation, Request, Headers, URL,
-    )
+    runInNewContext(dedicated.body.slice(bootstrapStart, bootstrapEnd), {
+      window: page, document: { cookie: `${CSRF_COOKIE}=${paired.csrf}` }, location: pageLocation, Request, Headers, URL,
+    })
     const uploadBody = new Blob(['%PDF-1.7\nmobile upload\n%%EOF\n'], { type: 'application/pdf' })
     const upload = await page.__DSH_FILE_UPLOAD__?.fetch('/api/session/uploadFileBinary?sessionId=test', {
       method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: uploadBody,
@@ -3278,7 +3279,7 @@ describe('HTTP gateway', () => {
     expect(login.body).toContain('pair it again')
     const loginScript = await request(instance.address().port, '/mobile-access/login.js', { headers: base })
     expect(loginScript.status).toBe(200)
-    expect(() => new Function(loginScript.body)).not.toThrow()
+    expect(() => new Script(loginScript.body)).not.toThrow()
     expect(loginScript.body).toContain('resolved.origin === location.origin')
 
     expect(await instance.access.revokeDevice(paired.deviceId)).toBe(true)
