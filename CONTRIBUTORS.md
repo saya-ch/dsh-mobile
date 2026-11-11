@@ -4,7 +4,7 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
-## 下一版本贡献 / Contributions for the next release
+## 0.8.7 贡献 / Contributions in 0.8.7
 
 感谢 [@eeeggplant](https://github.com/eeeggplant) 在 [#291](https://github.com/saya-ch/dsh-mobile/issues/291) 提供会话切换重复加载的测量与预取提案，[@lnuxe](https://github.com/lnuxe) 通过 [#383](https://github.com/saya-ch/dsh-mobile/pull/383) 实现可选的会话预取；原作者提交保留，维护者补充独立开关、跨 bundle 的偏好同步和网关参数契约。感谢 [@owenzhao](https://github.com/owenzhao) 在 [#390](https://github.com/saya-ch/dsh-mobile/issues/390) 报告后台提醒不投递并持续提供设备侧排查信息，在 [#394](https://github.com/saya-ch/dsh-mobile/issues/394) 指出点击任务通知会整页重载；两个问题仍在确认中，本版只提供诊断与页面侧准备，不表示已修复。感谢 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#350](https://github.com/saya-ch/dsh-mobile/pull/350) 提供网关到期连接正常关闭、认证失败分类，以及 App 端按修订号缓存页面资源的实现与测量。感谢 [@pakeh2866](https://github.com/pakeh2866) 在 [#389](https://github.com/saya-ch/dsh-mobile/issues/389) 报告文件预览后无法返回，促成第三方全屏宿主的返回键契约文档；宿主自身的修复不在本仓库。
 

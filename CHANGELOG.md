@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## 0.8.7 - Unreleased
+## 0.8.7 - 2026-11-11
 
 - Add an opt-in, off-by-default session prefetch for the dedicated Mobile layout. After a session switch settles, the page issues one bounded, read-only `session/projections` request for the session the user just left (the most likely switch-back target), so a follow-back hits DSH session-query's prepared-session cache warm instead of re-parsing the whole log. Guarded by a per-session cooldown and a bounded timeout; failures are silent and are not retried. It stays disabled until the new "Prefetch the session you just left" switch in Settings → General is turned on; the choice is persisted and applies without a reload. Thanks @eeeggplant for the measurement and proposal in [#291](https://github.com/saya-ch/dsh-mobile/issues/291), and @lnuxe for the implementation in [#383](https://github.com/saya-ch/dsh-mobile/pull/383).
 - Close an active Gateway WebSocket with a normal close frame when its short Session expires instead of destroying the socket, so a mobile page can renew quietly instead of surfacing an abnormal close and "connection lost". Authentication-failure diagnostics now report `/plugins/*` and `/assets/*` as their own categories instead of folding them into the catch-all bucket, without logging module or bundle identifiers. Thanks @LUgABeEEE for the measurement and fix in [#350](https://github.com/saya-ch/dsh-mobile/pull/350).
