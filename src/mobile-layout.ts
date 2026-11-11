@@ -3,9 +3,7 @@ import type { ReactNode } from 'react'
 import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 import { MOBILE_LAYOUT_MESSAGES, type MobileLayoutLanguage } from './mobile-layout-messages.js'
 import {
-  ComposerCollapseTracker,
-  composerCollapseConfigFrom,
-  onViewportResize,
+  installComposerReadingMode,
   readComposerCollapseEnabled,
   subscribeComposerCollapseEnabled,
 } from './composer-collapse.js'
@@ -20,6 +18,9 @@ import {
 
 export { MOBILE_LAYOUT_MESSAGES } from './mobile-layout-messages.js'
 export type { MobileLayoutLanguage } from './mobile-layout-messages.js'
+// Re-exported so the browser fixture can drive the shipped layout bundle directly;
+// this file already publishes the other DOM policies it installs.
+export { installComposerReadingMode, readComposerCollapseEnabled } from './composer-collapse.js'
 
 interface SessionState {
   readonly current?: string
@@ -863,10 +864,6 @@ function MobileAppFrame(props: MobileRootProps & {
     readComposerCollapseEnabled,
     () => false,
   )
-  const collapseTracker = useRef<ComposerCollapseTracker | undefined>(undefined)
-  if (collapseTracker.current === undefined || collapseTracker.current.enabled !== collapseEnabled) {
-    collapseTracker.current = new ComposerCollapseTracker(composerCollapseConfigFrom(collapseEnabled))
-  }
   // A running reply is not a composer phase: DSH reports it on the Session summary,
   // and data-phase returns to plain as soon as the submission is accepted, so the
   // phase alone would let the composer vanish mid-stream. Read the real flag.
@@ -876,113 +873,25 @@ function MobileAppFrame(props: MobileRootProps & {
   })
   const runningRef = useRef(activeRunning)
   runningRef.current = activeRunning
-  const collapsedRef = useRef(false)
-  const applyCollapse = (next: boolean): void => {
-    if (collapsedRef.current === next) return
-    collapsedRef.current = next
-    document.documentElement.setAttribute('data-dsh-mobile-composer-collapsed', next ? 'true' : 'false')
-  }
+  const handle = collapseEnabled && hasSession
+  // The DOM wiring lives in installComposerReadingMode so the scroll container,
+  // the dead zone and the guards can be driven in a browser fixture, not only
+  // asserted from source text.
+  useEffect(() => {
+    if (!handle) return
+    const installed = installComposerReadingMode({
+      restoreLabel: messages.composerRestore,
+      isRunning: () => runningRef.current,
+    })
+    if (activeRunning) installed.expand()
+    return () => { installed.dispose() }
+    // activeSessionId tears the mode down and reinstalls it, so a collapse never
+    // leaks into the next conversation and the new scroller starts bound.
+  }, [handle, activeSessionId, messages.composerRestore])
   useEffect(() => {
     if (!activeRunning) return
-    collapseTracker.current?.expand()
-    applyCollapse(false)
+    document.documentElement.setAttribute('data-dsh-mobile-composer-collapsed', 'false')
   }, [activeRunning])
-  useEffect(() => {
-    if (!hasSession || !collapseEnabled) return
-    // The document itself never scrolls: html/body/#root are height:100% with
-    // overflow:hidden, and the conversation scrolls inside
-    // [data-conversation-scroll] (the same container src/native-mobile.ts and
-    // scripts/check-dsh-compatibility.mjs rely on). Reading the document scroll offset here
-    // would sample a constant 0 and never cross the threshold.
-    const scroller = (): HTMLElement | undefined => {
-      const found = document.querySelector('[data-conversation-scroll]')
-      return found instanceof HTMLElement ? found : undefined
-    }
-    // The restore affordance is generated content on a card this plugin does not
-    // own: appending a button into DSH's React-managed card risks losing it on the
-    // next render, so the localized label travels as a custom property instead.
-    document.documentElement.style.setProperty('--dshm-composer-restore-label', JSON.stringify(messages.composerRestore))
-    let rafPending = false
-    let lastTop = scroller()?.scrollTop ?? 0
-    let bound: HTMLElement | undefined
-    const expand = (): void => {
-      collapseTracker.current?.expand()
-      applyCollapse(false)
-    }
-    const onScroll = (event: Event): void => {
-      const target = event.target
-      if (!(target instanceof HTMLElement) || !target.hasAttribute('data-conversation-scroll')) return
-      if (rafPending) return
-      rafPending = true
-      requestAnimationFrame(() => {
-        rafPending = false
-        const port = scroller()
-        if (port === undefined) return
-        const top = port.scrollTop
-        const delta = top - lastTop
-        lastTop = top
-        // Never collapse away a streaming reply: Stop has to stay where the user
-        // expects it. Draft and submission phases are checked on the DOM below.
-        if (runningRef.current) {
-          expand()
-          return
-        }
-        const next = collapseTracker.current!.sample(delta)
-        applyCollapse(next === 'collapsed')
-      })
-    }
-    // A session switch swaps the scroller (and starts at top): re-read the port and
-    // expand so a collapse never leaks into the next conversation.
-    const rebind = (): void => {
-      const next = scroller()
-      if (next === bound) return
-      bound = next
-      lastTop = next?.scrollTop ?? 0
-      expand()
-    }
-    rebind()
-    // The collapsed card is the restore target: it keeps the upstream Send/Stop row,
-    // so a tap on the card expands while those controls still do their own job.
-    const onCardPointerDown = (event: Event): void => {
-      if (!collapsedRef.current) return
-      const target = event.target
-      if (!(target instanceof Element) || target.closest(COMPOSER_CARD_SELECTOR) === null) return
-      expand()
-    }
-    // Never collapse away a draft or an in-flight submission: the composer is the
-    // only place both are visible, so a collapse would look like data loss.
-    const busy = (): boolean => {
-      if (runningRef.current) return true
-      const card = document.querySelector(COMPOSER_CARD_SELECTOR)
-      if (!(card instanceof HTMLElement)) return false
-      const editor = card.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR)
-      if (editor === null) return false
-      if (['adjudicating', 'submitting'].includes(editor.dataset.phase ?? '')) return true
-      return composerHasDraft(editor, card)
-    }
-    const guard = (): void => { if (busy()) expand() }
-    const onComposerFocus = (): void => { expand() }
-    const cardObserver = new MutationObserver(() => { guard(); rebind() })
-    for (const card of document.querySelectorAll(COMPOSER_CARD_SELECTOR)) {
-      cardObserver.observe(card, {
-        childList: true, subtree: true, characterData: true, attributes: true,
-        attributeFilter: ['data-phase', 'data-conversation-scroll'],
-      })
-    }
-    document.addEventListener('scroll', onScroll, { passive: true, capture: true })
-    document.addEventListener('pointerdown', onCardPointerDown, true)
-    document.addEventListener('focusin', onComposerFocus, true)
-    const stopViewportResize = onViewportResize(onComposerFocus)
-    return () => {
-      document.removeEventListener('scroll', onScroll, { capture: true })
-      document.removeEventListener('pointerdown', onCardPointerDown, true)
-      document.removeEventListener('focusin', onComposerFocus, true)
-      stopViewportResize()
-      cardObserver.disconnect()
-      document.documentElement.style.removeProperty('--dshm-composer-restore-label')
-      applyCollapse(false)
-    }
-  }, [hasSession, collapseEnabled, activeSessionId])
 
   useEffect(() => {
     const observer = new MutationObserver(() => { setDocumentLanguage(document.documentElement.lang) })

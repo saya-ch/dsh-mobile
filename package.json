@@ -138,6 +138,7 @@
     "smoke:push-settings": "node ./scripts/smoke-mobile-push-settings.mjs",
     "smoke:voice-session": "node ./scripts/smoke-voice-session.mjs",
     "smoke:composer-keyboard": "node ./scripts/smoke-composer-keyboard.mjs",
+    "smoke:composer-reading-mode": "node ./scripts/smoke-composer-reading-mode.mjs",
     "smoke:mobile-compat": "node ./scripts/smoke-mobile-compat.mjs",
     "smoke:boot-feedback": "node ./scripts/smoke-mobile-boot-feedback.mjs",
     "smoke:composer-overflow": "node ./scripts/smoke-composer-overflow.mjs",

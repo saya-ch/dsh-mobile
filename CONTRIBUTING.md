@@ -35,6 +35,7 @@ Browser checks consume built client files. Run `npm run build` and `npx playwrig
 | Conversation scrollport and older viewport units | `node scripts/smoke-conversation-scroll.mjs` |
 | History auto-load stability (Playwright Chromium required) | `npm run smoke:history-scroll` |
 | Composer focus and keyboard | `npm run smoke:composer-keyboard` |
+| Reading-mode composer collapse across the two bundles and its guards | `npm run smoke:composer-reading-mode` |
 | Composer controls, typography and wrapping | `npm run smoke:composer-overflow` |
 | Real InputBar with optional left/right/activity controls | `npm run smoke:composer-toolbar` |
 | Push settings geometry/interaction (provider-free, contract Switch stand-in) | `npm run smoke:push-settings` |

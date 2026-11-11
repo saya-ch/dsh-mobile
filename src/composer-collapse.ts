@@ -194,3 +194,143 @@ export function onViewportResize(handler: () => void): () => void {
   viewport.addEventListener('resize', handler)
   return () => { viewport.removeEventListener('resize', handler) }
 }
+
+/**
+ * DOM wiring for reading mode. Kept here rather than in mobile-layout.ts so the
+ * behavior can be exercised against a real scroll container in the browser
+ * fixture, and so the layout source keeps its width-only viewport guard.
+ */
+export interface ComposerReadingModeOptions {
+  /** Localized label rendered on the collapsed card. */
+  readonly restoreLabel: string
+  /** Whether the active session is streaming a reply right now. */
+  readonly isRunning: () => boolean
+  /** Injected in tests; defaults to the live document. */
+  readonly doc?: Document
+}
+
+export interface ComposerReadingModeHandle {
+  /** Force the composer back open (session switch, running reply, teardown). */
+  expand(): void
+  dispose(): void
+}
+
+const COLLAPSED_ATTRIBUTE = 'data-dsh-mobile-composer-collapsed'
+const RESTORE_LABEL_PROPERTY = '--dshm-composer-restore-label'
+const CONVERSATION_SCROLL_SELECTOR = '[data-conversation-scroll]'
+const COMPOSER_CARD_SELECTOR = '[data-composer-card]'
+const COMPOSER_EDITOR_SELECTOR = `${COMPOSER_CARD_SELECTOR} :is([contenteditable="true"],[contenteditable="plaintext-only"],[contenteditable=""],textarea)`
+
+/**
+ * Install the reading-mode collapse. Opt-in through the persisted switch, off by
+ * default; the composer and its draft stay owned by DSH, this only toggles a
+ * presentation attribute on the document element.
+ */
+export function installComposerReadingMode(options: ComposerReadingModeOptions): ComposerReadingModeHandle {
+  const doc = options.doc ?? globalThis.document
+  const root = doc.documentElement
+  const tracker = new ComposerCollapseTracker(composerCollapseConfigFrom(readComposerCollapseEnabled()))
+  let collapsed = false
+  const view = doc.defaultView
+  const apply = (next: boolean): void => {
+    if (collapsed === next) return
+    collapsed = next
+    root.setAttribute(COLLAPSED_ATTRIBUTE, next ? 'true' : 'false')
+  }
+  const expand = (): void => {
+    tracker.expand()
+    apply(false)
+  }
+  // The label travels as a custom property: the collapsed card is DSH-owned
+  // React output, so a generated label is safer than an injected child.
+  root.style.setProperty(RESTORE_LABEL_PROPERTY, JSON.stringify(options.restoreLabel))
+  const scroller = (): HTMLElement | undefined => {
+    const found = doc.querySelector(CONVERSATION_SCROLL_SELECTOR)
+    return found instanceof (view?.HTMLElement ?? Object) ? found as HTMLElement : undefined
+  }
+  // The document itself never scrolls (html/body/#root are height:100% with
+  // overflow:hidden); the conversation scrolls inside the container above, so its
+  // scrollTop is the only truthful reading progress.
+  let lastTop = scroller()?.scrollTop ?? 0
+  let rafPending = false
+  const sample = (): void => {
+    rafPending = false
+    const port = scroller()
+    if (port === undefined) return
+    const top = port.scrollTop
+    const delta = top - lastTop
+    lastTop = top
+    // A streaming reply returns the composer phase to plain, so Stop has to stay
+    // reachable: never collapse away an active generation. A draft is the same
+    // promise from the other side: the composer is the only place it is visible,
+    // so a scroll that lands after the draft was typed must not hide it either.
+    if (busy()) {
+      expand()
+      return
+    }
+    apply(tracker.sample(delta) === 'collapsed')
+  };
+  const onScroll = (event: Event): void => {
+    const target = event.target
+    if (target === null || !(target as Element).hasAttribute?.(CONVERSATION_SCROLL_SELECTOR.slice(1, -1))) return
+    if (rafPending) return
+    rafPending = true
+    if (view === null) { sample(); return }
+    view.requestAnimationFrame(sample)
+  };
+  // A draft or an in-flight submission is only visible in the composer, so a
+  // collapse there would look like data loss.
+  const busy = (): boolean => {
+    if (options.isRunning()) return true
+    const card = doc.querySelector(COMPOSER_CARD_SELECTOR)
+    const editor = card?.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR) ?? null
+    if (editor === null) return false
+    if (['adjudicating', 'submitting'].includes(editor.dataset.phase ?? '')) return true
+    const text = (editor as HTMLTextAreaElement).value ?? editor.textContent ?? ''
+    return text.trim() !== ''
+  };
+  const guard = (): void => { if (busy()) expand() }
+  const onPointerDown = (event: Event): void => {
+    if (!collapsed) return
+    const target = event.target
+    if (target === null || !(target instanceof (view?.Element ?? Object))) return
+    if ((target as Element).closest(COMPOSER_CARD_SELECTOR) === null) return
+    expand()
+  };
+  const onFocusIn = (): void => { expand() }
+  // The composer card is DSH's React output: it is replaced when a conversation
+  // goes from empty to active, so the observed set is refreshed, not captured once.
+  let observed: HTMLElement[] = []
+  const observeCards = (): void => {
+    const cards = [...doc.querySelectorAll<HTMLElement>(COMPOSER_CARD_SELECTOR)]
+    if (cards.length === observed.length && cards.every((card, index) => card === observed[index])) return
+    observer.disconnect()
+    for (const card of cards) {
+      observer.observe(card, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['data-phase'] })
+    }
+    observed = cards
+  }
+  const observer = new (view?.MutationObserver ?? MutationObserver)(() => { observeCards(); guard() })
+  observeCards()
+  doc.addEventListener('scroll', onScroll, { passive: true, capture: true })
+  doc.addEventListener('pointerdown', onPointerDown, true)
+  doc.addEventListener('focusin', onFocusIn, true)
+  const stopPreference = subscribeComposerCollapseEnabled(enabled => {
+    tracker.setEnabled(enabled)
+    if (!enabled) expand()
+  })
+  const stopViewport = onViewportResize(onFocusIn)
+  return {
+    expand,
+    dispose(): void {
+      doc.removeEventListener('scroll', onScroll, { capture: true })
+      doc.removeEventListener('pointerdown', onPointerDown, true)
+      doc.removeEventListener('focusin', onFocusIn, true)
+      stopViewport()
+      stopPreference()
+      observer.disconnect()
+      root.style.removeProperty(RESTORE_LABEL_PROPERTY)
+      apply(false)
+    },
+  }
+}

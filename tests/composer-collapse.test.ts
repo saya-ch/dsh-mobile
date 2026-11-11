@@ -216,16 +216,21 @@ describe('ComposerCollapseSettings row', () => {
 describe('layout integration contract', () => {
   // Pins the defects a review found (document scroll sampling, a switch only one
   // bundle could see, a control injected into a React-managed card) plus the
-  // affordances the feature depends on.
+  // affordances the feature depends on. The DOM wiring lives in
+  // src/composer-collapse.ts so the browser fixture can drive it; these assertions
+  // keep both files honest about which container, guard and label they use.
   const layout = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+  const wiring = readFileSync(new URL('../src/composer-collapse.ts', import.meta.url), 'utf8')
 
   it('samples the conversation scroller instead of the document', () => {
-    expect(layout).toContain("querySelector('[data-conversation-scroll]')")
-    expect(layout).not.toMatch(/window\.scrollY/)
+    expect(wiring).toContain("querySelector(CONVERSATION_SCROLL_SELECTOR)")
+    expect(wiring).toContain("'[data-conversation-scroll]'")
+    expect(wiring).not.toMatch(/window\.scrollY/)
+    expect(wiring).not.toMatch(/document\.documentElement\.scrollTop/)
   })
 
   it('only reacts to scroll events from that container', () => {
-    expect(layout).toContain("hasAttribute('data-conversation-scroll')")
+    expect(wiring).toContain('CONVERSATION_SCROLL_SELECTOR.slice(1, -1)')
   })
 
   it('reads the switch through the shared persisted store', () => {
@@ -233,15 +238,25 @@ describe('layout integration contract', () => {
     expect(layout).toContain('readComposerCollapseEnabled')
   })
 
+  it('installs the wiring instead of duplicating it in the layout', () => {
+    expect(layout).toContain('installComposerReadingMode({')
+    expect(layout).toContain('isRunning: () => runningRef.current')
+
+  })
+
   it('never injects a control into the React-managed composer card', () => {
-    expect(layout).not.toContain('dshMobileComposerRestore')
+    expect(wiring).not.toContain('dshMobileComposerRestore')
+    expect(wiring).not.toContain('appendChild')
+    expect(wiring).toContain('--dshm-composer-restore-label')
     expect(layout).toContain('--dshm-composer-restore-label')
     expect(layout).toContain('data-dsh-mobile-composer-collapsed')
   })
 
   it('never collapses while a draft, a submission, or a running reply is present', () => {
-    expect(layout).toContain('composerHasDraft(editor, card)')
-    expect(layout).toContain("'adjudicating', 'submitting'")
+    expect(wiring).toContain("['adjudicating', 'submitting']")
+    // The scroll sample checks the same busy() the mutation guard does, so a
+    // draft typed before the scroll cannot be hidden by it.
+    expect(wiring).toMatch(/const sample = \(\): void => \{[\s\S]*?if \(busy\(\)\)/)
     // A streaming reply returns the composer phase to plain, so the Session
     // summary flag is the only truthful signal.
     expect(layout).toContain('session.byId[current]?.running')
@@ -250,5 +265,8 @@ describe('layout integration contract', () => {
 
   it('keeps the visualViewport guard on the layout source', () => {
     expect(layout).not.toContain('visualViewport')
+    // The keyboard helper still lives on the shared module; the guard only
+    // constrains wide-band detection, which must stay on window.innerWidth.
+    expect(wiring).toContain('visualViewport')
   })
 })

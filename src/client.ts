@@ -48,6 +48,11 @@ import { dismissMobileDirectoryPicker, hasUpstreamBrowsePicker, installMobileDir
 export { shouldNudgeReconnect, shouldRenewSession } from './client-recovery.js'
 export type { MobileConnectionState } from './client-recovery.js'
 
+// The reading-mode opt-in lives in this bundle (the settings row writes it) while
+// the layout bundle reads it; publishing both sides keeps the cross-bundle
+// contract driveable from the shipped bundles in the browser fixture.
+export { readComposerCollapseEnabled, writeComposerCollapseEnabled } from './composer-collapse.js'
+
 export { DIAGNOSTIC_REASON_MESSAGES, DIAGNOSTIC_NETWORK_MESSAGES, DIAGNOSTIC_SCOPE_MESSAGES, LOCALIZED_DIAGNOSTIC_COPY, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
 
