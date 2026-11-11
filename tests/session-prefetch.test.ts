@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createElement } from 'react'
 import {
   SESSION_PREFETCH_DEFAULTS,
   SESSION_PREFETCH_STORAGE_KEY,
@@ -150,5 +151,33 @@ describe('opt-in persistence', () => {
     expect(sessionPrefetchConfigFrom(false).enabled).toBe(false)
     // Timing guardrails are untouched by the switch.
     expect(sessionPrefetchConfigFrom(true).cooldownMs).toBe(SESSION_PREFETCH_DEFAULTS.cooldownMs)
+  })
+})
+
+describe('SessionPrefetchSettings render structure', () => {
+  it('emits a label row with a visually-hidden switch input and an On/Off pill', async () => {
+    // @ts-expect-error - react-dom/server ships no types here; verified at runtime
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    const { SessionPrefetchSettings } = await import('../src/session-prefetch-settings.js')
+    const markup = renderToStaticMarkup(
+      createElement(SessionPrefetchSettings, {
+        locale: 'en',
+        read: () => false,
+        write: () => {},
+        subscribe: () => () => {},
+      }),
+    )
+    // The whole row is a <label> so the 48px row is a single tap target.
+    expect(markup).toContain('class="dsh-mobile-settings_row"')
+    // The native checkbox is present for keyboard/a11y but hidden by CSS; it
+    // carries the switch role and the prefetch state.
+    expect(markup).toContain('type="checkbox"')
+    expect(markup).toContain('role="switch"')
+    expect(markup).toContain('dsh-mobile-settings_switchInput')
+    expect(markup).toContain('aria-checked="false"')
+    expect(markup).toContain('aria-label="Prefetch the session you just left"')
+    // The visible control is the On/Off pill; server render starts Off.
+    expect(markup).toContain('dsh-mobile-settings_selector')
+    expect(markup).toMatch(/dsh-mobile-settings_selector[^>]*>\s*Off\s*</)
   })
 })

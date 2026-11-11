@@ -58,9 +58,11 @@ export function SessionPrefetchSettings({ locale, read, write, subscribe }: Sess
     ),
     createElement('input', {
       type: 'checkbox',
+      role: 'switch',
       className: 'dsh-mobile-settings_switchInput',
       checked: enabled,
       'aria-label': copy.title,
+      'aria-checked': enabled ? 'true' : 'false',
       onChange: (event: { readonly currentTarget: { readonly checked: boolean } }): void => {
         writeEnabled(event.currentTarget.checked)
       },
