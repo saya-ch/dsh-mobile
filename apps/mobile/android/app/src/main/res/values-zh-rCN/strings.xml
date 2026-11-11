@@ -123,6 +123,9 @@
     <string name="notification_channel_background_description">App 未打开时保持已配对 DSH 连接可用，以接收任务通知</string>
     <string name="background_notifications_running">DSH 后台提醒已连接</string>
     <string name="background_notifications_running_text">打开 DSH 可管理提醒</string>
+    <string name="background_notifications_connecting">DSH 后台提醒正在连接</string>
+    <string name="background_notifications_failed">DSH 后台提醒未连接</string>
+    <string name="background_notifications_connecting_text">打开 DSH 重试或管理提醒</string>
     <string name="background_notifications_done_title">任务已完成</string>
     <string name="background_notifications_done_body">你的 DSH 任务已完成</string>
     <string name="task_notification_settings">任务通知设置</string>

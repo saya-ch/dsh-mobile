@@ -124,6 +124,9 @@
     <string name="notification_channel_background_description">Keeps the paired DSH connection available for task notifications while the app is not open</string>
     <string name="background_notifications_running">DSH background reminders are connected</string>
     <string name="background_notifications_running_text">Open DSH to manage reminders</string>
+    <string name="background_notifications_connecting">DSH background reminders are connecting</string>
+    <string name="background_notifications_failed">DSH background reminders are not connected</string>
+    <string name="background_notifications_connecting_text">Open DSH to retry or manage reminders</string>
     <string name="background_notifications_done_title">Task finished</string>
     <string name="background_notifications_done_body">Your DSH task finished</string>
     <string name="task_notification_settings">Task notification settings</string>

@@ -41,6 +41,34 @@ class BackgroundNotificationWiringTest {
     }
 
     @Test
+    fun backgroundStatusAndFailureReasonsAreExposedWithoutSecrets() {
+        val service = source("java/io/github/sayach/dshmobile/BackgroundNotificationService.kt")
+        val bridge = source("java/io/github/sayach/dshmobile/NativeBridge.kt")
+        val activity = source("java/io/github/sayach/dshmobile/MainActivity.kt")
+        assertTrue(service.contains("fun status(context: Context): JSONObject"))
+        assertTrue(service.contains("\"connected\""))
+        assertTrue(service.contains("\"lastEventAt\""))
+        assertTrue(service.contains("\"lastError\""))
+        // The page-side completion tag keeps `dsh-task-done-…`; this service must not collide.
+        assertTrue(service.contains("dsh-task-bg-"))
+        assertTrue(service.contains("Log.w(LOG_TAG"))
+        assertTrue(bridge.contains("var onGetBackgroundNotificationStatus"))
+        assertTrue(bridge.contains("status?.invoke()"))
+        assertTrue(activity.contains("BackgroundNotificationService.status(this)"))
+        assertTrue(activity.contains("resumeIfEnabled"))
+    }
+
+    @Test
+    fun warmNotificationTapUsesTheLivePageBeforeReloading() {
+        val activity = source("java/io/github/sayach/dshmobile/MainActivity.kt")
+        assertTrue(activity.contains("window.__dshMobileOpenSession"))
+        assertTrue(activity.contains("evaluateJavascript(script)"))
+        assertTrue(activity.contains("if (!handled) browser.loadUrl(full)"))
+        // The cold-start path still owns its pending route through showBrowser().
+        assertTrue(activity.contains("pendingNotificationNavigate"))
+    }
+
+    @Test
     fun serviceWithdrawsItsClaimOnAPlatformTimeoutAndNotificationsIdentifyTheirTag() {
         val service = source("java/io/github/sayach/dshmobile/BackgroundNotificationService.kt")
         // Android 14 delivers the bounded type through onTimeout(startId); Android 15+ for dataSync

@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -47,7 +48,9 @@ internal class BackgroundNotificationService : Service() {
         }
         preferences().edit().putString(KEY_DEVICE, key).apply()
         startForeground(FOREGROUND_ID, foregroundNotification())
-        if (!running.getAndSet(true)) worker.execute { runLoop() }
+        val alreadyRunning = running.getAndSet(true)
+        markConnecting()
+        if (!alreadyRunning) worker.execute { runLoop() }
         else connection?.disconnect()
         return START_STICKY
     }
@@ -86,6 +89,7 @@ internal class BackgroundNotificationService : Service() {
         running.set(false)
         connection?.disconnect()
         connection = null
+        markDisconnected("service:timeout")
         stopForeground(STOP_FOREGROUND_REMOVE)
         setEnabled(this, false)
         stopSelf()
@@ -93,39 +97,60 @@ internal class BackgroundNotificationService : Service() {
 
     private fun runLoop() {
         var failedAttempts = 0
+        var lastFailure = "stream:closed"
         while (running.get()) {
+            var stage = "renew"
+            var stopService = false
             try {
                 val record = readDevice()
                 if (record == null) {
+                    markDisconnected("device:missing")
                     setEnabled(this, false)
                     break
                 }
-                if (record.iroh != null) throw IOException("iroh background notifications are not supported")
+                if (record.iroh != null) {
+                    markDisconnected("device:iroh-unsupported")
+                    setEnabled(this, false)
+                    break
+                }
+                stage = "renew"
                 val session = NativeAuthClient.renew(
                     record.origin,
                     record.deviceToken,
                     record.caCertificate,
                     record.instanceId,
                 )
+                stage = "stream"
                 connection = openEventStream(record, session)
                 failedAttempts = 0
+                markConnected()
+                stage = "stream:read"
                 readEvents(connection!!)
+                lastFailure = "stream:closed"
             } catch (failure: NativeAuthFailure) {
+                lastFailure = "renew:${failure.kind.name.lowercase()}"
                 if (failure.kind == NativeAuthFailureKind.DEVICE_REVOKED
                     || failure.kind == NativeAuthFailureKind.DEVICE_EXPIRED
                     || failure.kind == NativeAuthFailureKind.PAIRING_EXPIRED
                 ) {
-                    setEnabled(this, false)
-                    break
+                    stopService = true
+                } else {
+                    failedAttempts = (failedAttempts + 1).coerceAtMost(6)
                 }
-                failedAttempts = (failedAttempts + 1).coerceAtMost(6)
             } catch (_: Exception) {
+                lastFailure = "$stage:failed"
                 failedAttempts = (failedAttempts + 1).coerceAtMost(6)
             } finally {
                 connection?.disconnect()
                 connection = null
             }
             if (!running.get()) break
+            Log.w(LOG_TAG, "background attempt ended: $lastFailure")
+            markDisconnected(lastFailure)
+            if (stopService) {
+                setEnabled(this, false)
+                break
+            }
             try {
                 Thread.sleep(minOf(30_000L, 1_000L shl failedAttempts))
             } catch (_: InterruptedException) {
@@ -136,6 +161,43 @@ internal class BackgroundNotificationService : Service() {
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    /** Persist the diagnostic status read by `notification.background.get`. */
+    private fun markConnecting() {
+        preferences().edit().putBoolean(KEY_CONNECTED, false).remove(KEY_LAST_ERROR).apply()
+        refreshForegroundNotification()
+    }
+
+    private fun markConnected() {
+        preferences().edit().putBoolean(KEY_CONNECTED, true).remove(KEY_LAST_ERROR).apply()
+        Log.i(LOG_TAG, "background stream connected")
+        refreshForegroundNotification()
+    }
+
+    private fun markDisconnected(reason: String) {
+        preferences().edit().putBoolean(KEY_CONNECTED, false).putString(KEY_LAST_ERROR, reason).apply()
+        refreshForegroundNotification()
+    }
+
+    private fun markEventDelivered() {
+        preferences().edit()
+            .putLong(KEY_LAST_EVENT_AT, System.currentTimeMillis())
+            .remove(KEY_LAST_ERROR)
+            .apply()
+        Log.i(LOG_TAG, "background task event delivered")
+    }
+
+    private fun recordFailure(reason: String) {
+        preferences().edit().putString(KEY_LAST_ERROR, reason).apply()
+    }
+
+    private fun refreshForegroundNotification() {
+        if (!running.get()) return
+        runCatching {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.notify(FOREGROUND_ID, foregroundNotification())
+        }
     }
 
     private fun readDevice(): PairedDeviceRecord? {
@@ -199,38 +261,58 @@ internal class BackgroundNotificationService : Service() {
     }
 
     private fun notifyTask(payload: String) {
-        val event = JSONObject(payload)
-        val sessionId = event.optString("sessionId", "").trim()
-        if (sessionId.isEmpty()) return
-        val turn = event.optInt("turn", 0).coerceAtLeast(0)
-        val navigate = sessionRoute(sessionId)
-        TaskNotificationPublisher.post(
-            this,
-            getString(R.string.background_notifications_done_title),
-            getString(R.string.background_notifications_done_body),
-            completionTag(sessionId, turn),
-            navigate,
-        )
+        try {
+            val event = JSONObject(payload)
+            val sessionId = event.optString("sessionId", "").trim()
+            if (sessionId.isEmpty()) return
+            val turn = event.optInt("turn", 0).coerceAtLeast(0)
+            val navigate = sessionRoute(sessionId)
+            TaskNotificationPublisher.post(
+                this,
+                getString(R.string.background_notifications_done_title),
+                getString(R.string.background_notifications_done_body),
+                completionTag(sessionId, turn),
+                navigate,
+            )
+            markEventDelivered()
+        } catch (_: Exception) {
+            // The stream can still be connected while the notification channel or payload is
+            // unusable; keep that distinction visible instead of dropping the event silently.
+            Log.w(LOG_TAG, "background task notification could not be delivered")
+            recordFailure("notify:failed")
+        }
     }
 
-    private fun foregroundNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_task_notification)
-        .setContentTitle(getString(R.string.background_notifications_running))
-        .setContentText(getString(R.string.background_notifications_running_text))
-        .setContentIntent(PendingIntent.getActivity(
-            this,
-            FOREGROUND_ID,
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        ))
-        .setOngoing(true)
-        .setOnlyAlertOnce(true)
-        .setCategory(NotificationCompat.CATEGORY_SERVICE)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
-        .setVisibility(NotificationCompat.VISIBILITY_SECRET)
-        .build()
+    private fun foregroundNotification(): android.app.Notification {
+        val prefs = preferences()
+        val connected = prefs.getBoolean(KEY_CONNECTED, false)
+        val failed = prefs.getString(KEY_LAST_ERROR, null) != null
+        val title = when {
+            connected -> getString(R.string.background_notifications_running)
+            failed -> getString(R.string.background_notifications_failed)
+            else -> getString(R.string.background_notifications_connecting)
+        }
+        val text = if (connected) getString(R.string.background_notifications_running_text)
+            else getString(R.string.background_notifications_connecting_text)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_task_notification)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(PendingIntent.getActivity(
+                this,
+                FOREGROUND_ID,
+                Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ))
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .build()
+    }
 
     private fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -254,10 +336,39 @@ internal class BackgroundNotificationService : Service() {
         private const val PREFERENCES = "dsh_mobile_background_notifications"
         private const val KEY_ENABLED = "enabled"
         private const val KEY_DEVICE = "device"
+        private const val KEY_CONNECTED = "connected"
+        private const val KEY_LAST_EVENT_AT = "lastEventAt"
+        private const val KEY_LAST_ERROR = "lastError"
         private const val BACKGROUND_EVENT_PATH = "/mobile-access/background-events"
+        private const val LOG_TAG = "DshMobileBg"
 
         fun isEnabled(context: Context): Boolean = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             .getBoolean(KEY_ENABLED, false)
+
+        /**
+         * The opt-in plus bounded connection diagnostics exposed by `notification.background.get`.
+         * Timestamps are epoch milliseconds and `lastError` is a stage code such as
+         * `renew:pairing_expired` or `stream:failed`; it never contains credentials or addresses.
+         */
+        fun status(context: Context): JSONObject {
+            val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+            return JSONObject()
+                .put("enabled", prefs.getBoolean(KEY_ENABLED, false))
+                .put("connected", prefs.getBoolean(KEY_CONNECTED, false))
+                .put(
+                    "lastEventAt",
+                    if (prefs.contains(KEY_LAST_EVENT_AT)) prefs.getLong(KEY_LAST_EVENT_AT, 0) else JSONObject.NULL,
+                )
+                .put("lastError", prefs.getString(KEY_LAST_ERROR, null) ?: JSONObject.NULL)
+        }
+
+        /** Persist a bounded diagnostic reason without starting or stopping the service. */
+        fun recordStatusError(context: Context, reason: String) {
+            context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_CONNECTED, false)
+                .putString(KEY_LAST_ERROR, reason)
+                .apply()
+        }
 
         /**
          * Opt in and start the foreground stream. The persisted claim is written before the start
@@ -300,7 +411,20 @@ internal class BackgroundNotificationService : Service() {
 
         fun resumeIfEnabled(context: Context, deviceKey: String) {
             val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-            if (!prefs.getBoolean(KEY_ENABLED, false) || prefs.getString(KEY_DEVICE, null) != deviceKey) return
+            if (!prefs.getBoolean(KEY_ENABLED, false)) return
+            if (prefs.getString(KEY_DEVICE, null) != deviceKey) {
+                // The active paired computer changed while the opt-in was on. Rebind a service
+                // that is still enabled instead of leaving it retrying the previous Origin.
+                val device = runCatching {
+                    PairedDeviceStore(context.applicationContext).load().firstOrNull { it.key == deviceKey }
+                }.getOrNull()
+                if (device == null || device.iroh != null || deviceKey.isEmpty()) {
+                    clearEnabled(context)
+                    recordStatusError(context, "device:mismatch")
+                    return
+                }
+                runCatching { context.stopService(Intent(context, BackgroundNotificationService::class.java)) }
+            }
             if (!enable(context, deviceKey)) clearEnabled(context)
         }
 
@@ -314,6 +438,7 @@ internal class BackgroundNotificationService : Service() {
         private fun clearEnabled(context: Context) {
             context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
                 .putBoolean(KEY_ENABLED, false)
+                .putBoolean(KEY_CONNECTED, false)
                 .remove(KEY_DEVICE)
                 .apply()
         }
@@ -323,7 +448,10 @@ internal class BackgroundNotificationService : Service() {
                 .digest(JSONObject.quote(sessionId).toByteArray(Charsets.UTF_8))
                 .take(16)
                 .joinToString("") { "%02x".format(it) }
-            return "dsh-task-done-$digest-${turn.coerceAtLeast(0)}"
+            // The page-side tag keeps its historical `dsh-task-done-…` form; the background
+            // stream uses `dsh-task-bg-…` so the source is identifiable and stays within the
+            // native tag length limit.
+            return "dsh-task-bg-$digest-${turn.coerceAtLeast(0)}"
         }
 
         private fun sessionRoute(sessionId: String): String {

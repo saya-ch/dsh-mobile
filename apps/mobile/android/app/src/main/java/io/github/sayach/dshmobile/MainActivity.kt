@@ -312,8 +312,16 @@ class MainActivity : Activity() {
         if (origin != null && browser != null && !isFinishing) {
             val full = origin.serialized.trimEnd('/') + navigate
             if (GatewayUrlPolicy.isSameOrigin(origin, full)) {
-                browser.loadUrl(full)
-                pendingNotificationNavigate = null
+                // A live page can open the Session in place; only a page that cannot handle the
+                // route is reloaded with it. Reloading discarded drafts, scroll and other Sessions.
+                val script = "window.__dshMobileOpenSession && window.__dshMobileOpenSession(" +
+                    org.json.JSONObject.quote(navigate) + ")"
+                browser.evaluateJavascript(script) { result ->
+                    val handled = result == "true"
+                    if (webView !== browser || isFinishing) return@evaluateJavascript
+                    if (!handled) browser.loadUrl(full)
+                    pendingNotificationNavigate = null
+                }
             }
         }
     }
@@ -3757,6 +3765,9 @@ class MainActivity : Activity() {
             bridge.onOpenTaskNotificationSettings = ::openTaskNotificationSettings
             bridge.onGetBackgroundNotifications = {
                 BackgroundNotificationService.isEnabled(this) && activeDeviceKey != null
+            }
+            bridge.onGetBackgroundNotificationStatus = {
+                BackgroundNotificationService.status(this)
             }
             bridge.onSetBackgroundNotifications = ::setBackgroundNotifications
             bridge.onGetDisplayScale = { displayScale.percent }
