@@ -724,6 +724,8 @@ export class PushDelivery {
     if (this.#closed) return
     if (this.#wakeTimer) clearTimeout(this.#wakeTimer)
     this.#wakeTimer = undefined
+    // A full pool cannot progress a wake; completion callbacks re-kick delivery as slots free.
+    if (this.#active >= MAX_CONCURRENT_SENDS) return
     this.#pruneDeferred()
     let nextAt = Number.POSITIVE_INFINITY
     try {
