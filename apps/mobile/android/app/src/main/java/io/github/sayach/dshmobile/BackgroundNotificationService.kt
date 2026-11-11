@@ -418,9 +418,14 @@ internal class BackgroundNotificationService : Service() {
                 val device = runCatching {
                     PairedDeviceStore(context.applicationContext).load().firstOrNull { it.key == deviceKey }
                 }.getOrNull()
-                if (device == null || device.iroh != null || deviceKey.isEmpty()) {
+                if (deviceKey.isEmpty() || device == null) {
                     clearEnabled(context)
-                    recordStatusError(context, "device:mismatch")
+                    recordStatusError(context, "device:missing")
+                    return
+                }
+                if (device.iroh != null) {
+                    clearEnabled(context)
+                    recordStatusError(context, "device:iroh-unsupported")
                     return
                 }
                 runCatching { context.stopService(Intent(context, BackgroundNotificationService::class.java)) }

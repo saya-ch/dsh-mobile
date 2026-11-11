@@ -7,7 +7,6 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import org.json.JSONObject
 
-/** Largest single boot batch this cache accepts; the gateway caps merged batches well below it. */
 /**
  * Largest body this cache may hold.
  *
