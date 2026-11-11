@@ -4,14 +4,14 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.7.3**；构建号为 88。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.7.3 更新](#073-更新)。
+当前正式 App 为 **0.7.4**；构建号为 89。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.7.4 更新](#074-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
 ## 安装与配对
 
 1. 按[项目快速开始](../../README.md#快速开始)安装并启用插件。局域网配置可通过命令行或电脑端的 **移动访问** 面板完成。
-2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3) 安装已签名 APK。原有 HTTPS 通道可选兼容版 `.apk`；arm64-v8a/x86_64 设备使用实验性 iroh 时选完整版 `-iroh.apk`。两包使用相同包名和正式签名，选一个原位升级即可保留配对；不同签名的 Debug 包不能直接覆盖正式版，不要为绕过签名不匹配而卸载或清除数据。
+2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.4) 安装已签名 APK。原有 HTTPS 通道可选兼容版 `.apk`；arm64-v8a/x86_64 设备使用实验性 iroh 时选完整版 `-iroh.apk`。两包使用相同包名和正式签名，选一个原位升级即可保留配对；不同签名的 Debug 包不能直接覆盖正式版，不要为绕过签名不匹配而卸载或清除数据。
 3. 在电脑 **移动访问 → 局域网访问** 中生成密钥／配对链接，或配置远程通道并生成远程配对二维码。在 App 选择对应方式，扫码或粘贴链接。
 4. 为电脑命名。每条局域网或远程配对单独保存；手机无需安装 cpolar、Cloudflare 或 Tailscale App。
 
@@ -35,6 +35,10 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 页面缩放影响整个网页，与按地址保存的文字偏好不同。App 专属操作只在原生 Bridge 支持时显示。原生页面跟随 Android 系统语言，支持简体中文、英文和意大利文；网页跟随 DSH 选择的语言，当前 DSH 尚未提供意大利语。
 
 删除本机记录会移除保存的设备令牌和固定 CA，不等于撤销电脑授权或清除所有 WebView 短期 Cookie。需要立即终止访问时，请在电脑的 **移动访问** 中撤销设备。Android“清除应用数据”会删除全部配对和网页数据，不是普通重连的处理步骤。
+
+## 0.7.4 更新
+
+把按修订号寻址的移动端页面载荷缓存在设备上，独立于 WebView 自身的 HTTP 缓存：经重新校验的启动批次可用 `If-None-Match` 校验，并在 304 后直接返回已存正文；按修订号命名的插件组合包按有序模块列表与修订号寻址。只有大小与 SHA-256 都与取回字节一致后才写入缓存；缓存未命中或任何完整性、epoch、归属校验失败都会回退到普通请求；文档、API 响应、凭据与未按修订号命名的资源不参与缓存；清除站点数据或移除已配对设备会清空该存储。后台提醒的常驻通知现在显示真实阶段（连接中、已连接、未连接），并通过 `notification.background.get` 与 `DshMobileBg` logcat 行发布 `connected`、`lastEventAt` 和有界的 `lastError` 阶段；后台服务的完成通知使用独立的 `dsh-task-bg-` 标签，服务会重新绑定到新激活的已配对电脑而不是继续重试原 Origin，活动记录无法提供服务（包括 iroh 配对）时撤回该选项。点击任务通知现在先由页面内的就地钩子在活动页面中打开对应会话，页面未就绪或无法处理该路由时回退到路由跳转。两种 APK 均沿用正式签名，可原位升级并保留已有配对；页面侧的一半需要插件 0.8.7 或更高版本。
 
 ## 0.7.3 更新
 
@@ -182,9 +186,11 @@ Set-Location apps/mobile/android
 
 当前源码的 Debug 构建使用包名 `io.github.sayach.dshmobile.debug` 与 `-debug` 版本后缀，可与正式 App 并存，存储和配对彼此独立。它不会升级或迁移旧版无后缀 Debug 应用；切换包名时应保留旧应用和数据，不要为此卸载或清除。Release 构建继续使用 `io.github.sayach.dshmobile` 与既定正式签名。
 
-已核验的正式版本为 [Android 0.7.3](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.3)，构建 88。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
+已核验的正式版本为 [Android 0.7.4](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.4)，构建 89。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
 
 ## 验收与已知限制
+
+- App 0.7.4 的两份公开 APK 均通过校验值、Manifest、既定正式签名与体积检查；兼容版不含原生库，完整版只携带两个 iroh 传输 ABI。本版未新增真机或公网回归：设备端缓存、后台提醒状态与通知就地打开仅由 Android 单元测试与 CI 发布构建覆盖，下方的真机 Debug 证据属于 0.7.3。
 
 - 当前源码 Debug 构建（0.7.3／构建 88）经 cloudflared 远程入口配对后，在 App 退到后台且锁屏时收到了真实回合完成通知；点击后打开对应会话的 `dsh-session` 路由，关闭该选项后服务停止并移除通知。这是单台设备、公网隧道和 Debug 签名的验证，不代表正式 APK、iroh 或所有网络与厂商行为。
 
