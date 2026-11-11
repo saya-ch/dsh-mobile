@@ -29,6 +29,7 @@ import {
   installDshLanguageBoundSurface,
   installMobileNativeBack,
   installMobilePushBrowserClient,
+  installSessionPrefetchSettings,
   MOBILE_CONTROL_MESSAGES,
   mobileBackBlockedMessage,
   normalizeDiagnosticOverall,
@@ -247,10 +248,8 @@ describe('dedicated browser push client entry', () => {
     await Promise.resolve()
     expect(test.api.getConfig).toHaveBeenCalledExactlyOnceWith('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
     expect(test.manager.subscribe).not.toHaveBeenCalled()
-    expect(test.slotRegistrations).toHaveLength(2)
+    expect(test.slotRegistrations).toHaveLength(1)
     expect(test.slotRegistrations[0]?.options).toMatchObject({ id: 'dsh-mobile-push-browser', order: 120 })
-    // The session-prefetch opt-in is its own row so the switch has a real entry.
-    expect(test.slotRegistrations[1]?.options).toMatchObject({ id: 'dsh-mobile-session-prefetch', order: 130 })
     test.view.dispatchEvent(new Event('focus'))
     await Promise.resolve()
     expect(test.api.getConfig).toHaveBeenCalledTimes(2)
@@ -259,6 +258,33 @@ describe('dedicated browser push client entry', () => {
     await Promise.resolve()
     expect(test.api.getConfig).toHaveBeenCalledTimes(2)
     expect(test.api.disable).not.toHaveBeenCalled()
+  })
+
+  describe('dedicated session-prefetch settings entry', () => {
+    it('registers the opt-in row on the dedicated Mobile layout', () => {
+      const test = fixture()
+      const dispose = installSessionPrefetchSettings(test.context as never, test.view)
+      expect(test.slotRegistrations).toHaveLength(1)
+      expect(test.slotRegistrations[0]?.options).toMatchObject({ id: 'dsh-mobile-session-prefetch', order: 130 })
+      dispose()
+    })
+
+    it('registers even when the Android native bridge is present', () => {
+      const test = fixture()
+      test.view.__DSH_MOBILE_NATIVE__ = { capabilities: () => [], invoke: async () => undefined }
+      const dispose = installSessionPrefetchSettings(test.context as never, test.view)
+      expect(test.slotRegistrations).toHaveLength(1)
+      expect(test.slotRegistrations[0]?.options).toMatchObject({ id: 'dsh-mobile-session-prefetch', order: 130 })
+      dispose()
+    })
+
+    it('stays inert on the stock desktop page', () => {
+      const test = fixture()
+      delete (test.view as { __DSH_MOBILE_FRONTEND__?: unknown }).__DSH_MOBILE_FRONTEND__
+      const dispose = installSessionPrefetchSettings(test.context as never, test.view)
+      expect(test.slotRegistrations).toHaveLength(0)
+      dispose()
+    })
   })
 
   it('routes default browser mutations through the existing one-shot CSRF mobileRequest transport', async () => {

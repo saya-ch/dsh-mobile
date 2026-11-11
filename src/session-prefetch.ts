@@ -49,18 +49,20 @@ export const SESSION_PREFETCH_STORAGE_KEY = 'dsh-mobile.session-prefetch.enabled
 export const SESSION_PREFETCH_EVENT = 'dsh-mobile:session-prefetch-change'
 
 /** Read the persisted opt-in. Defaults to off; unreadable storage keeps it off. */
-export function readSessionPrefetchEnabled(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): boolean {
+export function readSessionPrefetchEnabled(storage?: Pick<Storage, 'getItem'>): boolean {
   try {
-    return storage?.getItem(SESSION_PREFETCH_STORAGE_KEY) === 'true'
+    const store = storage ?? globalThis.localStorage
+    return store?.getItem(SESSION_PREFETCH_STORAGE_KEY) === 'true'
   } catch {
     return false
   }
 }
 
 /** Persist the opt-in and notify the layout bundle in the same page. */
-export function writeSessionPrefetchEnabled(enabled: boolean, storage: Pick<Storage, 'setItem'> | undefined = globalThis.localStorage): void {
+export function writeSessionPrefetchEnabled(enabled: boolean, storage?: Pick<Storage, 'setItem'>): void {
   try {
-    storage?.setItem(SESSION_PREFETCH_STORAGE_KEY, String(enabled))
+    const store = storage ?? globalThis.localStorage
+    store?.setItem(SESSION_PREFETCH_STORAGE_KEY, String(enabled))
   } catch {
     /* Blocked storage still lets this page react through the event below. */
   }
