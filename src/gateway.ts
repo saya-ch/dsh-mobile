@@ -4433,19 +4433,32 @@ export class MobileAccessGateway {
       client.destroy()
       upstream.destroy()
     }
+    // Set once the compression bridge accepts the client; closing through it stops the
+    // relay before the close handshake, so no data frame can follow the Close frame.
+    let closeCompressedBridge: ((code: number, reason: string) => void) | undefined
     // At `expiresAt` this stream used to be destroyed outright: the browser saw an abnormal close
     // (1006) and the page reported "connection lost" while it renewed. A WebSocket close frame
     // (1000, normal closure) lets the client treat it as an orderly end of stream instead.
     const finishGracefully = (): void => {
-      const sendCloseFrame = (socket: typeof client): void => {
-        if (socket.destroyed || !socket.writable) return
-        try {
-          socket.write(Buffer.from([0x88, 0x02, 0x03, 0xe8]))
-        } catch {
-          // A socket that cannot take the frame is already gone; the destroy below finishes it.
+      // RFC 6455 §5.5.1: a data frame must not follow a Close frame. Stop the
+      // upstream→client flow before writing the Close frame; the grace period below
+      // only covers the peer's Close echo and the TCP teardown.
+      if (closeCompressedBridge !== undefined) {
+        closeCompressedBridge(1000, 'session expired')
+      } else {
+        upstream.unpipe(client)
+        client.unpipe(upstream)
+        upstream.pause()
+        const sendCloseFrame = (socket: typeof client): void => {
+          if (socket.destroyed || !socket.writable) return
+          try {
+            socket.write(Buffer.from([0x88, 0x02, 0x03, 0xe8]))
+          } catch {
+            // A socket that cannot take the frame is already gone; the destroy below finishes it.
+          }
         }
+        sendCloseFrame(client)
       }
-      sendCloseFrame(client)
       setTimeout(closeBoth, 50).unref()
     }
     client.on('error', closeBoth)
@@ -4469,10 +4482,11 @@ export class MobileAccessGateway {
         const compressionTarget = upstreamTarget
         compressionTarget.pathname = target.pathname
         compressionTarget.search = target.search
-        await bridgeCompressedWebSocket(
+        const bridge = await bridgeCompressedWebSocket(
           request, client, upstream, head, compressionTarget, upstreamCookie,
           this.config.websocketCompression, this.config.upstreamTimeoutMs,
         )
+        closeCompressedBridge = (code, reason) => { bridge.close(code, reason) }
         return
       }
       await new Promise<void>((resolve, reject) => {

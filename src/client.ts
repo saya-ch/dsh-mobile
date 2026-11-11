@@ -5732,9 +5732,6 @@ export function installMobilePushBrowserClient(ctx: ClientContext, runtime: Mobi
   const removeSettings = ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item', id: 'dsh-mobile-push-browser', order: 120,
   }, () => createElement(MobilePushSettings, { controller, locale: selectedMobileControlLocale() })))
-  const removePrefetchSettings = ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item', id: 'dsh-mobile-session-prefetch', order: SESSION_PREFETCH_SETTINGS_ORDER,
-  }, () => createElement(SessionPrefetchSettings, { locale: selectedMobileControlLocale() })))
 
   const refresh = (): void => { controller.refresh() }
   const onVisible = (): void => { if (page.visibilityState === 'visible') refresh() }
@@ -5794,9 +5791,20 @@ export function installMobilePushBrowserClient(ctx: ClientContext, runtime: Mobi
     unbindConnection()
     disposeNavigationLifecycle()
     removeSettings()
-    removePrefetchSettings()
     controller.stop()
   }
+}
+
+/**
+ * Register the session-prefetch opt-in on every dedicated Mobile page, including the Android
+ * App webview. The row used to live inside the browser-push installer, which returns early when
+ * the native bridge exists, so App users never saw the switch for a layout-side feature they use.
+ */
+export function installSessionPrefetchSettings(ctx: ClientContext, view: Window): () => void {
+  if (view.__DSH_MOBILE_FRONTEND__ !== 'dedicated') return () => undefined
+  return ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'dsh-mobile-session-prefetch', order: SESSION_PREFETCH_SETTINGS_ORDER,
+  }, () => createElement(SessionPrefetchSettings, { locale: selectedMobileControlLocale() })))
 }
 
 /** Mount the desktop control or mobile feature enhancements. */
@@ -5831,6 +5839,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => installMobilePushBrowserClient(ctx, { page: document, view: window }), 'dsh-mobile: authenticated browser push lifecycle')
   ctx.effect(() => installTaskNotificationNavigation(ctx, document, window), 'dsh-mobile: native task notification navigation')
   ctx.effect(() => installNativeNotificationNavigation(ctx, window), 'dsh-mobile: in-page notification navigation')
+  ctx.effect(() => installSessionPrefetchSettings(ctx, window), 'dsh-mobile: session prefetch settings')
 
   ctx.effect(() => {
     const desktopAdmin = isDesktopAdminSurface(location.hostname, location.search, window.__DSH_MOBILE_FRONTEND__, location.protocol)

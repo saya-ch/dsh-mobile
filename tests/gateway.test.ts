@@ -255,6 +255,8 @@ async function upstream(
   secondApplicationBatchEntries = 0,
   bundleUrlOverride?: (id: string, url: string) => string,
   extraHeadLinks = '',
+  /** Repeats an unmasked upstream frame this often, so data keeps arriving during a close grace. */
+  upgradeFrameIntervalMs = 0,
 ): Promise<{
   port: number
   observations: UpstreamObservation[]
@@ -515,7 +517,17 @@ async function upstream(
     }
     upgradeResponseBytes.push(response.length)
     networkSocket.write(Buffer.concat([response, upgradeBurst]))
-    networkSocket.pipe(networkSocket)
+    if (upgradeFrameIntervalMs > 0) {
+      // Server frames are unmasked and keep flowing, so a gateway that only writes the
+      // Close frame but leaves the proxy pipe attached shows data frames after it.
+      const streaming = setInterval(() => {
+        if (!networkSocket.destroyed) networkSocket.write(websocketBinaryFrame(Buffer.from('upstream-live')))
+      }, upgradeFrameIntervalMs)
+      streaming.unref()
+      networkSocket.once('close', () => { clearInterval(streaming) })
+    } else {
+      networkSocket.pipe(networkSocket)
+    }
   })
   const port = await listen(server)
   cleanups.push(() => closeServer(server, upgraded))
@@ -695,6 +707,49 @@ async function openWebSocket(
         '',
       ].join('\r\n'))
     })
+  })
+}
+
+/** Parse the unmasked server→client WebSocket frames out of a byte stream. */
+function websocketServerFrames(stream: Buffer): { readonly opcode: number; readonly payload: Buffer }[] {
+  const frames: { opcode: number; payload: Buffer }[] = []
+  let offset = 0
+  while (offset + 2 <= stream.length) {
+    const opcode = stream[offset]! & 0x0f
+    const second = stream[offset + 1]!
+    // Server frames are never masked; a masked length byte means the stream desynchronized.
+    if ((second & 0x80) !== 0) break
+    let length = second & 0x7f
+    let cursor = offset + 2
+    if (length === 126) {
+      if (cursor + 2 > stream.length) break
+      length = stream.readUInt16BE(cursor)
+      cursor += 2
+    } else if (length === 127) {
+      if (cursor + 8 > stream.length) break
+      const wide = stream.readBigUInt64BE(cursor)
+      if (wide > BigInt(Number.MAX_SAFE_INTEGER)) break
+      length = Number(wide)
+      cursor += 8
+    }
+    if (cursor + length > stream.length) break
+    frames.push({ opcode, payload: stream.subarray(cursor, cursor + length) })
+    offset = cursor + length
+  }
+  return frames
+}
+
+/** Collect a handed-over WebSocket stream until the peer closes it. */
+async function collectWebSocketStream(socket: Socket, remainder: Buffer): Promise<Buffer> {
+  const chunks: Buffer[] = [remainder]
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      socket.destroy()
+      reject(new Error('WebSocket stream collection timed out'))
+    }, 2_000)
+    socket.on('data', (chunk: Buffer) => { chunks.push(chunk) })
+    socket.once('error', () => { /* the close event below settles the assertion */ })
+    socket.once('close', () => { clearTimeout(timeout); resolve(Buffer.concat(chunks)) })
   })
 }
 
@@ -3895,6 +3950,39 @@ describe('WebSocket gateway', () => {
     await vi.waitFor(() => {
       expect(() => instance.access.authorizeSession(paired.session)).toThrow()
     })
+  })
+
+  it('ends an expired WebSocket with a 1000 close frame and no data frame after it', async () => {
+    const inner = await upstream('legacy', false, Buffer.alloc(0), [], undefined, undefined, 0, 0, undefined, '', 5)
+    const instance = await gateway(inner.port, {}, 150)
+    const paired = await pair(instance)
+    const opened = await openWebSocket(instance, '/api/events.mux', paired.session)
+    expect(opened.response).toContain('101 Switching Protocols')
+    const stream = await collectWebSocketStream(opened.socket, opened.remainder)
+    const frames = websocketServerFrames(stream)
+    const closeIndex = frames.findIndex(frame => frame.opcode === 0x8)
+    expect(closeIndex, `opcodes: ${frames.map(frame => frame.opcode.toString(16)).join(',')}`).toBeGreaterThanOrEqual(0)
+    const close = frames[closeIndex]!.payload
+    expect(close.length).toBeGreaterThanOrEqual(2)
+    expect(close.readUInt16BE(0)).toBe(1000)
+    // RFC 6455 §5.5.1: nothing may follow the Close frame except its own continuation.
+    expect(frames.slice(closeIndex + 1).filter(frame => frame.opcode === 0x1 || frame.opcode === 0x2)).toEqual([])
+  })
+
+  it('ends an expired compressed WebSocket with a 1000 close frame and no data frame after it', async () => {
+    const inner = await upstream('legacy', false, Buffer.alloc(0), [], undefined, undefined, 0, 0, undefined, '', 5)
+    const instance = await gateway(inner.port, { websocketCompression: { paths: ['/api/remote.mux'] } }, 150)
+    const paired = await pair(instance)
+    const opened = await openWebSocket(instance, '/api/remote.mux', paired.session)
+    expect(opened.response).toContain('101 Switching Protocols')
+    const stream = await collectWebSocketStream(opened.socket, opened.remainder)
+    const frames = websocketServerFrames(stream)
+    const closeIndex = frames.findIndex(frame => frame.opcode === 0x8)
+    expect(closeIndex, `opcodes: ${frames.map(frame => frame.opcode.toString(16)).join(',')}`).toBeGreaterThanOrEqual(0)
+    const close = frames[closeIndex]!.payload
+    expect(close.length).toBeGreaterThanOrEqual(2)
+    expect(close.readUInt16BE(0)).toBe(1000)
+    expect(frames.slice(closeIndex + 1).filter(frame => frame.opcode === 0x1 || frame.opcode === 0x2)).toEqual([])
   })
 })
 

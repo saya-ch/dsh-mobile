@@ -17,6 +17,16 @@ export interface WebSocketCompressionOptions {
   readonly level: number
 }
 
+/** Close handle an accepted compressed bridge exposes to its gateway owner. */
+export interface CompressedWebSocketBridge {
+  /**
+   * Stop relaying and start the WebSocket close handshake on both legs.
+   * Later frames are dropped, so no data frame follows the Close frame.
+   * Calls after the bridge stopped, or before it accepted the client, are ignored.
+   */
+  close(code: number, reason: string): void
+}
+
 function payloadBytes(data: RawData): number {
   if (Array.isArray(data)) return data.reduce((bytes, part) => bytes + part.byteLength, 0)
   return data.byteLength
@@ -39,7 +49,7 @@ function forwardableClose(code: number): boolean {
  * @param upstreamCookie - gateway's signed upstream cookie; browser cookies are discarded.
  * @param options - resolved message, queue, and compression limits.
  * @param handshakeTimeoutMs - maximum handshake and close-handshake duration.
- * @returns fulfillment after both HTTP upgrades are accepted, or rejection before acceptance.
+ * @returns the close handle after both HTTP upgrades are accepted, or rejection before acceptance.
  */
 export function bridgeCompressedWebSocket(
   request: IncomingMessage,
@@ -50,7 +60,7 @@ export function bridgeCompressedWebSocket(
   upstreamCookie: string | undefined,
   options: Readonly<WebSocketCompressionOptions>,
   handshakeTimeoutMs: number,
-): Promise<void> {
+): Promise<CompressedWebSocketBridge> {
   return new Promise((resolve, reject) => {
     let incoming: WebSocket | undefined
     let outgoing: WebSocket | undefined
@@ -202,7 +212,7 @@ export function bridgeCompressedWebSocket(
             accepted = true
             clearTimeout(handshakeTimer)
             incoming.resume()
-            resolve()
+            resolve({ close: beginClose })
           })
         } catch (error) {
           stop(error instanceof Error ? error : new Error('Client WebSocket upgrade failed'))
