@@ -40,6 +40,7 @@ import { installMobileUiLocalePersistence } from './mobile-ui-locale.js'
 import { createMobilePushBrowserApi, type MobilePushBrowserApi } from './mobile-push/browser-api.js'
 import { browserPushEnvironment, createMobilePushController, type MobilePushEnvironment } from './mobile-push/client.js'
 import { MobilePushSettings } from './mobile-push/settings.js'
+import { SESSION_PREFETCH_SETTINGS_ORDER, SessionPrefetchSettings } from './session-prefetch-settings.js'
 import { installPushNavigation } from './mobile-push/navigation.js'
 import { dismissMobileDirectoryPicker, hasUpstreamBrowsePicker, installMobileDirectoryPicker } from './mobile-directory-picker.js'
 
@@ -5731,6 +5732,9 @@ export function installMobilePushBrowserClient(ctx: ClientContext, runtime: Mobi
   const removeSettings = ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item', id: 'dsh-mobile-push-browser', order: 120,
   }, () => createElement(MobilePushSettings, { controller, locale: selectedMobileControlLocale() })))
+  const removePrefetchSettings = ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'dsh-mobile-session-prefetch', order: SESSION_PREFETCH_SETTINGS_ORDER,
+  }, () => createElement(SessionPrefetchSettings, { locale: selectedMobileControlLocale() })))
 
   const refresh = (): void => { controller.refresh() }
   const onVisible = (): void => { if (page.visibilityState === 'visible') refresh() }
@@ -5790,6 +5794,7 @@ export function installMobilePushBrowserClient(ctx: ClientContext, runtime: Mobi
     unbindConnection()
     disposeNavigationLifecycle()
     removeSettings()
+    removePrefetchSettings()
     controller.stop()
   }
 }

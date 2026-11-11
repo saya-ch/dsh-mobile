@@ -39,6 +39,13 @@ export const NATIVE_MOBILE_STYLES = `
  .dsh-mobile-settings_selector:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); }
  .dsh-mobile-settings_selector:active:not(:disabled) { background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-interactive-bg-hover)); }
  .dsh-mobile-settings_selector:focus-visible { outline:2px solid var(--dsw-alias-label-primary-bluish,#2563eb); outline-offset:2px; }
+/* Row switches (session prefetch, composer collapse) pair a visually-hidden
+   native checkbox with an On/Off pill. Hide the checkbox so the pill is the only
+   visible control, while the label keeps the 48px row a tap target and the input
+   stays keyboard-focusable; the pill's :focus-visible ring is driven by the
+   checkbox's focus via :has. */
+ .dsh-mobile-settings_switchInput { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; opacity:0; }
+ .dsh-mobile-settings_row:has(.dsh-mobile-settings_switchInput:focus-visible) .dsh-mobile-settings_selector { outline:2px solid var(--dsw-alias-label-primary-bluish,#2563eb); outline-offset:2px; }
  .dsh-mobile-settings_selector:disabled { cursor:wait; opacity:.55; }
  .dsh-mobile-settings_fontControls { display:flex; align-items:center; gap:8px; flex-shrink:0; }
  .dsh-mobile-settings_fontControls button { min-width:48px; padding:0 12px; }

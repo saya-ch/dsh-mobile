@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Add an opt-in, off-by-default session prefetch for the dedicated Mobile layout. After a session switch settles, the page issues one bounded, read-only `session/projections` request for the session the user just left (the most likely switch-back target), so a follow-back hits DSH session-query's prepared-session cache warm instead of re-parsing the whole log. Guarded by a per-session cooldown and a bounded timeout; failures are silent and never disturb normal requests or live streams. It stays disabled until the new "Prefetch the session you just left" switch in Settings → General is turned on; the choice is persisted and applies without a reload. Thanks @eeeggplant for the measurement and proposal in [#291](https://github.com/saya-ch/dsh-mobile/issues/291).
+
 ## 0.8.6 - 2026-11-10
 
 - Forward paired plugin `x-dsh-*` request headers through the mobile Gateway while continuing to strip internal `x-dsh-mobile-*` markers and the DSH account credential header. This restores third-party plugin write routes that validate their own request marker. Thanks @mekswhy for the reproduction in [#375](https://github.com/saya-ch/dsh-mobile/issues/375) and @lnuxe for [#376](https://github.com/saya-ch/dsh-mobile/pull/376).
