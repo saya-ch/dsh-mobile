@@ -1,6 +1,6 @@
 # Android boot-asset cache
 
-Status: **merged and compiled on** in the Android candidate 0.7.4 (implementation from PR #350). The JVM unit suite passes (78 suites / 534 tests at the 0.7.4 candidate). Device behaviour and byte savings are **not verified**: no phone or emulator has exercised the interception path.
+Status: **merged and compiled on** in the Android candidate 0.7.4 (implementation from PR #350). The JVM unit suite passes (78 suites / 534 tests at the 0.7.4 candidate). Device behaviour and byte savings were measured by the contributor on a LAN setup (see PR #350); the maintainer has not independently exercised the interception path on a phone or emulator, so the published App's behaviour is not established here.
 
 This note replaces the previous pre-merge "local patch" description. That text described an unmerged working copy, an older suite count and a deliberate version freeze; none of those statements apply to the merged code.
 
