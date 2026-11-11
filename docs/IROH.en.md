@@ -2,7 +2,7 @@
 
 iroh replaces public domains and tunnel accounts with an encrypted direct connection (relay fallback when direct fails): the phone finds the computer's cryptographic identity first, then traffic returns to the loopback gateway. You need no domain, port mapping, or separate HTTPS tunnel.
 
-> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. This guide matches plugin 0.8.6 and the full Android App 0.7.3 (build 88); iroh has been available since 0.7.0. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
+> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. This guide was verified on plugin 0.8.6 and the full Android App 0.7.3 (build 88); iroh has been available since 0.7.0. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
 > The design lives in the companion's [integration seam](https://github.com/saya-ch/dsh-mobile-iroh/blob/main/docs/INTEGRATION_SEAM.md).
 
 ## Prerequisites
@@ -27,7 +27,7 @@ To reclaim component storage, turn off iroh remote access, expand the component 
 ## Security boundaries
 
 - The sidecar proxies only to a `127.0.0.1`/`::1` loopback gateway with end-to-end TLS; commands and events are versioned and bounded (16 KiB command lines, 64 KiB peer lines), and rejected closed on unknown fields.
-- A rotated fingerprint, replaced binary, or moved file fails verification instead of silently running a stale one: a missing or damaged component parks the channel at `unavailable`, while an identity or TLS fingerprint mismatch reports `error` (`iroh_tls_ca_invalid`).
+- A rotated fingerprint, replaced binary, or moved file fails verification instead of silently running a stale one: a missing or damaged component parks the channel at `unavailable`, while an identity or TLS fingerprint mismatch reports `error` (`gateway_start_failed`).
 - Transport revocation and device-token revocation are separate authorizations; their unified management is Phase 2 work. Computer-side revocation keeps working through the existing device management.
 
 ## Troubleshooting
