@@ -314,8 +314,19 @@ export function decodeTaskNotificationNavigate(value: string | null | undefined)
   }
 }
 
-/** Parse a `task-notify` SSE payload; rejects anything malformed or empty. */
-export function parseTaskNotifyPayload(value: unknown): { readonly sessionId: string; readonly turn: number } | undefined {
+/** Resolve the opaque Session id carried by the App's internal notification route. */
+export function sessionIdFromNotificationRoute(route: string | null | undefined, base = 'https://mobile.invalid/'): string | undefined {
+  if (route === null || route === undefined) return undefined
+  let encoded: string | null
+  try {
+    encoded = new URL(route, base).searchParams.get('dsh-session')
+  } catch {
+    return undefined
+  }
+  return decodeTaskNotificationNavigate(encoded)
+}
+
+/** Parse a `task-notify` SSE payload; rejects anything malformed or empty. */export function parseTaskNotifyPayload(value: unknown): { readonly sessionId: string; readonly turn: number } | undefined {
   let record: Record<string, unknown> | undefined
   if (typeof value === 'string') {
     try {

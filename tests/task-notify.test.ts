@@ -10,6 +10,7 @@ import {
   pendingInputQuestionKey,
   readComposerBusyState,
   readSessionLabel,
+  sessionIdFromNotificationRoute,
   TASK_NOTIFY_LIMITS,
   TASK_NOTIFY_QUIET_MS,
   taskCompletionTag,
@@ -287,6 +288,17 @@ describe('task completion tracker', () => {
     expect(decodeTaskNotificationNavigate('not base64')).toBeUndefined()
     expect(decodeTaskNotificationNavigate('A'.repeat(257))).toBeUndefined()
     expect(taskNotificationNavigate('x'.repeat(300))).toBeUndefined()
+  })
+
+  it('resolves only the App notification route into a Session id', () => {
+    const route = taskNotificationNavigate('会话-a')
+    expect(sessionIdFromNotificationRoute(route)).toBe('会话-a')
+    expect(sessionIdFromNotificationRoute(route, 'http://127.0.0.1:3443/')).toBe('会话-a')
+    expect(sessionIdFromNotificationRoute('/?other=1')).toBeUndefined()
+    expect(sessionIdFromNotificationRoute('/?dsh-session=not*base64')).toBeUndefined()
+    expect(sessionIdFromNotificationRoute(null)).toBeUndefined()
+    expect(sessionIdFromNotificationRoute(undefined)).toBeUndefined()
+    expect(sessionIdFromNotificationRoute('')).toBeUndefined()
   })
 
   it('keeps the longest session id that still fits the 270-character native route', () => {

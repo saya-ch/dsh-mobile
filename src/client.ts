@@ -25,6 +25,7 @@ import {
   fireTaskNotifyEvent,
   isDeviceRevokedPayload,
   parseTaskNotifyPayload,
+  sessionIdFromNotificationRoute,
   taskCompletionTag,
   taskNotificationNavigate,
 } from './task-notify.js'
@@ -539,6 +540,8 @@ interface MobileBackgroundNotificationCopy {
   readonly disabled: string
   readonly busy: string
   readonly error: string
+  readonly connected: string
+  readonly disconnected: string
 }
 
 function mobileBackgroundNotificationCopy(locale: MobileControlLocale): MobileBackgroundNotificationCopy {
@@ -549,6 +552,8 @@ function mobileBackgroundNotificationCopy(locale: MobileControlLocale): MobileBa
     disabled: '开启后台提醒',
     busy: '正在处理…',
     error: '无法更新后台提醒；请确认任务通知权限和当前连接。',
+    connected: '已连接',
+    disconnected: '未连接',
   }
   if (locale === 'it') return {
     title: 'Promemoria in background',
@@ -557,6 +562,8 @@ function mobileBackgroundNotificationCopy(locale: MobileControlLocale): MobileBa
     disabled: 'Attiva promemoria',
     busy: 'Operazione…',
     error: 'Impossibile aggiornare i promemoria; controlla il permesso notifiche e la connessione attiva.',
+    connected: 'Connesso',
+    disconnected: 'Non connesso',
   }
   return {
     title: 'Background task reminders',
@@ -565,13 +572,29 @@ function mobileBackgroundNotificationCopy(locale: MobileControlLocale): MobileBa
     disabled: 'Enable background reminders',
     busy: 'Working…',
     error: 'Could not update background reminders. Check notification permission and the active connection.',
+    connected: 'Connected',
+    disconnected: 'Not connected',
   }
+}
+
+/** Render the App's real connection state when the installed App reports it. */
+export function mobileBackgroundStatusText(
+  locale: MobileControlLocale,
+  connected: boolean | undefined,
+  lastError: string | undefined,
+): string | undefined {
+  if (connected === undefined) return undefined
+  const copy = mobileBackgroundNotificationCopy(locale)
+  if (connected) return copy.connected
+  return lastError === undefined ? copy.disconnected : `${copy.disconnected} (${lastError})`
 }
 
 /** Android-only opt-in for the foreground SSE fallback when the WebView is suspended. */
 function MobileBackgroundNotificationRow(): unknown {
   const [supported, setSupported] = useState(false)
   const [enabled, setEnabled] = useState(false)
+  const [connected, setConnected] = useState<boolean | undefined>(undefined)
+  const [lastError, setLastError] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
   const generation = useRef(0)
@@ -589,10 +612,16 @@ function MobileBackgroundNotificationRow(): unknown {
         if (!active || attempt !== generation.current) return
         setSupported(available)
         if (!available) return
-        const result = await bridge.invoke('notification.background.get', {}) as { readonly enabled?: unknown }
+        const result = await bridge.invoke('notification.background.get', {}) as {
+          readonly enabled?: unknown
+          readonly connected?: unknown
+          readonly lastError?: unknown
+        }
         if (!active || attempt !== generation.current) return
         if (typeof result?.enabled !== 'boolean') throw new Error('invalid background notification status')
         setEnabled(result.enabled)
+        setConnected(typeof result.connected === 'boolean' ? result.connected : undefined)
+        setLastError(typeof result.lastError === 'string' ? result.lastError : undefined)
         setError(false)
       }).catch(() => {
         if (active && attempt === generation.current) { setSupported(true); setError(true) }
@@ -609,6 +638,7 @@ function MobileBackgroundNotificationRow(): unknown {
   if (!supported) return null
   const locale = selectedMobileControlLocale()
   const copy = mobileBackgroundNotificationCopy(locale)
+  const statusText = enabled ? mobileBackgroundStatusText(locale, connected, lastError) : undefined
   const toggle = (): void => {
     const bridge = window.__DSH_MOBILE_NATIVE__
     if (bridge === undefined || busy) return
@@ -619,6 +649,19 @@ function MobileBackgroundNotificationRow(): unknown {
       const next = (result as { readonly enabled?: unknown } | undefined)?.enabled
       if (typeof next !== 'boolean') throw new Error('invalid background notification status')
       setEnabled(next)
+      // The set acknowledgement only carries `enabled`; read the connection state that the
+      // service just started to settle on.
+      void bridge.invoke('notification.background.get', {}).then(statusResult => {
+        if (attempt !== generation.current) return
+        const status = statusResult as {
+          readonly enabled?: unknown
+          readonly connected?: unknown
+          readonly lastError?: unknown
+        } | undefined
+        if (typeof status?.enabled === 'boolean') setEnabled(status.enabled)
+        setConnected(typeof status?.connected === 'boolean' ? status.connected : undefined)
+        setLastError(typeof status?.lastError === 'string' ? status.lastError : undefined)
+      }).catch(() => undefined)
     }).catch(() => {
       if (attempt === generation.current) setError(true)
     }).finally(() => {
@@ -628,7 +671,7 @@ function MobileBackgroundNotificationRow(): unknown {
   return createElement('div', { className: 'dsh-mobile-settings_row', lang: locale },
     createElement('div', { className: 'dsh-mobile-settings_rowText' },
       createElement('div', { className: 'dsh-mobile-settings_title' }, copy.title),
-      createElement('div', { className: 'dsh-mobile-settings_desc', 'aria-live': 'polite' }, error ? copy.error : copy.description),
+      createElement('div', { className: 'dsh-mobile-settings_desc', 'aria-live': 'polite' }, error ? copy.error : statusText ?? copy.description),
     ),
     createElement('button', {
       type: 'button',
@@ -5633,6 +5676,49 @@ export function installTaskNotificationNavigation(ctx: ClientContext, page: Docu
   }
 }
 
+/**
+ * Open a Session in the live page from an Android notification tap. The App calls this through
+ * `window.__dshMobileOpenSession` instead of reloading the document; returning false asks the App
+ * to fall back to a route navigation (for example while the page is still booting).
+ */
+export function installNativeNotificationNavigation(ctx: ClientContext, view: Window): () => void {
+  if (view.__DSH_MOBILE_FRONTEND__ !== 'dedicated' || ctx.inject === undefined) return () => undefined
+  let closed = false
+  const target = view as unknown as { __dshMobileOpenSession?: (route: unknown) => boolean }
+  const fiber = ctx.inject(mobilePushNavigationServices, navigationContext => {
+    if (closed) return () => undefined
+    const context = navigationContext as unknown as {
+      readonly uiWorkspace?: { openSession(sessionId: string): void }
+      readonly sessions?: { readonly list: { getSnapshot(): { readonly phase: string; readonly ids: readonly string[] } } }
+    }
+    const open = (route: unknown): boolean => {
+      if (closed || typeof route !== 'string') return false
+      const sessionId = sessionIdFromNotificationRoute(route)
+      if (sessionId === undefined) return false
+      const workspace = context.uiWorkspace
+      if (workspace === undefined || typeof workspace.openSession !== 'function') return false
+      const sessions = context.sessions?.list.getSnapshot()
+      if (sessions !== undefined && sessions.phase === 'ready' && !sessions.ids.includes(sessionId)) return false
+      try {
+        workspace.openSession(sessionId)
+        return true
+      } catch {
+        return false
+      }
+    }
+    target.__dshMobileOpenSession = open
+    return () => {
+      if (target.__dshMobileOpenSession === open) delete target.__dshMobileOpenSession
+    }
+  })
+  return () => {
+    if (closed) return
+    closed = true
+    delete target.__dshMobileOpenSession
+    void fiber.dispose()
+  }
+}
+
 /** Own the browser-only push controller, settings row, and optional authenticated tap navigation. */
 export function installMobilePushBrowserClient(ctx: ClientContext, runtime: MobilePushEntryRuntime): () => void {
   const { page, view } = runtime
@@ -5739,6 +5825,7 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() => installMobilePushBrowserClient(ctx, { page: document, view: window }), 'dsh-mobile: authenticated browser push lifecycle')
   ctx.effect(() => installTaskNotificationNavigation(ctx, document, window), 'dsh-mobile: native task notification navigation')
+  ctx.effect(() => installNativeNotificationNavigation(ctx, window), 'dsh-mobile: in-page notification navigation')
 
   ctx.effect(() => {
     const desktopAdmin = isDesktopAdminSurface(location.hostname, location.search, window.__DSH_MOBILE_FRONTEND__, location.protocol)
