@@ -143,6 +143,20 @@ try {
   assert.equal(await readAttribute(), 'false', 'a running reply must keep the composer open')
   cases += 1
 
+// A phase name this build does not know: other DSH releases report `sending`
+  // for the same window, and the guard denies anything that is not plain.
+  await page.evaluate(async () => {
+    window.setRunning(false)
+    document.querySelector('#editor').textContent = ''
+    document.querySelector('#editor').dataset.phase = 'sending'
+    document.querySelector('[data-conversation-scroll]').scrollTop = 0
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+  await scrollBy(600)
+  assert.equal(await readAttribute(), 'false', 'an unknown non-plain phase must keep the composer open')
+  await page.evaluate(() => { document.querySelector('#editor').dataset.phase = 'plain' })
+  cases += 1
+
   // Scrolling back up past the dead zone restores it.
   await page.evaluate(async () => {
     window.setRunning(false)

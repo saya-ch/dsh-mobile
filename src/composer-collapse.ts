@@ -127,14 +127,26 @@ export class ComposerCollapseTracker {
 export const COMPOSER_COLLAPSE_STORAGE_KEY = 'dsh-mobile.composer-collapse.enabled'
 export const COMPOSER_COLLAPSE_EVENT = 'dsh-mobile:composer-collapse-change'
 
+/**
+ * Last value written in this page when storage refused the write.
+ *
+ * This is a per-bundle fallback for the blocked-storage case only: it is not the
+ * cross-bundle transport (that is the persisted flag plus the events above). It
+ * exists so a switch that cannot be persisted still reads back as flipped in the
+ * same page, instead of the row snapping back while the layout obeys the event.
+ */
+let unpersistedEnabled: boolean | undefined
+
 /** Read the persisted opt-in. Defaults to off; unreadable storage keeps it off. */
 export function readComposerCollapseEnabled(storage?: Pick<Storage, 'getItem'> | null): boolean {
   try {
     // Resolved inside the try: a restricted WebView can throw from the getter.
     const resolved = storage === undefined ? globalThis.localStorage : storage
-    return resolved?.getItem(COMPOSER_COLLAPSE_STORAGE_KEY) === 'true'
+    const stored = resolved?.getItem(COMPOSER_COLLAPSE_STORAGE_KEY) ?? null
+    if (stored !== null) return stored === 'true'
+    return storage === undefined ? unpersistedEnabled ?? false : false
   } catch {
-    return false
+    return storage === undefined ? unpersistedEnabled ?? false : false
   }
 }
 
@@ -142,9 +154,13 @@ export function readComposerCollapseEnabled(storage?: Pick<Storage, 'getItem'> |
 export function writeComposerCollapseEnabled(enabled: boolean, storage?: Pick<Storage, 'setItem'> | null): void {
   try {
     const resolved = storage === undefined ? globalThis.localStorage : storage
-    resolved?.setItem(COMPOSER_COLLAPSE_STORAGE_KEY, String(enabled))
+    if (resolved === null) throw new Error('storage unavailable')
+    resolved.setItem(COMPOSER_COLLAPSE_STORAGE_KEY, String(enabled))
+    if (storage === undefined) unpersistedEnabled = undefined
   } catch {
-    /* Blocked storage still lets this page react through the event below. */
+    // Blocked storage still lets this page react through the event below, and the
+    // in-page read has to agree with it or the row and the layout diverge.
+    if (storage === undefined) unpersistedEnabled = enabled
   }
   try {
     globalThis.dispatchEvent?.(new CustomEvent(COMPOSER_COLLAPSE_EVENT, { detail: { enabled } }))
@@ -285,10 +301,13 @@ export function installComposerReadingMode(options: ComposerReadingModeOptions):
     const card = doc.querySelector(COMPOSER_CARD_SELECTOR)
     const editor = card?.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR) ?? null
     if (editor === null) return false
-    // DSH's composer phase union is plain | adjudicating | claimed | submitting;
-    // 'claimed' is the in-flight window where the submit closure is withheld, so a
-    // submission is in flight across adjudicating → claimed → submitting.
-    if (['adjudicating', 'claimed', 'submitting'].includes(editor.dataset.phase ?? '')) return true
+    // Any phase other than plain means the composer is mid-submit. Deny-listing
+    // the non-plain phases instead of allow-listing the in-flight ones keeps this
+    // correct across DSH versions: the union is plain | adjudicating | claimed |
+    // submitting where I could read it, and other releases report extra names
+    // (e.g. sending) that must block too, not fall through to 'not busy'.
+    const phase = editor.dataset.phase ?? ''
+    if (phase !== '' && phase !== 'plain') return true
     // Focus is the keyboard window: the user opened the composer and the soft
     // keyboard is up, so collapsing would take the editor out from under it.
     const focused = (doc as Document).activeElement

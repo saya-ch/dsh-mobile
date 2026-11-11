@@ -148,6 +148,24 @@ describe('composer collapse opt-in persistence', () => {
     off()
   })
 
+  it('keeps the row and the layout in agreement when storage refuses writes', () => {
+    // A blocked storage write still announces the flip through the event, so the
+    // in-page read has to report it too; otherwise the row snaps back to off while
+    // the layout obeys the event.
+    const blocked = memStorage()
+    blocked.setItem = () => { throw new Error('blocked') }
+    installBrowserGlobals(blocked)
+    expect(readComposerCollapseEnabled()).toBe(false)
+    const seen: boolean[] = []
+    const off = subscribeComposerCollapseEnabled(enabled => { seen.push(enabled) })
+    writeComposerCollapseEnabled(true)
+    expect(seen).toEqual([true])
+    expect(readComposerCollapseEnabled()).toBe(true)
+    writeComposerCollapseEnabled(false)
+    expect(readComposerCollapseEnabled()).toBe(false)
+    off()
+  })
+
   it('reacts to a storage event carrying this key only', () => {
     const storage = memStorage({ [COMPOSER_COLLAPSE_STORAGE_KEY]: 'true' })
     const { FakeStorageEvent } = installBrowserGlobals(storage)
@@ -254,9 +272,10 @@ describe('layout integration contract', () => {
   })
 
   it('never collapses while a draft, a submission, or a running reply is present', () => {
-    // DSH's composer phase union is plain | adjudicating | claimed | submitting;
-    // 'claimed' is the in-flight window, so all three non-plain phases block.
-    expect(wiring).toContain("['adjudicating', 'claimed', 'submitting']")
+    // Every non-plain phase blocks, so a release that adds a phase name (the
+    // union has read as plain|adjudicating|claimed|submitting and, elsewhere,
+    // sending) cannot fall through to 'not busy'.
+    expect(wiring).toContain("if (phase !== '' && phase !== 'plain') return true")
     // The scroll sample checks the same busy() the mutation guard does, so a
     // draft typed before the scroll cannot be hidden by it.
     expect(wiring).toMatch(/const sample = \(\): void => \{[\s\S]*?if \(busy\(\)\)/)
