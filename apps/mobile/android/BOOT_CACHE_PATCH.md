@@ -6,7 +6,7 @@ This note replaces the previous pre-merge "local patch" description. That text d
 
 ## What it does
 
-The gateway rewrites the mobile page into content-revisioned script batches (`/mobile-access/mobile-boot/<64 hex>.js`) and revision-named plugin bundles/assets. The App answers those requests from a device-side store when they were revalidated for the current session, so an unchanged payload is served locally instead of downloaded again.
+The gateway rewrites the mobile page into content-revisioned script batches (`/mobile-access/mobile-boot/<64 hex>.js`) and revision-named plugin bundles/assets. The App answers those requests from a device-side store when they were revalidated for the current session, or when their own revision already names the build they belong to, so an unchanged payload is served locally instead of downloaded again.
 
 ## Guards
 
