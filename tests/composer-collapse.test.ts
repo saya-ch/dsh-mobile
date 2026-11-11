@@ -6,6 +6,7 @@ import {
   ComposerCollapseTracker,
   composerCollapseConfigFrom,
   readComposerCollapseEnabled,
+  selectActiveSessionRunning,
   subscribeComposerCollapseEnabled,
   writeComposerCollapseEnabled,
 } from '../src/composer-collapse.js'
@@ -253,13 +254,18 @@ describe('layout integration contract', () => {
   })
 
   it('never collapses while a draft, a submission, or a running reply is present', () => {
-    expect(wiring).toContain("['adjudicating', 'submitting']")
+    // DSH's composer phase union is plain | adjudicating | claimed | submitting;
+    // 'claimed' is the in-flight window, so all three non-plain phases block.
+    expect(wiring).toContain("['adjudicating', 'claimed', 'submitting']")
     // The scroll sample checks the same busy() the mutation guard does, so a
     // draft typed before the scroll cannot be hidden by it.
     expect(wiring).toMatch(/const sample = \(\): void => \{[\s\S]*?if \(busy\(\)\)/)
     // A streaming reply returns the composer phase to plain, so the Session
-    // summary flag is the only truthful signal.
-    expect(layout).toContain('session.byId[current]?.running')
+    // summary flag is the only truthful signal. Both halves are pinned: the
+    // layout reads it through the tested selector, and the selector reads the
+    // upstream SessionSummary field.
+    expect(layout).toContain('props.useSessions(selectActiveSessionRunning)')
+    expect(wiring).toContain('state.byId[current]?.running === true')
     expect(layout).not.toMatch(/\[data-composer-card\]\{display:none/)
   })
 
@@ -268,5 +274,28 @@ describe('layout integration contract', () => {
     // The keyboard helper still lives on the shared module; the guard only
     // constrains wide-band detection, which must stay on window.innerWidth.
     expect(wiring).toContain('visualViewport')
+  })
+})
+
+describe('selectActiveSessionRunning', () => {
+  // The streaming guard is the one promise the composer phase cannot carry: DSH
+  // returns data-phase to plain as soon as the submission is accepted, so the
+  // Session summary flag owns the whole streaming window. Unit-tested here so a
+  // field rename or a lane difference fails a test instead of silently disabling
+  // the guard (the browser fixture cannot drive useSessions).
+  it('is true while the active session is running', () => {
+    expect(selectActiveSessionRunning({ current: 'a', byId: { a: { running: true } } })).toBe(true)
+  })
+
+  it('is false when running is absent or not true', () => {
+    expect(selectActiveSessionRunning({ current: 'a', byId: { a: {} } })).toBe(false)
+    expect(selectActiveSessionRunning({ current: 'a', byId: { a: { running: false } } })).toBe(false)
+    expect(selectActiveSessionRunning({ current: 'a', byId: { a: undefined } })).toBe(false)
+  })
+
+  it('is false without an active session, and ignores other sessions running', () => {
+    expect(selectActiveSessionRunning({ byId: {} })).toBe(false)
+    expect(selectActiveSessionRunning({ byId: { a: { running: true } } })).toBe(false)
+    expect(selectActiveSessionRunning({ current: 'b', byId: { a: { running: true }, b: {} } })).toBe(false)
   })
 })

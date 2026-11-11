@@ -285,7 +285,14 @@ export function installComposerReadingMode(options: ComposerReadingModeOptions):
     const card = doc.querySelector(COMPOSER_CARD_SELECTOR)
     const editor = card?.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR) ?? null
     if (editor === null) return false
-    if (['adjudicating', 'submitting'].includes(editor.dataset.phase ?? '')) return true
+    // DSH's composer phase union is plain | adjudicating | claimed | submitting;
+    // 'claimed' is the in-flight window where the submit closure is withheld, so a
+    // submission is in flight across adjudicating → claimed → submitting.
+    if (['adjudicating', 'claimed', 'submitting'].includes(editor.dataset.phase ?? '')) return true
+    // Focus is the keyboard window: the user opened the composer and the soft
+    // keyboard is up, so collapsing would take the editor out from under it.
+    const focused = (doc as Document).activeElement
+    if (focused !== null && card !== null && card.contains(focused)) return true
     const text = (editor as HTMLTextAreaElement).value ?? editor.textContent ?? ''
     return text.trim() !== ''
   };
@@ -333,4 +340,23 @@ export function installComposerReadingMode(options: ComposerReadingModeOptions):
       apply(false)
     },
   }
+}
+
+/**
+ * The slice of the Session summary reading mode needs. Kept structural so the
+ * selector can be unit-tested without a Session store.
+ */
+export interface ReadingModeSessionState {
+  readonly current?: string
+  readonly byId: Readonly<Record<string, { readonly running?: boolean } | undefined>>
+}
+
+/**
+ * Whether the active session is streaming a reply. A running reply is not a
+ * composer phase: `data-phase` returns to `plain` as soon as the submission is
+ * accepted, so this flag is the only truthful signal for the streaming window.
+ */
+export function selectActiveSessionRunning(state: ReadingModeSessionState): boolean {
+  const current = state.current
+  return current !== undefined && state.byId[current]?.running === true
 }

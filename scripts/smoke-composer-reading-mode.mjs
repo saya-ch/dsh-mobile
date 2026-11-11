@@ -59,11 +59,19 @@ try {
     document.head.append(style)
   })
   const crossBundle = await page.evaluate(() => {
+    // Drive the streaming guard through the published selector and a mutable
+    // Session-store shape, not a raw boolean: the field the selector reads is the
+    // one the layout hands it, so a rename fails here instead of shipping a
+    // silently disabled guard.
+    window.__sessions = { byId: {} }
+    window.setRunning = running => {
+      window.__sessions = { current: 'live', byId: { live: { running } } }
+    }
+    window.setRunning(false)
     window.disposeReadingMode = window.mobileLayout.installComposerReadingMode({
       restoreLabel: 'Show composer',
-      isRunning: () => window.__running === true,
+      isRunning: () => window.mobileLayout.selectActiveSessionRunning(window.__sessions),
     }).dispose;
-    window.__running = false;
     // The two bundles inline their own copy of composer-collapse.ts; this is the
     // shipped shape, so the toggle has to travel through the persisted flag.
     return window.mobileClient !== window.mobileLayout
@@ -126,7 +134,8 @@ try {
   // keep Stop where the user expects it.
   await page.evaluate(async () => {
     document.querySelector('#editor').textContent = ''
-    window.__running = true
+    document.activeElement?.blur()
+    window.setRunning(true)
     document.querySelector('[data-conversation-scroll]').scrollTop = 0
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
   })
@@ -136,7 +145,7 @@ try {
 
   // Scrolling back up past the dead zone restores it.
   await page.evaluate(async () => {
-    window.__running = false
+    window.setRunning(false)
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
   })
   await scrollBy(600)
@@ -145,6 +154,38 @@ try {
   assert.equal(await readAttribute(), 'false', 'scrolling back up past the dead zone must restore')
   cases += 1
 
+// Tap on the collapsed card restores it: the affordance the ::before label
+  // advertises, and the path the soft keyboard depends on.
+  await scrollBy(600)
+  assert.equal(await readAttribute(), 'true', 'collapsed before the tap case')
+  await page.evaluate(async () => {
+    const card = document.querySelector('[data-composer-card]')
+    const box = card.getBoundingClientRect()
+    card.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: box.x + box.width / 2,
+      clientY: box.y + box.height / 2,
+    }))
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+  assert.equal(await readAttribute(), 'false', 'tapping the collapsed card must restore the composer')
+  cases += 1
+
+  // Focus is the keyboard window: the user tapped (restore above), the editor took
+  // focus and the keyboard came up, but nothing is typed yet. A scroll here must
+  // not take the editor out from under the soft keyboard.
+  await page.evaluate(() => { document.querySelector('#editor').focus() })
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'editor', 'the editor must take focus once expanded')
+  await page.evaluate(() => {
+    // The keyboard opening only resizes the visual viewport; nothing else moves.
+    window.dispatchEvent(new Event('resize'))
+    window.visualViewport?.dispatchEvent(new Event('resize'))
+  })
+  await scrollBy(600)
+  assert.equal(await readAttribute(), 'false', 'a focused empty editor must stay open while the keyboard is up')
+  await page.evaluate(() => { document.querySelector('#editor').blur() })
+  cases += 1
   // Switching the opt-in off restores immediately.
   await scrollBy(600)
   assert.equal(await readAttribute(), 'true', 'collapsed before disabling')

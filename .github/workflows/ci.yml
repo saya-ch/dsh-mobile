@@ -116,6 +116,8 @@ jobs:
           node scripts/negative-control.mjs "$RUNNER_TEMP/layout-ownership-negative.log" "Mobile layout ownership negative control detected"
       - run: npm run smoke:voice-session
       - run: npm run smoke:composer-keyboard
+      - name: Verify reading-mode composer collapse across both built bundles
+        run: npm run smoke:composer-reading-mode
       - name: Verify Gallery selection, menu order and stale-result cleanup
         if: matrix.dsh == '0.2.1-rc.3'
         run: npm run smoke:gallery
