@@ -3,6 +3,7 @@
   "version": "0.8.7",
   "private": false,
   "description": "DeepSeek Harness 移动端适配与安全访问插件，支持局域网、远程连接、Android App 和手机浏览器。",
+  "icon": "assets/brand/plugin-icon.png",
   "type": "module",
   "workspaces": [
     "packages/question-fixes"
@@ -43,6 +44,7 @@
     "assets/mobile-push/icon-180.png",
     "assets/mobile-push/icon-192.png",
     "assets/mobile-push/icon-512.png",
+    "assets/brand/plugin-icon.png",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",
