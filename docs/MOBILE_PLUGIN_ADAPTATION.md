@@ -18,6 +18,15 @@
 
 这些是当前布局行为，不是要求插件复制的固定尺寸。浮层、侧栏和主面板的可用空间不同，需在实际挂载位置验证。
 
+## 返回键、全屏浮层与安全区
+
+Android 返回不是浏览器的 `popstate`：App 会先派发可取消的 `dsh-mobile:native-back` 事件，页面里没有任何监听者认领时，App 才执行自己的根行为（退出）。因此：
+
+- 自己全屏展开面板或浮层的插件，必须监听 `dsh-mobile:native-back`，在展开时收起并调用 `preventDefault()`；只监听 DOM 的 Escape 或 `popstate` 不足以接管 Android 返回。
+- 不要假设 `env(safe-area-inset-top)` 在 Android WebView 中可用：App 通常已按系统栏内缩 WebView，页面里的 `env()` 经常是 0。`position:fixed; top:0` 的自建宿主会紧贴页面顶部，顶部按钮可能被状态栏或刘海挡住；请把控件放在页面顶部以下，或提供不依赖顶部安全区的收起入口。
+- 优先通过公开 slot（`main`、侧栏、右栏或 overlay）渲染。DSH Mobile 会为 `main` 面板提供返回栏，并处理 details/rightbar 的返回；直接 `appendChild(document.body)` 的全屏宿主不会进入移动布局，也不会获得这些行为。
+- 持久化展开态时，窄屏应默认收起，或保证收起入口在顶部安全区之外。
+
 ## 按可用空间适配
 
 先让基础布局能够收缩：给 flex/grid 子项设置 `min-width: 0`，允许工具栏换行，使用内容驱动的高度。面板宽度不一定等于视口宽度：桌面侧栏中的 400px 面板也需要紧凑布局。
