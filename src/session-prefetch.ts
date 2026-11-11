@@ -36,6 +36,67 @@ export const SESSION_PREFETCH_DEFAULTS: Readonly<SessionPrefetchConfig> = {
   maxTargetsPerSwitch: 1,
 }
 
+/**
+ * Storage key for the opt-in switch.
+ *
+ * The setting row lives in the client bundle while the tracker lives in the
+ * layout bundle (tsdown.config.ts emits them separately and inlines this module
+ * into each), so a module-level singleton cannot carry the value across. The
+ * layout bundle owns the persisted state instead; the row notifies it through
+ * both the storage event (other tabs) and a custom event (same page).
+ */
+export const SESSION_PREFETCH_STORAGE_KEY = 'dsh-mobile.session-prefetch.enabled'
+export const SESSION_PREFETCH_EVENT = 'dsh-mobile:session-prefetch-change'
+
+/** Read the persisted opt-in. Defaults to off; unreadable storage keeps it off. */
+export function readSessionPrefetchEnabled(storage: Pick<Storage, 'getItem'> | undefined = globalThis.localStorage): boolean {
+  try {
+    return storage?.getItem(SESSION_PREFETCH_STORAGE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+/** Persist the opt-in and notify the layout bundle in the same page. */
+export function writeSessionPrefetchEnabled(enabled: boolean, storage: Pick<Storage, 'setItem'> | undefined = globalThis.localStorage): void {
+  try {
+    storage?.setItem(SESSION_PREFETCH_STORAGE_KEY, String(enabled))
+  } catch {
+    /* Blocked storage still lets this page react through the event below. */
+  }
+  try {
+    globalThis.dispatchEvent?.(new CustomEvent(SESSION_PREFETCH_EVENT, { detail: { enabled } }))
+  } catch {
+    /* CustomEvent is missing in some test environments; the storage event still applies. */
+  }
+}
+
+/**
+ * Subscribe to opt-in changes coming from either bundle. The listener is not
+ * called with the initial value; read it once with readSessionPrefetchEnabled().
+ */
+export function subscribeSessionPrefetchEnabled(listener: (enabled: boolean) => void): () => void {
+  const onStorage = (event: StorageEvent): void => {
+    if (event.key !== null && event.key !== SESSION_PREFETCH_STORAGE_KEY) return
+    listener(readSessionPrefetchEnabled())
+  }
+  const onCustom = (event: Event): void => {
+    const detail = (event as CustomEvent<{ enabled?: boolean }>).detail
+    listener(detail?.enabled ?? readSessionPrefetchEnabled())
+  }
+  globalThis.addEventListener?.('storage', onStorage)
+  globalThis.addEventListener?.(SESSION_PREFETCH_EVENT, onCustom)
+  return () => {
+    globalThis.removeEventListener?.('storage', onStorage)
+    globalThis.removeEventListener?.(SESSION_PREFETCH_EVENT, onCustom)
+  }
+}
+
+/** Apply the persisted opt-in onto a base config. */
+export function sessionPrefetchConfigFrom(enabled: boolean, base: Readonly<SessionPrefetchConfig> = SESSION_PREFETCH_DEFAULTS): SessionPrefetchConfig {
+  return { ...base, enabled }
+}
+
 /** Outcome of deciding whether a session switch should warm an MRU target. */
 export type PrefetchDecision =
   | { readonly action: 'warm'; readonly target: string }
@@ -55,6 +116,11 @@ export class SessionPrefetchTracker {
     private readonly config: Readonly<SessionPrefetchConfig>,
     private readonly clock: PrefetchClock = { now: () => Date.now() },
   ) {}
+
+  /** The effective opt-in this tracker was built with (read-only, for rebuilds). */
+  get enabled(): boolean {
+    return this.config.enabled
+  }
 
   /** Record that the UI switched to `sessionId`; returns the switch outcome. */
   switchTo(sessionId: string): PrefetchDecision {
@@ -84,24 +150,36 @@ export class SessionPrefetchTracker {
   }
 }
 
-/** Fire a read-only `session/projections` prefetch, silently ignoring failures. */
+/**
+ * Fire a read-only `session/projections` prefetch, silently ignoring failures.
+ *
+ * The upstream RPC takes a single `request` parameter and the gateway validates
+ * wire names exactly (`assertExactArguments`), so the envelope must be
+ * `payload.args.request.sessionId` — the same shape every other call site in
+ * this repo uses (scripts/smoke-client-module-settings.mjs, smoke-draft-transfer.mjs).
+ * A bare `args.sessionId` is rejected with `gateway/arguments-invalid`.
+ */
 export function prefetchSession(request: (path: string, init?: RequestInit) => Promise<Response>, sessionId: string, timeoutMs: number): () => void {
-  let cancelled = false
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   void (async () => {
     try {
-      await request('/api/session/projections', {
+      const response = await request('/api/session/projections', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           type: 'client-request',
-          rpcId: `dsh-mobile-prefetch-${sessionId}`,
+          rpcId: prefetchRpcId(),
           method: 'session/projections',
-          payload: { args: { sessionId } },
+          payload: { args: { request: { sessionId } } },
         }),
         signal: controller.signal,
       })
+      if (!response.ok) {
+        // Best-effort: a rejected prefetch is not an error the user should see,
+        // but it must not be mistaken for a warm cache either.
+        return
+      }
     } catch {
       /* Prefetch is best-effort and never affects normal requests. */
     } finally {
@@ -109,10 +187,14 @@ export function prefetchSession(request: (path: string, init?: RequestInit) => P
     }
   })()
   return () => {
-    if (cancelled) return
-    cancelled = true
     controller.abort()
     clearTimeout(timer)
   }
 }
 
+/** Unique per attempt; the upstream does not document a format, so prefer a real UUID. */
+function prefetchRpcId(): string {
+  const cryptoApi = globalThis.crypto as Crypto | undefined
+  if (cryptoApi?.randomUUID !== undefined) return cryptoApi.randomUUID()
+  return `dsh-mobile-prefetch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}

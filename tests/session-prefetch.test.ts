@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   SESSION_PREFETCH_DEFAULTS,
+  SESSION_PREFETCH_STORAGE_KEY,
   SessionPrefetchTracker,
   prefetchSession,
+  readSessionPrefetchEnabled,
+  sessionPrefetchConfigFrom,
+  writeSessionPrefetchEnabled,
 } from '../src/session-prefetch.js'
 
 function makeTracker(overrides: Partial<typeof SESSION_PREFETCH_DEFAULTS> = {}): { tracker: SessionPrefetchTracker; now: () => number } {
@@ -69,6 +73,13 @@ describe('SessionPrefetchTracker', () => {
 })
 
 describe('prefetchSession', () => {
+  it('does not throw when the gateway rejects the call', async () => {
+    const request = vi.fn().mockResolvedValue(new Response('{"error":"gateway/arguments-invalid"}', { status: 400 }))
+    const dispose = prefetchSession(request, 'session-1', 1000)
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1))
+    dispose()
+  })
+
   it('issues a read-only session/projections request', async () => {
     const request = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
     const dispose = prefetchSession(request, 'session-1', 1000)
@@ -79,7 +90,11 @@ describe('prefetchSession', () => {
     const body = JSON.parse(init.body as string)
     expect(body.type).toBe('client-request')
     expect(body.method).toBe('session/projections')
-    expect(body.payload.args).toEqual({ sessionId: 'session-1' })
+    // The upstream takes a single `request` parameter and the gateway checks wire
+    // names exactly; every other call site in this repo sends args.request.
+    expect(body.payload.args).toEqual({ request: { sessionId: 'session-1' } })
+    expect(typeof body.rpcId).toBe('string')
+    expect(body.rpcId).not.toBe('dsh-mobile-prefetch-session-1')
     dispose()
   })
 
@@ -106,3 +121,34 @@ describe('prefetchSession', () => {
 
 
 
+
+describe('opt-in persistence', () => {
+  it('is off when nothing was stored', () => {
+    const storage = { getItem: (): string | null => null }
+    expect(readSessionPrefetchEnabled(storage)).toBe(false)
+  })
+
+  it('reads only the explicit true value', () => {
+    const storage = { getItem: (key: string): string | null => (key === SESSION_PREFETCH_STORAGE_KEY ? 'true' : null) }
+    expect(readSessionPrefetchEnabled(storage)).toBe(true)
+    expect(readSessionPrefetchEnabled({ getItem: () => 'yes' })).toBe(false)
+  })
+
+  it('stays off when storage throws', () => {
+    const storage = { getItem: (): string | null => { throw new Error('blocked') } }
+    expect(readSessionPrefetchEnabled(storage)).toBe(false)
+  })
+
+  it('writes the flag under the shared key', () => {
+    const written: Record<string, string> = {}
+    writeSessionPrefetchEnabled(true, { setItem: (k: string, v: string): void => { written[k] = v } })
+    expect(written[SESSION_PREFETCH_STORAGE_KEY]).toBe('true')
+  })
+
+  it('applies the persisted flag onto the config', () => {
+    expect(sessionPrefetchConfigFrom(true).enabled).toBe(true)
+    expect(sessionPrefetchConfigFrom(false).enabled).toBe(false)
+    // Timing guardrails are untouched by the switch.
+    expect(sessionPrefetchConfigFrom(true).cooldownMs).toBe(SESSION_PREFETCH_DEFAULTS.cooldownMs)
+  })
+})

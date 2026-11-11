@@ -6,6 +6,9 @@ import {
   SESSION_PREFETCH_DEFAULTS,
   SessionPrefetchTracker,
   prefetchSession,
+  readSessionPrefetchEnabled,
+  sessionPrefetchConfigFrom,
+  subscribeSessionPrefetchEnabled,
 } from './session-prefetch.js'
 
 export { MOBILE_LAYOUT_MESSAGES } from './mobile-layout-messages.js'
@@ -793,10 +796,19 @@ function MobileAppFrame(props: MobileRootProps & {
   // left after a switch settles (issue #291). Opt-in via the session-prefetch
   // configuration; silent, read-only and bounded so it never disturbs normal
   // requests or live streams.
+  const prefetchEnabled = useSyncExternalStore(
+    subscribeSessionPrefetchEnabled,
+    readSessionPrefetchEnabled,
+    () => false,
+  )
   const prefetchTracker = useRef<SessionPrefetchTracker | undefined>(undefined)
   const prefetchTimer = useRef<number | undefined>(undefined)
-  if (prefetchTracker.current === undefined) {
-    prefetchTracker.current = new SessionPrefetchTracker(SESSION_PREFETCH_DEFAULTS)
+  const prefetchDispose = useRef<(() => void) | undefined>(undefined)
+  // Rebuild the tracker when the opt-in flips: the switch is part of the config,
+  // and a stale tracker would keep answering `skip('disabled')` (or keep warming
+  // after the user turned it off).
+  if (prefetchTracker.current === undefined || prefetchTracker.current.enabled !== prefetchEnabled) {
+    prefetchTracker.current = new SessionPrefetchTracker(sessionPrefetchConfigFrom(prefetchEnabled))
   }
   useEffect(() => {
     if (activeSessionId === undefined) return
@@ -805,10 +817,18 @@ function MobileAppFrame(props: MobileRootProps & {
     const target = decision.target
     if (prefetchTimer.current !== undefined) clearTimeout(prefetchTimer.current)
     prefetchTimer.current = window.setTimeout(() => {
-      prefetchSession(fetch, target, SESSION_PREFETCH_DEFAULTS.timeoutMs)
+      prefetchTimer.current = undefined
+      // Keep the disposer: leaving the session (or unmounting) should abort a
+      // request that would otherwise run to its timeout in the background.
+      prefetchDispose.current?.()
+      prefetchDispose.current = prefetchSession(fetch, target, SESSION_PREFETCH_DEFAULTS.timeoutMs)
     }, SESSION_PREFETCH_DEFAULTS.settleMs)
-    return () => { if (prefetchTimer.current !== undefined) { clearTimeout(prefetchTimer.current); prefetchTimer.current = undefined } }
-  }, [activeSessionId])
+    return () => {
+      if (prefetchTimer.current !== undefined) { clearTimeout(prefetchTimer.current); prefetchTimer.current = undefined }
+      prefetchDispose.current?.()
+      prefetchDispose.current = undefined
+    }
+  }, [activeSessionId, prefetchEnabled])
 
   useEffect(() => {
     const observer = new MutationObserver(() => { setDocumentLanguage(document.documentElement.lang) })
@@ -1120,6 +1140,3 @@ export function apply(ctx: MobileClientContext): void {
 
 /** Preserve the official layout module's dependency ordering. */
 export const inject: readonly string[] = ['slots', 'theme']
-
-
-
