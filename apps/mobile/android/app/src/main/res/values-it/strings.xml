@@ -125,6 +125,9 @@
     <string name="notification_channel_background_description">Mantiene disponibile la connessione DSH associata per le notifiche quando l\'app non è aperta</string>
     <string name="background_notifications_running">Promemoria DSH in background connessi</string>
     <string name="background_notifications_running_text">Apri DSH per gestire i promemoria</string>
+    <string name="background_notifications_connecting">Promemoria DSH in background in connessione</string>
+    <string name="background_notifications_failed">Promemoria DSH in background non connessi</string>
+    <string name="background_notifications_connecting_text">Apri DSH per riprovare o gestire i promemoria</string>
     <string name="background_notifications_done_title">Attività completata</string>
     <string name="background_notifications_done_body">Il tuo task DSH è terminato</string>
     <string name="task_notification_settings">Impostazioni notifiche attività</string>

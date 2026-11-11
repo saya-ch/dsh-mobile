@@ -147,6 +147,12 @@ internal class NativeBridge(
     var onGetBackgroundNotifications: (() -> Boolean)? = null
     var onSetBackgroundNotifications: ((Boolean) -> Boolean)? = null
 
+    /**
+     * Optional richer status for `notification.background.get`: enabled, connected, last event
+     * timestamp and a bounded failure code. When absent the bridge keeps the legacy boolean shape.
+     */
+    var onGetBackgroundNotificationStatus: (() -> JSONObject)? = null
+
     /** App-local base page scale read by the paired page's General settings. */
     var onGetDisplayScale: (() -> Int)? = null
 
@@ -504,10 +510,12 @@ internal class NativeBridge(
                 }
                 "notification.background.get" -> activity.runOnUiThread {
                     val callback = onGetBackgroundNotifications
+                    val status = onGetBackgroundNotificationStatus
                     if (!available || preservingForConfiguration || callback == null) {
                         finishPending(requestId, errorJson("unavailable", "background notifications are unavailable", requestId))
                     } else {
-                        finishPending(requestId, successJson(requestId, JSONObject().put("enabled", callback.invoke())))
+                        val payload = status?.invoke() ?: JSONObject().put("enabled", callback.invoke())
+                        finishPending(requestId, successJson(requestId, payload))
                     }
                 }
                 "notification.background.set" -> activity.runOnUiThread {
