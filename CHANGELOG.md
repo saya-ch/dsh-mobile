@@ -12,13 +12,13 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Declare a plugin icon so DSH shows the DSH Mobile picture in its plugin metadata instead of the default plugin glyph. The shipped `assets/brand/plugin-icon.png` is package-relative, within DSH's 256 KiB icon limit, and read without evaluating plugin code.
 - The page-side halves of the background-reminder status and in-place notification navigation ship in this plugin release; their native halves are prepared as Android 0.7.4 below and released separately. Android 0.7.3 remains the published App until then.
 
-## Android 0.7.4 - Unreleased
+## Android 0.7.4 - 2026-11-11
 
 - Cache the revision-addressed mobile page payload on the device, independently of the WebView's own HTTP cache. For a revalidated boot batch the App sends `If-None-Match` and serves the stored body after a 304; a revision-named plugin combo bundle is addressed by its ordered module list and revision and needs no round-trip. A body is stored only after its size and SHA-256 match the fetched bytes, a cache miss or any integrity, epoch or ownership failure falls back to the ordinary request, documents, API responses, credentials and non-revisioned assets never qualify, and clearing site data or removing the paired device clears the store. Thanks @LUgABeEEE for the implementation and the LAN measurements in [#350](https://github.com/saya-ch/dsh-mobile/pull/350).
 - Report the background reminder's real phase in its persistent notification — connecting, connected or not connected — and publish `connected`, `lastEventAt` and a bounded `lastError` stage through `notification.background.get`, so the page and a `DshMobileBg` logcat line can separate a credential-renewal, stream-open or notification-delivery failure without recording tokens or addresses.
 - Give background-service completion notifications a `dsh-task-bg-` tag so their origin is identifiable while page notifications keep `dsh-task-done-`, rebind the service to the newly active paired computer instead of retrying the previous Origin, and withdraw the opt-in when the active record cannot serve it, including an iroh pairing.
 - Open a warm notification tap in the live page instead of reloading it: the App invokes the page's in-place Session hook first and only falls back to route navigation when the page is not ready or cannot handle the route.
-- Prepared independently of the plugin release. The published App descriptor and download links remain on Android 0.7.3 until a separately verified signed 0.7.4 exists.
+- Released independently of the plugin: plugin 0.8.7 carries the page-side halves and shipped while Android 0.7.3 was the current App, and this App release is published as `android-v0.7.4` with the established signer. The plugin release notes keep the App that was published when they shipped; the download links in this repository point at the verified 0.7.4 APKs.
 
 ## 0.8.6 - 2026-11-10
 
