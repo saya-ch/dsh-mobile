@@ -15,6 +15,7 @@ import { installNativeMobileSurface, NATIVE_MOBILE_STYLES, resolveNativeMobileLa
 import { installVoiceSession } from './voice-session.js'
 import { installDraftTransfer } from './draft-transfer.js'
 import { installMobileFontPreference, MobileFontSizeRow } from './mobile-font.js'
+import { COMPOSER_COLLAPSE_SETTINGS_ORDER, ComposerCollapseSettings } from './composer-collapse-settings.js'
 import { MobileDisplayScaleRow } from './mobile-display-scale.js'
 import { MobileNativeSettingsActionController, type MobileNativeSettingsAction } from './mobile-native-settings-action.js'
 import { CLIENT_MODULE_STYLES, ClientModuleSettingsRow, closeClientModuleDialog, disposeClientModuleDialogs } from './client-module-ui.js'
@@ -5860,6 +5861,9 @@ export function apply(ctx: ClientContext): void {
         const removeFontSize = ctx.slots.register({
           name: 'settings.general.item', id: 'font-size', order: 11, priority: -1,
         }, () => createElement(MobileFontSizeRow, { preference: localFont.preference, locale: selectedMobileControlLocale() }))
+        const removeComposerCollapse = ctx.slots.register({
+          name: 'settings.general.item', id: 'dsh-mobile-composer-collapse', order: COMPOSER_COLLAPSE_SETTINGS_ORDER,
+        }, () => createElement(ComposerCollapseSettings, { locale: selectedMobileControlLocale() }))
         const removeDisplayScale = ctx.slots.register({
           name: 'settings.general.item', id: 'dsh-mobile-display-scale', order: 12,
         }, () => createElement(MobileDisplayScaleRow, { locale: selectedMobileControlLocale() }))
@@ -5883,6 +5887,7 @@ export function apply(ctx: ClientContext): void {
           removeTaskNotifications()
           removeSwitchComputer()
           removeDisplayScale()
+          removeComposerCollapse()
           removeFontSize()
         }
       })
