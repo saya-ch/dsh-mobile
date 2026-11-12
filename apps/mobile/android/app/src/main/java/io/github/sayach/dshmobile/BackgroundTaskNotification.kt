@@ -66,32 +66,14 @@ internal object BackgroundTaskNotification {
         if (event.isNull(key)) null else (event.opt(key) as? String)?.takeIf { it.isNotEmpty() }
 
     /**
-     * The live page owns delivery while it is visible: the plugin's page-side notification is the
-     * primary path and posting here as well would add a second record for the same event under a
-     * different tag. When no Activity is started the page cannot have posted, so the service posts.
+     * Whether a completion record would actually become visible.
+     *
+     * A connected stream is not permission to post: on Android 13+ the notification permission can
+     * be revoked, and an existing task-notification channel can be blocked at `IMPORTANCE_NONE`.
+     * `NotificationManager.notify` silently does nothing in both cases, so the page must not yield
+     * delivery on `enabled && connected` alone — the status published to the page includes this
+     * answer, and the service refuses to claim a delivery it cannot make.
      */
-    fun pageOwnsDelivery(pageVisible: Boolean): Boolean = pageVisible
-}
-
-/**
- * Process-wide visibility of the paired page's Activity, readable from the foreground service that
- * runs in the same process. `entered`/`exited` mirror `Activity.onStart`/`onStop`; the count keeps a
- * configuration change or a secondary Activity on top from publishing a permanent "backgrounded"
- * state once the replacement Activity starts.
- */
-internal object AppProcessForeground {
-    private var started = 0
-
-    @Synchronized
-    fun entered() {
-        started += 1
-    }
-
-    @Synchronized
-    fun exited() {
-        if (started > 0) started -= 1
-    }
-
-    @Synchronized
-    fun isVisible(): Boolean = started > 0
+    fun canPost(notificationsEnabled: Boolean, taskChannelBlocked: Boolean): Boolean =
+        notificationsEnabled && !taskChannelBlocked
 }

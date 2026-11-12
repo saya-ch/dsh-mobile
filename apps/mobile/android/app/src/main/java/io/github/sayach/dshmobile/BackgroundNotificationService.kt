@@ -265,10 +265,14 @@ internal class BackgroundNotificationService : Service() {
             val sessionId = event.optString("sessionId", "").trim()
             if (sessionId.isEmpty()) return
             val turn = event.optInt("turn", 0).coerceAtLeast(0)
-            // The live page is the primary notification path: while an Activity is started the plugin
-            // posts its own record for this event, so posting here too would show a second one under
-            // a different tag. With the page backgrounded it cannot post, so the service does.
-            if (BackgroundTaskNotification.pageOwnsDelivery(AppProcessForeground.isVisible())) return
+            // The service is the only delivery decision-maker: it posts for every announced event and
+            // the record key collapses a repeated Session+turn into one notification. The page yields
+            // while the App reports `enabled && connected && canPost`; when a record cannot appear the
+            // service says so instead of letting the page yield into silence.
+            if (!TaskNotificationPublisher.canPost(this)) {
+                recordFailure("notify:blocked")
+                return
+            }
             val navigate = sessionRoute(sessionId)
             TaskNotificationPublisher.post(
                 this,
@@ -359,12 +363,15 @@ internal class BackgroundNotificationService : Service() {
          * The opt-in plus bounded connection diagnostics exposed by `notification.background.get`.
          * Timestamps are epoch milliseconds and `lastError` is a stage code such as
          * `renew:pairing_expired` or `stream:failed`; it never contains credentials or addresses.
+         * `canPost` is the OS-level answer (permission and task channel), not just stream health, so
+         * the page only yields delivery when a record can actually appear.
          */
         fun status(context: Context): JSONObject {
             val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             return JSONObject()
                 .put("enabled", prefs.getBoolean(KEY_ENABLED, false))
                 .put("connected", prefs.getBoolean(KEY_CONNECTED, false))
+                .put("canPost", TaskNotificationPublisher.canPost(context))
                 .put(
                     "lastEventAt",
                     if (prefs.contains(KEY_LAST_EVENT_AT)) prefs.getLong(KEY_LAST_EVENT_AT, 0) else JSONObject.NULL,
