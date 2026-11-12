@@ -14,7 +14,7 @@ DSH Mobile 插件运行在**电脑**上。iPhone/iPad 用户用 **Safari** 打�
 
 - 支持页面级 `window.pushManager` 的 iPhone/iPad 主屏幕 Web App，并以独立模式打开。插件检查实际能力，不根据浏览器版本字符串放行；普通 Safari 标签页和不支持的浏览器没有 Service Worker 降级方案。
 - **固定、受信任的 HTTPS Origin**，以及现有 DSH Mobile 浏览器配对。HTTP 和绕过证书警告不属于受支持的推送配置；Android App 固定私有 CA，不等于 iPhone 浏览器信任该 CA。
-- 电脑端已更新到插件 **0.8.0 或更高版本**，DSH 和对应 HTTPS 地址的 Mobile Gateway 正在运行。推送的打包自动化检查覆盖 DSH **0.2.1-rc.2 至 0.2.2-rc.1**（rc.2、rc.3、rc.5、0.2.2-alpha.3、0.2.2-rc.1）；其他版本仍取决于所需公共服务是否可用，缺少服务只关闭推送，不关闭普通移动访问。
+- 电脑端已更新到插件 **0.8.0 或更高版本**，DSH 和对应 HTTPS 地址的 Mobile Gateway 正在运行。推送的打包自动化检查覆盖 DSH **0.2.1-rc.2 至 0.2.2-rc.2**（rc.2、rc.3、rc.5、0.2.2-alpha.3、0.2.2-rc.1、0.2.2-rc.2）；其他版本仍取决于所需公共服务是否可用，缺少服务只关闭推送，不关闭普通移动访问。
 - 主机和手机能出站连接 Apple 推送基础设施。不需要 Apple 开发者会员、通知 SaaS 账号或新增公网入站端口。此功能不创建 VPN、不改证书／防火墙，也不配置代理。
 
 使用公开受信任证书的私有 HTTPS 主机名在架构上可以使用。安装、启用、认证和打开会话时，手机仍须能访问该 Origin。私有／Tailscale Origin 的投递**尚未实测确认**；不要为了尝试推送把私有后端直接暴露到公网。随机隧道域名不适合作为长期安装地址：Origin 改变后，不自动迁移授权或订阅。需要长期地址时，可参考 [Cloudflare 命名隧道](<CLOUDFLARE_TUNNEL.md>)或[自有 HTTPS 反向代理](<SELF_HOSTED_ORIGIN.md>)；仅完成地址配置不代表推送已验证送达。

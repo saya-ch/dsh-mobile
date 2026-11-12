@@ -140,6 +140,23 @@ async function runFixtureJob(ctx, controls) {
     rootFixtureAgent = root
     const fixtureCtxRoot = ctx.root
     const agentCtxRoot = root.ctx.root
+    // DSH 0.2.2-rc.2 removed AgentRegistry#roots()/#isOwnedBy(); the durable subagent
+    // header is the public fallback for identifying an owned child. The fixture Agent is
+    // top-level either way, so this check stays meaningful on both API shapes.
+    const fixtureOwnership = (() => {
+      if (typeof ctx.agents.roots === 'function' && typeof ctx.agents.isOwnedBy === 'function') {
+        return {
+          isRuntimeRoot: ctx.agents.roots().includes(root),
+          hasLiveOwner: ctx.agents.list().some(owner => ctx.agents.isOwnedBy(root.id, owner)),
+        }
+      }
+      const header = root.session?.header
+      const parentSession = header?.origin === 'subagent' ? header?.parentSession : undefined
+      return {
+        isRuntimeRoot: parentSession === undefined,
+        hasLiveOwner: typeof parentSession === 'string' && ctx.agents.get(parentSession) !== undefined,
+      }
+    })()
     result.contextIdentity = {
       fixtureRootExposed: 'root' in ctx,
       fixtureRootIsSelfRoot: fixtureCtxRoot.root === fixtureCtxRoot,
@@ -151,8 +168,8 @@ async function runFixtureJob(ctx, controls) {
       setupAgentMatchesFactoryResult: setupAgent === root,
       factoryWasUnpublishedDuringSetup: setupSawUnpublishedAgent,
       exactFactoryAgentLive: ctx.agents.get(root.id) === root,
-      exactFactoryAgentIsRuntimeRoot: ctx.agents.roots().includes(root),
-      exactFactoryAgentHasNoLiveOwner: !ctx.agents.list().some(owner => ctx.agents.isOwnedBy(root.id, owner)),
+      exactFactoryAgentIsRuntimeRoot: fixtureOwnership.isRuntimeRoot,
+      exactFactoryAgentHasNoLiveOwner: !fixtureOwnership.hasLiveOwner,
     }
     let runtimeSessionEvents = 0
     const removeSessionProbe = ctx.on('session/event', () => { runtimeSessionEvents++ }, { global: true })
@@ -234,15 +251,18 @@ async function runFixtureJob(ctx, controls) {
     const rootResponse = await waitForOwned(() => seen.find(source => source.sessionId === root.id && source.category === 'response' && source.turn === 1), 'completed root turn response')
     result.sources.push(sourceSummary(rootResponse))
     check('completed root turn response is recorded as an expected source', rootResponse.turn === 1)
-    const childHandle = await ctx.agents.create({ sessionId: 'push-contract-child-' + randomUUID(), parentAgent: root, agentOptions: { provider: 'push-contract-no-provider', model: 'no-network-fixture' } })
+    // DSH 0.2.2-rc.2 removed CreateAgentOptions#parentAgent and the registry ownership
+    // walk; real subagents carry the durable origin "subagent" header instead. Keep the
+    // old creation shape on hosts that still own children through the registry.
+    const legacyOwnershipApi = typeof ctx.agents.roots === 'function' && typeof ctx.agents.isOwnedBy === 'function'
+    const childOptions = (parent, sessionId, depth) => legacyOwnershipApi
+      ? { sessionId, parentAgent: parent, agentOptions: { provider: 'push-contract-no-provider', model: 'no-network-fixture' } }
+      : { sessionId, meta: { parentSession: parent.session.id, origin: 'subagent', delegationDepth: depth }, agentOptions: { provider: 'push-contract-no-provider', model: 'no-network-fixture' } }
+    const childHandle = await ctx.agents.create(childOptions(root, 'push-contract-child-' + randomUUID(), 1))
     handles.push(childHandle)
     const forkHandle = await ctx.agents.create({ sessionId: 'push-contract-fork-' + randomUUID(), meta: { parentSession: root.session.id }, agentOptions: { provider: 'push-contract-no-provider', model: 'no-network-fixture' } })
     handles.push(forkHandle)
-    const nestedHandle = await ctx.agents.create({
-      sessionId: 'push-contract-nested-' + randomUUID(),
-      parentAgent: childHandle.agent,
-      agentOptions: { provider: 'push-contract-no-provider', model: 'no-network-fixture' },
-    })
+    const nestedHandle = await ctx.agents.create(childOptions(childHandle.agent, 'push-contract-nested-' + randomUUID(), 2))
     handles.push(nestedHandle)
     await forkHandle.agent.session.append('turn/start', { turn: 1 })
     await forkHandle.agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })

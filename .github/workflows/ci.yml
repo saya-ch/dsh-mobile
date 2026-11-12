@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2, 0.2.1-alpha.3, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1]
+        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2, 0.2.1-alpha.3, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1, 0.2.2-rc.2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -52,7 +52,7 @@ jobs:
           echo "DSH_BOOT_SMOKE_MOBILE_TARBALL=$RUNNER_TEMP/plugin-package/dsh-mobile-$mobile_version.tgz" >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium --only-shell
       - name: Verify passive public Web Push lifecycle contracts
-        if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-rc.1'
+        if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-rc.1' || matrix.dsh == '0.2.2-rc.2'
         run: npm run smoke:push-contract
       - name: Verify current upstream settings, module recovery, picker, attachments and compressed mux
         if: matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-rc.1'
@@ -64,10 +64,10 @@ jobs:
           npm run smoke:mobile-sidebar
           npm run smoke:dsh-boot -- --compressed-websocket --diagnostics
       - name: Verify packed Declarative Web Push UI and authenticated navigation
-        if: matrix.dsh == '0.2.1-rc.2'
+        if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.2-rc.2'
         run: npm run smoke:web-push
       - name: Reject a tap reference owned by another paired device
-        if: matrix.dsh == '0.2.1-rc.2'
+        if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.2-rc.2'
         shell: bash
         run: |
           if npm run smoke:web-push -- --negative-control-owner > "$RUNNER_TEMP/web-push-ownership-negative.log" 2>&1; then

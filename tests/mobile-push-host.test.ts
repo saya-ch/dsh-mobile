@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPushHost } from '../src/mobile-push/host.js'
 import { REQUEST_SETTLE_MS } from '../src/mobile-push/contracts.js'
-import type { ContextLike, PushHost, PushSource } from '../src/mobile-push/contracts.js'
+import type { ContextLike, PublicAgentLike, PushHost, PushSource } from '../src/mobile-push/contracts.js'
 
 const cleanups: Array<() => Promise<void>> = []
 afterEach(async () => { await Promise.all(cleanups.splice(0).map(close => close())) })
@@ -424,6 +424,100 @@ describe('public host lifecycle', () => {
     h.emit('session/event', agent('s6'), { type: 'turn/end', data: { turn: 3, reason: { kind: 'error', error: { message: 'x', code: 'X' } } } })
     await vi.waitFor(() => expect(h.emitted).toHaveLength(1), { timeout: 3_000 })
     expect(h.emitted[0]?.category).toBe('failure')
+  })
+})
+
+describe('public ownership on hosts without roots/isOwnedBy (DSH 0.2.2-rc.2)', () => {
+  const subagent = (id: string, parentSession: string): PublicAgentLike => ({ id, session: { id, header: { parentSession, origin: 'subagent' } } })
+  const historicalFork = (id: string, parentSession: string): PublicAgentLike => ({ id, session: { id, header: { parentSession } } })
+
+  it('keeps push available and routes a nested subagent request to its root session', async () => {
+    const root = agent('root')
+    const child = subagent('child', 'root')
+    const nested = subagent('nested', 'child')
+    const live = [root, child, nested]
+    const h = context({ agents: { get: id => live.find(candidate => candidate.id === id), list: () => live } })
+    const host = h.start()
+    expect(host.available).toBe(true)
+    let settle!: (value: string) => void
+    h.emit('approval/request', { agent: nested, toolName: 'fixture-write', signal: new AbortController().signal }, () => new Promise(resolve => { settle = resolve }))
+    await vi.waitFor(() => expect(h.emitted).toHaveLength(1), { timeout: 3_000 })
+    expect(h.emitted[0]?.sessionId).toBe('nested')
+    expect(h.emitted[0]?.targetSessionId).toBe('root')
+    expect((await host.resolveTarget(h.emitted[0]!))?.sessionId).toBe('root')
+    settle('unavailable')
+  })
+
+  it('does not reparent a historical fork and suppresses subagent turn chatter', async () => {
+    const root = agent('root')
+    const fork = historicalFork('fork', 'root')
+    const child = subagent('child', 'root')
+    const live = [root, fork, child]
+    const h = context({ agents: { get: id => live.find(candidate => candidate.id === id), list: () => live } })
+    const host = h.start()
+    expect(host.available).toBe(true)
+    h.emit('session/event', fork, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
+    h.emit('session/event', child, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
+    await vi.waitFor(() => expect(h.emitted).toHaveLength(1), { timeout: 3_000 })
+    await new Promise(resolve => setTimeout(resolve, 1_050))
+    expect(h.emitted.map(source => source.sessionId)).toEqual(['fork'])
+    expect(h.emitted[0]?.targetSessionId).toBe('fork')
+  })
+
+  it('treats a subagent whose parent Agent is no longer live as its own root', async () => {
+    const orphan = subagent('orphan', 'gone')
+    const h = context({ agents: { get: () => undefined, list: () => [orphan] } })
+    const host = h.start()
+    expect(host.available).toBe(true)
+    h.emit('session/event', orphan, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
+    await vi.waitFor(() => expect(h.emitted).toHaveLength(1), { timeout: 3_000 })
+    expect(h.emitted[0]?.sessionId).toBe('orphan')
+    expect(h.emitted[0]?.targetSessionId).toBe('orphan')
+  })
+
+  it('resolves ownership from the live registry for Session-shaped event subjects', async () => {
+    const root = agent('root')
+    const child = subagent('child', 'root')
+    const live = [root, child]
+    const h = context({ agents: { get: id => live.find(candidate => candidate.id === id), list: () => live } })
+    h.start()
+    // session/event delivers the Session, whose header lives one level up on the live Agent.
+    h.emit('session/event', { id: 'child' }, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
+    await new Promise(resolve => setTimeout(resolve, 1_050))
+    expect(h.emitted).toHaveLength(0)
+    // A request can carry an Agent-shaped identity without the Session object attached.
+    h.emit('approval/request', { agent: { id: 'child' }, toolName: 'fixture-write', signal: new AbortController().signal }, () => new Promise(() => undefined))
+    await vi.waitFor(() => expect(h.emitted).toHaveLength(1), { timeout: 3_000 })
+    expect(h.emitted[0]?.targetSessionId).toBe('root')
+  })
+
+  it('keeps the legacy ownership methods bound to the live registry', async () => {
+    const root = agent('root')
+    const child = subagent('child', 'root')
+    // Mirrors a Cordis service: list/get/isOwnedBy read state through `this`.
+    const registry = {
+      live: [root, child] as PublicAgentLike[],
+      ownership: new Set(['child\u0000root']),
+      get(this: { live: PublicAgentLike[] }, id: string) { return this.live.find(candidate => candidate.id === id) },
+      list(this: { live: PublicAgentLike[] }) { return this.live },
+      roots(this: { live: PublicAgentLike[] }) { return this.live.filter(candidate => candidate.id === 'root') },
+      isOwnedBy(this: { ownership: Set<string> }, id: string, owner: PublicAgentLike) { return this.ownership.has(`${id}\u0000${owner.id}`) },
+    }
+    const h = context({ agents: registry as any })
+    const host = h.start()
+    expect(host.available).toBe(true)
+    let settle!: (value: string) => void
+    h.emit('approval/request', { agent: child, toolName: 'fixture-write', signal: new AbortController().signal }, () => new Promise(resolve => { settle = resolve }))
+    await vi.waitFor(() => expect(h.emitted).toHaveLength(1), { timeout: 3_000 })
+    expect(h.emitted[0]?.targetSessionId).toBe('root')
+    settle('unavailable')
+  })
+
+  it('still fails closed when the registry cannot look up or list live Agents', () => {
+    const missingGet = context({ agents: { list: () => [] } as any })
+    expect(missingGet.start().available).toBe(false)
+    const missingList = context({ agents: { get: () => undefined } as any })
+    expect(missingList.start().available).toBe(false)
   })
 })
 
