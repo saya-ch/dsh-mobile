@@ -21,7 +21,6 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 ```
 apps/windows/
 ├── .gitignore                # 忽略 bin/ obj/ data/
-├── nuget.config              # NuGet 镜像源
 └── DshMobile.Win/
     ├── *.cs / *.xaml          # 源码（WPF + WebView2）
     ├── app.ico                # Android 同款启动图标
@@ -49,6 +48,8 @@ dotnet build -c Release
 # 发布便携版（自包含 .NET，输出为独立目录，拷走即用）
 dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 ```
+
+依赖取自 NuGet 默认源（nuget.org）。若所处网络访问较慢，请在**用户级**加镜像而不是改仓库配置：`dotnet nuget add source <镜像地址> -n <名称>`。
 
 发布产物无需安装、不写注册表；程序、WebView2 用户目录与日志都在输出目录的 `data\` 内。
 
