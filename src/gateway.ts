@@ -18,6 +18,7 @@ import {
 import { createServer as createHttpsServer, type Server as HttpsServer, type ServerOptions } from 'node:https'
 import { connect, type AddressInfo, type Socket } from 'node:net'
 import { isIP } from './ip.js'
+import { TASK_ANNOUNCEMENT_LIMITS } from './task-events.js'
 import { Transform, type TransformCallback } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
@@ -4161,11 +4162,28 @@ export class MobileAccessGateway {
     for (const listener of this.extensionEventListeners) listener(this.extensionEventRevision)
   }
 
-  /** Fan a completed task to every phone holding this gateway's event stream. */
-  broadcastTaskEvent(event: { readonly sessionId: string; readonly turn: number }): void {
+  /**
+   * Fan a completed task to every phone holding this gateway's event stream.
+   *
+   * `sessionId` and `turn` always stay; `title`/`body` are optional and are
+   * emitted together so an older App ignores them and falls back to its own
+   * localized text. The gateway re-bounds them even though the watcher already
+   * bounded its output, because this method is also callable by tests/fixtures.
+   */
+  broadcastTaskEvent(event: {
+    readonly sessionId: string
+    readonly turn: number
+    readonly title?: string
+    readonly body?: string
+  }): void {
     if (this.closing) return
-    const payload = JSON.stringify({ sessionId: String(event.sessionId), turn: Number(event.turn) || 0 })
-    for (const listener of this.taskEventListeners) listener(payload)
+    const payload: Record<string, string | number> = { sessionId: String(event.sessionId), turn: Number(event.turn) || 0 }
+    if (typeof event.title === 'string' && event.title !== '' && typeof event.body === 'string' && event.body !== '') {
+      payload.title = event.title.slice(0, TASK_ANNOUNCEMENT_LIMITS.title)
+      payload.body = event.body.slice(0, TASK_ANNOUNCEMENT_LIMITS.body)
+    }
+    const serialized = JSON.stringify(payload)
+    for (const listener of this.taskEventListeners) listener(serialized)
   }
 
   /** Notify only the device whose persistent credential was revoked by the Host. */

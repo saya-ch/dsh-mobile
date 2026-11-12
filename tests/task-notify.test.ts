@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  backgroundNotificationsWillPost,
   decodeTaskNotificationNavigate,
   fireTaskNotifyEvent,
   hasPendingInputQuestion,
@@ -230,6 +231,96 @@ describe('task completion tracker', () => {
 
   it('stays silent without a native bridge', () => {
     expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done' })).toBe(false)
+  })
+
+  it('recognizes only an enabled and connected background report', () => {
+    expect(backgroundNotificationsWillPost({ enabled: true, connected: true })).toBe(true)
+    expect(backgroundNotificationsWillPost({ enabled: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: false, connected: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: 'true', connected: true })).toBe(false)
+    expect(backgroundNotificationsWillPost(null)).toBe(false)
+    expect(backgroundNotificationsWillPost([])).toBe(false)
+  })
+
+  it('yields a completed-turn notification when the App will post it', async () => {
+    const invoke = vi.fn(async (action: string) => action === 'notification.background.get'
+      ? { enabled: true, connected: true }
+      : undefined)
+    const previous = (globalThis as { window?: unknown }).window
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __DSH_MOBILE_NATIVE__: {
+          capabilities: async () => ['notification.notify', 'notification.background.get'],
+          invoke,
+        },
+      },
+    })
+    try {
+      expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done' })).toBe(true)
+      await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('notification.background.get', {}))
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(invoke.mock.calls.some(([action]) => action === 'notification.notify')).toBe(false)
+    } finally {
+      if (previous === undefined) delete (globalThis as { window?: unknown }).window
+      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
+    }
+  })
+
+  it('still posts when the App is reconnecting, reports only the legacy flag, or the probe fails', async () => {
+    const cases: Array<{ report?: unknown; reject?: boolean }> = [
+      { report: { enabled: true, connected: false } },
+      { report: { enabled: true } },
+      { reject: true },
+    ]
+    for (const item of cases) {
+      const invoke = vi.fn(async (action: string) => {
+        if (action === 'notification.background.get') {
+          if (item.reject === true) throw new Error('background unavailable')
+          return item.report
+        }
+        return undefined
+      })
+      const previous = (globalThis as { window?: unknown }).window
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: {
+          __DSH_MOBILE_NATIVE__: {
+            capabilities: async () => ['notification.notify', 'notification.background.get'],
+            invoke,
+          },
+        },
+      })
+      try {
+        fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done' })
+        await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('notification.notify', expect.anything()))
+      } finally {
+        if (previous === undefined) delete (globalThis as { window?: unknown }).window
+        else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
+      }
+    }
+  })
+
+  it('never probes the background service for a question notification', async () => {
+    const invoke = vi.fn(async (_action?: string) => undefined)
+    const previous = (globalThis as { window?: unknown }).window
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __DSH_MOBILE_NATIVE__: {
+          capabilities: async () => ['notification.notify', 'notification.background.get'],
+          invoke,
+        },
+      },
+    })
+    try {
+      fireTaskNotifyEvent({ kind: 'question', title: 't', body: 'b', tag: 'dsh-task-question-x' })
+      await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('notification.notify', expect.anything()))
+      expect(invoke.mock.calls.some(call => call[0] === 'notification.background.get')).toBe(false)
+    } finally {
+      if (previous === undefined) delete (globalThis as { window?: unknown }).window
+      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
+    }
   })
 
   it('passes the optional same-origin target through the native bridge', async () => {

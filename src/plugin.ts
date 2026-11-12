@@ -590,6 +590,15 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const taskEventHub = new TaskEventHub()
   const disposeTaskEvents = watchTaskCompletions(ctx, {
     onTaskCompleted: event => taskEventHub.broadcast(event),
+    // The title projection is the same Session title the dedicated layout shows.
+    // Read the service lazily: it is optional on older DSH hosts, and its absence
+    // must simply omit the optional wire text.
+    readSessionTitle: session => {
+      const projections = (ctx as unknown as {
+        get?: (name: string) => { stateOf?: (session: unknown, key: string) => unknown } | undefined
+      }).get?.('sessionProjections')
+      return projections?.stateOf?.(session, 'title')
+    },
     log(event, fields) { logger.info('task event=%s fields=%o', event, fields) },
   })
   let pushHost: ReturnType<typeof createPushHost> | undefined

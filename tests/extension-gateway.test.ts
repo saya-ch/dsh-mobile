@@ -560,6 +560,19 @@ describe('gateway extension namespace', () => {
     expect(eventBody).not.toContain(opened.token)
     expect(eventBody).not.toContain(pairedBody.csrfToken)
     expect(eventBody).not.toContain(session)
+
+    // Optional plugin-authored text rides beside the unchanged old keys.
+    gateway.broadcastTaskEvent({ sessionId: 'session-9', turn: 5, title: 'Session 9', body: 'Done.' })
+    const rich = await stream.waitFor('"turn":5')
+    const richData = JSON.parse(rich.slice(rich.lastIndexOf('data: ') + 'data: '.length).trim()) as Record<string, unknown>
+    expect(richData).toEqual({ sessionId: 'session-9', turn: 5, title: 'Session 9', body: 'Done.' })
+
+    // The gateway re-bounds the fields even when a caller bypasses the watcher.
+    gateway.broadcastTaskEvent({ sessionId: 'session-9', turn: 6, title: 't'.repeat(200), body: 'b'.repeat(400) })
+    const bounded = await stream.waitFor('"turn":6')
+    const boundedData = JSON.parse(bounded.slice(bounded.lastIndexOf('data: ') + 'data: '.length).trim()) as Record<string, string | number>
+    expect(String(boundedData.title)).toHaveLength(80)
+    expect(String(boundedData.body)).toHaveLength(200)
   })
 
   it('serves task and revocation events to the native background stream without a document view', async () => {
