@@ -233,18 +233,22 @@ describe('task completion tracker', () => {
     expect(fireTaskNotifyEvent({ kind: 'done', title: 't', body: 'b', tag: 'dsh-task-done' })).toBe(false)
   })
 
-  it('recognizes only an enabled and connected background report', () => {
-    expect(backgroundNotificationsWillPost({ enabled: true, connected: true })).toBe(true)
-    expect(backgroundNotificationsWillPost({ enabled: true })).toBe(false)
-    expect(backgroundNotificationsWillPost({ enabled: false, connected: true })).toBe(false)
-    expect(backgroundNotificationsWillPost({ enabled: 'true', connected: true })).toBe(false)
+  it('requires enabled, connected and canPost before yielding', () => {
+    expect(backgroundNotificationsWillPost({ enabled: true, connected: true, canPost: true })).toBe(true)
+    expect(backgroundNotificationsWillPost({ enabled: true, connected: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: true, connected: true, canPost: false })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: true, connected: false, canPost: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: false, connected: true, canPost: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: true, canPost: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: 'true', connected: true, canPost: true })).toBe(false)
+    expect(backgroundNotificationsWillPost({ enabled: true, connected: true, canPost: 'true' })).toBe(false)
     expect(backgroundNotificationsWillPost(null)).toBe(false)
     expect(backgroundNotificationsWillPost([])).toBe(false)
   })
 
   it('yields a completed-turn notification when the App will post it', async () => {
     const invoke = vi.fn(async (action: string) => action === 'notification.background.get'
-      ? { enabled: true, connected: true }
+      ? { enabled: true, connected: true, canPost: true }
       : undefined)
     const previous = (globalThis as { window?: unknown }).window
     Object.defineProperty(globalThis, 'window', {
@@ -267,9 +271,14 @@ describe('task completion tracker', () => {
     }
   })
 
-  it('still posts when the App is reconnecting, reports only the legacy flag, or the probe fails', async () => {
+  it('still posts when canPost is false/missing, the App is reconnecting, or the probe fails', async () => {
     const cases: Array<{ report?: unknown; reject?: boolean }> = [
-      { report: { enabled: true, connected: false } },
+      // Android blocked the task channel: the App records notify:blocked and
+      // does not post, so the page must NOT yield.
+      { report: { enabled: true, connected: true, canPost: false } },
+      // Older App report lacks canPost entirely: same conservative fallback.
+      { report: { enabled: true, connected: true } },
+      { report: { enabled: true, connected: false, canPost: true } },
       { report: { enabled: true } },
       { reject: true },
     ]

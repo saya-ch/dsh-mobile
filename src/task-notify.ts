@@ -374,15 +374,19 @@ export function fireDeviceRevoked(): boolean {
 }
 
 /**
- * Whether the App's background service reports that it will post task
- * completion notifications itself. Only the explicit pair the 0.7.4 bridge
- * publishes counts: an older bridge reports `enabled` without `connected`, and
- * a service that is reconnecting is not yet committed to posting.
+ * Whether the App's background service reports that it will actually post a
+ * task-completion notification. All three facts must be explicit: the service
+ * is enabled, its event stream is connected, and Android currently allows the
+ * task channel to post (`canPost`: notifications enabled and channel importance
+ * not NONE). The App records `notify:blocked` and does not touch
+ * `connected`/`lastEventAt` when `canPost` is false, so treating enabled+
+ * connected alone as a promise would let the page yield to a silent App and
+ * drop the notification entirely.
  */
 export function backgroundNotificationsWillPost(report: unknown): boolean {
   if (report === null || typeof report !== 'object' || Array.isArray(report)) return false
   const record = report as Record<string, unknown>
-  return record.enabled === true && record.connected === true
+  return record.enabled === true && record.connected === true && record.canPost === true
 }
 
 /**
@@ -395,8 +399,8 @@ export function backgroundNotificationsWillPost(report: unknown): boolean {
  * background service will post the same event. When it will, the page yields:
  * one completed turn then produces exactly one notification, authored by the
  * plugin's Host-side event text and rendered by the App. Old Apps (no
- * `notification.background.get` report, or no `connected` state) keep the
- * previous behavior and the page still notifies.
+ * `notification.background.get` report, no `connected` state, or no `canPost`
+ * state) keep the previous behavior and the page still notifies.
  */
 export function fireTaskNotifyEvent(
   event: TaskNotifyWireEvent,
