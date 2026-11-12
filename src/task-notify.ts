@@ -31,7 +31,11 @@ export const TASK_NOTIFY_MIN_BUSY_MS = 20_000
 /** Maximum quiet period worth waiting through before giving up on a run. */
 export const TASK_NOTIFY_STALE_MS = 30 * 60_000
 
-/** Wire bounds mirrored by the Android notification policy. */
+/**
+ * Maximum title/body/tag lengths accepted by the Android bridge policy
+ * (`NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS` = 80,
+ * `TASK_NOTIFICATION_BODY_CHARS` = 200; `TASK_NOTIFICATION_TAG_CHARS` bounds the tag).
+ */
 export const TASK_NOTIFY_LIMITS = Object.freeze({
   title: 80,
   body: 200,
@@ -370,10 +374,33 @@ export function fireDeviceRevoked(): boolean {
 }
 
 /**
+ * Whether the App's background service reports that it will actually post a
+ * task-completion notification. All three facts must be explicit: the service
+ * is enabled, its event stream is connected, and Android currently allows the
+ * task channel to post (`canPost`: notifications enabled and channel importance
+ * not NONE). The App records `notify:blocked` and does not touch
+ * `connected`/`lastEventAt` when `canPost` is false, so treating enabled+
+ * connected alone as a promise would let the page yield to a silent App and
+ * drop the notification entirely.
+ */
+export function backgroundNotificationsWillPost(report: unknown): boolean {
+  if (report === null || typeof report !== 'object' || Array.isArray(report)) return false
+  const record = report as Record<string, unknown>
+  return record.enabled === true && record.connected === true && record.canPost === true
+}
+
+/**
  * Deliver one notification through the native bridge when available.
  * Returns false when there is no bridge (desktop browsers keep their own
  * UI) so callers can fall back; a denial flips the module sticky flag via
  * onDenied for the session-lifetime nag guard.
+ *
+ * For task-completion notifications the page first asks the App whether its
+ * background service will post the same event. When it will, the page yields:
+ * one completed turn then produces exactly one notification, authored by the
+ * plugin's Host-side event text and rendered by the App. Old Apps (no
+ * `notification.background.get` report, no `connected` state, or no `canPost`
+ * state) keep the previous behavior and the page still notifies.
  */
 export function fireTaskNotifyEvent(
   event: TaskNotifyWireEvent,
@@ -381,16 +408,23 @@ export function fireTaskNotifyEvent(
 ): boolean {
   const bridge = readNativeBridge()
   if (bridge === undefined) return false
+  const deliver = (): Promise<unknown> => bridge.invoke('notification.notify', {
+    title: event.title,
+    body: event.body,
+    tag: event.tag,
+    ...(event.navigate === undefined ? {} : { navigate: event.navigate }),
+  })
   void Promise.resolve()
     .then(() => bridge.capabilities())
     .then(capabilities => {
       if (!capabilities.includes('notification.notify')) return
-      return bridge.invoke('notification.notify', {
-        title: event.title,
-        body: event.body,
-        tag: event.tag,
-        ...(event.navigate === undefined ? {} : { navigate: event.navigate }),
-      })
+      // Questions are page-only; the background service only consumes
+      // completed-turn events, so yielding here would drop the question.
+      if (event.kind !== 'done' || !capabilities.includes('notification.background.get')) return deliver()
+      return bridge.invoke('notification.background.get', {}).then(
+        report => backgroundNotificationsWillPost(report) ? undefined : deliver(),
+        () => deliver(),
+      )
     })
     .then(
       () => undefined,

@@ -14,7 +14,6 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.security.MessageDigest
 import java.util.Base64
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -266,18 +265,33 @@ internal class BackgroundNotificationService : Service() {
             val sessionId = event.optString("sessionId", "").trim()
             if (sessionId.isEmpty()) return
             val turn = event.optInt("turn", 0).coerceAtLeast(0)
+            // The service is the only delivery decision-maker: it posts for every announced event and
+            // the record key collapses a repeated Session+turn into one notification. The page yields
+            // while the App reports `enabled && connected && canPost`; when a record cannot appear the
+            // service says so instead of letting the page yield into silence.
+            if (!TaskNotificationPublisher.canPost(this)) {
+                recordFailure("notify:blocked")
+                return
+            }
             val navigate = sessionRoute(sessionId)
             TaskNotificationPublisher.post(
                 this,
-                getString(R.string.background_notifications_done_title),
-                getString(R.string.background_notifications_done_body),
-                completionTag(sessionId, turn),
+                BackgroundTaskNotification.title(
+                    BackgroundTaskNotification.eventText(event, "title"),
+                    getString(R.string.background_notifications_done_title),
+                ),
+                BackgroundTaskNotification.body(
+                    BackgroundTaskNotification.eventText(event, "body"),
+                    getString(R.string.background_notifications_done_body),
+                ),
+                BackgroundTaskNotification.tag(sessionId, turn),
                 navigate,
             )
             markEventDelivered()
         } catch (_: Exception) {
             // The stream can still be connected while the notification channel or payload is
             // unusable; keep that distinction visible instead of dropping the event silently.
+            // Only the failure stage is logged: never the event text, Session id or credential.
             Log.w(LOG_TAG, "background task notification could not be delivered")
             recordFailure("notify:failed")
         }
@@ -349,12 +363,15 @@ internal class BackgroundNotificationService : Service() {
          * The opt-in plus bounded connection diagnostics exposed by `notification.background.get`.
          * Timestamps are epoch milliseconds and `lastError` is a stage code such as
          * `renew:pairing_expired` or `stream:failed`; it never contains credentials or addresses.
+         * `canPost` is the OS-level answer (permission and task channel), not just stream health, so
+         * the page only yields delivery when a record can actually appear.
          */
         fun status(context: Context): JSONObject {
             val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             return JSONObject()
                 .put("enabled", prefs.getBoolean(KEY_ENABLED, false))
                 .put("connected", prefs.getBoolean(KEY_CONNECTED, false))
+                .put("canPost", TaskNotificationPublisher.canPost(context))
                 .put(
                     "lastEventAt",
                     if (prefs.contains(KEY_LAST_EVENT_AT)) prefs.getLong(KEY_LAST_EVENT_AT, 0) else JSONObject.NULL,
@@ -446,17 +463,6 @@ internal class BackgroundNotificationService : Service() {
                 .putBoolean(KEY_CONNECTED, false)
                 .remove(KEY_DEVICE)
                 .apply()
-        }
-
-        private fun completionTag(sessionId: String, turn: Int): String {
-            val digest = MessageDigest.getInstance("SHA-256")
-                .digest(JSONObject.quote(sessionId).toByteArray(Charsets.UTF_8))
-                .take(16)
-                .joinToString("") { "%02x".format(it) }
-            // The page-side tag keeps its historical `dsh-task-done-…` form; the background
-            // stream uses `dsh-task-bg-…` so the source is identifiable and stays within the
-            // native tag length limit.
-            return "dsh-task-bg-$digest-${turn.coerceAtLeast(0)}"
         }
 
         private fun sessionRoute(sessionId: String): String {
