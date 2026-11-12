@@ -147,16 +147,77 @@ function realHostHarness(initial: { values?: Record<string, any>; error?: unknow
   }
 }
 
-async function seedIntent(registry: PushRegistry, registration: PushRegistration, intentSource: PushSource): Promise<void> {
+async function seedIntent(registry: PushRegistry, registration: PushRegistration, intentSource: PushSource, nextAttemptAt: number = Date.now()): Promise<void> {
   await registry.transact(snapshot => ({
     ...snapshot,
     pending: [...snapshot.pending, {
       id: `seed-${randomUUID()}`,
       key: { scopeId: registration.scopeId, deviceId: registration.deviceId, origin: registration.origin, installationId: registration.installationId },
       source: structuredClone(intentSource), ownerGeneration: 0, recipientGeneration: registration.generation,
-      attempts: 0, nextAttemptAt: Date.now(),
+      attempts: 0, nextAttemptAt,
     }],
   }))
+}
+
+/**
+ * Counts scheduler wake timers and bounds zero-delay wakes so a saturated busy-loop fails an
+ * assertion instead of hanging fake-time advancement. In these fixtures only PushDelivery
+ * schedules a global setTimeout (its wake timer); the reconcile loop uses setInterval, which
+ * this spy does not observe.
+ */
+function spySchedulerWakes(limit = 8) {
+  const fakeSetTimeout = globalThis.setTimeout.bind(globalThis)
+  const delays: number[] = []
+  const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: TimerHandler, delay = 0, ...rest: unknown[]) => {
+    delays.push(delay)
+    const effective = delay === 0 && delays.filter(item => item === 0).length > limit ? 1_000_000_000 : delay
+    return fakeSetTimeout(handler, effective, ...(rest as []))
+  }) as unknown as typeof globalThis.setTimeout)
+  return {
+    zeroDelayWakes: () => delays.filter(item => item === 0).length,
+    restore: () => { spy.mockRestore() },
+  }
+}
+
+/** A sender double that holds every send at an explicit barrier and tracks concurrency. */
+function capacitySender() {
+  const entries: Array<{ device: string; kind: 'intent' | 'test' }> = []
+  const holds: Array<{ promise: Promise<PushSendResult>; resolve: (result: PushSendResult) => void }> = []
+  const entryGates = new Map<number, { promise: Promise<void>; resolve: () => void }>()
+  let concurrent = 0
+  let maximum = 0
+  const sender = senderDouble(async (input: Parameters<PushSender['send']>[0]) => {
+    concurrent += 1
+    maximum = Math.max(maximum, concurrent)
+    const title = (JSON.parse(input.payload) as { notification: { title?: string } }).notification?.title
+    entries.push({ device: input.registration.deviceId, kind: title === 'Test notification' ? 'test' : 'intent' })
+    const hold = deferred<PushSendResult>()
+    holds.push(hold)
+    entryGates.get(entries.length)?.resolve()
+    const result = await hold.promise
+    concurrent -= 1
+    return result
+  })
+  const awaitEntry = (count: number): Promise<void> => {
+    if (entries.length >= count) return Promise.resolve()
+    const gate = deferred<void>()
+    entryGates.set(count, gate)
+    return gate.promise
+  }
+  const release = (index: number, result: PushSendResult = { kind: 'accepted' }) => { holds[index]?.resolve(result) }
+  const releaseAll = (result: PushSendResult = { kind: 'accepted' }) => { for (const hold of holds) hold.resolve(result) }
+  return {
+    sender, entries,
+    sendCount: () => entries.length,
+    maxConcurrency: () => maximum,
+    countFor: (device: string) => entries.filter(item => item.device === device).length,
+    awaitEntry, release, releaseAll,
+  }
+}
+
+/** Advances only the microtask queue until `ready` (memory-store writes are microtask chains) without moving fake time. */
+async function drainMicrotasks(ready: () => boolean, bound = 5_000): Promise<void> {
+  for (let n = 0; n < bound && !ready(); n += 1) await Promise.resolve()
 }
 
 const opened: Array<() => Promise<void>> = []
@@ -1460,6 +1521,243 @@ describe('push delivery coordination', () => {
     await expect(testPromise).rejects.toThrow('push_test_unavailable')
     expect(registry.snapshot().registrations).toMatchObject([{ health: 'ready' }])
     expect(registry.snapshot().registrations).toHaveLength(1)
+  })
+})
+
+describe('capacity-aware wake scheduling', () => {
+  const capacityDevices = ['a', 'b', 'c', 'd', 'e']
+  const capacityOrigin = () => ({
+    scopeId: 'scope-a', origin: 'https://mobile.example.test',
+    authorizedDevices: async () => capacityDevices.map(id => ({ id, expiresAt: Date.now() + 60_000 })),
+  })
+
+  it('capacity: schedules no zero-delay wake timers while four held sends saturate the send pool', async () => {
+    vi.useFakeTimers()
+    const wakes = spySchedulerWakes()
+    const { registry, registrations } = await makeRegistry(capacityDevices)
+    const pool = capacitySender()
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender: pool.sender })
+    opened.push(() => delivery.close())
+    try {
+      delivery.attachOrigin(capacityOrigin())
+      for (const registration of registrations) await seedIntent(registry, registration, source(`capacity-saturation-${registration.deviceId}`))
+      await delivery.start()
+      // Four sends hold every slot; the fifth identical intent stays queued and already due.
+      await pool.awaitEntry(4)
+      expect(pool.sendCount()).toBe(4)
+      expect(pool.maxConcurrency()).toBe(4)
+      // A bounded fake-time window: saturation must rely on completion callbacks, not recurring zero-delay wakes.
+      await vi.advanceTimersByTimeAsync(100)
+      expect(pool.sendCount()).toBe(4)
+      expect(wakes.zeroDelayWakes(), 'zero-delay scheduler wakes while saturated').toBe(0)
+      expect(vi.getTimerCount(), 'owned timers while saturated (only the reconcile interval)').toBe(1)
+      // Freeing one slot starts exactly the fifth queued send through the completion callback.
+      pool.release(0)
+      await pool.awaitEntry(5)
+      expect(pool.sendCount()).toBe(5)
+      expect(pool.maxConcurrency()).toBe(4)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+    } finally {
+      pool.releaseAll()
+      await delivery.close()
+      wakes.restore()
+    }
+  })
+
+  it('capacity: clears a pre-existing future wake when send slots fill, without churn', async () => {
+    vi.useFakeTimers()
+    const wakes = spySchedulerWakes()
+    const { registry, registrations } = await makeRegistry(capacityDevices)
+    const pool = capacitySender()
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender: pool.sender })
+    opened.push(() => delivery.close())
+    try {
+      const originInput = capacityOrigin()
+      delivery.attachOrigin(originInput)
+      // A lone future intent is unsaturated: its future wake exists before capacity fills.
+      await seedIntent(registry, registrations[4]!, source('capacity-future-wake'), Date.now() + 5_000)
+      await delivery.start()
+      expect(vi.getTimerCount(), 'owned timers before saturation (interval plus future wake)').toBe(2)
+      // Four due intents fill every slot; the kick that launches them must clear the old wake.
+      for (const registration of registrations.slice(0, 4)) await seedIntent(registry, registration, source(`capacity-fill-${registration.deviceId}`))
+      delivery.attachOrigin(originInput)
+      await pool.awaitEntry(4)
+      expect(pool.sendCount()).toBe(4)
+      expect(pool.maxConcurrency()).toBe(4)
+      expect(vi.getTimerCount(), 'owned timers while saturated (future wake cleared, none re-armed)').toBe(1)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(pool.sendCount()).toBe(4)
+      expect(vi.getTimerCount()).toBe(1)
+      // Clearing the future wake must not lose the future work: it still sends at its deadline.
+      pool.releaseAll()
+      await drainMicrotasks(() => vi.getTimerCount() === 2)
+      await vi.advanceTimersByTimeAsync(4_800)
+      expect(pool.sendCount()).toBe(4)
+      await vi.advanceTimersByTimeAsync(200)
+      await pool.awaitEntry(5)
+      expect(pool.sendCount()).toBe(5)
+      expect(pool.maxConcurrency()).toBe(4)
+      expect(pool.countFor('e')).toBe(1)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+    } finally {
+      pool.releaseAll()
+      await delivery.close()
+      wakes.restore()
+    }
+  })
+
+  it('capacity: a queued Test waits behind four held sends and starts before an ordinary queued intent', async () => {
+    vi.useFakeTimers()
+    const wakes = spySchedulerWakes()
+    const { registry, registrations } = await makeRegistry(capacityDevices)
+    const pool = capacitySender()
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender: pool.sender })
+    opened.push(() => delivery.close())
+    try {
+      delivery.attachOrigin(capacityOrigin())
+      for (const registration of registrations) await seedIntent(registry, registration, source(`capacity-test-queue-${registration.deviceId}`))
+      await delivery.start()
+      await pool.awaitEntry(4)
+      // e's due intent stays queued; a Test queues behind the saturated pool without churning wakes.
+      const queuedTest = delivery.test({ ...owner('e'), installationId: registrations[4]!.installationId })
+      const testOutcome = deferred<string>()
+      void queuedTest.then(() => testOutcome.resolve('resolved'), error => testOutcome.resolve(`rejected:${(error as Error).message}`))
+      await vi.advanceTimersByTimeAsync(100)
+      expect(pool.sendCount()).toBe(4)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+      expect(vi.getTimerCount()).toBe(1)
+      // One freed slot goes to the Test first, before the ordinary queued intent.
+      pool.release(0)
+      await pool.awaitEntry(5)
+      expect(pool.entries[4]).toEqual({ device: 'e', kind: 'test' })
+      expect(pool.maxConcurrency()).toBe(4)
+      pool.release(4)
+      await pool.awaitEntry(6)
+      expect(pool.entries[5]).toEqual({ device: 'e', kind: 'intent' })
+      expect(pool.sendCount()).toBe(6)
+      expect(pool.maxConcurrency()).toBe(4)
+      await expect(testOutcome.promise).resolves.toBe('resolved')
+      expect(wakes.zeroDelayWakes()).toBe(0)
+    } finally {
+      pool.releaseAll()
+      await delivery.close()
+      wakes.restore()
+    }
+  })
+
+  it('capacity: a freed slot progresses another due intent while a retry keeps its scheduled deadline', async () => {
+    vi.useFakeTimers()
+    const wakes = spySchedulerWakes()
+    const { registry, registrations } = await makeRegistry(capacityDevices)
+    const pool = capacitySender()
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender: pool.sender })
+    opened.push(() => delivery.close())
+    try {
+      delivery.attachOrigin(capacityOrigin())
+      for (const registration of registrations) await seedIntent(registry, registration, source(`capacity-retry-${registration.deviceId}`, { expiresAt: Date.now() + 60_000 }))
+      await delivery.start()
+      await pool.awaitEntry(4)
+      // The first send settles as a retry (1000ms backoff); the freed slot goes to the queued intent.
+      pool.release(0, { kind: 'retry' })
+      await pool.awaitEntry(5)
+      expect(pool.entries[4]!.device).toBe('e')
+      expect(pool.maxConcurrency()).toBe(4)
+      expect(pool.countFor('a')).toBe(1)
+      // All other sends finish; capacity is free but the retry must wait for its deadline.
+      await vi.advanceTimersByTimeAsync(999)
+      expect(pool.countFor('a')).toBe(1)
+      pool.releaseAll()
+      await drainMicrotasks(() => vi.getTimerCount() === 2)
+      expect(pool.countFor('a'), 'retry before its scheduled deadline').toBe(1)
+      expect(vi.getTimerCount(), 'deadline wake armed while unsaturated').toBe(2)
+      await vi.advanceTimersByTimeAsync(1)
+      await pool.awaitEntry(6)
+      expect(pool.countFor('a')).toBe(2)
+      expect(pool.maxConcurrency()).toBe(4)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+    } finally {
+      pool.releaseAll()
+      await delivery.close()
+      wakes.restore()
+    }
+  })
+
+  it('capacity: freed capacity does not send early when queued work is not yet due', async () => {
+    vi.useFakeTimers()
+    const wakes = spySchedulerWakes()
+    const { registry, registrations } = await makeRegistry(capacityDevices)
+    const pool = capacitySender()
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender: pool.sender })
+    opened.push(() => delivery.close())
+    try {
+      delivery.attachOrigin(capacityOrigin())
+      for (const registration of registrations.slice(0, 4)) await seedIntent(registry, registration, source(`capacity-early-${registration.deviceId}`))
+      await seedIntent(registry, registrations[4]!, source('capacity-early-e'), Date.now() + 2_000)
+      await delivery.start()
+      await pool.awaitEntry(4)
+      expect(pool.sendCount()).toBe(4)
+      // One slot frees long before the queued intent's deadline: no early send.
+      pool.release(0)
+      await drainMicrotasks(() => vi.getTimerCount() === 2)
+      expect(pool.sendCount(), 'early send before the queued deadline').toBe(4)
+      await vi.advanceTimersByTimeAsync(1_999)
+      expect(pool.sendCount()).toBe(4)
+      // At the deadline the wake starts the queued send without exceeding four concurrent sends.
+      await vi.advanceTimersByTimeAsync(1)
+      await pool.awaitEntry(5)
+      expect(pool.entries[4]).toEqual({ device: 'e', kind: 'intent' })
+      expect(pool.maxConcurrency()).toBe(4)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+    } finally {
+      pool.releaseAll()
+      await delivery.close()
+      wakes.restore()
+    }
+  })
+
+  it('capacity: close while saturated settles aborted sends, rejects the queued Test immediately and leaves no timers', async () => {
+    vi.useFakeTimers()
+    const wakes = spySchedulerWakes()
+    const { registry, registrations } = await makeRegistry(capacityDevices)
+    const entries: Array<{ device: string; kind: 'intent' }> = []
+    const sender = senderDouble(async ({ registration, signal }) => {
+      entries.push({ device: registration.deviceId, kind: 'intent' })
+      if (!signal.aborted) await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
+      return { kind: 'cancelled' }
+    })
+    const delivery = new PushDelivery({ host: hostDouble(), registry, sender })
+    opened.push(() => delivery.close())
+    try {
+      delivery.attachOrigin(capacityOrigin())
+      for (const registration of registrations) await seedIntent(registry, registration, source(`capacity-close-${registration.deviceId}`))
+      await delivery.start()
+      await drainMicrotasks(() => entries.length === 4)
+      expect(entries).toHaveLength(4)
+      const queuedTest = delivery.test({ ...owner('e'), installationId: registrations[4]!.installationId })
+      const testOutcome = deferred<string>()
+      void queuedTest.then(() => testOutcome.resolve('resolved'), error => testOutcome.resolve(`rejected:${(error as Error).message}`))
+      await vi.advanceTimersByTimeAsync(100)
+      expect(entries).toHaveLength(4)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+      // Close aborts the held sends; the queued Test rejects before close finishes draining tasks.
+      let closingSettled = false
+      const closing = delivery.close()
+      void closing.then(() => { closingSettled = true })
+      await expect(testOutcome.promise).resolves.toBe('rejected:push_test_unavailable')
+      expect(closingSettled, 'queued Test rejection observed before close drains tasks').toBe(false)
+      await closing
+      expect(entries).toHaveLength(4)
+      expect(vi.getTimerCount()).toBe(0)
+      // Advancing fake time afterwards causes no additional sends or wake timers.
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(entries).toHaveLength(4)
+      expect(vi.getTimerCount()).toBe(0)
+      expect(wakes.zeroDelayWakes()).toBe(0)
+    } finally {
+      await delivery.close()
+      wakes.restore()
+    }
   })
 })
 
