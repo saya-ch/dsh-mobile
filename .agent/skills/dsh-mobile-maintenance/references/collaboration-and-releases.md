@@ -4,7 +4,11 @@
 
 Read the current issue/PR body, comments, changed files, exact head SHA and checks. A reported symptom can come from the plugin, DSH, the App, a remote provider or another frontend module. Reproduce or trace the concrete path before attributing it to user error or upstream version changes.
 
+Before replying, merging or pushing, verify the active account in the tool that will perform the write and preserve the identity the user selected. CLI and connector sessions can use different accounts even for the same repository. Do not silently switch identities as a fallback; ask when the authorized identity is unavailable.
+
 A request to inspect is review-only. When integration is authorized, preserve original author commits, normally by merging the tested head and appending focused maintainer corrections. Local integration does not mean the GitHub PR is merged. Recheck a moved remote head before final integration; avoid an unreviewed rewrite of published history.
+
+Author commits appearing in history or a PR showing merged do not establish that its entire proposal shipped. Verify the final tree and actual package, then distinguish retained, reworked and deferred functionality. Reconcile PR descriptions and release notes with those decisions instead of carrying forward claims from an earlier implementation.
 
 Do not accept a draft replacement just because it has more features. Check available upstream seams, loss of existing fallbacks, input/Stop/Send reachability, desktop behavior, theme tokens and new responsibility for hardcoded third-party classes. A missing slot, inaccessible controls or unsupported runtime is a concrete reason to defer it. Larger proposals such as worker-isolated extension execution need their own lifecycle/resource/recovery design; a timeout is not synchronous isolation.
 
@@ -52,4 +56,11 @@ For a post-publication test repair, inspect the real package contents before dec
 
 ## Maintain the guidance
 
-Update the skill after a reusable failure or an architectural change, with links to the source/tests that now own the behavior. Delete superseded workarounds. Do not copy a conversation, all past PR numbers, local machine paths or a running task list into it. Preserve flexible judgment for ordinary maintenance; fixed ordering is justified for fragile publication, signing, installation and teardown operations, not for every small change.
+Update the skill when a demonstrated failure, changed architecture or durable user requirement would change another maintainer's decision. A resolved issue alone is not a reason to add a rule. Identify what a future Agent would otherwise misunderstand, and separate observed behavior from an unconfirmed explanation.
+
+- Check the entrypoint and relevant references first. Strengthen the existing owner or replace obsolete guidance rather than append a competing rule.
+- Put reusable decisions in the relevant reference; keep shared scope and routing in `SKILL.md`. Mechanically enforced behavior belongs in source/tests or a gate; current versions, open tasks, candidate hashes and one-off results belong in release or local evidence records.
+- Describe the applicable condition, decision and observable acceptance, with links to the owning code/tests. Preserve the reason a tempting alternative fails, without copying the conversation or making a particular implementation the only permitted solution. One unsafe cache design does not forbid all API caching; slow optional probes do not make cached in-memory metadata require a new request.
+- Validate changed links and instructions using the current repository checks. For a substantial or error-prone change, try a small realistic maintenance case without supplying the intended answer; include a case where the rule should not apply. Evaluate the resulting scope, decisions and evidence, not whether the Agent repeats the new wording.
+
+Remove superseded workarounds and keep ordinary maintenance flexible. Fixed ordering is justified for fragile publication, signing, installation and teardown operations, not every small edit. Maintaining guidance does not authorize a push, release, account change or unrelated configuration edit.

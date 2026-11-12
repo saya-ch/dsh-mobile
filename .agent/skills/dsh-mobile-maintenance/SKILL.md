@@ -49,7 +49,7 @@ Hand off with the outcome, affected client/Host/App, relevant checks, limitation
 
 ## Keep this skill useful
 
-When a demonstrated failure teaches a reusable lesson, update the relevant reference with the symptom, owning implementation and evidence that distinguishes it from similar failures. When architecture changes, replace or remove the obsolete guidance in the same task. Prefer a link to an existing guide over copying its commands or policy.
+When a demonstrated failure teaches a reusable lesson, [update the relevant reference](references/collaboration-and-releases.md#maintain-the-guidance) with the symptom, owning implementation and evidence that distinguishes it from similar failures. When architecture changes, replace or remove the obsolete guidance in the same task. Prefer a link to an existing guide over copying its commands or policy.
 
 Keep version numbers, open issue lists, candidate hashes, temporary paths and ongoing tasks in release metadata, the changelog or local test evidence. They are not skill content. Do not add hardcoded maintainer machines, credentials, universal plugin whitelists, fixed task templates or an approval checklist for ordinary local edits. Preserve the user's explicit choices; publication authorization is owned by [Collaboration and releases](references/collaboration-and-releases.md).
 
