@@ -43,14 +43,22 @@ class BackgroundNotificationWiringTest {
     @Test
     fun backgroundStatusAndFailureReasonsAreExposedWithoutSecrets() {
         val service = source("java/io/github/sayach/dshmobile/BackgroundNotificationService.kt")
+        val notification = source("java/io/github/sayach/dshmobile/BackgroundTaskNotification.kt")
         val bridge = source("java/io/github/sayach/dshmobile/NativeBridge.kt")
         val activity = source("java/io/github/sayach/dshmobile/MainActivity.kt")
         assertTrue(service.contains("fun status(context: Context): JSONObject"))
         assertTrue(service.contains("\"connected\""))
         assertTrue(service.contains("\"lastEventAt\""))
         assertTrue(service.contains("\"lastError\""))
-        // The page-side completion tag keeps `dsh-task-done-…`; this service must not collide.
-        assertTrue(service.contains("dsh-task-bg-"))
+        // The page-side completion tag keeps `dsh-task-done-…`; the background key must not collide
+        // and must stay the single record key for one Session+turn (issue #400).
+        assertTrue(notification.contains("dsh-task-bg-"))
+        assertTrue(service.contains("BackgroundTaskNotification.tag(sessionId, turn)"))
+        assertTrue(service.contains("BackgroundTaskNotification.pageOwnsDelivery"))
+        assertTrue(service.contains("BackgroundTaskNotification.eventText(event, \"title\")"))
+        assertTrue(service.contains("BackgroundTaskNotification.eventText(event, \"body\")"))
+        assertTrue(activity.contains("AppProcessForeground.entered()"))
+        assertTrue(activity.contains("AppProcessForeground.exited()"))
         assertTrue(service.contains("Log.w(LOG_TAG"))
         assertTrue(bridge.contains("var onGetBackgroundNotificationStatus"))
         assertTrue(bridge.contains("status?.invoke()"))
