@@ -578,11 +578,13 @@ describe('dedicated mobile layout boot', () => {
       closePanels: 'Chiudi pannelli',
       workspaceNavigation: 'Navigazione area di lavoro e sessioni',
       backToConversation: 'Torna alla conversazione',
+      composerRestore: 'Mostra il campo di scrittura',
     })
     expect(MOBILE_LAYOUT_MESSAGES.en.closePanels).toBe('Close panels')
     expect(MOBILE_LAYOUT_MESSAGES.en.backToConversation).toBe('Back to conversation')
     expect(MOBILE_LAYOUT_MESSAGES.zh.workspaceNavigation).toBe('工作区与会话导航')
     expect(MOBILE_LAYOUT_MESSAGES.zh.backToConversation).toBe('返回会话')
+    expect(MOBILE_LAYOUT_MESSAGES.zh.composerRestore).toBe('展开输入框')
   })
 
   it('adapts stable DSH question surfaces for touch screens', () => {

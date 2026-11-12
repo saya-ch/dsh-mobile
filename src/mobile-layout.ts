@@ -1,7 +1,14 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
+import type { ComposerReadingModeHandle } from './composer-collapse.js'
 import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 import { MOBILE_LAYOUT_MESSAGES, type MobileLayoutLanguage } from './mobile-layout-messages.js'
+import {
+  installComposerReadingMode,
+  readComposerCollapseEnabled,
+  selectActiveSessionRunning,
+  subscribeComposerCollapseEnabled,
+} from './composer-collapse.js'
 import {
   SESSION_PREFETCH_DEFAULTS,
   SessionPrefetchTracker,
@@ -13,10 +20,14 @@ import {
 
 export { MOBILE_LAYOUT_MESSAGES } from './mobile-layout-messages.js'
 export type { MobileLayoutLanguage } from './mobile-layout-messages.js'
+export type { ComposerReadingModeHandle } from './composer-collapse.js'
+// Re-exported so the browser fixture can drive the shipped layout bundle directly;
+// this file already publishes the other DOM policies it installs.
+export { installComposerReadingMode, readComposerCollapseEnabled, selectActiveSessionRunning } from './composer-collapse.js'
 
 interface SessionState {
   readonly current?: string
-  readonly byId: Readonly<Record<string, { readonly blank?: boolean; readonly title?: string } | undefined>>
+  readonly byId: Readonly<Record<string, { readonly blank?: boolean; readonly title?: string; readonly running?: boolean } | undefined>>
 }
 
 interface MobileRootProps {
@@ -711,6 +722,17 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
 .dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=color]):not([type=file]):not([type=image])):not([role="switch"],[role="checkbox"],[role="radio"],[role="slider"],button[class*="_cardTitle"][class*="_cardOpen"],[data-dsh-adapt="off"],[data-dsh-adapt="off"] *){min-width:44px!important;min-height:44px!important}
 .dshm-main[data-dsh-panel="1"] [data-slot="main"]>:not([data-dsh-adapt="off"]) :is(button,[role="button"],a):not([data-dsh-adapt="off"],[data-dsh-adapt="off"] *){touch-action:manipulation}
 }
+/* Reading mode (issue #194): after scrolling down a long conversation the
+   composer editor collapses so the reading area is unobstructed. The card stays
+   and keeps the upstream Send/Stop row; its generated label is the way back, and
+   the text comes from --dshm-composer-restore-label so nothing is injected into
+   the React-managed card. Opt-in, off by default. */
+[data-dsh-mobile-composer-collapsed="true"] [data-composer-card] :is([contenteditable="true"],[contenteditable="plaintext-only"],[contenteditable=""],textarea){display:none!important}
+[data-dsh-mobile-composer-collapsed="true"] [data-composer-card]{
+  padding-top:6px!important;padding-bottom:6px!important;min-height:0!important;cursor:pointer}
+[data-dsh-mobile-composer-collapsed="true"] [data-composer-card]::before{
+  content:var(--dshm-composer-restore-label, "");display:flex;align-items:center;
+  justify-content:center;min-height:44px;font-size:13px;opacity:.75;pointer-events:none}
 `
 
 function MobileAppFrame(props: MobileRootProps & {
@@ -829,6 +851,55 @@ function MobileAppFrame(props: MobileRootProps & {
       prefetchDispose.current = undefined
     }
   }, [activeSessionId, prefetchEnabled])
+  // Reading mode (issue #194): while the user scrolls down a long conversation,
+  // collapse the composer editor so the reading area is unobstructed; tapping the
+  // collapsed card, focusing the composer, opening the keyboard, scrolling back up,
+  // having a draft, or a running reply expands it again. Opt-in, off by default
+  // (see COMPOSER_COLLAPSE_DEFAULTS). The composer and its draft stay owned by DSH;
+  // this only toggles presentation.
+  //
+  // The switch is read from the persisted flag rather than a module singleton: the
+  // settings row ships in the client bundle while this file is inlined into the
+  // layout bundle, so two copies would each hold their own value and the toggle
+  // would only apply after a reload.
+  const collapseEnabled = useSyncExternalStore(
+    subscribeComposerCollapseEnabled,
+    readComposerCollapseEnabled,
+    () => false,
+  )
+  // A running reply is not a composer phase: DSH reports it on the Session summary,
+  // and data-phase returns to plain as soon as the submission is accepted, so the
+  // phase alone would let the composer vanish mid-stream. Read the real flag.
+  const activeRunning = props.useSessions(selectActiveSessionRunning)
+  const runningRef = useRef(activeRunning)
+  runningRef.current = activeRunning
+  const active = collapseEnabled && hasSession
+  const readingMode = useRef<ComposerReadingModeHandle | undefined>(undefined)
+  // The DOM wiring lives in installComposerReadingMode so the scroll container,
+  // the dead zone and the guards can be driven in a browser fixture, not only
+  // asserted from source text.
+  useEffect(() => {
+    if (!active) return
+    const installed = installComposerReadingMode({
+      restoreLabel: messages.composerRestore,
+      isRunning: () => runningRef.current,
+    })
+    readingMode.current = installed
+    if (runningRef.current) installed.expand()
+    return () => {
+      readingMode.current = undefined
+      installed.dispose()
+    }
+    // activeSessionId tears the mode down and reinstalls it, so a collapse never
+    // leaks into the next conversation and the new scroller starts bound.
+  }, [active, activeSessionId, messages.composerRestore])
+  useEffect(() => {
+    if (!activeRunning) return
+    // Reset the dead zone too: without this the next downward scroll immediately
+    // re-collapses the composer the user just came back for.
+    readingMode.current?.expand()
+    document.documentElement.setAttribute('data-dsh-mobile-composer-collapsed', 'false')
+  }, [activeRunning])
 
   useEffect(() => {
     const observer = new MutationObserver(() => { setDocumentLanguage(document.documentElement.lang) })

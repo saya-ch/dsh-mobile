@@ -15,6 +15,7 @@ import { installNativeMobileSurface, NATIVE_MOBILE_STYLES, resolveNativeMobileLa
 import { installVoiceSession } from './voice-session.js'
 import { installDraftTransfer } from './draft-transfer.js'
 import { installMobileFontPreference, MobileFontSizeRow } from './mobile-font.js'
+import { COMPOSER_COLLAPSE_SETTINGS_ORDER, ComposerCollapseSettings } from './composer-collapse-settings.js'
 import { MobileDisplayScaleRow } from './mobile-display-scale.js'
 import { MobileNativeSettingsActionController, type MobileNativeSettingsAction } from './mobile-native-settings-action.js'
 import { CLIENT_MODULE_STYLES, ClientModuleSettingsRow, closeClientModuleDialog, disposeClientModuleDialogs } from './client-module-ui.js'
@@ -46,6 +47,11 @@ import { dismissMobileDirectoryPicker, hasUpstreamBrowsePicker, installMobileDir
 
 export { shouldNudgeReconnect, shouldRenewSession } from './client-recovery.js'
 export type { MobileConnectionState } from './client-recovery.js'
+
+// The reading-mode opt-in lives in this bundle (the settings row writes it) while
+// the layout bundle reads it; publishing both sides keeps the cross-bundle
+// contract driveable from the shipped bundles in the browser fixture.
+export { readComposerCollapseEnabled, writeComposerCollapseEnabled } from './composer-collapse.js'
 
 export { DIAGNOSTIC_REASON_MESSAGES, DIAGNOSTIC_NETWORK_MESSAGES, DIAGNOSTIC_SCOPE_MESSAGES, LOCALIZED_DIAGNOSTIC_COPY, MOBILE_CONTROL_MESSAGES } from './client-messages.js'
 export type { MobileControlLocale } from './client-messages.js'
@@ -5869,6 +5875,9 @@ export function apply(ctx: ClientContext): void {
         const removeFontSize = ctx.slots.register({
           name: 'settings.general.item', id: 'font-size', order: 11, priority: -1,
         }, () => createElement(MobileFontSizeRow, { preference: localFont.preference, locale: selectedMobileControlLocale() }))
+        const removeComposerCollapse = ctx.slots.register({
+          name: 'settings.general.item', id: 'dsh-mobile-composer-collapse', order: COMPOSER_COLLAPSE_SETTINGS_ORDER,
+        }, () => createElement(ComposerCollapseSettings, { locale: selectedMobileControlLocale() }))
         const removeDisplayScale = ctx.slots.register({
           name: 'settings.general.item', id: 'dsh-mobile-display-scale', order: 12,
         }, () => createElement(MobileDisplayScaleRow, { locale: selectedMobileControlLocale() }))
@@ -5892,6 +5901,7 @@ export function apply(ctx: ClientContext): void {
           removeTaskNotifications()
           removeSwitchComputer()
           removeDisplayScale()
+          removeComposerCollapse()
           removeFontSize()
         }
       })
