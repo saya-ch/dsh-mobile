@@ -54,11 +54,19 @@ class BackgroundNotificationWiringTest {
         // and must stay the single record key for one Session+turn (issue #400).
         assertTrue(notification.contains("dsh-task-bg-"))
         assertTrue(service.contains("BackgroundTaskNotification.tag(sessionId, turn)"))
-        assertTrue(service.contains("BackgroundTaskNotification.pageOwnsDelivery"))
+        // The service is the only delivery decision-maker; the page yields on the published
+        // `enabled && connected && canPost` status, and the OS-level gate lives in one helper.
+        assertFalse(service.contains("AppProcessForeground"))
+        assertTrue(service.contains("if (!TaskNotificationPublisher.canPost(this))"))
+        assertTrue(service.contains("recordFailure(\"notify:blocked\")"))
+        assertTrue(service.contains("\"canPost\""))
+        assertTrue(service.contains("TaskNotificationPublisher.canPost(context)"))
+        val publisher = source("java/io/github/sayach/dshmobile/TaskNotificationPublisher.kt")
+        assertTrue(publisher.contains("fun canPost(context: Context): Boolean"))
+        assertTrue(publisher.contains("NotificationManagerCompat.from(context).areNotificationsEnabled()"))
+        assertTrue(publisher.contains("IMPORTANCE_NONE"))
         assertTrue(service.contains("BackgroundTaskNotification.eventText(event, \"title\")"))
         assertTrue(service.contains("BackgroundTaskNotification.eventText(event, \"body\")"))
-        assertTrue(activity.contains("AppProcessForeground.entered()"))
-        assertTrue(activity.contains("AppProcessForeground.exited()"))
         assertTrue(service.contains("Log.w(LOG_TAG"))
         assertTrue(bridge.contains("var onGetBackgroundNotificationStatus"))
         assertTrue(bridge.contains("status?.invoke()"))

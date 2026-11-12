@@ -142,27 +142,13 @@ class BackgroundTaskNotificationTest {
     }
 
     @Test
-    fun thePageOwnsDeliveryOnlyWhileVisible() {
-        assertTrue(BackgroundTaskNotification.pageOwnsDelivery(pageVisible = true))
-        assertFalse(BackgroundTaskNotification.pageOwnsDelivery(pageVisible = false))
-    }
-
-    @Test
-    fun processVisibilityFollowsActivityStartsAndStops() {
-        AppProcessForeground.entered()
-        try {
-            assertTrue(AppProcessForeground.isVisible())
-            AppProcessForeground.exited()
-            assertFalse(AppProcessForeground.isVisible())
-            // A redundant stop must not underflow into a negative count.
-            AppProcessForeground.exited()
-            assertFalse(AppProcessForeground.isVisible())
-            AppProcessForeground.entered()
-            assertTrue(AppProcessForeground.isVisible())
-        } finally {
-            AppProcessForeground.exited()
-            if (AppProcessForeground.isVisible()) AppProcessForeground.exited()
-        }
-        assertFalse(AppProcessForeground.isVisible())
+    fun canPostRequiresThePermissionAndAnUnblockedChannel() {
+        // Both gates open: the record can appear.
+        assertTrue(BackgroundTaskNotification.canPost(notificationsEnabled = true, taskChannelBlocked = false))
+        // Android 13+ permission revoked: notify() is a silent no-op.
+        assertFalse(BackgroundTaskNotification.canPost(notificationsEnabled = false, taskChannelBlocked = false))
+        // The task-notification channel switched off at IMPORTANCE_NONE: notify() is also a no-op.
+        assertFalse(BackgroundTaskNotification.canPost(notificationsEnabled = true, taskChannelBlocked = true))
+        assertFalse(BackgroundTaskNotification.canPost(notificationsEnabled = false, taskChannelBlocked = true))
     }
 }
