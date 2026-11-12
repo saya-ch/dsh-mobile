@@ -5,7 +5,12 @@ import java.security.MessageDigest
 
 /**
  * Decisions for the background completion notification (issue #400): which text the record shows,
- * which notification key it uses, and when the service must leave delivery to the live page.
+ * which notification key it uses, and whether the OS can show a record at all.
+ *
+ * The service is the only delivery decision-maker — it posts for every announced event and the key
+ * collapses a repeated Session and turn into one record — so nothing here decides to hand delivery
+ * back to the live page. The page yields instead, and only while the App reports `enabled`,
+ * `connected` and `canPost`.
  *
  * The Android pieces (`NotificationManager`, the service) stay in
  * [BackgroundNotificationService] and [TaskNotificationPublisher]; everything here is pure Kotlin so
