@@ -113,7 +113,7 @@ export interface PublicInboxLike {
 }
 export interface PublicAgentLike {
   readonly id: string
-  readonly session?: { readonly id?: string; readonly header?: { readonly parentSession?: string } }
+  readonly session?: { readonly id?: string; readonly header?: { readonly parentSession?: string; readonly origin?: 'subagent' } }
   readonly inbox?: PublicInboxLike
 }
 export interface PublicProjectionDefinition<State = unknown, Wire = unknown> {

@@ -1,5 +1,6 @@
 import { OUTCOME_COALESCE_MS, OUTCOME_TTL_MS } from './contracts.js'
 import type { ContextLike, PublicAgentLike, PushReconcileResult, PushSource } from './contracts.js'
+import { isPushRuntimeChild, pushRootAgent } from './ownership.js'
 
 type Candidate = { source: PushSource; timer?: ReturnType<typeof setTimeout> | undefined; active: boolean }
 type Emit = (source: PushSource) => void
@@ -149,19 +150,9 @@ export class OutcomeLifetimes {
     }
   }
   #isRuntimeChild(agent: PublicAgentLike): boolean {
-    const registry = this.#ctx.agents
-    if (!registry?.isOwnedBy || !registry.list) return false
-    return registry.list().some(owner => registry.isOwnedBy?.(agent.id, owner))
+    return isPushRuntimeChild(this.#ctx.agents, agent)
   }
   #root(agent: PublicAgentLike): PublicAgentLike {
-    const registry = this.#ctx.agents
-    if (!registry?.isOwnedBy || !registry.list) return agent
-    let current = agent
-    for (let count = 0; count < 64; count++) {
-      const owner = registry.list().find(candidate => registry.isOwnedBy?.(current.id, candidate))
-      if (!owner) return current
-      current = owner
-    }
-    return current
+    return pushRootAgent(this.#ctx.agents, agent)
   }
 }

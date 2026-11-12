@@ -217,10 +217,19 @@ export function apply(ctx) {
         agentOptions: { provider: 'push-integration-no-provider', model: 'never-invoked' },
       })
       handles.set(agentSessionId, handle)
-      const agentIdentity = { sessionMatchesTarget: handle.agent.session.id === agentSessionId,
-        sameRegisteredAgent: ctx.agents.get(handle.agent.id) === handle.agent,
-        isRuntimeRoot: ctx.agents.roots().includes(handle.agent),
-        hasLiveOwner: ctx.agents.list().some(owner => ctx.agents.isOwnedBy(handle.agent.id, owner)) }
+      const agentIdentity = (() => {
+        const base = { sessionMatchesTarget: handle.agent.session.id === agentSessionId,
+          sameRegisteredAgent: ctx.agents.get(handle.agent.id) === handle.agent }
+        if (typeof ctx.agents.roots === 'function' && typeof ctx.agents.isOwnedBy === 'function') {
+          return { ...base, isRuntimeRoot: ctx.agents.roots().includes(handle.agent),
+            hasLiveOwner: ctx.agents.list().some(owner => ctx.agents.isOwnedBy(handle.agent.id, owner)) }
+        }
+        // DSH 0.2.2-rc.2 removed AgentRegistry#roots()/#isOwnedBy(); use the durable header.
+        const header = handle.agent.session?.header
+        const parentSession = header?.origin === 'subagent' ? header?.parentSession : undefined
+        return { ...base, isRuntimeRoot: parentSession === undefined,
+          hasLiveOwner: typeof parentSession === 'string' && ctx.agents.get(parentSession) !== undefined }
+      })()
       result.agentIdentity = agentIdentity
       if (!agentIdentity.sessionMatchesTarget || !agentIdentity.sameRegisteredAgent || !agentIdentity.isRuntimeRoot || agentIdentity.hasLiveOwner) {
         throw new Error('fixture_agent_unavailable')

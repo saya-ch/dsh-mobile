@@ -1,5 +1,6 @@
 import { ATTENTION_TTL_MS, REQUEST_SETTLE_MS } from './contracts.js'
 import type { ContextLike, PublicAgentLike, PushCategory, PushReconcileResult, PushSource } from './contracts.js'
+import { pushRootAgent } from './ownership.js'
 
 type RequestRecord = { source: PushSource; settled: boolean; queuedReply: boolean; timed: boolean; timer?: ReturnType<typeof setTimeout> | undefined; live: boolean; disposeAbort?: (() => void) | undefined }
 type Emit = (source: PushSource) => void
@@ -159,15 +160,7 @@ export class RequestLifetimes {
     return rec
   }
   #root(agent: PublicAgentLike): PublicAgentLike {
-    const registry = this.#ctx.agents
-    if (!registry?.isOwnedBy || !registry.get || !registry.list) return agent
-    let current = agent
-    for (let count = 0; count < 64; count++) {
-      const parent = registry.list().find(candidate => registry.isOwnedBy?.(current.id, candidate))
-      if (!parent) break
-      current = parent
-    }
-    return current
+    return pushRootAgent(this.#ctx.agents, agent)
   }
   #arm(rec: RequestRecord): void {
     if (rec.timer) return

@@ -11,8 +11,6 @@ function hasContract(ctx: ContextLike): boolean {
     && typeof ctx.sessionQuery?.observeSession === 'function'
     && typeof ctx.agents?.get === 'function'
     && typeof ctx.agents.list === 'function'
-    && typeof ctx.agents.roots === 'function'
-    && typeof ctx.agents.isOwnedBy === 'function'
     && ctx.userQuestions !== undefined && ctx.approval !== undefined
   }
 
