@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.7">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.7**. Add an opt-in session prefetch, close an expiring Gateway WebSocket normally with clearer authentication-failure categories, and prepare the background-reminder status and in-place notification open for Android 0.7.4; also update the plugin icon and iroh troubleshooting notes. Plugin and Android App releases remain independent; Android App 0.7.4 is now published with the device-side page cache, real background-reminder status and in-place notification open. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.7) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.8**. Restore Web Push on DSH 0.2.2-rc.2 after its AgentRegistry ownership change, carry the Session title and a bounded summary with task-completion events and yield page notifications only when the App reports it can post, add an opt-in reading mode, and stop arming push wake timers while the send queue is at capacity. Plugin and Android App releases remain independent; Android App 0.7.4 remains the published app. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
@@ -449,6 +449,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.8` | On the `0.2.2-rc.2` target, restore Web Push after the AgentRegistry ownership change, carry the Session title and a bounded summary with task-completion events and yield page notifications only when the App reports it can post, add an opt-in reading mode, and stop arming push wake timers while the send queue is at capacity. The Android App is 0.7.4 |
 | `0.8.7` | On the `0.2.2-rc.1` packed target, add an opt-in session prefetch, close an expiring Gateway WebSocket normally with clearer authentication-failure categories, and prepare the background-reminder status and in-place notification open for Android 0.7.4; also update the plugin icon and iroh troubleshooting notes. The Android App is 0.7.4, with the device-side page cache and real background-reminder status |
 | `0.8.6` | On the `0.2.2-rc.1` packed target, forward paired third-party plugin `x-dsh-*` headers, keep the push subscription after a Disable, expose the trusted Host push-text service, and fix Windows firewall verification, iroh directory diagnostics and the LAN diagnostic scope. The Android App is 0.7.3 with opt-in background reminders |
 | `0.8.5` | Maintenance and performance update on the `0.2.2-rc.1` packed-DSH target: catalog cache, Desktop update targeting, CGNAT LAN discovery, firewall protection and a macOS permission notice. The Android App remains 0.7.2 |
