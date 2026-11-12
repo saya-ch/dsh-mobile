@@ -4,6 +4,7 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 
 - 显示名称与 Android 版一致：**DeepSeek Harness**
 - 启动图标复用 Android 主启动图标（`apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`，生成于 `DshMobile.Win/app.ico`）
+- 组件职责、三通道数据流与信任模型见 [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## 功能
 
@@ -21,6 +22,7 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 ```
 apps/windows/
 ├── .gitignore                # 忽略 bin/ obj/ data/
+├── ARCHITECTURE.md           # 架构与安全模型
 └── DshMobile.Win/
     ├── *.cs / *.xaml          # 源码（WPF + WebView2）
     ├── app.ico                # Android 同款启动图标
