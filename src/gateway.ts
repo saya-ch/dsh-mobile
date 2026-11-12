@@ -4167,8 +4167,10 @@ export class MobileAccessGateway {
    *
    * `sessionId` and `turn` always stay; `title`/`body` are optional and are
    * emitted together so an older App ignores them and falls back to its own
-   * localized text. The gateway re-bounds them even though the watcher already
-   * bounded its output, because this method is also callable by tests/fixtures.
+   * localized text. This layer re-bounds the strings (code-point safe) instead
+   * of trusting the caller; redaction is deliberately owned only by the
+   * task-events derivation, not repeated here, because this method is also
+   * callable by fixtures that bypass the watcher.
    */
   broadcastTaskEvent(event: {
     readonly sessionId: string
@@ -4179,8 +4181,8 @@ export class MobileAccessGateway {
     if (this.closing) return
     const payload: Record<string, string | number> = { sessionId: String(event.sessionId), turn: Number(event.turn) || 0 }
     if (typeof event.title === 'string' && event.title !== '' && typeof event.body === 'string' && event.body !== '') {
-      payload.title = event.title.slice(0, TASK_ANNOUNCEMENT_LIMITS.title)
-      payload.body = event.body.slice(0, TASK_ANNOUNCEMENT_LIMITS.body)
+      payload.title = Array.from(event.title).slice(0, TASK_ANNOUNCEMENT_LIMITS.title).join('')
+      payload.body = Array.from(event.body).slice(0, TASK_ANNOUNCEMENT_LIMITS.body).join('')
     }
     const serialized = JSON.stringify(payload)
     for (const listener of this.taskEventListeners) listener(serialized)

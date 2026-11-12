@@ -115,33 +115,60 @@ describe('task completion watcher', () => {
     await vi.waitFor(() => { expect(noTitle.announced).toEqual([{ sessionId: 'session-1', turn: 3 }]) })
   })
 
-  it('bounds, normalizes and redacts paths, URLs and credentials', async () => {
+  it('bounds and normalizes a safe first line', async () => {
     const { handlers, announced } = context(() => `  ${'T'.repeat(200)}\u0000 title  `)
     handlers.forEach(handler => {
-      handler(root, assistantMessage('Open https://secret.example.invalid/x and C:\\Users\\me\\key.txt with token=abcdefgh', 3))
+      handler(root, assistantMessage('B'.repeat(400), 3))
       handler(root, turnEnd({ kind: 'completed' }, 3))
     })
     await vi.waitFor(() => expect(announced).toHaveLength(1))
     const event = announced[0]!
     expect(event.title).toHaveLength(TASK_ANNOUNCEMENT_LIMITS.title)
     expect(event.title).not.toContain('\u0000')
-    expect(event.body!.length).toBeLessThanOrEqual(TASK_ANNOUNCEMENT_LIMITS.body)
-    expect(event.body).not.toContain('secret.example.invalid')
-    expect(event.body).not.toContain('C:\\Users')
-    expect(event.body).not.toContain('abcdefgh')
-    expect(event.body).toContain('[url]')
-    expect(event.body).toContain('[path]')
-    expect(event.body).toContain('token=[redacted]')
+    expect(event.body).toHaveLength(TASK_ANNOUNCEMENT_LIMITS.body)
   })
 
-  it('truncates an over-long first line to the wire bound', async () => {
+  it('truncates on code points without leaving a lone surrogate', async () => {
     const { handlers, announced } = context(() => 'Long answer')
     handlers.forEach(handler => {
-      handler(root, assistantMessage('B'.repeat(400), 3))
+      handler(root, assistantMessage('😀'.repeat(300), 3))
       handler(root, turnEnd({ kind: 'completed' }, 3))
     })
     await vi.waitFor(() => expect(announced).toHaveLength(1))
-    expect(announced[0]?.body).toHaveLength(TASK_ANNOUNCEMENT_LIMITS.body)
+    const body = announced[0]!.body!
+    expect(Array.from(body)).toHaveLength(TASK_ANNOUNCEMENT_LIMITS.body)
+    expect(body).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u)
+  })
+
+  it('rejects the whole first line for real path, URL and credential shapes', async () => {
+    const shapes: ReadonlyArray<{ text: string; forbidden: readonly string[] }> = [
+      { text: 'Saved C:\\Users\\Jane Doe\\secret.txt', forbidden: ['Jane Doe', 'secret.txt'] },
+      { text: '"C:\\Users\\Jane Doe\\a b\\key.pem"', forbidden: ['Jane Doe', 'key.pem'] },
+      { text: '\\\\fileserver\\share\\payroll.xlsx', forbidden: ['fileserver', 'payroll.xlsx'] },
+      {
+        text: 'JWT eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+        forbidden: ['eyJhbGci', 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV'],
+      },
+      { text: 'AWS AKIAIOSFODNN7EXAMPLE', forbidden: ['AKIAIOSFODNN7EXAMPLE'] },
+      { text: '-----BEGIN RSA PRIVATE KEY-----', forbidden: ['PRIVATE KEY'] },
+      { text: 'password is hunter2', forbidden: ['hunter2'] },
+      { text: 'Open https://secret.example.invalid/x', forbidden: ['secret.example.invalid'] },
+      { text: 'Open C:\\Users\\me\\key.txt with token=abcdefgh', forbidden: ['C:\\Users', 'abcdefgh'] },
+    ]
+    for (const shape of shapes) {
+      const { handlers, announced } = context(() => 'Fix login')
+      handlers.forEach(handler => {
+        handler(root, assistantMessage(shape.text, 3))
+        handler(root, turnEnd({ kind: 'completed' }, 3))
+      })
+      await vi.waitFor(() => expect(announced).toHaveLength(1))
+      const event = announced[0]!
+      // Whole-line rejection: both optional fields disappear; the App falls
+      // back to its fixed strings instead of receiving a partial path/token.
+      expect(event).toEqual({ sessionId: 'session-1', turn: 3 })
+      const serialized = JSON.stringify(event)
+      for (const forbidden of shape.forbidden) expect(serialized).not.toContain(forbidden)
+    }
   })
 
   it('omits the pair when the body was only a path or credential', async () => {

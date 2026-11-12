@@ -567,12 +567,18 @@ describe('gateway extension namespace', () => {
     const richData = JSON.parse(rich.slice(rich.lastIndexOf('data: ') + 'data: '.length).trim()) as Record<string, unknown>
     expect(richData).toEqual({ sessionId: 'session-9', turn: 5, title: 'Session 9', body: 'Done.' })
 
-    // The gateway re-bounds the fields even when a caller bypasses the watcher.
-    gateway.broadcastTaskEvent({ sessionId: 'session-9', turn: 6, title: 't'.repeat(200), body: 'b'.repeat(400) })
+    // The gateway re-bounds the fields even when a caller bypasses the watcher,
+    // and it must count Unicode code points so an emoji is never split into a
+    // lone surrogate on the lock screen.
+    gateway.broadcastTaskEvent({ sessionId: 'session-9', turn: 6, title: '😀'.repeat(120), body: '😀'.repeat(300) })
     const bounded = await stream.waitFor('"turn":6')
     const boundedData = JSON.parse(bounded.slice(bounded.lastIndexOf('data: ') + 'data: '.length).trim()) as Record<string, string | number>
-    expect(String(boundedData.title)).toHaveLength(80)
-    expect(String(boundedData.body)).toHaveLength(200)
+    const boundedTitle = String(boundedData.title)
+    const boundedBody = String(boundedData.body)
+    expect(Array.from(boundedTitle)).toHaveLength(80)
+    expect(Array.from(boundedBody)).toHaveLength(200)
+    expect(boundedTitle).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u)
+    expect(boundedBody).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u)
   })
 
   it('serves task and revocation events to the native background stream without a document view', async () => {

@@ -56,9 +56,10 @@ export interface TaskEventWatcherOptions {
 export const TASK_EVENT_DEBOUNCE_MS = 1_000
 
 /**
- * Wire bounds for the optional title/body. They mirror the Android notification
- * policy (`TASK_NOTIFY_LIMITS`) so the page's own notifications and the
- * background service never publish a value one side would truncate again.
+ * Wire bounds for the optional title/body. They mirror the Android bridge
+ * policy constants (`NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS` = 80,
+ * `TASK_NOTIFICATION_BODY_CHARS` = 200) so the App never truncates a plugin
+ * value again with a different unit.
  */
 export const TASK_ANNOUNCEMENT_LIMITS = Object.freeze({
   title: 80,
@@ -89,33 +90,48 @@ function turnData(value: unknown): { turn: number; completed: boolean } {
 }
 
 const CONTROL_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/gu
-const PLACEHOLDER = /\[(?:redacted|path|url)\]/gu
 
 /**
- * Remove text that must never reach a lock screen: URLs, filesystem paths and
- * common credential shapes. The body comes from a user-visible assistant
- * message, not from logs, but a model can still quote a path or a token.
+ * Any first line matching one of these is discarded whole rather than
+ * partially rewritten. A partial path replacement is how a username or file
+ * name leaks: e.g. a Windows path with a space used to leave the tail behind.
+ * The body comes from a user-visible assistant message, not from logs, but a
+ * model can still quote a path, a URL, a JWT/AWS key or a PEM header.
  */
-function redactSensitive(text: string): string {
-  return text
-    .replace(/\b(?:https?|file):\/\/\S+/giu, '[url]')
-    .replace(/(?:^|\s)[A-Za-z]:\\[^\s]+/gu, ' [path]')
-    .replace(/(?:^|\s)\/(?:[^\s/]+\/)+[^\s]*/gu, ' [path]')
-    .replace(/(?:^|\s)~\/[^\s]+/gu, ' [path]')
-    .replace(/\b(?:sk|rk|pk)-[A-Za-z0-9_-]{12,}\b/gu, '[redacted]')
-    .replace(/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{16,}\b/gu, '[redacted]')
-    .replace(/\bxox[baprs]-[A-Za-z0-9-]{10,}\b/gu, '[redacted]')
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{12,}/giu, 'Bearer [redacted]')
-    .replace(/\b(api[_-]?key|access[_-]?token|token|secret|password|passwd)\s*[:=]\s*['"]?[^\s'"]{4,}/giu, '$1=[redacted]')
-}
+const SENSITIVE_TEXT_PATTERNS: readonly RegExp[] = [
+  /\b(?:https?|file):\/\/\S+/iu,
+  // Windows drive paths, with spaces and quotes allowed inside the path.
+  /[A-Za-z]:[\\/][^\r\n"']*/u,
+  // UNC path.
+  /\\\\[^\s"']+/u,
+  // Home-relative POSIX path.
+  /~[\\/][^\r\n"']*/u,
+  // Multi-segment POSIX path, optionally quoted.
+  /(?:^|[\s"'(])\/(?:[^\s/"']+\/)+[^\s"']*/u,
+  // Single-segment POSIX path (e.g. /tmp).
+  /(?:^|\s)\/[A-Za-z0-9._-]+(?=\s|$)/u,
+  // JWT-looking compact serialization (also catches a truncated first segment).
+  /\beyJ[\w-]{8,}/u,
+  // AWS access key id.
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/u,
+  // PEM private-key header (body is a single line, so the header is the leak).
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/u,
+  // "password is …" / "token was …" prose shapes.
+  /\b(?:password|passphrase|token|secret)\s+(?:is|was)\s+\S+/iu,
+  /\b(?:sk|rk|pk)-[A-Za-z0-9_-]{12,}\b/u,
+  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{16,}\b/u,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/iu,
+  /\bBearer\s+[A-Za-z0-9._~+/=-]{12,}/iu,
+  /\b(?:api[_-]?key|access[_-]?token|token|secret|password|passwd)\s*[:=]\s*['"]?[^\s'"]{4,}/iu,
+]
 
 function boundedText(value: unknown, limit: number): string | undefined {
   if (typeof value !== 'string') return undefined
-  const normalized = redactSensitive(
-    value.normalize('NFC').replace(CONTROL_CHARACTERS, ' ').replace(/\s+/gu, ' ').trim(),
-  ).trim()
-  // A body that consisted only of a redacted path/token carries no useful text.
-  if (normalized === '' || normalized.replace(PLACEHOLDER, '').trim() === '') return undefined
+  const normalized = value.normalize('NFC').replace(CONTROL_CHARACTERS, ' ').replace(/\s+/gu, ' ').trim()
+  if (normalized === '') return undefined
+  // Whole-line rejection, not partial replacement: the line is either safe or
+  // omitted so no path/credential tail can survive in the lock-screen text.
+  if (SENSITIVE_TEXT_PATTERNS.some(pattern => pattern.test(normalized))) return undefined
   const characters = Array.from(normalized)
   return characters.length > limit ? characters.slice(0, limit).join('').trim() : normalized
 }

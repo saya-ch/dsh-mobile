@@ -31,7 +31,11 @@ export const TASK_NOTIFY_MIN_BUSY_MS = 20_000
 /** Maximum quiet period worth waiting through before giving up on a run. */
 export const TASK_NOTIFY_STALE_MS = 30 * 60_000
 
-/** Wire bounds mirrored by the Android notification policy. */
+/**
+ * Maximum title/body/tag lengths accepted by the Android bridge policy
+ * (`NativeBridgePolicy.TASK_NOTIFICATION_TITLE_CHARS` = 80,
+ * `TASK_NOTIFICATION_BODY_CHARS` = 200; `TASK_NOTIFICATION_TAG_CHARS` bounds the tag).
+ */
 export const TASK_NOTIFY_LIMITS = Object.freeze({
   title: 80,
   body: 200,
