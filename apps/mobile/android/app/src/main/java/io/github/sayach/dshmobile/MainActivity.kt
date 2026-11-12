@@ -385,6 +385,21 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * Publish page visibility for the background service in this process. The service posts a
+     * completion notification only while no Activity is started, because a visible page owns that
+     * delivery through the plugin path (issue #400).
+     */
+    override fun onStart() {
+        super.onStart()
+        AppProcessForeground.entered()
+    }
+
+    override fun onStop() {
+        AppProcessForeground.exited()
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         activityResumed = true
