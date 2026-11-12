@@ -8,9 +8,30 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 
 /** One native task-notification implementation shared by the WebView bridge and background service. */
 internal object TaskNotificationPublisher {
+    /**
+     * Whether a completion record can actually appear: the app may post notifications and the
+     * task-notification channel, when it already exists, is not blocked at [NotificationManager.IMPORTANCE_NONE].
+     *
+     * `post` creates a missing channel, so "no channel yet" is not treated as blocked; a revoked
+     * Android 13+ permission or a channel the user switched off makes `notify` a silent no-op, which
+     * is exactly the state the page must not mistake for a delivered reminder.
+     */
+    fun canPost(context: Context): Boolean {
+        val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        val channelBlocked = if (manager !== null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.getNotificationChannel(NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID)?.importance ==
+                NotificationManager.IMPORTANCE_NONE
+        } else {
+            false
+        }
+        return BackgroundTaskNotification.canPost(notificationsEnabled, channelBlocked)
+    }
+
     fun post(context: Context, title: String, body: String, tag: String, navigate: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             ?: throw IllegalStateException("notification service is unavailable")
