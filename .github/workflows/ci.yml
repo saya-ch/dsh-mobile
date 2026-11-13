@@ -19,6 +19,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: deepseek-ai/deepseek-harness
+          # Track the newest released DSH source, not the upstream default branch:
+          # unreleased work there would fail this contract for changes no user runs yet.
+          ref: dsh-v0.2.2-rc.3
           path: dsh
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -31,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2, 0.2.1-alpha.3, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1, 0.2.2-rc.2]
+        dsh: [0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2, 0.2.0-rc.1, 0.2.0-rc.2, 0.2.1-alpha.2, 0.2.1-alpha.3, 0.2.1-rc.2, 0.2.1-rc.3, 0.2.1-rc.5, 0.2.2-rc.1, 0.2.2-rc.2, 0.2.2-rc.3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -55,7 +58,7 @@ jobs:
         if: matrix.dsh == '0.2.1-rc.2' || matrix.dsh == '0.2.1-rc.5' || matrix.dsh == '0.2.2-rc.1' || matrix.dsh == '0.2.2-rc.2'
         run: npm run smoke:push-contract
       - name: Verify compressed mux and attachments on the current rc
-        if: matrix.dsh == '0.2.2-rc.2'
+        if: matrix.dsh == '0.2.2-rc.2' || matrix.dsh == '0.2.2-rc.3'
         run: |
           npm run smoke:attachments
           npm run smoke:dsh-boot -- --compressed-websocket --diagnostics
