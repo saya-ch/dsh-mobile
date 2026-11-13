@@ -1,0 +1,115 @@
+<Window x:Class="DshMobile.Win.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="DeepSeek Harness" Height="860" Width="1200"
+        MinHeight="480" MinWidth="460"
+        Icon="/app.ico"
+        Background="{DynamicResource AppBackgroundBrush}">
+    <Window.Resources>
+        <!-- Compact bar buttons: the global 40px hit area is sized for page content
+             and overflows the 38px bar, so the bar uses a denser sub-style. -->
+        <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <!-- Browser page: an embedded window-level bar sits directly under the native
+             titlebar (window chrome, NOT injected into the page DOM), and the WebView
+             fills the rest. The page keeps its own full-height layout untouched. -->
+        <Grid x:Name="BrowserPage">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <!-- Same color as the DWM caption (set in code-behind) so the bar and
+                     the native titlebar read as one continuous surface. -->
+                <Border x:Name="BrowserBar" Grid.Row="0" Height="38"
+                        Background="{DynamicResource AppBackgroundBrush}"
+                        BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="0,0,0,1">
+                    <Grid Margin="12,0">
+                        <Button x:Name="BackButton" HorizontalAlignment="Left" MinWidth="88"
+                                Style="{StaticResource BarButton}"
+                                Content="≡ 设备列表" Click="Back_Click"
+                                ToolTip="返回设备列表（保持连接）" />
+                        <TextBlock x:Name="BrowserTitle" HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" FontSize="12.5"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                        <Button x:Name="DisconnectButton" HorizontalAlignment="Right" MinWidth="64"
+                                Style="{StaticResource BarButton}"
+                                Content="断开" Click="Disconnect_Click"
+                                ToolTip="断开连接并清除会话" />
+                    </Grid>
+                </Border>
+                <wv2:WebView2 x:Name="WebView" Grid.Row="1" />
+            </Grid>
+        </Grid>
+
+        <!-- WebView2 owns a native HWND and ignores ZIndex, so the two pages must be
+             mutually exclusive. It stays visible only until its initialisation finishes. -->
+        <Grid x:Name="ConnectPage" Background="{DynamicResource AppBackgroundBrush}" Visibility="Collapsed">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="28,24" MaxWidth="660" HorizontalAlignment="Left">
+                    <TextBlock Text="DeepSeek Harness" FontSize="26" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                    <TextBlock Margin="0,6,0,0" FontSize="13"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               Text="选择已配对的电脑直接连接，无需再次扫码" />
+
+                    <TextBlock Margin="0,28,0,12" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               Text="已配对电脑" />
+                    <StackPanel x:Name="DeviceList" />
+                    <TextBlock x:Name="NoDevicesText" Margin="0,0,0,8" FontSize="13"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               Text="还没有已配对的电脑" Visibility="Collapsed" />
+
+                    <!-- Connection waits expose a progress indicator AND a visible
+                         cancellation action (MASTER.md / Motion). -->
+                    <Grid x:Name="ProgressPanel" Margin="0,16,0,0" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock x:Name="StatusText" FontSize="13"
+                                       Foreground="{DynamicResource AccentBrush}" Text="" />
+                            <ProgressBar x:Name="Progress" Margin="0,10,16,0" Height="4"
+                                         IsIndeterminate="True" BorderThickness="0"
+                                         Foreground="{DynamicResource AccentBrush}"
+                                         Background="{DynamicResource OutlineBrush}" />
+                        </StackPanel>
+                        <Button x:Name="CancelButton" Grid.Column="1" Width="112"
+                                Content="取消连接" Click="Cancel_Click"
+                                ToolTip="停止连接并释放本地代理" />
+                    </Grid>
+
+                    <Button x:Name="AddToggleButton" Margin="0,20,0,0" Width="140"
+                            HorizontalAlignment="Left" Content="添加新电脑" Click="AddToggle_Click" />
+                    <Border x:Name="AddPanel" Margin="0,12,0,24" Padding="16"
+                            Background="{DynamicResource CardBrush}"
+                            BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                            CornerRadius="10" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Text="粘贴 iroh 配对 JSON，或 局域网/远程 配对链接（https://…/mobile-access/pair#…）" />
+                            <TextBox x:Name="DescriptorBox" Margin="0,12,0,14" Height="96"
+                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     FontFamily="Consolas" FontSize="13"
+                                     ToolTip="一次性配对内容，不会保存配对码或 token" />
+                            <Button x:Name="PairButton" Width="140" HorizontalAlignment="Left"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Content="配对并连接" Click="Pair_Click" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

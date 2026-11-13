@@ -1,0 +1,134 @@
+<Application x:Class="DshMobile.Win.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- Semantic tokens from design-system/dsh-mobile/MASTER.md (light values).
+             Every color reference is a DynamicResource: App.OnStartup swaps the whole
+             brush set for the dark palette when Windows uses a dark app theme. -->
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F7F8FA" />
+        <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#667085" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#2563EB" />
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#1D4ED8" />
+        <SolidColorBrush x:Key="AccentPressedBrush" Color="#1E40AF" />
+        <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="OutlineBrush" Color="#E4E7EC" />
+        <SolidColorBrush x:Key="ErrorBrush" Color="#B91C1C" />
+        <SolidColorBrush x:Key="SurfaceAltBrush" Color="#ECEFF3" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#EFF3F8" />
+        <SolidColorBrush x:Key="PressedBrush" Color="#E2E8F0" />
+
+        <!-- Visible keyboard focus (MASTER.md delivery checklist). The ring lives on
+             the adorner layer, so it never changes layout. -->
+        <Style x:Key="FocusRing" TargetType="Control">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Rectangle Margin="-3" RadiusX="6" RadiusY="6"
+                                   Stroke="{DynamicResource AccentBrush}" StrokeThickness="2" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+        </Style>
+
+        <!-- Secondary action: 12dp radius, >=40px hit area, calm hover/press colors.
+             Only the brush changes - layout never shifts (MASTER.md shape/motion). -->
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="72" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary action: 16dp radius, accent fill, larger hit area. -->
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentPressedBrush}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentPressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <!-- No vertical padding: the text view clips glyphs when given vertical
+                 padding (measured: 7px glyph band at 40px height). Center it instead. -->
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <!-- System template on purpose: a custom rounded template clipped the
+                 text view to a 6px band at 40px height (measured), while the system
+                 template renders the same box fully. Square corners are the trade. -->
+        </Style>
+    </Application.Resources>
+</Application>

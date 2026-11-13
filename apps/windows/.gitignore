@@ -1,0 +1,7 @@
+# .NET build output and local run state
+**/bin/
+**/obj/
+**/data/
+*.user
+*.suo
+.vs/

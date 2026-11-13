@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DshMobile.Win</AssemblyName>
+    <RootNamespace>DshMobile.Win</RootNamespace>
+    <!-- Portable self-contained build: keep the win-x64 assets in project.assets.json -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Same launcher icon as the Android app (apps/mobile/.../mipmap-xxxhdpi/ic_launcher.png). -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3124.44" />
+    <Resource Include="app.ico" />
+  </ItemGroup>
+
+  <!-- Pure-logic unit tests live in a separate project; expose internals only to it. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="DshMobile.Win.Tests" />
+  </ItemGroup>
+
+  <!-- The iroh sidecar is intentionally NOT packaged (see sidecar/manifest.json):
+       SidecarProvisioner acquires the pinned official artifact on first use and
+       verifies byte count + SHA-256 before every launch. -->
+</Project>

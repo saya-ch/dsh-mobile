@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "packageVersion": "0.1.0-alpha.1",
+  "source": "src/iroh-component.ts IROH_COMPONENT_RELEASES['win32-x64']",
+  "note": "The executable is NOT stored in this repository. It is fetched from downloadUrl, checked against bytes + sha256, and re-verified before every launch (SidecarProvisioner.cs).",
+  "artifacts": {
+    "win32-x64": {
+      "file": "dsh-mobile-iroh-host-win32-x64.exe",
+      "bytes": 14865920,
+      "sha256": "883987c636a379dc999a7f15fd1f9addbb7d28f430ed1f952ad5a610c37cc032",
+      "downloadUrl": "https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.1/native/dsh-mobile-iroh-host-win32-x64.exe"
+    }
+  }
+}

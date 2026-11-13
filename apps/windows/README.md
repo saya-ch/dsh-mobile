@@ -1,0 +1,73 @@
+# DSH Mobile Windows 客户端
+
+DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile/android/`）对应：让 Windows 通过电脑端 DSH Mobile 插件提供的认证 HTTPS 页面使用 DSH 会话。程序本体是一个带配对与证书校验的 WebView2 外壳，不打包另一套前端。
+
+- 显示名称与 Android 版一致：**DeepSeek Harness**
+- 启动图标复用 Android 主启动图标（`apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`，生成于 `DshMobile.Win/app.ico`）
+- 组件职责、三通道数据流与信任模型见 [ARCHITECTURE.md](ARCHITECTURE.md)
+
+## 功能
+
+- **三种连接通道**
+  - `iroh`：粘贴 iroh 配对 JSON 描述符，经官方 sidecar（`phone-sim`）建立 QUIC 隧道 + 本地回环 TLS 载体；sidecar 不随仓库分发，按固定 URL + SHA-256 获取并在每次启动前校验；
+  - `局域网` / `远程`：粘贴 `https://…/mobile-access/pair#…` 配对链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），从 `/mobile-access/ca.cer` 引导获取配对 CA（TOFU + instanceId 指纹锚定），直连网关。
+- **免扫码重连**：首次配对保存设备凭据（deviceToken 经 DPAPI 加密落盘），后续启动直接点「连接」，iroh 走 Hello、直连走 `native-renew`。
+- **设备管理**：多设备卡片、重命名、删除；每张卡片显示通道类型与凭据有效期。
+- **安全**：配对 CA 是唯一信任锚；叶子证书按 链 → SAN（含 IP）→ EKU → 有效期 严格校验后才放行 WebView2 证书错误；过期/吊销一律拒绝。
+- **顶栏与标题栏**：原生标题栏下方的窗口级顶栏行（设备列表 / 连接状态 / 断开），颜色与 DWM 标题栏一致；页面 DOM 零注入、零改动。
+- **深浅色**：语义颜色 token（`design-system/dsh-mobile/MASTER.md`），跟随系统深浅色；环境变量 `DSH_MOBILE_THEME=light|dark` 可覆盖。
+
+## 目录结构
+
+```
+apps/windows/
+├── .gitignore                # 忽略 bin/ obj/ data/
+├── ARCHITECTURE.md           # 架构与安全模型
+├── DshMobile.Win/            # 客户端源码（WPF + WebView2）
+│   ├── *.cs / *.xaml          # 源码
+│   ├── app.ico                # Android 同款启动图标
+│   ├── DshMobile.Win.csproj
+│   └── sidecar/
+│       ├── manifest.json                 # 固定版本 / 下载地址 / 字节数 / SHA-256 pin
+│       ├── LICENSE.dsh-mobile-iroh      # 以下三份来自 native/iroh-host/
+│       ├── LICENSE.dsh-tether
+│       └── NOTICE.dsh-mobile-iroh
+└── DshMobile.Win.Tests/      # 纯逻辑单测（xunit）
+```
+
+## 编译与发布
+
+前置条件：
+
+- .NET 8 SDK（x64）
+- WebView2 Evergreen Runtime（Win11 自带；未安装时访问 https://developer.microsoft.com/microsoft-edge/webview2 ）
+- 无需 Rust/Android 工具链：iroh 传输复用官方发布的 sidecar，**但二进制不进仓库**。首次 iroh 连接时按 `sidecar/manifest.json` 的固定 URL 下载、按字节数 + SHA-256 校验；若本机 DSH Mobile 插件已安装并校验过同一副本，则直接复用（离线可用）。每次启动前都会重新校验，哈希不符拒绝启动。pin 的唯一来源是 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`。
+
+```bash
+cd apps/windows/DshMobile.Win
+
+# 编译
+dotnet restore
+dotnet build -c Release
+
+# 纯逻辑单测（无需设备或网关）
+dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
+
+# 发布便携版（自包含 .NET，输出为独立目录，拷走即用）
+dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
+```
+
+`.github/workflows/windows-client.yml` 在 `windows-latest` 上跑同一套 `restore` / `build -c Release` / `test`，可作为合并门槛。依赖取自 NuGet 默认源（nuget.org）。若所处网络访问较慢，请在**用户级**加镜像而不是改仓库配置：`dotnet nuget add source <镜像地址> -n <名称>`。
+
+发布产物无需安装、不写注册表；程序、WebView2 用户目录与日志都在输出目录的 `data\` 内。
+
+## 便携边界
+
+- iroh 客户端身份数据由 sidecar 强制存放于 `%USERPROFILE%\.dsh-mobile-win\iroh`（其私有目录 ACL 校验拒绝盘符根目录），换机需重新扫码配对；
+- sidecar 缓存于 `data\components\iroh\<version>\`，损坏或不匹配 pin 时删除重取，绝不启动未校验的二进制；
+- 已配对设备记录在 `data\devices.json`，其中 deviceToken 经 DPAPI(CurrentUser) 加密，不随文件夹跨机迁移；
+- 日志：`data\client.log`。
+
+## 与上游仓库的关系
+
+本目录是新增端，不修改插件与 Android 既有代码；仓库约定见根目录 `AGENTS.md`（上游 DSH 源码只读，改动仅留在本仓库）。功能改动集中在 `apps/windows/`；唯一的仓库级例外是 `.github/workflows/windows-client.yml`（Windows 客户端的 CI job），其余上游文件不应出现在 diff 中。
