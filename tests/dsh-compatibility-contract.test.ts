@@ -61,6 +61,11 @@ function sourceFixture(version = '0.1.2-alpha.2', architecture: 'renderer-v2' | 
   sources['packages/client/ui-sidebar/src/client/SidebarRoot.tsx'] = 'css.fallbackBrandName\nDSH Local Build'
   sources['packages/client/ui-user-questions/src/client/QuestionComposer.tsx'] = 'data-question-key data-question-scroll'
   sources['packages/client/ui-user-questions/src/client/PlanReviewPanel.tsx'] = 'data-plan-review-key data-plan-review-scroll'
+  // The preview-path copy affordance taps the titled path bar and never the
+  // changes-review file switcher; the card stays a pure open action.
+  sources['packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx'] = 'data-textpreview-path'
+  sources['packages/client/ui-deliverables/src/client/ReviewTab.tsx'] = 'data-changes-review'
+  sources['packages/client/ui-primitives/src/PathLabel.tsx'] = 'title={path} data-path-label'
   sources['packages/host/webserver/src/injections.ts'] = 'globalThis[${name}] = ${value}'
   return sources
 }
@@ -122,6 +127,18 @@ describe('DSH source compatibility gate', () => {
     ['omits its Remote runtime dependency', 'packages/client/ui-settings/src/client/index.ts', "export const inject = ['remote', 'remote.settings']", 'export const inject = []', 'settings Remote trust contract changed'],
   ] as const)('rejects Host-only settings when it %s', async (_label, path, expected, replacement, error) => {
     const sources = hostSettingsFixture()
+    sources[path] = sources[path]!.replace(expected, replacement)
+    const result = await check(sources)
+    expect(result.status).toBe(1)
+    expect(result.output).toContain(error)
+  })
+
+  it.each([
+    ['preview header loses the path bar', 'packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx', 'data-textpreview-path', 'data-other-path', 'data-textpreview-path'],
+    ['the changes-review scope marker disappears', 'packages/client/ui-deliverables/src/client/ReviewTab.tsx', 'data-changes-review', 'data-review-pane', 'data-changes-review'],
+    ['PathLabel stops binding title to the path', 'packages/client/ui-primitives/src/PathLabel.tsx', 'title={path} data-path-label', 'data-path-label', 'binds its title'],
+  ] as const)('rejects when the %s', async (_label, path, expected, replacement, error) => {
+    const sources = sourceFixture()
     sources[path] = sources[path]!.replace(expected, replacement)
     const result = await check(sources)
     expect(result.status).toBe(1)
