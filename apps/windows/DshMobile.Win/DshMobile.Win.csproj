@@ -19,11 +19,12 @@
     <Resource Include="app.ico" />
   </ItemGroup>
 
-  <!-- Pinned upstream iroh sidecar (sha256 in sidecar/manifest.json).
-       MainWindow looks for the exe next to the app binary, so publish it there. -->
+  <!-- Pure-logic unit tests live in a separate project; expose internals only to it. -->
   <ItemGroup>
-    <None Update="sidecar\dsh-mobile-iroh-host-win32-x64.exe"
-          Link="dsh-mobile-iroh-host-win32-x64.exe"
-          CopyToOutputDirectory="PreserveNewest" />
+    <InternalsVisibleTo Include="DshMobile.Win.Tests" />
   </ItemGroup>
+
+  <!-- The iroh sidecar is intentionally NOT packaged (see sidecar/manifest.json):
+       SidecarProvisioner acquires the pinned official artifact on first use and
+       verifies byte count + SHA-256 before every launch. -->
 </Project>

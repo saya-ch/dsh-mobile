@@ -16,8 +16,9 @@ internal enum AccessChannel
 /// A validated URL-form pairing link: a bare HTTPS origin or the plugin's fixed
 /// one-time pairing URL with an instance/token fragment (legacy LAN) or a
 /// dsh1/dsh2 pairing key. Mirrors GatewayConnection.parse, GatewayUrlPolicy.pairingKey
-/// and RemoteHostPolicy.kt. The dsh2 prefix and the legacy fragment make the CA
-/// bootstrap mandatory; a dsh1 remote key may fall back to platform trust after 404.
+/// and RemoteHostPolicy.kt. Only the dsh2 prefix makes the CA bootstrap mandatory;
+/// dsh1 and the legacy fragment describe a public-CA key that may fall back to
+/// platform trust after an explicit 404 (RemotePairingTrust.decide).
 /// </summary>
 internal sealed record UrlPairing(
     string Hostname,
@@ -96,7 +97,10 @@ internal sealed record UrlPairing(
             instanceId = fragment["instance=".Length..][..64];
             var tokenStart = "instance=".Length + 64 + "&token=".Length;
             token = fragment[tokenStart..];
-            requiresCa = true;
+            // The legacy instance/token fragment is what the gateway emits for a
+            // public-CA (dsh1-style) pairing window; it does not require a pinned CA.
+            // Mirrors GatewayUrlPolicy.pairingKey -> PairingKey(requiresCa = false).
+            requiresCa = false;
         }
 
         var mode = RemoteHostPolicy.IsRemoteCandidate(host) ? AccessChannel.Remote : AccessChannel.Lan;

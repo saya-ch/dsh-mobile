@@ -29,9 +29,15 @@ internal sealed class SavedDevice
     public int LocalPort { get; set; }
     public string InstanceId { get; set; } = string.Empty;
     public string CaDerBase64 { get; set; } = string.Empty;
-    /// <summary>Direct-only: a dsh1 remote key whose gateway answered 404 for ca.cer
-    /// runs on platform trust instead of a pinned pairing CA.</summary>
+    /// <summary>Direct-only: a public-CA remote key whose gateway answered 404 for
+    /// ca.cer runs on platform trust instead of a pinned pairing CA.</summary>
     public bool PlatformTrust { get; set; }
+    /// <summary>
+    /// Persisted from the pairing link (PairingKey.requiresCa). dsh2 = true: a 404
+    /// from ca.cer is a hard identity mismatch, never a platform-trust downgrade.
+    /// iroh descriptors also always carry their pinned CA.
+    /// </summary>
+    public bool RequiresCa { get; set; }
     public string DeviceId { get; set; } = string.Empty;
     public string ProtectedDeviceToken { get; set; } = string.Empty;
     public long DeviceExpiresAt { get; set; }
@@ -62,6 +68,7 @@ internal sealed class SavedDevice
         LocalPort = descriptor.LocalPort,
         InstanceId = descriptor.InstanceId,
         CaDerBase64 = Convert.ToBase64String(descriptor.CaDer),
+        RequiresCa = true, // the descriptor's CA is mandatory, never downgradeable
         PairedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
     };
 
@@ -75,6 +82,7 @@ internal sealed class SavedDevice
         LocalPort = link.Port,
         InstanceId = link.InstanceId,
         CaDerBase64 = string.Empty, // filled after the ca.cer bootstrap
+        RequiresCa = link.RequiresCa,
         PairedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
     };
 
@@ -98,6 +106,11 @@ internal sealed class SavedDevice
     {
         if (Channel is not ("iroh" or "lan" or "remote"))
             throw new FormatException("bad channel");
+        // Records written before RequiresCa existed: a remote device that already
+        // carries a pinned CA must keep requiring one (PairingTrust.preserveRemotePin).
+        if (Channel == "remote" && CaDerBase64.Length > 0) RequiresCa = true;
+        if (PlatformTrust && (Channel != "remote" || RequiresCa || CaDerBase64.Length > 0))
+            throw new FormatException("platform trust conflicts with the pairing CA requirement");
         if (InstanceId.Length != 64 || !InstanceId.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f'))
             throw new FormatException("bad instanceId");
         if (LocalPort is < 1 or > 65535) throw new FormatException("bad localPort");
@@ -121,9 +134,11 @@ internal sealed class SavedDevice
 
         if (CaDerBase64.Length == 0)
         {
-            // Only a dsh1 remote key paired without a CA may run on platform trust;
-            // every other channel must carry its pinned pairing CA.
-            if (Channel != "remote" || !PlatformTrust) throw new FormatException("missing pinned CA");
+            // Only a public-CA remote key (dsh1 / legacy) paired without a CA may run
+            // on platform trust. A dsh2 key (RequiresCa) must never be stored without
+            // its pin, even if an attacker edited devices.json.
+            if (Channel != "remote" || !PlatformTrust || RequiresCa)
+                throw new FormatException("missing pinned CA");
             return;
         }
         var der = Convert.FromBase64String(CaDerBase64);

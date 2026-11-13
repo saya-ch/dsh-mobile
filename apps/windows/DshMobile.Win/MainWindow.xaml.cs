@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -24,7 +25,6 @@ public partial class MainWindow : Window
     private static readonly string WebViewProfile = Path.Combine(DataRoot, "webview2");
     private static readonly string LogPath = Path.Combine(DataRoot, "client.log");
     private static readonly string DevicesPath = Path.Combine(DataRoot, "devices.json");
-    private static readonly string SidecarPath = Path.Combine(Root, "dsh-mobile-iroh-host-win32-x64.exe");
     private static readonly string IdentityDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dsh-mobile-win", "iroh");
 
@@ -339,7 +339,9 @@ public partial class MainWindow : Window
                     else
                     {
                         device.PlatformTrust = true;
-                        Log("gateway answered 404 for ca.cer; using platform trust (dsh1 remote)");
+                        // FetchCaAsync only returns null when PairingTrustPolicy allows it:
+                        // an explicit 404 for a public-CA remote key (dsh1 / legacy).
+                        Log("gateway answered 404 for ca.cer; using platform trust (public-CA remote key)");
                     }
                 }
                 session = await AuthorizeAsync(device, pairingCode, gatewayToken);
@@ -493,9 +495,13 @@ public partial class MainWindow : Window
     private async Task<IrohCarrier> StartCarrierWithRetryAsync(
         SavedDevice device, string? pairingCode, CancellationToken ct)
     {
+        // The sidecar is not bundled: acquire the pinned official artifact (verified
+        // by byte count + SHA-256) once before the retry loop starts.
+        SetProgress("正在准备 iroh 组件");
+        var sidecarPath = await SidecarProvisioner.EnsureAsync(DataRoot, Log, ct);
         for (var attempt = 1; ; attempt++)
         {
-            var carrier = new IrohCarrier(SidecarPath);
+            var carrier = new IrohCarrier(sidecarPath);
             carrier.Log += Log;
             try
             {
@@ -599,6 +605,7 @@ public partial class MainWindow : Window
             if (!_certificateHandlerAttached)
             {
                 _core.ServerCertificateErrorDetected += OnServerCertificateError;
+                AttachWebViewPolicyHandlers();
                 _certificateHandlerAttached = true;
             }
             _core.Settings.AreDevToolsEnabled = false;
@@ -610,6 +617,114 @@ public partial class MainWindow : Window
                 WebView.Visibility = previousVisibility; // keep the connect page usable
             _webViewGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Conservative WebView2 surface policy. The Android app owns explicit rules for
+    /// navigation, external links, downloads and permissions (SecureWebViewClient,
+    /// GatewayUrlPolicy, MainActivity); without these handlers every one of those
+    /// behaviors is undefined on Windows. Only the exact paired gateway origin may
+    /// navigate, pop-ups/downloads/permissions are denied, and a renderer crash is
+    /// reported and recovered with a reload.
+    /// </summary>
+    private void AttachWebViewPolicyHandlers()
+    {
+        var core = _core!;
+        core.NavigationStarting += OnNavigationStarting;
+        core.NewWindowRequested += OnNewWindowRequested;
+        core.DownloadStarting += OnDownloadStarting;
+        core.PermissionRequested += OnPermissionRequested;
+        core.ProcessFailed += OnProcessFailed;
+    }
+
+    private bool IsAllowedGatewayNavigation(string raw)
+    {
+        if (raw == "about:blank") return true; // used when disconnecting
+        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
+        if (_current is null || !Uri.TryCreate(_current.Origin, UriKind.Absolute, out var expected)) return false;
+        return string.Equals(uri.GetLeftPart(UriPartial.Authority),
+            expected.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsExternalHttps(string raw) =>
+        Uri.TryCreate(raw, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private void OpenInSystemBrowser(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            Log("opened external link in the system browser");
+        }
+        catch (Exception error) { Log("could not open external link: " + error.Message); }
+    }
+
+    private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (IsAllowedGatewayNavigation(e.Uri)) return;
+        e.Cancel = true;
+        Log("blocked navigation outside the paired gateway: " + e.Uri);
+        if (IsExternalHttps(e.Uri)) OpenInSystemBrowser(e.Uri);
+        else NotifyPolicyOnce("navigation", "已阻止非网关地址的导航。");
+    }
+
+    private void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        e.Handled = true;
+        Log("blocked new window: " + e.Uri);
+        if (IsExternalHttps(e.Uri)) OpenInSystemBrowser(e.Uri);
+        else NotifyPolicyOnce("popup", "已阻止弹出窗口。");
+    }
+
+    private void OnDownloadStarting(object? sender, CoreWebView2DownloadStartingEventArgs e)
+    {
+        e.Cancel = true;
+        e.Handled = true;
+        Log("blocked download: " + e.DownloadOperation.Uri);
+        NotifyPolicyOnce("download", "Windows 客户端暂不支持下载，已阻止该请求。");
+    }
+
+    private void OnPermissionRequested(object? sender, CoreWebView2PermissionRequestedEventArgs e)
+    {
+        e.State = CoreWebView2PermissionState.Deny;
+        Log("denied permission: " + e.PermissionKind);
+        if (e.PermissionKind == CoreWebView2PermissionKind.Microphone)
+            NotifyPolicyOnce("microphone", "Windows 客户端暂不支持语音输入（麦克风权限已拒绝）。");
+    }
+
+    private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
+    {
+        Log($"WebView2 process failed: {e.ProcessFailedKind} (exit {e.ExitCode})");
+        // A renderer/frame crash can be reloaded; a browser process exit cannot.
+        if (e.ProcessFailedKind == CoreWebView2ProcessFailedKind.BrowserProcessExited)
+        {
+            NotifyPolicyOnce("browser-exit", "浏览器进程已退出，请断开后重新连接。");
+            return;
+        }
+        try
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_core is null || _current is null) return;
+                NotifyPolicyOnce("renderer-reload", "页面进程异常，正在重新加载。");
+                _core.Reload();
+            }));
+        }
+        catch (Exception error) { Log("renderer reload failed: " + error.Message); }
+    }
+
+    private readonly HashSet<string> _shownPolicyNotices = [];
+
+    /// <summary>Show each policy notice at most once per session; never spam a dialog.</summary>
+    private void NotifyPolicyOnce(string key, string message)
+    {
+        if (!_shownPolicyNotices.Add(key)) return;
+        try
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+                MessageBox.Show(this, message, "Windows 客户端", MessageBoxButton.OK, MessageBoxImage.Information)));
+        }
+        catch { /* window closed */ }
     }
 
     /// <summary>

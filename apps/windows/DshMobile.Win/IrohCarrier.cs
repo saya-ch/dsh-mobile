@@ -42,6 +42,10 @@ internal sealed class IrohCarrier : IDisposable
     /// </summary>
     internal async Task StartAsync(SavedDevice device, string? pairingCode, string dataDir, CancellationToken ct)
     {
+        // Last line of defence: never launch a binary whose bytes do not match the
+        // pinned upstream artifact, even if a caller bypassed SidecarProvisioner.
+        if (!SidecarProvisioner.Verify(_exePath))
+            throw new InvalidOperationException("iroh sidecar failed SHA-256 pin verification; refusing to launch");
         var psi = new ProcessStartInfo
         {
             FileName = _exePath,

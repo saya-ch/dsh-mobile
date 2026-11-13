@@ -48,8 +48,9 @@ internal static class GatewayAuth
     /// <summary>
     /// Re-trust bootstrap (PairingTrust.selectTrustAnchor): fetch /mobile-access/ca.cer
     /// over a TOFU connection, then anchor it with the instance-id fingerprint from the
-    /// pairing link. Returns null only when the gateway answers 404 on a CA-less dsh1
-    /// remote key, meaning platform trust is permitted. Any other failure throws.
+    /// pairing link. Returns null only when PairingTrustPolicy allows platform trust
+    /// (explicit 404 for a public-CA remote key). A dsh2 key, a LAN entry or an
+    /// already-pinned device fails closed. Any other failure throws.
     /// </summary>
     internal static async Task<X509Certificate2?> FetchCaAsync(SavedDevice device, CancellationToken ct)
     {
@@ -71,13 +72,15 @@ internal static class GatewayAuth
         var headers = Encoding.ASCII.GetString(raw, 0, headerEnd);
         var statusLine = headers.Split("\r\n")[0];
         var statusParts = statusLine.Split(' ');
-        if (statusParts.Length >= 2 && int.TryParse(statusParts[1], out var status))
-        {
-            if (status == 404 && !device.HasPinnedCa && device.Channel == "remote")
-                return null; // dsh1 remote: the CA-less gateway runs on platform trust
-            if (status is < 200 or > 299)
-                throw new InvalidOperationException($"获取配对 CA 失败: {statusLine.Trim()}");
-        }
+        if (statusParts.Length < 2 || !int.TryParse(statusParts[1], out var status))
+            throw new InvalidOperationException("invalid ca.cer HTTP status");
+        // Mirrors Android RemotePairingTrust.decide. A 404 is only a legitimate
+        // platform-trust answer for a public-CA remote key; dsh2, LAN and any
+        // already-pinned device must fail closed instead of silently downgrading.
+        var outcome = PairingTrustPolicy.Decide(status, device);
+        if (outcome == CaBootstrapOutcome.PlatformTrust) return null;
+        if (outcome == CaBootstrapOutcome.Reject)
+            throw new InvalidOperationException($"获取配对 CA 失败: {statusLine.Trim()}");
         var body = raw[(headerEnd + 4)..];
         if (headers.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase))
             body = DecodeChunkedBytes(body);

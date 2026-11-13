@@ -1,0 +1,13 @@
+The Rust transport sources in native/iroh-host, native/iroh-core and
+native/iroh-android-transport were adapted from saya-ch/dsh-mobile-iroh,
+copyright 2026 Guangqi Zhang, under the MIT License. The complete license is
+preserved in LICENSE.dsh-mobile-iroh.
+
+The host baseline also adapts the MIT-licensed dsh-tether reference project
+by zexadev. Its original notice and license are preserved in
+LICENSE.dsh-tether. See https://github.com/zexadev/dsh-tether.
+
+The surrounding DSH Mobile plugin, Android shell and development fixtures
+remain under this repository's Apache License, Version 2.0. Importing the
+Rust transport does not relicense those portions. This experimental
+integration does not imply upstream endorsement or completed device acceptance.
