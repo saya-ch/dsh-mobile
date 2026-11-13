@@ -824,6 +824,42 @@ describe('dedicated mobile layout boot', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{width:340px`)
   })
 
+  it('keeps a resting drawer free of transforms so stock fixed panels stay viewport-anchored', () => {
+    // Issue #413: the sidebar's Cordis plugin panel is a stock `position:fixed`
+    // surface whose own comment says fixed positioning exists so the sidebar's
+    // overflow clip cannot cut it. A resting transform on the drawer's child made
+    // that child the containing block for fixed descendants, so the open drawer
+    // clipped the panel and the collapsed drawer left it floating over the page.
+    // The slide must come from a keyframe animation instead, which ends without
+    // leaving a transform behind.
+    const drawerChild = /\.dshm-drawer>\*\{([^}]*)\}/u.exec(MOBILE_LAYOUT_STYLES)?.[1]
+    expect(drawerChild).toBeDefined()
+    expect(drawerChild).not.toContain('transform')
+    expect(MOBILE_LAYOUT_STYLES).toContain(
+      '@keyframes dshm-drawer-slide-open{from{transform:translateX(-6px)}to{transform:translateX(0)}}',
+    )
+    expect(MOBILE_LAYOUT_STYLES).toContain(
+      '@keyframes dshm-drawer-slide-closed{from{transform:translateX(0)}to{transform:translateX(-6px)}}',
+    )
+    // A stock fixed surface inside the sidebar gets phone containment: viewport
+    // width instead of the 420px desktop box, above our drawer/details layers but
+    // below the stock floating slot layer (300), with a scrollable height cap.
+    const selector = `.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) [data-cordis-panel]`
+    const start = MOBILE_LAYOUT_STYLES.indexOf(selector)
+    expect(start).toBeGreaterThan(-1)
+    const rule = MOBILE_LAYOUT_STYLES.slice(start, MOBILE_LAYOUT_STYLES.indexOf('}', start))
+    expect(rule).toContain('position:fixed!important')
+    expect(rule).toContain('inset:auto 8px max(8px,env(safe-area-inset-bottom)) 8px!important')
+    expect(rule).toContain('max-width:min(420px,calc(100vw - 16px))!important')
+    expect(rule).toContain('max-height:min(60vh,calc(100dvh - 96px))!important')
+    expect(rule).toContain('overflow-y:auto!important')
+    const zIndex = Number(/z-index:(\d+)/u.exec(rule)?.[1])
+    expect(zIndex).toBeGreaterThan(80)
+    expect(zIndex).toBeLessThan(300)
+    // Reduced motion keeps the resting state transform-free by dropping the slide.
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer>*{animation:none!important}')
+  })
+
   it('lets the wide conversation column outrank the static rail without passing the scrim', () => {
     // A plugin may mount its dialog inside the composer's own stacking context.
     // On a wide viewport the navigation rail is a static grid column, so it must
