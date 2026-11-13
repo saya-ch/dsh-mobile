@@ -145,7 +145,8 @@ try {
     await page.evaluate(() => { document.execCommand = () => false })
     await page.locator('#rel-path').tap()
     await waitForToastText(page, 'Could not copy the path.')
-    check('failed copy reports the failed template', true)
+    const failedToast = await toastState(page)
+    check('failed copy reports the failed template', failedToast.text === 'Could not copy the path.' && failedToast.display !== 'none')
     await page.evaluate(() => { document.execCommand = () => { throw new Error('SecurityError') } })
     await page.locator('#preview-path').tap()
     await waitForToastText(page, 'Could not copy the path.')
@@ -215,7 +216,9 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('.dsh-mobile-path-toast').length === 1 && document.querySelector('.dsh-mobile-path-toast').lang === 'en', null, { timeout: TOAST_WAIT })
     await page.locator('#path-name').tap()
     await waitForToastText(page, 'Copied: topics/x/artifacts/report.md')
-    check('rebind back to en copies with the en template', true)
+    const reboundToast = await toastState(page)
+    const reboundClipboard = await readClipboard(page)
+    check('rebind back to en copies with the en template', reboundToast.text === 'Copied: topics/x/artifacts/report.md' && reboundClipboard === 'topics/x/artifacts/report.md')
   } finally { await rebind.close() }
 
   console.log(`smoke:path-copy passed (${checks} checks)`)
