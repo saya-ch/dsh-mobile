@@ -133,20 +133,25 @@ if (!triggerMenu.includes('data-trigger-menu=""')) {
   throw new Error('DSH command menu no longer exposes data-trigger-menu')
 }
 
-// The preview-path copy affordance taps the titled path bar and must never capture
-// the changes-review file switcher's header.
-const previewFrameSource = await text('packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx')
-if (!previewFrameSource.includes('data-textpreview-path')) {
-  throw new Error('DSH preview header no longer exposes data-textpreview-path')
-}
-const deliverablesSources = await Promise.all((await sourceFilesUnder('packages/client/ui-deliverables/src/client'))
-  .map(path => readFile(path, 'utf8')))
-if (!deliverablesSources.some(source => source.includes('data-changes-review'))) {
-  throw new Error('DSH deliverables contract changed: missing data-changes-review')
-}
-const pathLabelSource = await text('packages/client/ui-primitives/src/PathLabel.tsx')
-if (!pathLabelSource.includes('title={path} data-path-label')) {
-  throw new Error('DSH PathLabel no longer binds its title to the displayed path')
+// The preview-path copy affordance resolves the tapped node with closest(), so the
+// marker has to stay on the PathLabel element that renders the path as its title.
+// Both bindings are therefore asserted on one element, not as separate file strings.
+// The whole block only applies to a source tree that has the preview header: older
+// checkouts predate it, and the mobile bundle has no path-copy surface there.
+const previewFrameSource = await optionalText('packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx')
+if (previewFrameSource !== undefined) {
+  if (!/<PathLabel\b(?=[^>]*\bdata-textpreview-path\b)[^>]*>/u.test(previewFrameSource)) {
+    throw new Error('DSH preview header no longer passes data-textpreview-path to PathLabel')
+  }
+  const deliverablesSources = await Promise.all((await sourceFilesUnder('packages/client/ui-deliverables/src/client'))
+    .map(path => readFile(path, 'utf8')))
+  if (!deliverablesSources.some(source => source.includes('data-changes-review'))) {
+    throw new Error('DSH deliverables contract changed: missing data-changes-review')
+  }
+  const pathLabelSource = await text('packages/client/ui-primitives/src/PathLabel.tsx')
+  if (!/<span\b(?=[^>]*\btitle=\{path\})(?=[^>]*\bdata-path-label\b)[^>]*>/u.test(pathLabelSource)) {
+    throw new Error('DSH PathLabel no longer binds its title to the displayed path')
+  }
 }
 
 const connectionSource = await text('packages/client/connection/src/client/index.ts')
