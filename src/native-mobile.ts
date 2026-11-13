@@ -10,6 +10,7 @@ import { MOBILE_COMPOSER_TOOLBAR_STYLES } from './mobile-composer-toolbar.js'
 import { pickBrowserFiles } from './browser-file-picker.js'
 import { installMobileSidebarScrollMemory } from './mobile-sidebar-scroll.js'
 import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
+import { installMobilePathCopy, PATH_COPY_TOUCH_QUERY } from './mobile-path-copy.js'
 
 export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
@@ -23,6 +24,12 @@ export const NATIVE_MOBILE_STYLES = `
    the query restores the fixed scrim, and its more specific [hidden] rule
    keeps winning there. */
  .dsh-native-mobile-backdrop,.dsh-mobile-branch-toast,.dsh-mobile-media-toast { display:none; }
+ /* The path-copy toast confirms a clipboard write whose gate is the touch
+    predicate, not viewport width, so its box lives outside the overlay query:
+    a landscape phone or tablet copy must stay visible. The bottom slot keeps
+    it clear of the branch and media toasts' shared top-center position. */
+ .dsh-mobile-path-toast { display:none; }
+ .dsh-mobile-path-toast[data-visible="true"] { display:block; position:fixed; z-index:330; left:50%; transform:translateX(-50%); bottom:max(12px,env(safe-area-inset-bottom)); max-width:calc(100vw - 32px); box-sizing:border-box; padding:7px 14px; border:1px solid rgb(15 23 42 / 10%); border-radius:999px; background:rgb(15 23 42 / 92%); color:#fff; font-size:13px; line-height:20px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
  /* The content-font preference may exceed Safari's focused-editable minimum.
     The html-level class exists on every non-desktop mobile page, so it also
     covers body-level portals (model picker search) the center column never
@@ -1422,6 +1429,14 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       mediaToastTimer = 0
     }, 2200)
   }
+  const disposePathCopy = installMobilePathCopy({
+    document,
+    isTouchPrimary: () => window.matchMedia(PATH_COPY_TOUCH_QUERY).matches,
+    labels: {
+      copied: label('Copiato: {path}', 'Copied: {path}', '已复制：{path}'),
+      failed: label('Impossibile copiare il percorso.', 'Could not copy the path.', '无法复制路径。'),
+    },
+  })
   let mediaRequestGeneration = 0
   let disposed = false
   let boundComposer: Element | null = null
@@ -2052,6 +2067,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     disposed = true
     stopStockBack()
     sidebarScrollMemory.dispose()
+    disposePathCopy()
     disposeTaskWatcher()
     mediaRequestGeneration += 1
     mediaPickerAbortController.abort()
