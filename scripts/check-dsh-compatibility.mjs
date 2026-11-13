@@ -133,6 +133,22 @@ if (!triggerMenu.includes('data-trigger-menu=""')) {
   throw new Error('DSH command menu no longer exposes data-trigger-menu')
 }
 
+// The preview-path copy affordance taps the titled path bar and must never capture
+// the changes-review file switcher's header.
+const previewFrameSource = await text('packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx')
+if (!previewFrameSource.includes('data-textpreview-path')) {
+  throw new Error('DSH preview header no longer exposes data-textpreview-path')
+}
+const deliverablesSources = await Promise.all((await sourceFilesUnder('packages/client/ui-deliverables/src/client'))
+  .map(path => readFile(path, 'utf8')))
+if (!deliverablesSources.some(source => source.includes('data-changes-review'))) {
+  throw new Error('DSH deliverables contract changed: missing data-changes-review')
+}
+const pathLabelSource = await text('packages/client/ui-primitives/src/PathLabel.tsx')
+if (!pathLabelSource.includes('title={path} data-path-label')) {
+  throw new Error('DSH PathLabel no longer binds its title to the displayed path')
+}
+
 const connectionSource = await text('packages/client/connection/src/client/index.ts')
 if (!connectionSource.includes('readonly isLoopback: boolean')) {
   throw new Error('DSH connection trust contract changed: missing readonly isLoopback')

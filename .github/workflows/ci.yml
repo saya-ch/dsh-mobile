@@ -105,6 +105,8 @@ jobs:
           npm pack dsh-mobile@0.6.2 --ignore-scripts --pack-destination "$previous_dir"
           DSH_BOOT_SMOKE_PREVIOUS_MOBILE_TARBALL="$previous_dir/dsh-mobile-0.6.2.tgz" npm run smoke:plugin-installation
       - run: npm run smoke:native-layout
+      - name: Verify tapping a preview path copies it on touch
+        run: npm run smoke:path-copy
       - name: Verify mobile root geometry against broad skin overrides
         run: npm run smoke:layout-ownership
       - name: Verify a body-portal plugin menu stays clickable under the drawer
