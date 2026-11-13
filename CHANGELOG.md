@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Copy a file path by tapping it on touch devices: the preview header's path bar responds to a tap by copying the path the element shows — resolved through the titled ancestor, so taps landing on the nested directory/name spans still copy — and confirms with a bottom toast that stays visible at landscape-phone and tablet widths, where the older drawer toasts stay hidden. Delivered-file cards stay a pure open action, so opening a file never replaces the clipboard. The gate is the shared touch predicate, so desktop clicks never copy and the stock context menu is untouched; inside the changes-review pane the header keeps opening the file switcher. When the async clipboard API is missing (plain-HTTP tailnet origins) or rejects, a rendered off-screen textarea with `execCommand` provides the fallback, restoring focus, selection and scroll afterwards; a failed copy reports a localized failure toast instead of staying silent, and a language rebind never stacks listeners or toasts.
+
 ## 0.8.8 - 2026-11-12
 
 - Restore Web Push on DSH 0.2.2-rc.2, which removed the `roots`/`isOwnedBy` ownership walk the public push host required: when the registry no longer exposes it, ownership comes from the durable Session header instead — `origin: 'subagent'` plus its `parentSession` ancestry, bounded and stopping at a missing parent — while hosts that still expose the walk keep the previous path and the same root-targeting and child-suppression rules. The packed push lanes and the Web Push guides cover rc.2 again. Thanks @chintoleung for the report in [#407](https://github.com/saya-ch/dsh-mobile/issues/407) and the fix in [#408](https://github.com/saya-ch/dsh-mobile/pull/408).
