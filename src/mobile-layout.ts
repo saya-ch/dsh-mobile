@@ -633,9 +633,22 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-drawer{position:fixed;z-index:70;inset:0 auto 0 0;box-sizing:border-box;width:56px;max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background-color:Canvas;background-image:linear-gradient(var(--dsw-alias-bg-layer-1,#f8fafc),var(--dsw-alias-bg-layer-1,#f8fafc));box-shadow:none;will-change:width;transition:width 240ms cubic-bezier(.22,1,.36,1),box-shadow 240ms ease}
 .dshm-drawer[data-open=true]{width:min(88vw,340px);box-shadow:18px 0 46px rgb(15 23 42 / 18%)}
 .dshm-drawer[data-open=false]{pointer-events:auto;visibility:visible}
-.dshm-drawer>*{width:100%!important;height:100%!important;transform:translateX(-6px);opacity:.94;transition:transform 220ms cubic-bezier(.22,1,.36,1),opacity 160ms ease-out}
-.dshm-drawer[data-open=true]>*{transform:translateX(0);opacity:1}
-.dshm-drawer[data-open=false]>*{width:56px!important}
+/* Slide the sidebar content only while opening or closing. A resting transform
+   would make this child the containing block for stock fixed-position surfaces
+   inside the sidebar and let the drawer's overflow clip them (issue #413: the
+   Cordis plugin panel anchors itself to the viewport to escape that clip). */
+.dshm-drawer>*{width:100%!important;height:100%!important;opacity:.94;transition:opacity 160ms ease-out}
+.dshm-drawer[data-open=true]>*{opacity:1;animation:dshm-drawer-slide-open 220ms cubic-bezier(.22,1,.36,1)}
+.dshm-drawer[data-open=false]>*{width:56px!important;animation:dshm-drawer-slide-closed 220ms cubic-bezier(.22,1,.36,1)}
+@keyframes dshm-drawer-slide-open{from{transform:translateX(-6px)}to{transform:translateX(0)}}
+@keyframes dshm-drawer-slide-closed{from{transform:translateX(0)}to{transform:translateX(-6px)}}
+/* The Cordis plugin panel opens from the sidebar footer as a stock fixed surface
+   (position:fixed, width:420px, anchored from its trigger) so the sidebar's
+   overflow cannot clip it. On phones the drawer must give it real containment:
+   span the viewport instead of the desktop width, sit above our drawer but below
+   the stock floating slot layer (300), and cap the height so its body scrolls
+   (issue #413). */
+.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) [data-cordis-panel]{position:fixed!important;inset:auto 8px max(8px,env(safe-area-inset-bottom)) 8px!important;width:auto!important;max-width:min(420px,calc(100vw - 16px))!important;max-height:min(60vh,calc(100dvh - 96px))!important;overflow-y:auto!important;z-index:210!important}
 /* Folded icon rail: on narrow viewports the drawer is fixed, so give the main
    content the same 56px offset the wide grid already provides. The width floor
    keeps phone-width headers on their own inset; the band itself is the root
@@ -710,7 +723,7 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
    dims and covers it. Only the wide grid needs this: on a phone the drawer is a
    floating overlay and must keep covering the conversation. */
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-main{grid-area:1/2;z-index:1}
-@media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}.dshm-drawer>*{animation:none!important}}
 /* Touch adaptation changes control boxes, not invisible hit regions. Root opt-out
    retains pane geometry too; nested opt-out preserves a widget's own controls.
    DSH's plugin cards open through a cardTitle/cardOpen button whose ::after
