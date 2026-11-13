@@ -1,0 +1,25 @@
+name: Windows client CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-client:
+    name: Windows client build and unit tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore apps/windows/DshMobile.Win.Tests/DshMobile.Win.Tests.csproj
+      - name: Build client (Release)
+        run: dotnet build apps/windows/DshMobile.Win/DshMobile.Win.csproj -c Release --no-restore
+      - name: Unit tests (Release)
+        run: dotnet test apps/windows/DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
