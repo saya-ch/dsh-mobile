@@ -206,9 +206,11 @@ export function cookie(
 
 /** Enforce direct CIDR, exact Host, and browser same-origin facts. */
 export function assertExternalTrust(request: IncomingMessage, policy: RequestTrustPolicy, requireOrigin: boolean): void {
-  if (!addressAllowed(request.socket.remoteAddress, policy.cidrs) || !policy.acceptsHost(request.headers.host)) {
-    throw new HttpError(403, 'forbidden')
-  }
+  // A peer outside the trusted CIDRs is a network mismatch, not a bad credential.
+  // Naming it separately lets a pairing client say which network to trust instead
+  // of reporting that a one-time pairing code expired.
+  if (!addressAllowed(request.socket.remoteAddress, policy.cidrs)) throw new HttpError(403, 'source_network_untrusted')
+  if (!policy.acceptsHost(request.headers.host)) throw new HttpError(403, 'forbidden')
   const origin = request.headers.origin
   if (origin !== undefined && !policy.acceptsOrigin(origin)) throw new HttpError(403, 'forbidden')
   const site = request.headers['sec-fetch-site']
