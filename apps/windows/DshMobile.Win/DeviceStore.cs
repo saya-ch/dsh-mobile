@@ -86,6 +86,33 @@ internal sealed class SavedDevice
         PairedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
     };
 
+    /// <summary>
+    /// Follows a moved gateway (e.g. a rotated cpolar address): the new link
+    /// must carry the same instanceId, otherwise it is a different computer.
+    /// Keeps the user-visible name; network fields, the CA pin and the old
+    /// device token are replaced, so the adopted record must complete a fresh
+    /// native-pair with the new link's one-time token.
+    /// </summary>
+    internal SavedDevice AdoptNewOrigin(UrlPairing link)
+    {
+        if (link.InstanceId != InstanceId)
+            throw new FormatException("新链接不是同一台电脑（instanceId 不一致）");
+        return new SavedDevice
+        {
+            Channel = link.Mode.ToString().ToLowerInvariant(),
+            EndpointId = link.InstanceId,
+            Name = Name,
+            Hostname = link.Hostname,
+            Origin = link.Origin,
+            LocalPort = link.Port,
+            InstanceId = link.InstanceId,
+            CaDerBase64 = string.Empty, // re-bootstrap from the new origin
+            PlatformTrust = false,
+            RequiresCa = link.RequiresCa,
+            PairedAt = PairedAt,
+        };
+    }
+
     internal void SetDeviceToken(string token) =>
         ProtectedDeviceToken = Convert.ToBase64String(ProtectedData.Protect(
             Encoding.UTF8.GetBytes(token), Entropy, DataProtectionScope.CurrentUser));

@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private bool _scanning;
     private DiscoveredGateway? _selectedDiscovery;
     private CancellationTokenSource? _scanCts;
+    private SavedDevice? _pendingAdopt;
 
     public MainWindow()
     {
@@ -136,7 +137,7 @@ public partial class MainWindow : Window
             {
                 var warning = new TextBlock
                 {
-                    Text = "凭据已过期或不可读，需要重新扫码配对",
+                    Text = "凭据已过期或不可读，粘贴该电脑当前链接即可更新",
                     FontSize = 12,
                     Margin = new Thickness(0, 4, 0, 0),
                 };
@@ -224,18 +225,37 @@ public partial class MainWindow : Window
             try
             {
                 var link = UrlPairing.Parse(input);
-                if (_selectedDiscovery is not null && link.Origin != _selectedDiscovery.Origin)
+                if (_pendingAdopt is not null)
                 {
-                    var confirm = MessageBox.Show(this,
-                        $"配对链接指向 {link.Origin}，与已选中的发现结果 {_selectedDiscovery.Origin} 不一致。\n\n" +
-                        "可能是贴错了另一台电脑的链接。继续配对吗？",
-                        "地址不一致", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                    if (confirm != MessageBoxResult.Yes) return;
+                    // Address follow: the new link must come from the same
+                    // computer; the name is kept, the token is re-paired.
+                    if (link.InstanceId != _pendingAdopt.InstanceId)
+                    {
+                        MessageBox.Show(this,
+                            "新链接不是同一台电脑（instanceId 不一致），已保留原记录。",
+                            "无法更新地址", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    device = _pendingAdopt.AdoptNewOrigin(link);
+                    _pendingAdopt = null;
+                    gatewayToken = link.Token;
+                    Log($"adopting moved gateway: channel={link.Mode} requiresCa={link.RequiresCa}");
                 }
-                _selectedDiscovery = null;
-                device = SavedDevice.FromUrlPairing(link);
-                gatewayToken = link.Token;
-                Log($"url pairing link: channel={link.Mode} requiresCa={link.RequiresCa}");
+                else
+                {
+                    if (_selectedDiscovery is not null && link.Origin != _selectedDiscovery.Origin)
+                    {
+                        var confirm = MessageBox.Show(this,
+                            $"配对链接指向 {link.Origin}，与已选中的发现结果 {_selectedDiscovery.Origin} 不一致。\n\n" +
+                            "可能是贴错了另一台电脑的链接。继续配对吗？",
+                            "地址不一致", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                        if (confirm != MessageBoxResult.Yes) return;
+                    }
+                    _selectedDiscovery = null;
+                    device = SavedDevice.FromUrlPairing(link);
+                    gatewayToken = link.Token;
+                    Log($"url pairing link: channel={link.Mode} requiresCa={link.RequiresCa}");
+                }
             }
             catch (Exception urlError)
             {
@@ -434,7 +454,9 @@ public partial class MainWindow : Window
         {
             ShowAddPanel(true);
             DescriptorBox.Focus();
-            MessageBox.Show(this, "这台电脑的设备凭据已过期或无法读取，请重新扫码配对。",
+            _pendingAdopt = device;
+            MessageBox.Show(this, "这台电脑的设备凭据已过期或无法读取。" +
+                "请粘贴这台电脑当前的配对链接，地址与名称会自动更新。",
                 "需要重新配对", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -445,7 +467,7 @@ public partial class MainWindow : Window
     {
         if (_busy) return;
         var device = (SavedDevice)((Button)sender).Tag;
-        if (MessageBox.Show(this, $"删除已配对电脑「{device.Name}」？下次连接需要重新扫码。",
+        if (MessageBox.Show(this, $"删除已配对电脑「{device.Name}」？下次连接需要重新粘贴配对链接。",
                 "删除设备", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         _store.Remove(device.EndpointId, Log);
         RefreshDeviceList();
@@ -565,6 +587,23 @@ public partial class MainWindow : Window
             ShowConnectPage();
             if (repair) { ShowAddPanel(true); DescriptorBox.Focus(); }
             SetProgress(string.Empty);
+            if (repair && IsAdoptableFailure(error, device))
+            {
+                // The gateway may have moved (rotated tunnel address) or the
+                // credential expired: offer to paste the computer's current
+                // link and keep the saved name.
+                var update = MessageBox.Show(this,
+                    hint + "\n\n是否用这台电脑当前的配对链接更新地址？（需同一台电脑，保留名称）",
+                    "连接失败", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (update == MessageBoxResult.Yes)
+                {
+                    _pendingAdopt = device;
+                    ShowAddPanel(true);
+                    DescriptorBox.Focus();
+                    return;
+                }
+                return;
+            }
             MessageBox.Show(this, hint, "连接失败", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
@@ -590,7 +629,7 @@ public partial class MainWindow : Window
             return session;
         }
         var token = device.GetDeviceToken()
-            ?? throw new InvalidOperationException("设备凭据不可用，请重新扫码配对");
+            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
         var renewed = await GatewayAuth.RenewAsync(device, token, _connectCts!.Token);
         Log("session renewed without a QR code");
         return renewed;
@@ -639,6 +678,27 @@ public partial class MainWindow : Window
                     "常见原因：电脑端通道刚重启、发现记录尚未传播，或代理/VPN 拦了 UDP。\n" +
                     "请确认通道就绪后重试；详细诊断见 data\\client.log。", false);
         return (message, false);
+    }
+
+    /// <summary>
+    /// Direct (lan/remote) failures worth offering an address update for:
+    /// the gateway moved or the credential expired/revoked. iroh records
+    /// carry their own endpoint identity and reconnect via Hello instead.
+    /// </summary>
+    private static bool IsAdoptableFailure(Exception error, SavedDevice device)
+    {
+        if (device.Channel is not ("lan" or "remote")) return false;
+        var message = error.Message;
+        if (message.Contains("设备凭据", StringComparison.Ordinal) ||
+            message.Contains("device_expired", StringComparison.Ordinal) ||
+            message.Contains("device credential", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("401", StringComparison.Ordinal))
+            return true;
+        return message.Contains("无法解析主机", StringComparison.Ordinal) ||
+            error is SocketException ||
+            message.Contains("refused", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("无法连接", StringComparison.Ordinal);
     }
 
     private void SetProgress(string status)
