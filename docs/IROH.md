@@ -2,7 +2,7 @@
 
 iroh 用加密直连（打不通时走中继）代替公网域名和隧道账号：手机先找到电脑的加密身份，再把流量送回本机网关。你不需要准备域名、端口映射或另一套 HTTPS 隧道。
 
-> 插件 0.7.0 和 App 0.7.0 完整版整合电脑端通道、固定 TLS、配对界面和 Android 原生传输；功能默认关闭，仍标记为实验性。本文在插件 0.8.6 与 Android 完整版 0.7.3（build 88）上验证，iroh 自 0.7.0 起可用；能否直连、是否经过中继及连接速度取决于两端网络，不保证在所有校园网、企业网或运营商环境下可用。
+> 插件 0.7.0 和 App 0.7.0 完整版整合电脑端通道、固定 TLS、配对界面和 Android 原生传输；功能默认关闭，仍标记为实验性。本文对应插件 0.8.8 与 Android 完整版 0.7.4（build 89；main 上 App 候选为 0.7.5/build 90），iroh 自 0.7.0 起可用；能否直连、是否经过中继及连接速度取决于两端网络，不保证在所有校园网、企业网或运营商环境下可用。
 > 相关设计见独立仓的[集成接缝](https://github.com/saya-ch/dsh-mobile-iroh/blob/main/docs/INTEGRATION_SEAM.md)。
 
 ## 前提
@@ -26,8 +26,8 @@ iroh 用加密直连（打不通时走中继）代替公网域名和隧道账号
 
 ## 安全边界
 
-- sidecar 只允许代理到 `127.0.0.1`/`::1` 的回环网关，TLS 仍端到端；命令与事件都是版本化、有界（命令行 16 KiB、peer 行 64 KiB）、未知字段直接拒绝。
-- 换指纹/换二进制/挪文件都会让校验失败，不会静默跑旧通道：缺少或损坏的组件停在 `unavailable`，身份或 TLS 指纹不符则进入 `error`（面板状态是 `gateway_start_failed`）。
+- sidecar 只允许代理到 `127.0.0.1`/`::1` 的回环网关，TLS 仍端到端；命令与事件都是版本化、有界（命令与事件行 16 KiB、peer 行 64 KiB）、未知字段直接拒绝。
+- 换 CA 指纹/换二进制/挪文件都会让校验失败，不会静默跑旧通道：缺少或损坏的组件停在 `unavailable`；CA 证书或指纹不符，或身份文件损坏、不可读时进入 `error`，面板显示远程网关启动失败（`gateway_start_failed`）。直接替换 sidecar 身份文件不会报错，但会生成新身份，旧配对随之失效。
 - 传输层撤销与设备 Token 撤销是两套授权，统一管理界面是 Phase 2 内容；电脑端撤销仍按现有设备管理生效。
 
 ## 排障
@@ -41,7 +41,7 @@ iroh 身份和证书必须存放在仅当前用户或受信系统账户可写的
 | `iroh_companion_missing` | 还没点安装（或配套不在常规布局旁）；先点安装官方组件，或用 `DSH_MOBILE_IROH_COMPANION` 指向配套绝对路径复用 |
 | `iroh_sidecar_invalid` | 已装文件被改动过；重新点安装即可覆盖修复，配套副本损坏则重装配套 |
 | `iroh_platform_unsupported` | 当前系统/架构没有 sidecar 发布 |
-| `iroh_data_directory_insecure` | Windows 状态目录的某个上级目录允许其他账户写入或替换。请把 `DSH_HOME` 移到私有目录，或修正上级目录 ACL；插件日志会保留 sidecar 的脱敏 stderr 说明。若 `DSH_HOME` 必须留在其他卷，可把 `stateFile` 指向用户 profile 下的私有目录，插件从该路径派生的状态文件也会随之迁移；在 profile patch 里改 `config` 时要写全所有字段，因为 DSH 整体替换该条目配置，不逐键合并（参见[可信网络](TRUSTED_NETWORKS.md)的同类说明） |
+| `iroh_data_directory_insecure` | Windows 状态目录的某个上级目录允许其他账户写入或替换。请把 `DSH_HOME` 移到私有目录，或修正上级目录 ACL；插件日志会保留 sidecar 的脱敏 stderr 说明。不要用手动改 `stateFile` 或状态目录来切换位置：该字段决定整个 DSH Mobile 状态目录，改动会让配对记录、设备令牌、TLS 与 iroh 身份在新目录重建，旧目录不会自动迁移，手机需要重新配对；确需换位置请走正常配置入口并在改动前备份。在 profile patch 里改 `config` 时要写全所有字段，因为 DSH 整体替换该条目配置，不逐键合并（参见[可信网络](TRUSTED_NETWORKS.md)的 config 覆盖说明） |
 | `iroh_identity_invalid` / `iroh_identity_failed` | 先检查状态目录及父目录是否私有、已有身份是否损坏，保留原文件再排查；`id` 仅检查已有身份，首次创建使用 `tls-prepare`，不是靠复制或删除身份修复 |
 | `iroh_start_timeout` | 查看 DSH 日志中的 iroh 错误及网络连接，确认固定组件可运行；不要反复重新配对来替代进程排查 |
 | 通道 `ready` 但手机连不上 | 检查 App 是否为完整版、设备是否支持打包的 ABI，以及描述符是否有效；电脑就绪不等于手机已连通，连接中继服务也不等于数据一定经过中继 |

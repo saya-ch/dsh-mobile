@@ -2,7 +2,7 @@
 
 iroh replaces public domains and tunnel accounts with an encrypted direct connection (relay fallback when direct fails): the phone finds the computer's cryptographic identity first, then traffic returns to the loopback gateway. You need no domain, port mapping, or separate HTTPS tunnel.
 
-> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. This guide was verified on plugin 0.8.6 and the full Android App 0.7.3 (build 88); iroh has been available since 0.7.0. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
+> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. This guide corresponds to plugin 0.8.8 and the full Android App 0.7.4 (build 89; the App candidate on main is 0.7.5/build 90); iroh has been available since 0.7.0. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
 > The design lives in the companion's [integration seam](https://github.com/saya-ch/dsh-mobile-iroh/blob/main/docs/INTEGRATION_SEAM.md).
 
 ## Prerequisites
@@ -26,8 +26,8 @@ To reclaim component storage, turn off iroh remote access, expand the component 
 
 ## Security boundaries
 
-- The sidecar proxies only to a `127.0.0.1`/`::1` loopback gateway with end-to-end TLS; commands and events are versioned and bounded (16 KiB command lines, 64 KiB peer lines), and rejected closed on unknown fields.
-- A rotated fingerprint, replaced binary, or moved file fails verification instead of silently running a stale one: a missing or damaged component parks the channel at `unavailable`, while an identity or TLS fingerprint mismatch reports `error` (`gateway_start_failed`).
+- The sidecar proxies only to a `127.0.0.1`/`::1` loopback gateway with end-to-end TLS; commands and events are versioned and bounded (16 KiB command and event lines, 64 KiB peer lines), and rejected closed on unknown fields.
+- A rotated CA fingerprint, replaced binary, or moved file fails verification instead of silently running a stale one: a missing or damaged component parks the channel at `unavailable`; a mismatched CA certificate/fingerprint, or a corrupt or unreadable identity file, reports `error` and the panel shows the remote gateway failed to start (`gateway_start_failed`). Replacing the sidecar identity file does not fail; it creates a new identity and the old pairings stop matching.
 - Transport revocation and device-token revocation are separate authorizations; their unified management is Phase 2 work. Computer-side revocation keeps working through the existing device management.
 
 ## Troubleshooting
@@ -41,7 +41,7 @@ Before a component release, verify first use with the exact catalog-pinned execu
 | `iroh_companion_missing` | Nothing installed yet: press Install first, or point `DSH_MOBILE_IROH_COMPANION` at a companion absolute path to reuse |
 | `iroh_sidecar_invalid` | An installed file was modified; reinstalling overwrites it in place, or reinstall the companion for a damaged companion copy |
 | `iroh_platform_unsupported` | No sidecar is published for this OS/architecture |
-| `iroh_data_directory_insecure` | A Windows parent directory of the state path grants write or replacement rights to another account. Move `DSH_HOME` to private storage or correct those ACLs; the plugin log retains the sidecar's bounded stderr explanation. If `DSH_HOME` must stay on another volume, point `stateFile` at a private directory under the user profile, which also relocates the state files derived from that path; when editing `config` in a profile patch, supply every field, because DSH replaces the whole entry config instead of merging keys (see the same rule in [trusted networks](TRUSTED_NETWORKS.en.md)) |
+| `iroh_data_directory_insecure` | A Windows parent directory of the state path grants write or replacement rights to another account. Move `DSH_HOME` to private storage or correct those ACLs; the plugin log retains the sidecar's bounded stderr explanation. Do not switch locations by hand-editing `stateFile` or the state directory: that field selects the whole DSH Mobile state directory, so changing it recreates pairings, device tokens, TLS and the iroh identity under the new path and nothing is migrated from the old one — the phone has to pair again; use the normal configuration entry and back up first. When editing `config` in a profile patch, supply every field, because DSH replaces the whole entry config instead of merging keys (see the config-override rule in [trusted networks](TRUSTED_NETWORKS.en.md)) |
 | `iroh_identity_invalid` / `iroh_identity_failed` | Check private permissions on the state directory and its ancestors and check for damaged identity files, preserving originals. `id` reads an existing identity; first use invokes `tls-prepare`, not copying or deleting an identity |
 | `iroh_start_timeout` | Inspect iroh errors in the DSH log and network connectivity, and verify that the pinned component runs; repeated pairing is not a substitute for process diagnosis |
 | Channel `ready` but no phone connects | Check that the App is the full build, the device supports a packaged ABI and the descriptor is fresh. Computer readiness does not establish phone connectivity; a relay-service connection alone does not establish that data uses the relay |
