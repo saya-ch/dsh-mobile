@@ -40,6 +40,8 @@ public partial class MainWindow : Window
 
     private IrohCarrier? _carrier;
     private SavedDevice? _current;
+    private BackgroundEventWatcher? _watcher;
+    private System.Windows.Forms.NotifyIcon? _trayIcon;
     private CoreWebView2? _core;
     private bool _certificateHandlerAttached;
     private CancellationTokenSource? _connectCts;
@@ -64,7 +66,12 @@ public partial class MainWindow : Window
             ApplyCaptionColor();
             await InitializeWebViewAsync();
         };
-        Closed += (_, _) => DisconnectCore();
+        Closed += (_, _) =>
+        {
+            DisconnectCore();
+            _trayIcon?.Dispose();
+            _trayIcon = null;
+        };
     }
 
     [DllImport("dwmapi.dll")]
@@ -570,6 +577,7 @@ public partial class MainWindow : Window
             ShowBrowserPage(device);
             _core!.Navigate(device.Origin);
             Log("connected: " + device.Origin);
+            StartTaskWatcher(device, session);
         }
         catch (Exception error)
         {
@@ -1032,9 +1040,91 @@ public partial class MainWindow : Window
         _connectCts?.Cancel();
         _connectCts?.Dispose();
         _connectCts = null;
+        StopTaskWatcher();
         _carrier?.Dispose();
         _carrier = null;
         _current = null;
+    }
+
+    /// <summary>
+    /// Follows the same background-events stream the Android dataSync service
+    /// consumes, so task completions surface as desktop balloons while the
+    /// window is minimized. Closing the app still stops notifications: the
+    /// tray icon is only visible while the watcher runs.
+    /// </summary>
+    private void StartTaskWatcher(SavedDevice device, NativeSession session)
+    {
+        StopTaskWatcher();
+        var watcher = new BackgroundEventWatcher(device, RenewForWatcherAsync, Log);
+        watcher.TaskNotified += (title, body) => Dispatcher.BeginInvoke(new Action(() =>
+            ShowTrayBalloon(
+                ClipNotifyText(title, "任务完成", 60),
+                ClipNotifyText(body, "电脑端任务有更新，点击查看。", 240),
+                System.Windows.Forms.ToolTipIcon.Info)));
+        watcher.Revoked += reason => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            StopTaskWatcher();
+            ShowTrayBalloon("设备已失效", reason + "。请粘贴该电脑当前的配对链接更新。",
+                System.Windows.Forms.ToolTipIcon.Warning);
+        }));
+        _watcher = watcher;
+        EnsureTrayIcon();
+        _trayIcon!.Visible = true;
+        _trayIcon.Text = "DeepSeek Harness — 正在监听任务完成";
+        watcher.Start(session.SessionToken);
+    }
+
+    private void StopTaskWatcher()
+    {
+        _watcher?.Dispose();
+        _watcher = null;
+        if (_trayIcon is not null) _trayIcon.Visible = false;
+    }
+
+    private async Task<NativeSession> RenewForWatcherAsync(CancellationToken ct)
+    {
+        var current = _current
+            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+        var token = current.GetDeviceToken()
+            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+        var renewed = await GatewayAuth.RenewAsync(current, token, ct);
+        Dispatcher.Invoke(() =>
+        {
+            if (_core is not null) InstallCookies(renewed);
+        });
+        return renewed;
+    }
+
+    private void EnsureTrayIcon()
+    {
+        if (_trayIcon is not null) return;
+        _trayIcon = new System.Windows.Forms.NotifyIcon
+        {
+            Icon = System.Drawing.SystemIcons.Application,
+            Text = "DeepSeek Harness",
+            Visible = false,
+        };
+        _trayIcon.BalloonTipClicked += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (_current is not null) ShowBrowserPage(_current);
+            Activate();
+        }));
+    }
+
+    private void ShowTrayBalloon(string title, string body, System.Windows.Forms.ToolTipIcon icon)
+    {
+        if (_trayIcon is null) return;
+        _trayIcon.BalloonTipTitle = title;
+        _trayIcon.BalloonTipText = body;
+        _trayIcon.BalloonTipIcon = icon;
+        _trayIcon.ShowBalloonTip(15000);
+    }
+
+    private static string ClipNotifyText(string? value, string fallback, int maxRunes)
+    {
+        var text = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        var clipped = string.Concat(text.EnumerateRunes().Take(maxRunes));
+        return clipped.Length < text.Length ? clipped + "…" : clipped;
     }
 
     private void Log(string message)

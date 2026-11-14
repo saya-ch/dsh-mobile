@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DshMobile.Win</AssemblyName>
@@ -22,6 +23,13 @@
   <!-- Pure-logic unit tests live in a separate project; expose internals only to it. -->
   <ItemGroup>
     <InternalsVisibleTo Include="DshMobile.Win.Tests" />
+  </ItemGroup>
+
+  <!-- UseWindowsForms is only for NotifyIcon balloons (fully qualified in
+       code). Drop its implicit namespace so WPF types stay unambiguous. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
   </ItemGroup>
 
   <!-- The iroh sidecar is intentionally NOT packaged (see sidecar/manifest.json):
