@@ -880,8 +880,9 @@ public partial class MainWindow : Window
     /// navigation, external links, downloads and permissions (SecureWebViewClient,
     /// GatewayUrlPolicy, MainActivity); without these handlers every one of those
     /// behaviors is undefined on Windows. Only the exact paired gateway origin may
-    /// navigate, pop-ups/downloads/permissions are denied, and a renderer crash is
-    /// reported and recovered with a reload.
+    /// navigate; pop-ups stay blocked, downloads are saved through a same-origin
+    /// file dialog, and only the microphone is granted (camera and the rest are
+    /// denied). A renderer crash is reported and recovered with a reload.
     /// </summary>
     private void AttachWebViewPolicyHandlers()
     {
@@ -896,14 +897,23 @@ public partial class MainWindow : Window
     private bool IsAllowedGatewayNavigation(string raw)
     {
         if (raw == "about:blank") return true; // used when disconnecting
-        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
-        if (_current is null || !Uri.TryCreate(_current.Origin, UriKind.Absolute, out var expected)) return false;
-        return string.Equals(uri.GetLeftPart(UriPartial.Authority),
-            expected.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+        return _current is not null && WebViewPolicy.IsSameGatewayOrigin(raw, _current.Origin);
     }
 
     private static bool IsExternalHttps(string raw) =>
         Uri.TryCreate(raw, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static string SuggestedDownloadName(string raw)
+    {
+        try
+        {
+            var name = Path.GetFileName(new Uri(raw, UriKind.Absolute).LocalPath.TrimEnd('/'));
+            if (!string.IsNullOrWhiteSpace(name) && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
+                return name;
+        }
+        catch { /* fall through to the default */ }
+        return "download";
+    }
 
     private void OpenInSystemBrowser(string url)
     {
@@ -934,18 +944,44 @@ public partial class MainWindow : Window
 
     private void OnDownloadStarting(object? sender, CoreWebView2DownloadStartingEventArgs e)
     {
+        // Android allows foreground downloads from the exact paired origin;
+        // anything else stays cancelled.
+        if (_current is not null && WebViewPolicy.IsSameGatewayOrigin(e.DownloadOperation.Uri, _current.Origin))
+        {
+            var suggested = SuggestedDownloadName(e.DownloadOperation.Uri);
+            var dialog = new Microsoft.Win32.SaveFileDialog { FileName = suggested };
+            if (dialog.ShowDialog(this) == true)
+            {
+                e.ResultFilePath = dialog.FileName;
+                e.Handled = true;
+                Log("download allowed to a chosen path from the paired gateway");
+                return;
+            }
+            e.Cancel = true;
+            e.Handled = true;
+            Log("download cancelled by the user");
+            return;
+        }
         e.Cancel = true;
         e.Handled = true;
-        Log("blocked download: " + e.DownloadOperation.Uri);
-        NotifyPolicyOnce("download", "Windows 客户端暂不支持下载，已阻止该请求。");
+        Log("blocked off-origin download: " + e.DownloadOperation.Uri);
+        NotifyPolicyOnce("download", "已阻止非网关地址的下载。");
     }
 
     private void OnPermissionRequested(object? sender, CoreWebView2PermissionRequestedEventArgs e)
     {
+        // DSH records audio through getUserMedia and the computer's own voice
+        // provider; like Android, the paired origin may use the microphone.
+        // Camera and everything else stay denied.
+        if (e.PermissionKind == CoreWebView2PermissionKind.Microphone &&
+            _current is not null && WebViewPolicy.IsSameGatewayOrigin(e.Uri, _current.Origin))
+        {
+            e.State = CoreWebView2PermissionState.Allow;
+            Log("allowed microphone for the paired gateway");
+            return;
+        }
         e.State = CoreWebView2PermissionState.Deny;
         Log("denied permission: " + e.PermissionKind);
-        if (e.PermissionKind == CoreWebView2PermissionKind.Microphone)
-            NotifyPolicyOnce("microphone", "Windows 客户端暂不支持语音输入（麦克风权限已拒绝）。");
     }
 
     private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
