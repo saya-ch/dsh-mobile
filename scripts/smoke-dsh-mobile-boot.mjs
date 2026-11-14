@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,6 +19,7 @@ const dshBin = process.env.DSH_BOOT_SMOKE_BIN
   ?? fileURLToPath(new URL('../node_modules/@deepseek-ai/dsh/lib/bin.js', import.meta.url))
 const injectedFailure = process.argv.includes('--negative-control')
 const blockedRemoteMux = process.argv.includes('--negative-control-mux')
+const filePreview = process.argv.includes('--file-preview')
 const missingCompanion = process.argv.includes('--negative-control-companion')
 const compressedWebSocket = process.argv.includes('--compressed-websocket')
 const checkDiagnostics = process.argv.includes('--diagnostics')
@@ -30,6 +31,16 @@ const compatibilityPathPattern = /^\/mobile-access\/compat(?:-[a-f\d]{64})?\.js$
 const compatibilityError = /AbortSignal\.any|throwIfAborted|AbortSignal getters|Promise\.withResolvers|Iterator.*(?:not defined|not a constructor|not a function)|Object\.hasOwn|(?:findLastIndex|findLast|toSorted|toReversed|structuredClone|\.at).*?(?:not defined|not a function)/u
 const excludedClientModules = process.env.DSH_BOOT_SMOKE_EXCLUDED_MODULES?.split(',').map(id => id.trim()).filter(Boolean) ?? []
 const startedAt = Date.now()
+// A real preview is the only surface that drives a Gateway unary Remote:
+// POST /api/<endpoint> through the paired mobile origin, including the
+// multipart binary response. Attachment uploading never touches this path.
+const PREVIEW_TIMEOUT_MS = 20_000
+const PREVIEW_TEXT_FILE = 'preview-smoke.md'
+const PREVIEW_BINARY_FILE = 'preview-smoke.bin'
+const PREVIEW_TEXT_BYTES = 'DSH Mobile preview smoke token\n'
+const PREVIEW_BINARY_BYTES = [0x00, 0x01, 0x7f, 0x80, 0xff, 0x0d, 0x0a]
+const DOCUMENT_PREVIEW_MODULE = '@deepseek-ai/dsh-client-ui-sidebar-documentpreview'
+let rpcSequence = 0
 // A native machine resolves the native interaction, so a browse host cannot be
 // reproduced without one. This switch asks DSH for a non-loopback trusted authority,
 // which resolves the browse interaction on the same machine.
@@ -37,6 +48,44 @@ const forceBrowse = process.env.DSH_BOOT_SMOKE_FORCE_BROWSE === '1'
 let compatibilityFailureObserved = false
 let companionFailureObserved = false
 const companionFailureMessage = 'Packed bundle is missing embedded component dsh-mobile-question-fixes'
+
+/**
+ * POST one Gateway unary Remote from a paired page, the way DSH's own
+ * `connection.rpc.call('/api', endpoint, { args })` does. The binary branch keeps
+ * the multipart parse inside the page because a Blob cannot cross `page.evaluate`.
+ */
+async function mobileRpc(page, endpoint, args, { expectMultipart = false } = {}) {
+  return page.evaluate(async ({ endpoint, args, expectMultipart, rpcId, timeoutMs }) => {
+    const diagnostic = {
+      csrfCookie: document.cookie.split(';').some(value => value.trim().startsWith('dsh_ma_csrf=')),
+      transportOwnsHost: globalThis.__DSH_TRANSPORT__?.ownsHost === true,
+    }
+    const response = await fetch(`/api/${endpoint}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId, method: endpoint, payload: { args } }),
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!expectMultipart) {
+      return { status: response.status, contentType, ...diagnostic, body: await response.json() }
+    }
+    const form = await response.formData()
+    const metadata = JSON.parse(String(form.get('metadata')))
+    const attachments = Array.isArray(metadata?.attachments) ? metadata.attachments : []
+    const first = attachments[0]
+    const blob = first === undefined ? undefined : form.get(first.part)
+    const value = metadata?.result?.ok === true ? metadata.result.value : undefined
+    return {
+      status: response.status, contentType, ...diagnostic,
+      envelopeType: metadata?.type, attachmentCount: attachments.length,
+      codec: first?.codec, partIsBlob: blob instanceof Blob,
+      bytes: blob instanceof Blob ? Array.from(new Uint8Array(await blob.arrayBuffer())) : undefined,
+      error: metadata?.result?.ok === false ? metadata.result.error : undefined,
+      offsets: value === undefined ? undefined : { offset: value.offset, eof: value.eof, bytes: value.bytes },
+    }
+  }, { endpoint, args, expectMultipart, rpcId: `file-preview-${++rpcSequence}`, timeoutMs: PREVIEW_TIMEOUT_MS })
+}
 
 /** Observe the actual Chromium upgrade headers without replacing the browser's WebSocket. */
 async function observeWebSocketCompression(page) {
@@ -282,6 +331,7 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
     }
     const mobileFrontend = await phone.evaluate(() => window.__DSH_MOBILE_FRONTEND__)
     if (mobileFrontend !== 'dedicated') throw new Error('Mobile gateway did not select the dedicated frontend')
+    if (filePreview) await verifyMobileFilePreview(phone, directoryRoot, logs)
     const back = () => phone.evaluate(() => {
       const event = new Event('dsh-mobile:native-back', { cancelable: true })
       window.dispatchEvent(event)
@@ -406,6 +456,73 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
   completeSmoke(failures)
 }
 
+/**
+ * Prove one real workspace file can be stat'd, read as text and read as bytes
+ * through the paired mobile origin. A preview that cannot reach the Host fails
+ * somewhere on this chain, so the read is the smallest honest end-to-end check.
+ */
+async function verifyMobileFilePreview(phone, directoryRoot, logs) {
+  const workspace = await mobileRpc(phone, 'workspace/create', { request: { path: directoryRoot } })
+  const workspaceValue = workspace.body?.result?.ok === true ? workspace.body.result.value : undefined
+  const workspaceId = workspaceValue?.workspace?.workspaceId ?? workspaceValue?.workspaceId ?? workspaceValue?.id
+  if (workspace.status !== 200 || typeof workspaceId !== 'string') {
+    throw new Error(`Mobile gateway could not create the preview Workspace: ${sanitized(JSON.stringify(workspace))}\n${logs()}`)
+  }
+  const created = await mobileRpc(phone, 'session/create', { request: { workspaceId } })
+  if (created.status !== 200 || created.body?.result?.ok !== true
+    || typeof created.body.result.value?.sessionId !== 'string') {
+    throw new Error(`Mobile gateway could not create a Session for the preview read: ${sanitized(JSON.stringify(created))}\n${logs()}`)
+  }
+  const sessionId = created.body.result.value.sessionId
+
+  const stat = await mobileRpc(phone, 'workspaceFiles/stat', { workspaceFileScopeId: sessionId, path: PREVIEW_TEXT_FILE })
+  const statValue = stat.body?.result?.value
+  if (stat.status !== 200 || stat.body?.result?.ok !== true || typeof statValue?.absolutePath !== 'string'
+    || typeof statValue.version !== 'string' || statValue.bytes !== PREVIEW_TEXT_BYTES.length) {
+    throw new Error(`Mobile gateway workspaceFiles/stat failed: ${sanitized(JSON.stringify(stat))}\n${logs()}`)
+  }
+  if (!statValue.absolutePath.replace(/\\/gu, '/').endsWith(`/${PREVIEW_TEXT_FILE}`)) {
+    throw new Error(`workspaceFiles/stat resolved an unexpected path: ${sanitized(JSON.stringify(statValue))}`)
+  }
+
+  const read = await mobileRpc(phone, 'workspaceFiles/read', {
+    workspaceFileScopeId: sessionId, path: PREVIEW_TEXT_FILE, range: {},
+  })
+  const readValue = read.body?.result?.value
+  if (read.status !== 200 || read.body?.result?.ok !== true
+    || readValue?.text?.trimEnd() !== PREVIEW_TEXT_BYTES.trimEnd() || readValue.offset !== 1 || readValue.eof !== true || readValue.lines !== 1) {
+    throw new Error(`Mobile gateway workspaceFiles/read did not return the real file text: ${sanitized(JSON.stringify(read))}\n${logs()}`)
+  }
+
+  const bytes = await mobileRpc(phone, 'workspaceFiles/readBytes', {
+    workspaceFileScopeId: sessionId, path: PREVIEW_BINARY_FILE, options: {},
+  }, { expectMultipart: true })
+  if (bytes.status !== 200 || bytes.envelopeType !== 'server-response'
+    || !bytes.contentType.startsWith('multipart/form-data')
+    || bytes.attachmentCount !== 1 || bytes.codec !== 'bytes' || bytes.partIsBlob !== true
+    || JSON.stringify(bytes.bytes) !== JSON.stringify(PREVIEW_BINARY_BYTES)
+    || bytes.offsets?.eof !== true || bytes.offsets.offset !== 0) {
+    throw new Error(`Mobile gateway workspaceFiles/readBytes did not return the real file bytes: ${sanitized(JSON.stringify(bytes))}\n${logs()}`)
+  }
+
+  // The Host failure has to travel back as an RPC error, not as a gateway 5xx:
+  // that separation is what tells a missing file apart from a broken preview.
+  const missing = await mobileRpc(phone, 'workspaceFiles/read', {
+    workspaceFileScopeId: sessionId, path: 'preview-smoke-missing.md', range: {},
+  })
+  if (missing.status !== 200 || missing.body?.result?.ok !== false
+    || missing.body.result.error?.code !== 'workspace-file/not-found') {
+    throw new Error(`Mobile gateway did not report a Host not-found for a missing preview file: ${sanitized(JSON.stringify(missing))}\n${logs()}`)
+  }
+
+  const plan = await phone.evaluate(() => window.__DSH_BOOT__)
+  if (!Array.isArray(plan?.entries) || !plan.entries.some(row => row.id === DOCUMENT_PREVIEW_MODULE)) {
+    throw new Error(`Mobile boot graph dropped the document preview module: ${sanitized(JSON.stringify(plan?.entries?.map(row => row.id) ?? []))}`)
+  }
+
+  console.log(`Mobile gateway preview read real text and ${String(PREVIEW_BINARY_BYTES.length)} binary bytes over POST /api/workspaceFiles/{stat,read,readBytes} (csrf=${String(read.csrfCookie)}, transportOwnsHost=${String(read.transportOwnsHost)})`)
+}
+
 async function main() {
   if (process.env.DSH_BOOT_SMOKE_MOBILE_TARBALL === undefined) await readFile(join(mobileRoot, 'lib', 'index.mjs'))
   await readFile(dshBin)
@@ -415,6 +532,10 @@ async function main() {
   try {
     const directoryRoot = join(root, 'workspace-directory')
     await mkdir(directoryRoot)
+    if (filePreview) {
+      await writeFile(join(directoryRoot, PREVIEW_TEXT_FILE), PREVIEW_TEXT_BYTES)
+      await writeFile(join(directoryRoot, PREVIEW_BINARY_FILE), Buffer.from(PREVIEW_BINARY_BYTES))
+    }
     const tarball = process.env.DSH_BOOT_SMOKE_MOBILE_TARBALL === undefined
       ? await packBundle(mobileRoot, root) : resolve(process.env.DSH_BOOT_SMOKE_MOBILE_TARBALL)
     let home
