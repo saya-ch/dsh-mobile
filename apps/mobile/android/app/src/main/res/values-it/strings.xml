@@ -197,6 +197,14 @@
     <string name="icon_choice_official_whale_black">Balena DeepSeek (nero)</string>
     <string name="icon_choice_official_whale_white">Balena DeepSeek (bianco)</string>
     <string name="device_list_settings">Impostazioni</string>
+    <string name="check_for_updates">Verifica aggiornamenti</string>
+    <string name="checking_updates">Verifica aggiornamenti…</string>
+    <string name="update_up_to_date">Hai già la versione più recente</string>
+    <string name="update_available_title">Aggiornamento disponibile</string>
+    <string name="update_available_message">La versione %1$s è disponibile (questa App è la %2$s). Aprire la pagina di download?</string>
+    <string name="update_now">Aggiorna</string>
+    <string name="update_check_failed">Verifica non riuscita</string>
+    <string name="update_check_failed_message">Impossibile raggiungere GitHub per leggere l\'ultima versione dell\'App. Controlla la rete e riprova.</string>
     <string name="icon_settings_failed">Impossibile cambiare l’icona. Riprova.</string>
     <string name="scan_zoom_in">Aumenta zoom</string>
     <string name="scan_zoom_out">Riduci zoom</string>
