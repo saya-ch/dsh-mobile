@@ -6,6 +6,10 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 ## 下一版本贡献 / Contributions for the next release
 
+本节随下一个版本更新 / Updated with the next release.
+
+## 0.8.9 贡献 / Contributions in 0.8.9
+
 感谢 [@bvbhu](https://github.com/bvbhu) 在 [#403](https://github.com/saya-ch/dsh-mobile/pull/403) 提供便携 Windows 客户端（已合入 main，尚未随版本发布）；感谢 [@chintoleung](https://github.com/chintoleung) 在 [#420](https://github.com/saya-ch/dsh-mobile/pull/420) 实现移动页路径点按复制；感谢 [@fgql](https://github.com/fgql) 在 [#422](https://github.com/saya-ch/dsh-mobile/issues/422) 提供来源网段配对失败的完整复现。
 
 Thanks [@bvbhu](https://github.com/bvbhu) for the portable Windows client in [#403](https://github.com/saya-ch/dsh-mobile/pull/403) (merged into main, not released yet); thanks [@chintoleung](https://github.com/chintoleung) for the tap-to-copy path implementation in [#420](https://github.com/saya-ch/dsh-mobile/pull/420); thanks [@fgql](https://github.com/fgql) for the complete reproduction of the source-network pairing failure in [#422](https://github.com/saya-ch/dsh-mobile/issues/422).
