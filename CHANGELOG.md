@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## 0.8.10 - Unreleased
+
+- Centre the conversation column on a wide window instead of letting it stretch with the viewport: a landscape tablet measured 1021px of line length for content that reads comfortably at about 700, so the column is capped at 720px and centred while the main area still keeps 900px beside it. The composer shares that slot, so it follows the column on the same axis instead of remaining a separately sized bar. A portrait tablet's 569px main area, a docked right panel and a landscape phone keep the previous full-width column, and a third-party panel is never capped because it owns its own layout. Thanks @LUgABeEEE for the measurements in [#347](https://github.com/saya-ch/dsh-mobile/issues/347).
+
 ## 0.8.9 - 2026-11-14
 
 - Copy a file path by tapping it on touch devices: the preview header's path bar responds to a tap by copying the path the element shows — resolved through the titled ancestor, so taps landing on the nested directory/name spans still copy — and confirms with a bottom toast that stays visible at landscape-phone and tablet widths, where the older drawer toasts stay hidden. Delivered-file cards stay a pure open action, so opening a file never replaces the clipboard. The gate is the shared touch predicate, so desktop clicks never copy and the stock context menu is untouched; inside the changes-review pane the header keeps opening the file switcher. When the async clipboard API is missing (plain-HTTP tailnet origins) or rejects, a rendered off-screen textarea with `execCommand` provides the fallback, restoring focus, selection and scroll afterwards; a failed copy reports a localized failure toast instead of staying silent, and a language rebind never stacks listeners or toasts.
