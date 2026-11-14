@@ -36,14 +36,14 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.8**。恢复 DSH 0.2.2-rc.2 下的 Web 推送（AgentRegistry ownership 变更），任务完成事件携带会话标题与有界摘要、并在 App 报告可投递时让出页面通知，新增默认关闭的阅读模式，推送调度不再在容量满时唤醒定时器。插件与 Android App 独立更新；Android App 0.7.4 仍为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.8**。恢复 DSH 0.2.2-rc.2 下的 Web 推送（AgentRegistry ownership 变更），任务完成事件携带会话标题与有界摘要、并在 App 报告可投递时让出页面通知，新增默认关闭的阅读模式，推送调度不再在容量满时唤醒定时器。插件与 Android App 独立更新；Android App 0.7.5 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.4/dsh-mobile-android-v0.7.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.4/dsh-mobile-android-v0.7.4.apk"><strong>下载 Android App 0.7.4（兼容版）</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.4/dsh-mobile-android-v0.7.4-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.4">版本说明与校验文件</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><strong>下载 Android App 0.7.5（兼容版）</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -115,7 +115,7 @@ dsh plugin --profile web add dshmarket
 
 从上方链接下载正式 Android APK。随后按[连接教程](#连接教程)选择局域网或远程访问；手机不需要安装额外的隧道客户端。包括 iOS 在内的浏览器访问方式见下文。
 
-通过 npm 安装的插件会在桌面界面加载时检查新版本，有更新时在访问面板标题右侧显示“更新插件”，安装后需重启 DSH。App 下载入口展示最新版本；本地开发包不会被自动覆盖，Android App 不会主动检查或推送版本更新。
+通过 npm 安装的插件会在桌面界面加载时检查新版本，有更新时在访问面板标题右侧显示“更新插件”，安装后需重启 DSH。App 下载入口展示最新版本；本地开发包不会被自动覆盖；Android App 0.7.4 不会主动检查或推送版本更新，0.7.5 起在设备列表设置中提供手动「检查更新」，只打开对应发布页，不自动下载或安装。
 
 ### iPhone 与 iPad：主屏幕 Web App（PWA）
 
