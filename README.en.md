@@ -41,7 +41,7 @@
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><strong>Download Android app 0.7.5 (compatibility)</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5">Release notes and checksums</a></sub>
 </p>
@@ -282,6 +282,8 @@ The examples above, applied:
 ## Device management
 
 The Android app lists computers and their LAN/remote records under **Paired computers**. The two authorization types remain separate, so one computer can have two rows. Upgrades migrate old credentials without re-pairing; after a changed address is verified, matching identities merge and keep their names. Self-signed FRP uses a separate CA fingerprint and may create another row. Android Keystore encrypts tokens and pinned CAs. A pairing QR code contains temporary pairing information, never a long-lived device token or CA private key.
+
+The **App icon** entry in that settings menu switches the launcher artwork: the default is the DSH whale-girl mascot holding a phone, with classic, cheer and quiet poses plus six whale-mark colors to choose from. Switching only changes the launcher entry — package identity, paired data and the background service stay untouched.
 
 Unless an identifier is configured manually, new pairings through a public-certificate remote entry use a random identifier saved on the computer, preventing identical installation paths from overwriting another computer's row. Working connections need no re-pairing or Android App update; LAN and self-signed FRP still use their respective CAs. Quit DSH normally and restart after updating; read the [state-backup precautions](SECURITY.md#installation-identity-and-device-state-upgrades) before downgrading.
 
