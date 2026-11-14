@@ -1,13 +1,18 @@
 # 架构与安全模型
 
-本文说明 Windows 客户端的内部结构，便于维护者审阅与后续对齐。功能与构建见 [README.md](README.md)。
+[English](ARCHITECTURE.en.md) · [返回 README](README.md)
+
+本文说明 Windows 客户端的内部结构，便于维护者审阅与后续对齐。功能、构建命令、状态与支持范围见 [README.md](README.md)。
+
+> 状态：本客户端已合入 `main`，但尚未随任何 Release 发布，也尚未完成维护者真机验收；支持范围与验收状态见 README 的「状态与支持范围」。
 
 ## 组件职责
 
 | 文件 | 职责 |
 | --- | --- |
+| `App.xaml(.cs)` | 应用启动、系统深浅色跟随与 `DSH_MOBILE_THEME=light\|dark` 覆盖 |
 | `MainWindow.xaml(.cs)` | WPF 外壳：连接页 + 浏览器页、设备列表、连接/重连编排、WebView2 边界策略 |
-| `UrlPairing.cs` | 解析 `https://…/mobile-access/pair#…` 链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），并按 `RemoteHostPolicy` 区分局域网/远程 |
+| `UrlPairing.cs` | 解析 `https://…/mobile-access/pair#…` 链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），并按同文件的 `RemoteHostPolicy` 区分局域网/远程 |
 | `PairingTrustPolicy.cs` | `ca.cer` 回执的决策（404 是否允许平台信任），对齐 Android `PairingTrust.selectTrustAnchor` / `RemotePairingTrust.decide` |
 | `PairingDescriptor.cs` | 解析 iroh 配对 JSON 描述符（EndpointId / Hostname / Origin / LocalPort / InstanceId / CA） |
 | `GatewayAuth.cs` | TLS 载体上的第二层授权：`native-pair` / `native-renew`，以及 `/mobile-access/ca.cer` 引导 |
@@ -34,7 +39,7 @@
 - Wire：带 code 走 `Pair`，不带 code 走 `Hello`（已配对设备免扫码重连）。
 - sidecar 使用 `presets::N0`（发现 + 中继）；本地回环只转发**原始 TLS 字节**，TLS 终点仍在远端 Gateway。
 - 客户端连 `127.0.0.1:<LocalPort>`，SNI 用远端 `Hostname`，叶子证书按固定 CA 校验。
-- **sidecar 不进仓库**：pin 唯一来源于 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`（镜像在 `sidecar/manifest.json`）。`SidecarProvisioner` 首次使用时按固定 URL 下载、按字节数 + SHA-256 校验，或复用 DSH Mobile 插件已校验的副本；损坏缓存删除重取；`IrohCarrier.StartAsync` 在启动进程前再校验一次，哈希不符拒绝启动。许可文本随 `sidecar/` 附带。
+- **sidecar 不进仓库**：pin 的权威值在 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`；`SidecarProvisioner` 硬编码同值，`sidecar/manifest.json` 只是镜像，三处没有机器校验（升级上游 pin 时需同步）。`SidecarProvisioner` 首次使用时按固定 URL 下载、按字节数 + SHA-256 校验，或复用 DSH Mobile 插件已校验的副本（仅默认 `~/.dsh` 布局）；损坏缓存删除重取；`IrohCarrier.StartAsync` 在启动进程前再校验一次，哈希不符拒绝启动。许可文本随 `sidecar/` 附带（仅仓库内，不随 `dotnet publish` 输出）。
 
 ### 局域网 / 远程（直连）
 
@@ -44,7 +49,7 @@
 
 - 链接形态：`https://<origin>/mobile-access/pair#instance=<64hex>&token=<43base64url>`，
   或 `#key=dsh1|dsh2.<64hex>.<43base64url>`；也接受裸 `https://origin`（仍需 fragment 凭据）。
-- 分类：`RemoteHostPolicy` 按公网/隧道后缀（`*.ts.net`、`*.cpolar.*`、`*.trycloudflare.com`）与私有网段判定 remote / lan。
+- 分类：`RemoteHostPolicy` 按隧道后缀（`*.ts.net`、`.cpolar.cn` / `.cpolar.io` / `.cpolar.top` / `.cpolar.com`、`*.trycloudflare.com`）、私有/回环/链路本地网段，以及 `.local` / `.lan` / `.home` / `.internal` / `.localhost` 与单标签主机名判定 remote / lan。
 - 引导：先以 TOFU 连接取 `/mobile-access/ca.cer`。`dsh2`（`requiresCa=true`）强制要求配对 CA，**404 视为身份不匹配并硬失败**；`dsh1` 与 legacy `instance/token` 描述公共 CA 网关，仅当通道为 remote 且收到显式 404 时允许回退平台信任；LAN 的 404 一律硬失败；已 pin 的设备永不降级。该决策集中在 `PairingTrustPolicy.Decide`，`requiresCa` 持久化在设备记录中并在每次加载时校验。
 
 ## 信任模型
@@ -52,7 +57,7 @@
 - **配对 CA 是固定通道的唯一信任锚**。
 - TOFU 只用于取回 `ca.cer`：握手阶段接受任意证书；**真正的信任决策**是 `ValidateFetchedCa(der, instanceId)`——
   CA 的 SHA-256 必须等于链接里的 `instanceId`，因此攻击者无法伪造出同指纹的 CA。
-- 叶子校验顺序：`Issuer` → 有效期 → 非 CA → `EKU(serverAuth)` → 链固定到 CA → `SAN`
+- 叶子校验顺序：`Issuer` → CA/叶子有效期 → 非 CA → `EKU(serverAuth)` → 链固定到 CA → `SAN`
   （DNS 精确或单层通配；局域网网关也出 IP SAN，按 IP 逐字节比较）。
 - WebView2 `ServerCertificateErrorDetected`：仅当上述固定校验通过才放行；`Expired`/`Revoked` 一律拒绝。
 - 落盘再校验：`SavedDevice.Validate()` 每次加载都重算 `SHA-256(CA) == instanceId`、断言自签、
@@ -79,10 +84,10 @@
 - sidecar 缓存于 `data/components/iroh/<version>/`，损坏或不匹配 pin 时删除重取，绝不启动未校验的二进制。
 - `deviceToken` 以 DPAPI(CurrentUser) 加密后落盘，不跨用户/跨机可用；一次性 `irohCode` / `gatewayToken` 从不持久化。
 
-## 构建与测试状态
+## 构建与测试
 
-- 构建前置：.NET 8 SDK(x64) + WebView2 Evergreen；`dotnet build -c Release` 本机验证 0 警告 0 错误。
-- CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 跑 `dotnet restore` / `dotnet build -c Release` / `dotnet test`，可作为合并门槛。
-- 单测：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退两条）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN）、`DeviceStore.Validate`、`SidecarProvisioner` pin；本机 44 例全通过。
-- 已实测：iroh 跨机连接、免扫码重连、Release 构建与上述单测。
-- 未完整实测：局域网 / 远程通道按 Android 端规则实现并做了边界用例校验，尚未跑完整真机矩阵；WebView2 五个策略 handler 尚未在真实页面上逐一验证。以上均需有 Windows 机器的人按验收清单复核。
+- 前置：.NET 8 SDK（x64）+ WebView2 Evergreen；构建与运行仅支持 Windows x64（见 README「状态与支持范围」）。
+- 命令：`dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`。
+- CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 上执行同一组 restore/build/test 步骤（restore 测试项目，再以 `--no-restore` 构建主项目并测试）；不产出发布包，也不做 WebView2/真机验收。
+- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN）、`DeviceStore.Validate`、`SidecarProvisioner.Verify`；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
+- 验收状态：iroh / 局域网 / 远程通道与 WebView2 五类策略尚未完成维护者真机验收；需要 Windows 机器按验收清单复核。
