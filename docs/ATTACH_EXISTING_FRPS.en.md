@@ -65,7 +65,7 @@ The computer-side gateway terminates TLS with a five-year CA and 397-day public-
    # Expected output: 200. `-k` skips curl's certificate check and proves reachability only, not identity.
    ```
 
-   HTTP 200 proves reachability only: `-k` does not verify identity. Pair through **Remote access** in app 0.4.6 or later; it fetches the CA without device credentials, checks the `dsh2` fingerprint and pins the exact Origin. CA HTTP 404 cannot fall back to platform trust. An Origin or CA change requires new pairing.
+   HTTP 200 proves reachability only: `-k` does not verify identity. Pair through **Remote access** in app 0.4.6 or later; it fetches the CA from `GET /mobile-access/ca.cer` without device credentials, checks the `dsh2` fingerprint and pins the exact Origin. CA HTTP 404 cannot fall back to platform trust. An Origin or CA change requires new pairing.
 
 ## Troubleshooting and cleanup
 

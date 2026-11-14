@@ -15,10 +15,17 @@
 | 复用已经运行的 frps，不自动修改服务器 | [接入既有 frps](ATTACH_EXISTING_FRPS.md) | [Existing frps](ATTACH_EXISTING_FRPS.en.md) |
 | 复用 Lucky、Nginx 或 Caddy 的公开 HTTPS 入口 | [自有反向代理](SELF_HOSTED_ORIGIN.md) | [Own reverse proxy](SELF_HOSTED_ORIGIN.en.md) |
 | 由插件安装 Caddy 并管理 HTTPS 证书（0.6.9 起） | [托管 Caddy](CADDY_MANAGED.md) | [Managed Caddy](CADDY_MANAGED.en.md) |
-| iroh 加密直连实验通道 | [iroh 实验通道](IROH.md) | [iroh experimental channel](IROH.en.md) |
 | 页面加载慢、实时连接反复重连或长操作超时 | [慢链路与重连](SLOW_CONNECTIONS.md) | [Slow links and reconnection](SLOW_CONNECTIONS.en.md) |
 | 了解输入栏换行、附加控件与触摸目标 | [移动输入栏](MOBILE_COMPOSER_TOOLBAR.md) | [Mobile composer](MOBILE_COMPOSER_TOOLBAR.en.md) |
 | 保留电脑皮肤，排查移动页面的背景与可读性 | [皮肤与移动布局](SKIN_COMPATIBILITY.md) | [Skins and mobile layout](SKIN_COMPATIBILITY.en.md) |
+
+## 实验通道 / Experimental channel
+
+以下通道为实验性，不默认启用，验收证据有限：
+
+| 你想做什么 | 中文 | English |
+| --- | --- | --- |
+| iroh 加密直连实验通道 | [iroh 实验通道](IROH.md) | [iroh experimental channel](IROH.en.md) |
 
 在 Android App 中连接公开隧道或自建入口时请选择 **远程访问**。公开受信任证书也可用手机浏览器配对；既有 frps 的自签入口需要 **0.4.6 或更高版本 App** 固定远程 CA。**iroh 则使用完整版 App 0.7.0 的独立配对流程**，不支持兼容版 APK 或手机浏览器。各通道仍要求 DSH Mobile 配对，不能直接暴露普通 DSH 或私有 HTTP 后端。
 

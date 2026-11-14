@@ -17,7 +17,7 @@ The current LAN subnet is always combined with the extra list. When Wi-Fi, hotsp
 
 CIDRs match the direct TCP source address, not `X-Forwarded-For`. Allowing a source subnet does not permit every network or bypass HTTPS, device pairing, exact Host / Origin, or CSRF checks. Add only the ranges actually needed, rather than allowing the entire internet to diagnose a connection.
 
-When the phone and the computer are on different subnets, the source-address check rejects a pairing request before the one-time code is ever examined. From plugin 0.8.9 that rejection answers HTTP 403 `{"error":"source_network_untrusted"}`, separately from an expired code (HTTP 401); from Android 0.7.5 the App reports "phone network not trusted" and points at this page, while an older half of either side still shows the pairing link as expired. Confirm both subnets before regenerating a QR code.
+When the phone and the computer are on different subnets, the source-address check rejects a pairing request before the one-time code is ever examined. From plugin 0.8.9 (not yet released) that rejection answers HTTP 403 `{"error":"source_network_untrusted"}`, separately from an expired code (HTTP 401); from Android 0.7.5 (not yet released) the App reports "phone network not trusted" and points at this page, while an older half of either side still shows the pairing link as expired. Confirm both subnets before regenerating a QR code.
 
 ## Windows firewall is separate
 
