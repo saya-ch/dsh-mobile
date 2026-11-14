@@ -16,9 +16,13 @@ export const PATH_COPY_TARGET_SELECTOR = '[data-textpreview-path]'
 /** The changes-review pane: its header path is a file-switcher menu, never a copy target. */
 export const PATH_COPY_REVIEW_SCOPE = '[data-changes-review]'
 
-/** Replace `{path}` in a localized toast template with the copied value. */
+/** Replace `{path}` in a localized toast template with the copied value, literally.
+ *
+ * The replacement is a function because a string replacement would interpret `$&`,
+ * `` $` `` and `$'` inside the path as replacement patterns, which would show a
+ * mangled message for a legal file name that contains them. */
 export function formatPathCopyMessage(template: string, path: string): string {
-  return template.replaceAll('{path}', path)
+  return template.replaceAll('{path}', () => path)
 }
 
 /** The `title` of a copy target, verbatim — trailing spaces are legal in file names —

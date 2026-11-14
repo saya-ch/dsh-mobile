@@ -24,6 +24,11 @@ describe('formatPathCopyMessage', () => {
   it('substitutes {path}', () => {
     expect(formatPathCopyMessage('Copied: {path}', 'topics/x/report.md')).toBe('Copied: topics/x/report.md')
   })
+  it('inserts a path containing replacement patterns literally', () => {
+    for (const path of ['a$&b.md', "a$'b.md", 'a$`b.md', 'a$1b.md', 'a$$b.md']) {
+      expect(formatPathCopyMessage('Copied: {path}', path)).toBe(`Copied: ${path}`)
+    }
+  })
 })
 
 describe('pathCopyText', () => {

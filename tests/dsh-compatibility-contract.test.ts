@@ -62,10 +62,13 @@ function sourceFixture(version = '0.1.2-alpha.2', architecture: 'renderer-v2' | 
   sources['packages/client/ui-user-questions/src/client/QuestionComposer.tsx'] = 'data-question-key data-question-scroll'
   sources['packages/client/ui-user-questions/src/client/PlanReviewPanel.tsx'] = 'data-plan-review-key data-plan-review-scroll'
   // The preview-path copy affordance taps the titled path bar and never the
-  // changes-review file switcher; the card stays a pure open action.
-  sources['packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx'] = 'data-textpreview-path'
+  // changes-review file switcher; the card stays a pure open action. The marker and
+  // the title have to stay on the same element, which is what closest() resolves.
+  sources['packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx'] =
+    '<PathLabel path={path} className={css.path} data-textpreview-path {...pathTrigger} />'
   sources['packages/client/ui-deliverables/src/client/ReviewTab.tsx'] = 'data-changes-review'
-  sources['packages/client/ui-primitives/src/PathLabel.tsx'] = 'title={path} data-path-label'
+  sources['packages/client/ui-primitives/src/PathLabel.tsx'] =
+    '<span {...attributes} ref={boxRef} className={clsx(css.path, className)} title={path} data-path-label>'
   sources['packages/host/webserver/src/injections.ts'] = 'globalThis[${name}] = ${value}'
   return sources
 }
@@ -135,14 +138,24 @@ describe('DSH source compatibility gate', () => {
 
   it.each([
     ['preview header loses the path bar', 'packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx', 'data-textpreview-path', 'data-other-path', 'data-textpreview-path'],
+    ['the path marker moves off the PathLabel', 'packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx', '<PathLabel path={path} className={css.path} data-textpreview-path {...pathTrigger} />', '<div data-textpreview-path><PathLabel path={path} className={css.path} {...pathTrigger} /></div>', 'data-textpreview-path'],
     ['the changes-review scope marker disappears', 'packages/client/ui-deliverables/src/client/ReviewTab.tsx', 'data-changes-review', 'data-review-pane', 'data-changes-review'],
-    ['PathLabel stops binding title to the path', 'packages/client/ui-primitives/src/PathLabel.tsx', 'title={path} data-path-label', 'data-path-label', 'binds its title'],
+    ['PathLabel stops binding title to the path', 'packages/client/ui-primitives/src/PathLabel.tsx', 'title={path} ', '', 'binds its title'],
   ] as const)('rejects when the %s', async (_label, path, expected, replacement, error) => {
     const sources = sourceFixture()
     sources[path] = sources[path]!.replace(expected, replacement)
     const result = await check(sources)
     expect(result.status).toBe(1)
     expect(result.output).toContain(error)
+  })
+
+  it('accepts an older checkout that predates the preview header', async () => {
+    const sources = sourceFixture()
+    delete sources['packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx']
+    delete sources['packages/client/ui-primitives/src/PathLabel.tsx']
+    const result = await check(sources)
+    expect(result.status).toBe(0)
+    expect(result.output).toContain('DSH compatibility ok')
   })
 
   it.each([
