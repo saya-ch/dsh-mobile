@@ -1,3 +1,4 @@
+using System.Net;
 using Xunit;
 
 namespace DshMobile.Win.Tests;
@@ -136,5 +137,77 @@ public class LanDiscoveryTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         await Assert.ThrowsAnyAsync<Exception>(() =>
             LanDiscovery.ProbeAsync("127.0.0.1", 9, cts.Token));
+    }
+
+    [Fact]
+    public void BroadcastFor_ComputesSubnetBroadcast()
+    {
+        Assert.Equal(
+            IPAddress.Parse("192.168.1.255"),
+            LanDiscovery.BroadcastFor(
+                IPAddress.Parse("192.168.1.18"),
+                IPAddress.Parse("255.255.255.0")));
+        Assert.Equal(
+            IPAddress.Parse("10.0.0.255"),
+            LanDiscovery.BroadcastFor(
+                IPAddress.Parse("10.0.0.5"),
+                IPAddress.Parse("255.255.255.0")));
+    }
+
+    [Fact]
+    public void SubnetHosts_CoversSlash24ExceptSelfAndEdges()
+    {
+        var hosts = LanDiscovery.SubnetHosts("192.168.1.18");
+        Assert.Equal(253, hosts.Count);
+        Assert.Contains("192.168.1.1", hosts);
+        Assert.Contains("192.168.1.254", hosts);
+        Assert.DoesNotContain("192.168.1.0", hosts);
+        Assert.DoesNotContain("192.168.1.255", hosts);
+        Assert.DoesNotContain("192.168.1.18", hosts);
+    }
+
+    [Fact]
+    public void SubnetHosts_RejectsLoopback()
+    {
+        Assert.Empty(LanDiscovery.SubnetHosts("127.0.0.1"));
+    }
+
+    [Fact]
+    public async Task QueryAsync_HearsUnsolicitedAnnouncement()
+    {
+        // The plugin broadcasts announcements every 3s, so a listener must
+        // accept them without having sent a query first.
+        const int port = 44944;
+        var announcement = Announcement(origin: $"https://127.0.0.1:{port}", port: port);
+        using var sender = new System.Net.Sockets.UdpClient();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var endpoint = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, port);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(announcement);
+        var sendLoop = Task.Run(async () =>
+        {
+            while (!cts.Token.IsCancellationRequested)
+            {
+                try { await sender.SendAsync(bytes, endpoint, cts.Token); }
+                catch { break; }
+                await Task.Delay(300, cts.Token).ContinueWith(_ => { });
+            }
+        });
+        try
+        {
+            await foreach (var gateway in LanDiscovery.QueryAsync(
+                port, TimeSpan.FromSeconds(8), _ => { }, cts.Token,
+                targets: new[] { System.Net.IPAddress.Loopback }))
+            {
+                Assert.Equal("127.0.0.1", gateway.Hostname);
+                Assert.Equal(port, gateway.Port);
+                return;
+            }
+            Assert.Fail("no announcement heard");
+        }
+        finally
+        {
+            cts.Cancel();
+            await sendLoop;
+        }
     }
 }

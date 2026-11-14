@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
@@ -28,6 +29,7 @@ internal static class LanDiscovery
 {
     internal const int DefaultPort = 3443;
     internal const string DiscoveryPath = "/mobile-access/discovery";
+    internal const string DiscoveryQuery = "DSH_MOBILE_DISCOVER_V1";
     private const int MaxResponseBytes = 16 * 1024;
 
     /// <summary>
@@ -220,6 +222,179 @@ internal static class LanDiscovery
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Broadcasts the discovery query and collects announcements until
+    /// <paramref name="listenFor"/> elapses. Binds the gateway port so the
+    /// plugin's periodic (3s) announcements are heard too; falls back to an
+    /// ephemeral port when the local gateway already owns it (the query still
+    /// works because answers go back to the sender endpoint).
+    /// </summary>
+    internal static async IAsyncEnumerable<DiscoveredGateway> QueryAsync(
+        int port,
+        TimeSpan listenFor,
+        Action<string> log,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct,
+        IEnumerable<IPAddress>? targets = null)
+    {
+        using var client = new UdpClient();
+        try
+        {
+            client.Client.Bind(new IPEndPoint(IPAddress.Any, port));
+        }
+        catch (Exception error)
+        {
+            log("discovery listen on port " + port + " failed, using an ephemeral port: " + error.Message);
+        }
+        client.EnableBroadcast = true;
+        var destinations = targets?.Select(t => new IPEndPoint(t, port)).ToList()
+            ?? DefaultTargets(port);
+        var query = Encoding.ASCII.GetBytes(DiscoveryQuery);
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(listenFor);
+        var token = deadline.Token;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var lastSend = DateTime.MinValue;
+        while (!token.IsCancellationRequested)
+        {
+            if (DateTime.UtcNow - lastSend > TimeSpan.FromSeconds(1))
+            {
+                lastSend = DateTime.UtcNow;
+                foreach (var destination in destinations)
+                {
+                    try { await client.SendAsync(query, destination, token); }
+                    catch { /* next target */ }
+                }
+            }
+            Task<UdpReceiveResult> receive;
+            try { receive = client.ReceiveAsync(token).AsTask(); }
+            catch { yield break; }
+            var completed = await Task.WhenAny(receive,
+                Task.Delay(TimeSpan.FromSeconds(1), token));
+            if (completed != receive) continue;
+            UdpReceiveResult result;
+            try { result = await receive; }
+            catch { continue; }
+            var remote = result.RemoteEndPoint.Address.ToString();
+            var gateway = TryParseAnnouncement(
+                Encoding.UTF8.GetString(result.Buffer), remote, out var reason);
+            if (gateway is null)
+            {
+                log("ignoring discovery reply from " + remote + ": " + reason);
+                continue;
+            }
+            if (seen.Add(gateway.InstanceId)) yield return gateway;
+        }
+    }
+
+    /// <summary>
+    /// Probes every host of the local /24 (except network/broadcast) for a
+    /// gateway. Mirrors Android's subnet fallback when announcements and mDNS
+    /// find nothing. Refused hosts fail fast; each host gets its own timeout.
+    /// </summary>
+    internal static async IAsyncEnumerable<DiscoveredGateway> ScanSubnetAsync(
+        string localIpv4,
+        int port,
+        TimeSpan perHostTimeout,
+        Action<string> log,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        if (!IPAddress.TryParse(localIpv4, out var local) ||
+            local.AddressFamily != AddressFamily.InterNetwork ||
+            IPAddress.IsLoopback(local))
+        {
+            yield break;
+        }
+        var raw = BitConverter.ToUInt32(local.GetAddressBytes().Reverse().ToArray(), 0);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var semaphore = new SemaphoreSlim(32);
+        var tasks = new List<Task<DiscoveredGateway?>>();
+        foreach (var candidate in SubnetHosts(localIpv4))
+        {
+            tasks.Add(ProbeOneAsync(candidate, port, perHostTimeout, semaphore, ct));
+        }
+        foreach (var task in tasks)
+        {
+            DiscoveredGateway? gateway;
+            try { gateway = await task; }
+            catch { continue; }
+            if (gateway is not null && seen.Add(gateway.InstanceId))
+                yield return gateway;
+        }
+        log("subnet scan finished");
+    }
+
+    /// <summary>All probed hosts of the local /24: .1-.254 except self.</summary>
+    internal static List<string> SubnetHosts(string localIpv4)
+    {
+        var result = new List<string>();
+        if (!IPAddress.TryParse(localIpv4, out var local) ||
+            local.AddressFamily != AddressFamily.InterNetwork ||
+            IPAddress.IsLoopback(local))
+        {
+            return result;
+        }
+        var raw = BitConverter.ToUInt32(local.GetAddressBytes().Reverse().ToArray(), 0);
+        var network = raw & 0xFFFFFF00u;
+        for (var host = 1u; host < 255u; host++)
+        {
+            var candidate = new IPAddress(BitConverter.GetBytes(network | host).Reverse().ToArray());
+            if (!candidate.Equals(local)) result.Add(candidate.ToString());
+        }
+        return result;
+    }
+
+    private static async Task<DiscoveredGateway?> ProbeOneAsync(
+        string host, int port, TimeSpan timeout, SemaphoreSlim semaphore, CancellationToken ct)
+    {
+        await semaphore.WaitAsync(ct);
+        try
+        {
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(timeout);
+            return await ProbeAsync(host, port, deadline.Token);
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
+    /// <summary>255.255.255.255 plus the broadcast address of each live IPv4 NIC.</summary>
+    internal static List<IPEndPoint> DefaultTargets(int port)
+    {
+        var targets = new List<IPEndPoint>
+        {
+            new(IPAddress.Broadcast, port),
+        };
+        foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (adapter.OperationalStatus != OperationalStatus.Up) continue;
+            foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
+            {
+                if (unicast.Address.AddressFamily != AddressFamily.InterNetwork ||
+                    IPAddress.IsLoopback(unicast.Address) ||
+                    unicast.IPv4Mask is null) continue;
+                var broadcast = BroadcastFor(unicast.Address, unicast.IPv4Mask);
+                var endpoint = new IPEndPoint(broadcast, port);
+                if (!targets.Contains(endpoint)) targets.Add(endpoint);
+            }
+        }
+        return targets;
+    }
+
+    internal static IPAddress BroadcastFor(IPAddress address, IPAddress mask)
+    {
+        var addr = BitConverter.ToUInt32(address.GetAddressBytes().Reverse().ToArray(), 0);
+        var netmask = BitConverter.ToUInt32(mask.GetAddressBytes().Reverse().ToArray(), 0);
+        var broadcast = addr | ~netmask;
+        return new IPAddress(BitConverter.GetBytes(broadcast).Reverse().ToArray());
     }
 
     private static string? NormalizeHost(string host)
