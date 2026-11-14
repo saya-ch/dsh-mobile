@@ -19,7 +19,10 @@
 | `CertificatePolicy.cs` | 配对 CA 固定、叶子证书校验、CA 指纹锚定 |
 | `IrohCarrier.cs` | 管理固定版本的 `phone-sim` sidecar 进程；启动前复核二进制 pin |
 | `SidecarProvisioner.cs` | 按固定 URL/字节数/SHA-256 获取并校验官方 sidecar，不随仓库分发二进制 |
-| `DeviceStore.cs` | 设备记录的原子读写、DPAPI 加密与逐次校验 |
+| `DeviceStore.cs` | 设备记录的原子读写、DPAPI 加密与逐次校验；`AdoptNewOrigin` 跟随搬家的网关（同 instanceId 才允许） |
+| `LanDiscovery.cs` | 局域网发现：UDP 公告校验、手输地址归一化、单点 `/mobile-access/discovery` 探测、网段扫描 |
+| `BackgroundEventWatcher.cs` | 连接期间订阅 `/mobile-access/background-events`，任务完成弹桌面气球；`SseParser` 逐行解析 SSE |
+| `WebViewPolicy.cs` | 精确网关 origin 判定（导航/下载/麦克风共用），无 WebView2 类型依赖以便单测 |
 | `DshMobile.Win.Tests/` | 纯逻辑单测（配对链接、信任决策、证书链/SAN、设备存储、sidecar pin） |
 
 ## 两层结构
@@ -39,7 +42,7 @@
 - Wire：带 code 走 `Pair`，不带 code 走 `Hello`（已配对设备免扫码重连）。
 - sidecar 使用 `presets::N0`（发现 + 中继）；本地回环只转发**原始 TLS 字节**，TLS 终点仍在远端 Gateway。
 - 客户端连 `127.0.0.1:<LocalPort>`，SNI 用远端 `Hostname`，叶子证书按固定 CA 校验。
-- **sidecar 不进仓库**：pin 的权威值在 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`；`SidecarProvisioner` 硬编码同值，`sidecar/manifest.json` 只是镜像，三处没有机器校验（升级上游 pin 时需同步）。`SidecarProvisioner` 首次使用时按固定 URL 下载、按字节数 + SHA-256 校验，或复用 DSH Mobile 插件已校验的副本（仅默认 `~/.dsh` 布局）；损坏缓存删除重取；`IrohCarrier.StartAsync` 在启动进程前再校验一次，哈希不符拒绝启动。许可文本随 `sidecar/` 附带（仅仓库内，不随 `dotnet publish` 输出）。
+- **sidecar 不进仓库**：pin 的权威值在 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`；`SidecarProvisioner` 硬编码同值，`sidecar/manifest.json` 只是镜像，三处由 `scripts/check-windows-sidecar-pin.mjs` 在 `windows-client.yml` 中机器校验（升级上游 pin 时需同步）。`SidecarProvisioner` 首次使用时按固定 URL 下载、按字节数 + SHA-256 校验，或复用 DSH Mobile 插件已校验的副本（仅默认 `~/.dsh` 布局）；损坏缓存删除重取；`IrohCarrier.StartAsync` 在启动进程前再校验一次，哈希不符拒绝启动。许可文本随 `sidecar/` 附带（仅仓库内，不随 `dotnet publish` 输出）。
 
 ### 局域网 / 远程（直连）
 
@@ -51,6 +54,12 @@
   或 `#key=dsh1|dsh2.<64hex>.<43base64url>`；也接受裸 `https://origin`（仍需 fragment 凭据）。
 - 分类：`RemoteHostPolicy` 按隧道后缀（`*.ts.net`、`.cpolar.cn` / `.cpolar.io` / `.cpolar.top` / `.cpolar.com`、`*.trycloudflare.com`）、私有/回环/链路本地网段，以及 `.local` / `.lan` / `.home` / `.internal` / `.localhost` 与单标签主机名判定 remote / lan。
 - 引导：先以 TOFU 连接取 `/mobile-access/ca.cer`。`dsh2`（`requiresCa=true`）强制要求配对 CA，**404 视为身份不匹配并硬失败**；`dsh1` 与 legacy `instance/token` 描述公共 CA 网关，仅当通道为 remote 且收到显式 404 时允许回退平台信任；LAN 的 404 一律硬失败；已 pin 的设备永不降级。该决策集中在 `PairingTrustPolicy.Decide`，`requiresCa` 持久化在设备记录中并在每次加载时校验。
+
+### 发现与地址跟随
+
+- 发现（`LanDiscovery`）：UDP 广播 `DSH_MOBILE_DISCOVER_V1` 并收集网关公告，超时后按本机各 IPv4 的 /24 逐个探测 `GET /mobile-access/discovery`；也接受手输 `IP/host/host:port/https://…` 单点探测。公告五字段必须自洽且 origin 须为应答地址（伪造公告直接丢弃）；发现不是信任决策，配对仍按 instanceId 指纹固定 CA。
+- 配对时若链接 origin 与已选发现结果不一致，提示确认，防止贴错另一台电脑的链接。
+- 跟随（`SavedDevice.AdoptNewOrigin`）：已保存的 lan/remote 电脑失联或凭据过期时，可粘贴同一台电脑的当前链接更新地址；要求 instanceId 一致，保留用户名称，丢弃旧 CA pin 与设备令牌，更新后走一次全新 `native-pair`。
 
 ## 信任模型
 
@@ -71,8 +80,8 @@
 | --- | --- |
 | `NavigationStarting` | 仅允许已配对网关的**精确 origin**（含端口）与 `about:blank`；其他一律取消，https 外链交给系统浏览器 |
 | `NewWindowRequested` | 阻止弹窗；https 外链交给系统浏览器 |
-| `DownloadStarting` | 一律取消并提示（客户端暂不支持下载） |
-| `PermissionRequested` | 一律 `Deny`；麦克风被拒时明确提示「暂不支持语音输入」 |
+| `DownloadStarting` | 仅配对网关同源允许，经保存对话框落盘；非网关地址一律取消并提示 |
+| `PermissionRequested` | 仅配对网关页面的麦克风允许（走电脑端语音）；摄像头与其他权限一律 `Deny` |
 | `ProcessFailed` | 浏览器进程退出提示重连；渲染/frame 进程崩溃自动 `Reload` 并提示 |
 
 提示按类别每会话只显示一次，避免权限/下载事件反复弹窗。
@@ -89,5 +98,5 @@
 - 前置：.NET 8 SDK（x64）+ WebView2 Evergreen；构建与运行仅支持 Windows x64（见 README「状态与支持范围」）。
 - 命令：`dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`。
 - CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 上执行同一组 restore/build/test 步骤（restore 测试项目，再以 `--no-restore` 构建主项目并测试）；不产出发布包，也不做 WebView2/真机验收。
-- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN）、`DeviceStore.Validate`、`SidecarProvisioner.Verify`；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
+- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN）、`DeviceStore.Validate`（含 `AdoptNewOrigin`）、`SidecarProvisioner.Verify`、`LanDiscovery`（公告校验、手输归一化、子网推导、UDP 收听）、`SseParser`、`WebViewPolicy`（同源判定）；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
 - 验收状态：iroh / 局域网 / 远程通道与 WebView2 五类策略尚未完成维护者真机验收；需要 Windows 机器按验收清单复核。

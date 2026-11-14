@@ -19,7 +19,10 @@ This document describes the Windows client internals for maintainers and follow-
 | `CertificatePolicy.cs` | Pairing-CA pinning, leaf certificate validation, CA fingerprint anchoring |
 | `IrohCarrier.cs` | Runs the pinned `phone-sim` sidecar process; re-verifies the binary pin before launch |
 | `SidecarProvisioner.cs` | Acquires and verifies the official sidecar by pinned URL, byte count and SHA-256; the binary is not distributed in this repository |
-| `DeviceStore.cs` | Atomic device-record I/O, DPAPI encryption, and per-load validation |
+| `DeviceStore.cs` | Atomic device-record I/O, DPAPI encryption, and per-load validation; `AdoptNewOrigin` follows a moved gateway (same instanceId only) |
+| `LanDiscovery.cs` | LAN discovery: UDP announcement validation, manual address normalization, single `GET /mobile-access/discovery` probes, subnet scans |
+| `BackgroundEventWatcher.cs` | While connected, subscribes to `/mobile-access/background-events` and raises desktop balloons on task completion; `SseParser` parses SSE line by line |
+| `WebViewPolicy.cs` | Exact gateway-origin check shared by navigation/downloads/microphone, free of WebView2 types so it stays testable |
 | `DshMobile.Win.Tests/` | Pure-logic unit tests (pairing links, trust decisions, certificate chain/SAN, device store, sidecar pin) |
 
 ## Two layers
@@ -39,7 +42,7 @@ client ──SslStream──▶ 127.0.0.1:<LocalPort> ──sidecar──▶ QUI
 - Wire: with a code the sidecar sends `Pair`; without one it sends `Hello` (reconnect for an already-paired device without a pairing window).
 - The sidecar uses `presets::N0` (discovery + relay); the loopback listener forwards **raw TLS bytes**, and TLS still terminates at the remote Gateway.
 - The client connects to `127.0.0.1:<LocalPort>`, uses the remote `Hostname` as SNI, and validates the leaf against the pinned CA.
-- **The sidecar is not committed**: the authoritative pin is `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts`; `SidecarProvisioner` hardcodes the same values and `sidecar/manifest.json` mirrors them, with no machine check across the three copies (update all three when the upstream pin moves). On first use `SidecarProvisioner` downloads from the pinned URL, verifies byte count + SHA-256, or reuses the copy installed by the DSH Mobile plugin (default `~/.dsh` layout only). A corrupt cache is deleted and re-fetched, and `IrohCarrier.StartAsync` re-verifies before every process start, refusing to launch on a hash mismatch. License texts ship under `sidecar/` (repository only; not copied by `dotnet publish`).
+- **The sidecar is not committed**: the authoritative pin is `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts`; `SidecarProvisioner` hardcodes the same values and `sidecar/manifest.json` mirrors them, and `scripts/check-windows-sidecar-pin.mjs` machine-checks all three in `windows-client.yml` (update all three when the upstream pin moves). On first use `SidecarProvisioner` downloads from the pinned URL, verifies byte count + SHA-256, or reuses the copy installed by the DSH Mobile plugin (default `~/.dsh` layout only). A corrupt cache is deleted and re-fetched, and `IrohCarrier.StartAsync` re-verifies before every process start, refusing to launch on a hash mismatch. License texts ship under `sidecar/` (repository only; not copied by `dotnet publish`).
 
 ### LAN / remote (direct)
 
@@ -50,6 +53,12 @@ client ──TCP──▶ https origin ──GET /mobile-access/ca.cer(TOFU)─�
 - Link forms: `https://<origin>/mobile-access/pair#instance=<64hex>&token=<43base64url>`, or `#key=dsh1|dsh2.<64hex>.<43base64url>`; a bare `https://origin` is also accepted (the fragment credential is still required).
 - Classification: `RemoteHostPolicy` treats tunnel suffixes (`*.ts.net`, `.cpolar.cn` / `.cpolar.io` / `.cpolar.top` / `.cpolar.com`, `*.trycloudflare.com`), private/loopback/link-local ranges, and `.local` / `.lan` / `.home` / `.internal` / `.localhost` as well as single-label hostnames as LAN or remote.
 - Bootstrap: first connect with TOFU to fetch `/mobile-access/ca.cer`. A `dsh2` key (`requiresCa=true`) requires the pairing CA — **a 404 is an identity mismatch and fails closed**; `dsh1` and the legacy `instance/token` form describe a public-CA gateway and may fall back to platform trust only on the remote channel after an explicit 404; a LAN 404 always fails; an already-pinned device is never downgraded. The decision lives in `PairingTrustPolicy.Decide`, and `requiresCa` is persisted in the device record and re-validated on every load.
+
+### Discovery and address follow-up
+
+- Discovery (`LanDiscovery`): broadcasts `DSH_MOBILE_DISCOVER_V1` over UDP and collects gateway announcements, then probes each local IPv4 /24 for `GET /mobile-access/discovery`; a manually entered address can also be probed directly. All five announcement fields must agree and the origin must be the answering address (spoofed announcements are dropped); discovery is never a trust decision — pairing still pins the CA to the instanceId fingerprint.
+- When a pasted link's origin disagrees with the selected discovery result, pairing asks for confirmation so another computer's link cannot be pasted silently.
+- Follow-up (`SavedDevice.AdoptNewOrigin`): when a saved lan/remote computer stops resolving or its credential expires, its current link from the same computer updates the address; the instanceId must match, the user-visible name is kept, and the old CA pin and device token are dropped so the adopted record completes a fresh `native-pair`.
 
 ## Trust model
 
@@ -67,8 +76,8 @@ Mirrors Android's `SecureWebViewClient` / `GatewayUrlPolicy` / `MainActivity` an
 | --- | --- |
 | `NavigationStarting` | Only the exact paired-gateway origin (including port) and `about:blank` are allowed; anything else is cancelled, and external https links open in the system browser |
 | `NewWindowRequested` | Pop-ups are blocked; external https links open in the system browser |
-| `DownloadStarting` | Always cancelled with a notice (the client does not support downloads yet) |
-| `PermissionRequested` | Always `Deny`; when the microphone is denied the user is told that voice input is unsupported |
+| `DownloadStarting` | Same-origin downloads from the paired gateway go through a save dialog; off-gateway addresses stay cancelled with a notice |
+| `PermissionRequested` | Only the microphone on paired-gateway pages is allowed (the computer's voice path); the camera and everything else stay `Deny` |
 | `ProcessFailed` | Browser process exit shows a reconnect notice; renderer/frame crashes reload and notify |
 
 Notices are shown at most once per category per session, so permission/download events do not spam dialogs.
@@ -85,5 +94,5 @@ Notices are shown at most once per category per session, so permission/download 
 - Prerequisites: .NET 8 SDK (x64) + WebView2 Evergreen; building and running are only supported on Windows x64 (see "Status and support" in the README).
 - Commands: `dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`.
 - CI: `.github/workflows/windows-client.yml` runs the same restore/build/test steps on `windows-latest` (it restores the test project, then builds the main project with `--no-restore` and runs the tests); it does not produce a release package and does not exercise WebView2 or real hardware.
-- Unit tests: `DshMobile.Win.Tests/` covers `UrlPairing`, `PairingDescriptor`, `PairingTrustPolicy` (including the dsh2 hard failure and dsh1 fallback on 404), `CertificatePolicy` (`ValidateFetchedCa`, DNS/wildcard/IP SAN), `DeviceStore.Validate`, and `SidecarProvisioner.Verify`. Case counts and results come from an actual `dotnet test` run; this document does not record one-off local results.
+- Unit tests: `DshMobile.Win.Tests/` covers `UrlPairing`, `PairingDescriptor`, `PairingTrustPolicy` (including the dsh2 hard failure and dsh1 fallback on 404), `CertificatePolicy` (`ValidateFetchedCa`, DNS/wildcard/IP SAN), `DeviceStore.Validate` (including `AdoptNewOrigin`), `SidecarProvisioner.Verify`, `LanDiscovery` (announcement validation, manual normalization, subnet derivation, UDP listen), `SseParser`, and `WebViewPolicy` (same-origin decisions). Case counts and results come from an actual `dotnet test` run; this document does not record one-off local results.
 - Acceptance: iroh, LAN, remote channels and the five WebView2 policies have not completed maintainer acceptance on real hardware yet; they need a Windows machine and the acceptance checklist.

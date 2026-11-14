@@ -21,6 +21,10 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
   - `iroh`：粘贴 iroh 配对 JSON 描述符，经官方 sidecar（`phone-sim`）建立 QUIC 隧道 + 本地回环 TLS 载体；sidecar 不随仓库分发，按固定 URL + SHA-256 获取并在每次启动进程前校验；
   - `局域网` / `远程`：粘贴 `https://…/mobile-access/pair#…` 配对链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），从 `/mobile-access/ca.cer` 引导获取配对 CA（TOFU + instanceId 指纹锚定），直连网关。
 - **免扫码重连**：首次配对保存设备凭据（deviceToken 经 DPAPI 加密落盘），后续启动直接点「连接」，iroh 走 Hello、直连走 `native-renew`。
+- **局域网发现**：扫描局域网（UDP 公告 + 本机网段探测）或手动输入地址查找电脑；选中结果后再粘贴该电脑的配对链接，链接地址与发现结果不一致会提醒确认。
+- **地址跟随**：远程地址变化（如 cpolar 临时地址）或凭据过期时，可粘贴同一台电脑的当前链接更新地址并保留名称（要求 instanceId 一致）。
+- **任务完成提醒**：连接期间订阅电脑端的后台事件流，任务完成时弹出桌面气球通知，点击回到页面；电脑端撤销设备会提示并停止监听。关闭客户端仍会结束提醒。
+- **下载与语音**：配对网关同源的下载经保存对话框落盘，非网关地址仍阻止；配对网关的页面可使用麦克风（走电脑端语音），摄像头与其他权限仍拒绝。
 - **设备管理**：多设备卡片、重命名、删除；每张卡片显示通道类型与凭据有效期。
 - **安全**：配对 CA 是固定通道的唯一信任锚；叶子证书按 `Issuer` → CA/叶子有效期 → 非 CA → `EKU(serverAuth)` → 链固定到 CA → `SAN`（DNS 精确或单层通配；局域网网关的 IP SAN 逐字节比较）逐项校验后才放行 WebView2 证书错误。WebView2 错误路径对 `Expired`/`Revoked` 一律拒绝；自定义 CA 的 native TLS 通道不查吊销（`X509RevocationMode.NoCheck`，配对 CA 自签、无吊销信息）。
 - **顶栏与标题栏**：原生标题栏下方的窗口级顶栏行（设备列表 / 连接状态 / 断开），颜色与 DWM 标题栏一致；页面 DOM 零注入、零改动。
