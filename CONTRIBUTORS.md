@@ -6,6 +6,12 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 ## 下一版本贡献 / Contributions for the next release
 
+感谢 [@bvbhu](https://github.com/bvbhu) 在 [#403](https://github.com/saya-ch/dsh-mobile/pull/403) 提供便携 Windows 客户端（已合入 main，尚未随版本发布）；感谢 [@chintoleung](https://github.com/chintoleung) 在 [#420](https://github.com/saya-ch/dsh-mobile/pull/420) 实现移动页路径点按复制；感谢 [@fgql](https://github.com/fgql) 在 [#422](https://github.com/saya-ch/dsh-mobile/issues/422) 提供来源网段配对失败的完整复现。
+
+Thanks [@bvbhu](https://github.com/bvbhu) for the portable Windows client in [#403](https://github.com/saya-ch/dsh-mobile/pull/403) (merged into main, not released yet); thanks [@chintoleung](https://github.com/chintoleung) for the tap-to-copy path implementation in [#420](https://github.com/saya-ch/dsh-mobile/pull/420); thanks [@fgql](https://github.com/fgql) for the complete reproduction of the source-network pairing failure in [#422](https://github.com/saya-ch/dsh-mobile/issues/422).
+
+## 0.8.8 贡献 / Contributions in 0.8.8
+
 感谢 [@chintoleung](https://github.com/chintoleung) 在 [#407](https://github.com/saya-ch/dsh-mobile/issues/407) 报告 DSH 0.2.2-rc.2 下 Web Push 不可用，并提供 [#408](https://github.com/saya-ch/dsh-mobile/pull/408) 的兼容修复与 [#402](https://github.com/saya-ch/dsh-mobile/pull/402) 的推送调度修复；感谢 [@owenzhao](https://github.com/owenzhao) 在 [#400](https://github.com/saya-ch/dsh-mobile/issues/400) 提供实测与落点；感谢 [@rushpixy](https://github.com/rushpixy) 在 [#194](https://github.com/saya-ch/dsh-mobile/issues/194) 提出阅读体验问题，[@lnuxe](https://github.com/lnuxe) 提供 [#384](https://github.com/saya-ch/dsh-mobile/pull/384) 的阅读模式实现。
 
 Thanks [@chintoleung](https://github.com/chintoleung) for reporting Web Push being unavailable on DSH 0.2.2-rc.2 in [#407](https://github.com/saya-ch/dsh-mobile/issues/407), and for the compatibility fix in [#408](https://github.com/saya-ch/dsh-mobile/pull/408) and the push-scheduling fix in [#402](https://github.com/saya-ch/dsh-mobile/pull/402); thanks [@owenzhao](https://github.com/owenzhao) for the measurement and points in [#400](https://github.com/saya-ch/dsh-mobile/issues/400); thanks [@rushpixy](https://github.com/rushpixy) for the reading-experience report in [#194](https://github.com/saya-ch/dsh-mobile/issues/194), and [@lnuxe](https://github.com/lnuxe) for the reading-mode implementation in [#384](https://github.com/saya-ch/dsh-mobile/pull/384).
