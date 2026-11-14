@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -45,6 +46,9 @@ public partial class MainWindow : Window
     private string _irohDiagnostics = string.Empty;
     private bool _busy;
     private bool _userCancelled;
+    private bool _scanning;
+    private DiscoveredGateway? _selectedDiscovery;
+    private CancellationTokenSource? _scanCts;
 
     public MainWindow()
     {
@@ -220,6 +224,15 @@ public partial class MainWindow : Window
             try
             {
                 var link = UrlPairing.Parse(input);
+                if (_selectedDiscovery is not null && link.Origin != _selectedDiscovery.Origin)
+                {
+                    var confirm = MessageBox.Show(this,
+                        $"配对链接指向 {link.Origin}，与已选中的发现结果 {_selectedDiscovery.Origin} 不一致。\n\n" +
+                        "可能是贴错了另一台电脑的链接。继续配对吗？",
+                        "地址不一致", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (confirm != MessageBoxResult.Yes) return;
+                }
+                _selectedDiscovery = null;
                 device = SavedDevice.FromUrlPairing(link);
                 gatewayToken = link.Token;
                 Log($"url pairing link: channel={link.Mode} requiresCa={link.RequiresCa}");
@@ -236,6 +249,181 @@ public partial class MainWindow : Window
         }
         DescriptorBox.Text = string.Empty; // one-time secrets never stay in the UI
         await ConnectToAsync(device, irohCode, gatewayToken);
+    }
+
+    /// <summary>
+    /// UDP announcements first, then a bounded /24 probe per local IPv4, the
+    /// same order Android uses. Picking a result only records which computer
+    /// the pasted link must point at; pairing still needs its one-time link.
+    /// </summary>
+    private async void ScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanning || _busy) return;
+        _scanning = true;
+        SetScanButtons(false);
+        FoundList.Children.Clear();
+        _selectedDiscovery = null;
+        DiscoveryHint.Visibility = Visibility.Collapsed;
+        _scanCts = new CancellationTokenSource();
+        _scanCts.CancelAfter(TimeSpan.FromSeconds(20));
+        var token = _scanCts.Token;
+        var found = new Dictionary<string, DiscoveredGateway>(StringComparer.Ordinal);
+        try
+        {
+            await foreach (var gateway in LanDiscovery.QueryAsync(
+                LanDiscovery.DefaultPort, TimeSpan.FromSeconds(4), Log, token))
+            {
+                if (found.TryAdd(gateway.InstanceId, gateway)) AddFoundCard(gateway);
+            }
+            if (found.Count == 0)
+            {
+                ShowDiscoveryHint("广播没有回应，正在逐个探测本机所在网段…");
+                foreach (var local in LocalIPv4s())
+                {
+                    await foreach (var gateway in LanDiscovery.ScanSubnetAsync(
+                        local, LanDiscovery.DefaultPort, TimeSpan.FromSeconds(2), Log, token))
+                    {
+                        if (found.TryAdd(gateway.InstanceId, gateway)) AddFoundCard(gateway);
+                    }
+                    if (found.Count > 0) break;
+                }
+            }
+            if (found.Count == 0)
+                ShowDiscoveryHint("没有发现电脑：请确认电脑端网关正在运行且与本机在同一网络，或在上方手动输入地址查找。");
+            else
+                Log($"discovery found {found.Count} computer(s)");
+        }
+        catch (OperationCanceledException)
+        {
+            if (found.Count == 0) ShowDiscoveryHint("扫描超时，仍可手动输入地址查找。");
+        }
+        catch (Exception error)
+        {
+            Log("discovery scan failed: " + error.Message);
+            ShowDiscoveryHint("扫描失败：" + error.Message);
+        }
+        finally
+        {
+            _scanning = false;
+            SetScanButtons(true);
+        }
+    }
+
+    private async void ProbeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanning || _busy) return;
+        string host;
+        int port;
+        try
+        {
+            (host, port) = LanDiscovery.NormalizeManualInput(AddressBox.Text);
+        }
+        catch (FormatException error)
+        {
+            MessageBox.Show(this, "地址无效：" + error.Message, "查找电脑",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        _scanning = true;
+        SetScanButtons(false);
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var gateway = await LanDiscovery.ProbeAsync(host, port, cts.Token);
+            FoundList.Children.Clear();
+            AddFoundCard(gateway);
+            SelectDiscovery(gateway);
+            Log($"probed gateway: {gateway.DeviceName} {gateway.Origin}");
+        }
+        catch (Exception error)
+        {
+            Log("probe failed: " + error.Message);
+            MessageBox.Show(this, "找不到网关：" + error.Message + "\n\n请确认电脑端网关正在运行、地址正确且网络可达。",
+                "查找电脑", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _scanning = false;
+            SetScanButtons(true);
+        }
+    }
+
+    private void SelectDiscovery_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is DiscoveredGateway gateway)
+            SelectDiscovery(gateway);
+    }
+
+    private void SelectDiscovery(DiscoveredGateway gateway)
+    {
+        _selectedDiscovery = gateway;
+        ShowDiscoveryHint($"已选中「{gateway.DeviceName}」（{gateway.Origin}）。" +
+            "请在上方粘贴这台电脑的配对链接后配对；链接地址不一致时会提醒确认。");
+    }
+
+    private void AddFoundCard(DiscoveredGateway gateway)
+    {
+        var info = new TextBlock
+        {
+            Text = $"{gateway.DeviceName}\n{gateway.Origin}",
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        info.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryTextBrush");
+        var select = new Button
+        {
+            Content = "选用", Width = 80,
+            Margin = new Thickness(12, 0, 0, 0), Tag = gateway,
+            ToolTip = "记住这台电脑，粘贴配对链接时校验地址是否一致",
+        };
+        select.Click += SelectDiscovery_Click;
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(info);
+        grid.Children.Add(select);
+        Grid.SetColumn(select, 1);
+        var card = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 0, 0, 8),
+            Child = grid,
+        };
+        card.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+        card.SetResourceReference(Border.BorderBrushProperty, "OutlineBrush");
+        FoundList.Children.Add(card);
+    }
+
+    private void ShowDiscoveryHint(string text)
+    {
+        DiscoveryHint.Text = text;
+        DiscoveryHint.Visibility = Visibility.Visible;
+    }
+
+    private void SetScanButtons(bool enabled)
+    {
+        ScanButton.IsEnabled = enabled;
+        ProbeButton.IsEnabled = enabled;
+        ScanButton.Content = enabled ? "扫描局域网" : "扫描中…";
+    }
+
+    private static IEnumerable<string> LocalIPv4s()
+    {
+        try
+        {
+            return Dns.GetHostAddresses(Dns.GetHostName())
+                .Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                            !IPAddress.IsLoopback(a))
+                .Select(a => a.ToString())
+                .Distinct()
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private async void ConnectSaved_Click(object sender, RoutedEventArgs e)
