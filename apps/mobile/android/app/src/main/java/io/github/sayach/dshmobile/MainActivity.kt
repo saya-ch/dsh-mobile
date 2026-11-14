@@ -1265,11 +1265,56 @@ class MainActivity : Activity() {
     private fun showDeviceListSettings() {
         AlertDialog.Builder(this)
             .setTitle(R.string.device_list_settings)
-            .setItems(arrayOf(getString(R.string.launch_settings), getString(R.string.icon_settings), getString(R.string.same_host_title))) { _, which ->
-                when (which) { 0 -> showLaunchSettings(); 1 -> showIconSettings(); else -> showSameHostSettings() }
+            .setItems(arrayOf(getString(R.string.launch_settings), getString(R.string.icon_settings), getString(R.string.same_host_title), getString(R.string.check_for_updates))) { _, which ->
+                when (which) {
+                    0 -> showLaunchSettings()
+                    1 -> showIconSettings()
+                    2 -> showSameHostSettings()
+                    else -> checkForAppUpdate()
+                }
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
+    }
+
+    private var updateCheckInFlight = false
+
+    /**
+     * Ask GitHub for the published App descriptor without involving a paired gateway.
+     *
+     * The descriptor is the same public file the plugin ships, so the check keeps working
+     * when the paired computer is offline; a failed request reports retryable failure and
+     * never blocks the device list.
+     */
+    private fun checkForAppUpdate() {
+        if (updateCheckInFlight) return
+        updateCheckInFlight = true
+        Toast.makeText(this, R.string.checking_updates, Toast.LENGTH_SHORT).show()
+        Thread {
+            val result = runCatching { AppUpdatePolicy.parseDescriptor(AppUpdatePolicy.fetchDescriptor()) }
+            runOnUiThread {
+                updateCheckInFlight = false
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val published = result.getOrNull()
+                when {
+                    result.isFailure || published == null -> AlertDialog.Builder(this)
+                        .setTitle(R.string.update_check_failed)
+                        .setMessage(R.string.update_check_failed_message)
+                        .setPositiveButton(R.string.retry) { _, _ -> checkForAppUpdate() }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                    AppUpdatePolicy.isNewer(published, BuildConfig.VERSION_CODE) -> AlertDialog.Builder(this)
+                        .setTitle(R.string.update_available_title)
+                        .setMessage(getString(R.string.update_available_message, published.version, BuildConfig.VERSION_NAME))
+                        .setPositiveButton(R.string.update_now) { _, _ ->
+                            openExternal(Uri.parse(AppUpdatePolicy.releasePageUrl(published.releaseTag)))
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                    else -> Toast.makeText(this, R.string.update_up_to_date, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
     }
 
     private fun showLaunchSettings() {
