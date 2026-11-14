@@ -4,14 +4,14 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.7.5**；构建号为 90。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.7.5 更新](#075-更新)。
+当前正式 App 为 **0.7.6**；构建号为 91。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.7.6 更新](#076-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
 ## 安装与配对
 
 1. 按[项目快速开始](../../README.md#快速开始)安装并启用插件。局域网配置可通过命令行或电脑端的 **移动访问** 面板完成。
-2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5) 安装已签名 APK。原有 HTTPS 通道可选兼容版 `.apk`；arm64-v8a/x86_64 设备使用实验性 iroh 时选完整版 `-iroh.apk`。两包使用相同包名和正式签名，选一个原位升级即可保留配对；不同签名的 Debug 包不能直接覆盖正式版，不要为绕过签名不匹配而卸载或清除数据。
+2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.6) 安装已签名 APK。原有 HTTPS 通道可选兼容版 `.apk`；arm64-v8a/x86_64 设备使用实验性 iroh 时选完整版 `-iroh.apk`。两包使用相同包名和正式签名，选一个原位升级即可保留配对；不同签名的 Debug 包不能直接覆盖正式版，不要为绕过签名不匹配而卸载或清除数据。
 3. 在电脑 **移动访问 → 局域网访问** 中生成密钥／配对链接，或配置远程通道并生成远程配对二维码。在 App 选择对应方式，扫码或粘贴链接。
 4. 为电脑命名。每条局域网或远程配对单独保存；手机无需安装 cpolar、Cloudflare 或 Tailscale App。
 
@@ -35,6 +35,14 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 页面缩放影响整个网页，与按地址保存的文字偏好不同。App 专属操作只在原生 Bridge 支持时显示。原生页面跟随 Android 系统语言，支持简体中文、英文和意大利文；网页跟随 DSH 选择的语言，当前 DSH 尚未提供意大利语。
 
 删除本机记录会移除保存的设备令牌和固定 CA，不等于撤销电脑授权或清除所有 WebView 短期 Cookie。需要立即终止访问时，请在电脑的 **移动访问** 中撤销设备。Android“清除应用数据”会删除全部配对和网页数据，不是普通重连的处理步骤。
+
+## 0.7.6 更新
+
+新增默认应用图标：拿着手机的 DSH 鲸鱼娘。「设备列表 → 右上角设置 → 应用图标」还可选经典、欢呼、安静三种姿态，与原有六种鲸鱼标志配色并列；切换只更换启动器别名，不改变包名、配对数据或后台服务，部分桌面启动器可能需要片刻刷新。
+
+Tailscale 配对失败提示区分同一 tailnet 的情况：`.ts.net` 地址不可达时会说明同一 tailnet 内的手机无法经 Funnel 入口配对（该入口按设计不向 tailnet 内部开放），并提示关闭手机 Tailscale、改用移动数据或改用局域网地址；网络外的手机仍显示原有的 VPN／代理／DNS 指引。
+
+两份 APK 均沿用正式签名，可原位升级并保留已有配对。
 
 ## 0.7.5 更新
 
@@ -202,10 +210,11 @@ Set-Location apps/mobile/android
 
 当前源码的 Debug 构建使用包名 `io.github.sayach.dshmobile.debug` 与 `-debug` 版本后缀，可与正式 App 并存，存储和配对彼此独立。它不会升级或迁移旧版无后缀 Debug 应用；切换包名时应保留旧应用和数据，不要为此卸载或清除。Release 构建继续使用 `io.github.sayach.dshmobile` 与既定正式签名。
 
-已核验的正式版本为 [Android 0.7.5](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5)，构建 90。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
+已核验的正式版本为 [Android 0.7.6](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.6)，构建 91。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
 
 ## 验收与已知限制
 
+- App 0.7.6 的两份公开 APK 均通过校验值、Manifest、既定正式签名与体积检查；兼容版不含原生库，完整版只携带两个 iroh 传输 ABI。本版未新增真机回归：新图标的启动器显示与 Tailscale 提示仅由 Android 单元测试与 CI 发布构建覆盖。
 - App 0.7.5 的两份公开 APK 均通过校验值、Manifest、既定正式签名与体积检查；兼容版不含原生库，完整版只携带两个 iroh 传输 ABI。发布验收时设备断开，最终 CI 产物未在手机上重装；同一份 0.7.5/90 代码已在当天早些时候以本地正式签名构建完成原位升级、保留 3 条配对并验收了原生「检查更新」。
 
 - App 0.7.4 的两份公开 APK 均通过校验值、Manifest、既定正式签名与体积检查；兼容版不含原生库，完整版只携带两个 iroh 传输 ABI。本版未新增真机或公网回归：设备端缓存、后台提醒状态与通知就地打开仅由 Android 单元测试与 CI 发布构建覆盖，下方的真机 Debug 证据属于 0.7.3。
