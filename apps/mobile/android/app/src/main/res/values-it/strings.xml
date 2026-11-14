@@ -52,7 +52,7 @@
     <string name="pairing_in_progress">Abbinamento del telefono…</string>
     <string name="pairing_failed">Abbinamento non riuscito\nIl codice QR potrebbe essere scaduto o già usato, oppure il computer potrebbe non essere raggiungibile. Controlla la connessione, genera un nuovo QR e riprova subito.</string>
     <string name="pairing_tls_failed">Impossibile verificare l\'identità del computer\nL\'indirizzo non è raggiungibile oppure il certificato non corrisponde al codice QR. Verifica che sia lo stesso computer e genera un nuovo QR.</string>
-    <string name="pairing_tailscale_unreachable">Connessione Tailscale bloccata\nLa modalità VPN, proxy o DNS corrente non può raggiungere questo indirizzo .ts.net. Cambia nodo VPN o modalità proxy; se il problema continua, scegli un altro metodo di accesso remoto in DSH sul computer.</string>
+    <string name="pairing_tailscale_unreachable">Connessione Tailscale bloccata\nNon è possibile raggiungere questo indirizzo .ts.net per l\'accoppiamento. Se telefono e computer sono nella stessa tailnet, l\'ingresso Funnel resta chiuso al traffico interno: disattiva Tailscale sul telefono o passa ai dati mobili, oppure accoppia tramite l\'indirizzo LAN. Altrimenti controlla che la VPN sia connessa o cambia nodo.</string>
     <string name="connect">Connetti</string>
     <string name="scan_action">Scansiona codice QR</string>
     <string name="scan_hint">Inquadra il codice QR mostrato sullo schermo del computer.</string>
