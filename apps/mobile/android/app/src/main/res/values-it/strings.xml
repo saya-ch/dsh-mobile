@@ -97,6 +97,7 @@
     <string name="open_harness_trusted">Riconnetti a %1$s attendibile</string>
     <string name="scanning_lan_limited">Scansione con rilevamento limitato… Il permesso per i dispositivi vicini è stato negato; i metodi alternativi UDP e HTTPS continueranno a funzionare.</string>
     <string name="pairing_expired">Link di abbinamento scaduto\nIl codice QR monouso è scaduto o è già stato usato. Generane uno nuovo sul computer e scansionalo subito.</string>
+    <string name="pairing_source_untrusted">Rete del telefono non attendibile\nIl telefono si trova su una rete che questo computer non considera attendibile. Collega entrambi alla stessa sottorete oppure aggiungi la rete del telefono in \"Reti sorgenti aggiuntive\" nel pannello DSH sul computer, riavvia DSH e scansiona un nuovo codice QR.</string>
     <string name="pairing_device_limit">Limite di dispositivi raggiunto\nRimuovi un vecchio dispositivo abbinato in DSH sul computer, quindi riprova.</string>
     <string name="pairing_rate_limited">Troppi tentativi di abbinamento\nAttendi qualche istante, genera un nuovo codice QR e riprova.</string>
     <string name="pairing_timeout">Connessione scaduta\nIl computer potrebbe essere ancora in esecuzione; la rete o il tunnel remoto rispondono lentamente. Torna all\'elenco dispositivi e riprova oppure controlla il tunnel remoto sul computer.</string>

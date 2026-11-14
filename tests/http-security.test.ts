@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { HttpError, assertLocalAdminTrust, setSecurityHeaders } from '../src/http-security.js'
+import { HttpError, assertExternalTrust, assertLocalAdminTrust, setSecurityHeaders } from '../src/http-security.js'
 import { DESKTOP_ADMIN_HEADER, DESKTOP_ADMIN_MARKER, WEB_ADMIN_HEADER, WEB_ADMIN_MARKER } from '../src/local-admin-host.js'
-import { parseCidr } from '../src/network.js'
+import { RequestTrustPolicy, parseAuthority, parseCidr } from '../src/network.js'
 
 const GATEWAY_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
 const PROXIED_POLICY = 'camera=(), microphone=(self), geolocation=(), payment=(), usb=()'
@@ -299,5 +299,35 @@ describe('assertLocalAdminTrust', () => {
     for (const source of [{}, { origin: 'http://192.168.50.23:3080', site: 'same-origin' }]) {
       reject({ host: '192.168.50.23:3080', method: 'OPTIONS', webMarker: WEB_ADMIN_MARKER, ...source })
     }
+  })
+})
+
+describe('assertExternalTrust', () => {
+  const policy = new RequestTrustPolicy([parseAuthority('10.0.0.5:3443')], 3443, [parseCidr('10.0.0.0/24')], true)
+
+  it('names a peer outside the trusted networks instead of a bad credential', () => {
+    // A phone on another subnet reaches the port, so the pairing client must say
+    // which network to trust rather than report an expired one-time code.
+    const request = fakeRequest({ remoteAddress: '10.9.8.7', host: '10.0.0.5:3443' })
+    expect(() => assertExternalTrust(request, policy, false))
+      .toThrowError(expect.objectContaining({ status: 403, code: 'source_network_untrusted' }))
+  })
+
+  it('keeps a foreign Host a plain forbidden rejection', () => {
+    const request = fakeRequest({ remoteAddress: '10.0.0.7', host: 'evil.example:3443' })
+    expect(() => assertExternalTrust(request, policy, false))
+      .toThrowError(expect.objectContaining({ status: 403, code: 'forbidden' }))
+  })
+
+  it('admits the trusted peer with the exact Host and same-scheme Origin', () => {
+    const request = fakeRequest({ remoteAddress: '10.0.0.7', host: '10.0.0.5:3443',
+      origin: 'https://10.0.0.5:3443', site: 'same-origin', method: 'POST' })
+    expect(() => assertExternalTrust(request, policy, true)).not.toThrow()
+  })
+
+  it('still requires the exact Origin on a mutation', () => {
+    const request = fakeRequest({ remoteAddress: '10.0.0.7', host: '10.0.0.5:3443', method: 'POST' })
+    expect(() => assertExternalTrust(request, policy, true))
+      .toThrowError(expect.objectContaining({ status: 403, code: 'forbidden' }))
   })
 })

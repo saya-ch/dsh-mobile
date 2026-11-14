@@ -17,6 +17,8 @@
 
 CIDR 按直接 TCP 来源地址匹配，不依赖 `X-Forwarded-For`。允许一个来源网段不等于允许所有网络，也不跳过 HTTPS、设备配对、精确 Host / Origin 或 CSRF 检查。只追加实际需要的范围，不要为了排错直接放行整个互联网。
 
+手机与电脑不在同一网段时，配对请求会先被来源地址检查拒绝，尚未到达配对码校验。插件 0.8.9 起这种拒绝单独返回 HTTP 403 `{"error":"source_network_untrusted"}`，与配对码过期（HTTP 401）区分；Android 0.7.5 起 App 显示「手机网络未获信任」并指向本页设置，更早的一方组合仍会把它显示为「配对链接已失效」，因此失败时先确认两台设备所在网段，再判断是否需要重新生成二维码。
+
 ## Windows 防火墙是另一项设置
 
 DSH Mobile 的默认 Windows HTTPS / Discovery 入站规则只允许 `LocalSubnet`。保存额外 CIDR **不会修改或扩大这些规则**；需要由你或系统管理员在 Windows 防火墙中单独允许受控来源访问实际 Mobile HTTPS 端口。

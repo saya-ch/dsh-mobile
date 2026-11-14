@@ -2358,6 +2358,7 @@ class MainActivity : Activity() {
 
     private fun pairingFailureMessage(error: Throwable, origin: GatewayOrigin): Int = when ((error as? NativeAuthFailure)?.kind) {
         NativeAuthFailureKind.PAIRING_EXPIRED -> R.string.pairing_expired
+        NativeAuthFailureKind.SOURCE_NETWORK_UNTRUSTED -> R.string.pairing_source_untrusted
         NativeAuthFailureKind.DEVICE_REVOKED -> R.string.device_revoked_message
         NativeAuthFailureKind.DEVICE_EXPIRED -> R.string.pairing_expired
         NativeAuthFailureKind.DEVICE_LIMIT -> R.string.pairing_device_limit

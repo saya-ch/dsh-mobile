@@ -40,6 +40,8 @@ internal enum class NativeAuthFailureKind {
     DEVICE_EXPIRED,
     DEVICE_LIMIT,
     RATE_LIMITED,
+    /** The gateway answered 403 because this peer network is outside its trusted ranges. */
+    SOURCE_NETWORK_UNTRUSTED,
     TIMEOUT,
     TLS,
     NETWORK,
@@ -55,6 +57,7 @@ internal class NativeAuthFailure(
 internal fun nativeAuthFailureForStatus(status: Int, errorCode: String? = null): NativeAuthFailureKind = when (errorCode) {
     "device_revoked" -> NativeAuthFailureKind.DEVICE_REVOKED
     "device_expired" -> NativeAuthFailureKind.DEVICE_EXPIRED
+    "source_network_untrusted" -> NativeAuthFailureKind.SOURCE_NETWORK_UNTRUSTED
     else -> when (status) {
         HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN -> NativeAuthFailureKind.PAIRING_EXPIRED
         HttpURLConnection.HTTP_CONFLICT -> NativeAuthFailureKind.DEVICE_LIMIT
@@ -208,7 +211,7 @@ internal object NativeAuthClient {
             val responseCode = connection.responseCode
             if (allowMissing && responseCode == HttpURLConnection.HTTP_NOT_FOUND) return@withCancellableNativeConnection null
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw NativeAuthFailure(nativeAuthFailureForStatus(responseCode))
+                throw NativeAuthFailure(nativeAuthFailureForStatus(responseCode, readErrorCode(connection)))
             }
             val length = connection.contentLengthLong
             if (length > maxBytes) throw NativeAuthFailure(NativeAuthFailureKind.INVALID_RESPONSE)
