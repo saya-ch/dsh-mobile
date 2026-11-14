@@ -96,6 +96,7 @@
     <string name="open_harness_trusted">Reconnect to trusted %1$s</string>
     <string name="scanning_lan_limited">Scanning with limited discovery… Nearby devices permission was declined; direct UDP and HTTPS fallbacks will still run.</string>
     <string name="pairing_expired">Pairing link expired\nThe one-time QR code was expired or already used. Generate a new QR code on the computer and scan it immediately.</string>
+    <string name="pairing_source_untrusted">Phone network not trusted\nThe phone is on a network this computer does not trust. Put both on the same subnet, or add the phone\'s network to \"Additional source networks\" in the desktop DSH mobile-access panel, restart DSH, and scan a new QR code.</string>
     <string name="pairing_device_limit">Device limit reached\nRemove an old paired device in desktop DSH, then try again.</string>
     <string name="pairing_rate_limited">Too many pairing attempts\nWait briefly, generate a new QR code, and try again.</string>
     <string name="pairing_timeout">Connection timed out\nThe computer may still be running; the network or remote tunnel is responding slowly. Return to the device list and retry, or check the remote tunnel on the computer.</string>

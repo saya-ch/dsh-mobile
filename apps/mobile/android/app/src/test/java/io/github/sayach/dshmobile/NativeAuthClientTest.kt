@@ -160,6 +160,8 @@ class NativeAuthClientTest {
         assertEquals(NativeAuthFailureKind.PAIRING_EXPIRED, nativeAuthFailureForStatus(401))
         assertEquals(NativeAuthFailureKind.DEVICE_REVOKED, nativeAuthFailureForStatus(401, "device_revoked"))
         assertEquals(NativeAuthFailureKind.DEVICE_EXPIRED, nativeAuthFailureForStatus(401, "device_expired"))
+        assertEquals(NativeAuthFailureKind.SOURCE_NETWORK_UNTRUSTED, nativeAuthFailureForStatus(403, "source_network_untrusted"))
+        assertEquals(NativeAuthFailureKind.PAIRING_EXPIRED, nativeAuthFailureForStatus(403))
         assertEquals(NativeAuthFailureKind.DEVICE_LIMIT, nativeAuthFailureForStatus(409))
         assertEquals(NativeAuthFailureKind.RATE_LIMITED, nativeAuthFailureForStatus(429))
         assertEquals(NativeAuthFailureKind.SERVER_UNAVAILABLE, nativeAuthFailureForStatus(503))

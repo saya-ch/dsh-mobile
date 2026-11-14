@@ -95,6 +95,7 @@
     <string name="open_harness_trusted">重新连接可信设备 %1$s</string>
     <string name="scanning_lan_limited">正在以受限方式扫描… 未授予附近设备权限，App 仍会继续尝试 UDP 与 HTTPS 兼容探测。</string>
     <string name="pairing_expired">配对链接已失效\n一次性二维码已过期或已使用。请在电脑端重新生成，并立即扫描。</string>
+    <string name="pairing_source_untrusted">手机网络未获信任\n手机所在的网络不在电脑的信任范围内。请把手机与电脑接入同一子网，或在电脑端 DSH 的「额外允许的来源网段」中加入手机所在网段并重启 DSH，再重新生成二维码扫描。</string>
     <string name="pairing_device_limit">配对设备已达上限\n请先在电脑端 DSH 移除旧设备，再重试。</string>
     <string name="pairing_rate_limited">配对尝试过于频繁\n请稍等片刻，重新生成二维码后再试。</string>
     <string name="pairing_timeout">连接超时\n电脑可能仍在正常运行；当前网络或远程通道响应较慢。请返回设备列表后重试，或检查电脑端远程通道。</string>
