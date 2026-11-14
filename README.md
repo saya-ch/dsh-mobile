@@ -38,7 +38,7 @@
 >
 > **当前正式版本：0.8.9**。移动页支持点按预览路径条复制完整路径；网关对不受信任的来源网段返回可区分的错误码；抽屉不再裁剪上游固定定位面板（#413）；仓库加入尚未发布的便携 Windows 客户端源码。插件与 Android App 独立更新；Android App 0.7.6 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [完整更新记录](CHANGELOG.md)。
 >
-> **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在「已配对设备」设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
+> **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.6/dsh-mobile-android-v0.7.6.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
