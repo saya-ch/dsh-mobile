@@ -50,7 +50,7 @@
     <string name="pairing_in_progress">正在配对这台手机…</string>
     <string name="pairing_failed">配对失败\n二维码可能已过期、已使用，或电脑暂时不可达。请确认网络正常后重新生成二维码并立即重试。</string>
     <string name="pairing_tls_failed">无法验证电脑身份\n电脑地址不可达，或证书与二维码不匹配。请确认连接的是同一台电脑，再重新生成二维码。</string>
-    <string name="pairing_tailscale_unreachable">Tailscale 连接受阻\n当前 VPN、代理或 DNS 模式无法访问这个 .ts.net 地址。请切换 VPN 节点或代理模式；仍失败时可在电脑端 DSH 改用其他远程方式。</string>
+    <string name="pairing_tailscale_unreachable">Tailscale 连接受阻\n无法经这个 .ts.net 地址配对。如果手机和电脑都开启了 Tailscale（同一网络），Funnel 入口不会对网络内部开放：请先断开手机的 Tailscale 或改用移动数据，也可以改用局域网地址配对。若不在同一网络，请检查 VPN 是否连接或切换节点。</string>
     <string name="connect">连接</string>
     <string name="scan_action">扫码配对</string>
     <string name="scan_hint">将电脑屏幕上的二维码对准取景框。</string>

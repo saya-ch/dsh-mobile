@@ -51,7 +51,7 @@
     <string name="pairing_in_progress">Pairing this phone…</string>
     <string name="pairing_failed">Pairing failed\nThe QR code may be expired or already used, or the computer may be unreachable. Check the connection, generate a new QR code, and try it immediately.</string>
     <string name="pairing_tls_failed">Computer identity could not be verified\nThe address is unreachable or its certificate does not match the QR code. Confirm this is the same computer and generate a new QR code.</string>
-    <string name="pairing_tailscale_unreachable">Tailscale connection blocked\nThe current VPN, proxy, or DNS mode cannot reach this .ts.net address. Switch VPN nodes or proxy modes; if it still fails, choose another remote connection method in DSH on the computer.</string>
+    <string name="pairing_tailscale_unreachable">Tailscale connection blocked\nThis .ts.net address cannot be reached for pairing. When the phone and the computer are both on the same tailnet, the Funnel entry stays closed to inside traffic: turn off Tailscale on the phone or switch to mobile data, or pair over the LAN address instead. Otherwise check whether the VPN is connected or switch nodes.</string>
     <string name="connect">Connect</string>
     <string name="scan_action">Scan QR code</string>
     <string name="scan_hint">Point the camera at the QR code on the computer screen.</string>
