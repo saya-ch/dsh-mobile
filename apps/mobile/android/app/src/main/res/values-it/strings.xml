@@ -17,8 +17,7 @@
     <string name="remote_step_two">2. Scansiona il codice QR remoto o incolla il link di abbinamento</string>
     <string name="scan_remote_qr">Scansiona il QR remoto</string>
     <string name="remote_link_label">Link di abbinamento remoto</string>
-    <string name="remote_link_hint">Incolla il link HTTPS generato sul computer</string>
-    <string name="connect_remote">Connetti con il link</string>
+    <string name="remote_link_hint">Incolla il link generato sul computer</string>
     <string name="invalid_remote_link">Link remoto non valido\nNon è un link di abbinamento remoto completo generato da DSH. Generane uno nuovo sul computer e incollalo per intero.</string>
     <string name="tailscale_vpn_warning">Connessione tramite Tailscale. Nella Cina continentale questo percorso può richiedere una VPN; se è lento o non disponibile, scegli un altro metodo di accesso remoto in DSH sul computer.</string>
     <string name="back_to_connections">Torna alle connessioni</string>
@@ -31,7 +30,15 @@
     <string name="pairing_description">Inserisci la chiave monouso di abbinamento mostrata nel pannello di accesso mobile di DSH sul computer.</string>
     <string name="selected_harness">DSH selezionato</string>
     <string name="back_to_scan">Torna ai dispositivi</string>
+        <string name="pairing_link_required">Incolla prima il link generato sul computer.</string>
+    <string name="lan_link_label">Link di abbinamento LAN</string>
+    <string name="lan_link_hint">Incolla un link di abbinamento o digita l\'indirizzo</string>
+    <string name="invalid_pairing_link">Link non valido. Copia il link completo dal computer.</string>
     <string name="gateway_label">Indirizzo del gateway</string>
+        <string name="or_manual_address">Oppure inserisci l\'indirizzo</string>
+    <string name="or_paste_link">Oppure incolla il link di accoppiamento</string>
+    <string name="or_paste_code">Oppure incolla il codice di accoppiamento</string>
+    <string name="manual_address_toggle">Oppure inserisci l\'indirizzo</string>
     <string name="gateway_hint">https://192.168.1.20:3443</string>
     <string name="gateway_helper">Il rilevamento usa la porta predefinita 3443. Puoi comunque inserire qui un indirizzo HTTPS personalizzato.</string>
     <string name="scan_lan">Avvia scansione</string>
@@ -53,7 +60,7 @@
     <string name="pairing_failed">Abbinamento non riuscito\nIl codice QR potrebbe essere scaduto o già usato, oppure il computer potrebbe non essere raggiungibile. Controlla la connessione, genera un nuovo QR e riprova subito.</string>
     <string name="pairing_tls_failed">Impossibile verificare l\'identità del computer\nL\'indirizzo non è raggiungibile oppure il certificato non corrisponde al codice QR. Verifica che sia lo stesso computer e genera un nuovo QR.</string>
     <string name="pairing_tailscale_unreachable">Connessione Tailscale bloccata\nNon è possibile raggiungere questo indirizzo .ts.net per l\'accoppiamento. Se telefono e computer sono nella stessa tailnet, l\'ingresso Funnel resta chiuso al traffico interno: disattiva Tailscale sul telefono o passa ai dati mobili, oppure accoppia tramite l\'indirizzo LAN. Altrimenti controlla che la VPN sia connessa o cambia nodo.</string>
-    <string name="connect">Connetti</string>
+    <string name="pair_and_connect">Abbina e connetti</string>
     <string name="scan_action">Scansiona codice QR</string>
     <string name="scan_hint">Inquadra il codice QR mostrato sullo schermo del computer.</string>
     <string name="camera_unavailable">Fotocamera non disponibile\nUn\'altra app potrebbe usarla oppure il dispositivo potrebbe non supportarla. Chiudi le altre app della fotocamera o incolla il link di abbinamento.</string>
@@ -136,6 +143,9 @@
     <string name="task_notifications_denied">Le notifiche attività restano disattivate. Puoi riprovare dalle impostazioni Generali di DSH.</string>
     <string name="paired_devices_title">Computer abbinati</string>
     <string name="paired_devices_description">Scegli il computer da aprire in DSH. Lo stato viene controllato in background.</string>
+    <string name="paired_devices_empty_title">Nessun computer</string>
+    <string name="paired_devices_empty">Apri Accesso mobile in DSH sul computer, poi scansiona il codice o incolla il link.</string>
+    <string name="back">Indietro</string>
     <string name="add_computer">Aggiungi computer</string>
     <string name="launch_settings">Comportamento all’avvio</string>
     <string name="launch_direct_dsh">Apri direttamente DSH</string>
@@ -239,7 +249,6 @@
     <string name="iroh_pairing_invalid">Informazioni di abbinamento non valide o scadute. Generale di nuovo sul computer.</string>
     <string name="iroh_pairing_retry_new">Connessione o abbinamento non completato. Genera nuove informazioni sul computer e riprova.</string>
     <string name="connection_mode_iroh">iroh</string>
-    <string name="iroh_connect_action">Abbina e connetti</string>
     <string name="iroh_status_connect_to_check">Connetti per verificare</string>
     <string name="session_storage_failed">Impossibile aggiornare la sessione web sul dispositivo. Riapri il computer dall\'elenco dei dispositivi senza eliminare l\'associazione.</string>
 </resources>

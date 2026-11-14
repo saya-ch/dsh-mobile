@@ -55,7 +55,7 @@ class IrohActivityWiringTest {
             for (key in listOf(
                 "iroh_access_title", "iroh_access_description", "iroh_pairing_help", "iroh_pairing_label",
                 "iroh_pairing_hint", "iroh_pairing_private", "iroh_pairing_invalid", "iroh_pairing_retry_new",
-                "connection_mode_iroh", "iroh_connect_action", "iroh_status_connect_to_check",
+                "connection_mode_iroh", "pair_and_connect", "iroh_status_connect_to_check",
                 "session_storage_failed",
             )) {
                 assertEquals("$locale:$key", 1, names.count { it == key })

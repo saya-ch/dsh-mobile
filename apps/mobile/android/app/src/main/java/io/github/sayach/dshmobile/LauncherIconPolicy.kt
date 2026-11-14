@@ -2,20 +2,21 @@ package io.github.sayach.dshmobile
 
 /** Launcher alias selection and exception-safe component updates without Android dependencies. */
 internal object LauncherIconPolicy {
-    data class Icon(val key: String, val alias: String)
+    /** `mipmap` names the artwork the App icon picker previews for this alias. */
+    data class Icon(val key: String, val alias: String, val mipmap: String)
     data class Change(val icon: Icon, val state: Int)
 
     val icons = listOf(
-        Icon("whale_girl", "LauncherWhaleGirl"),
-        Icon("mascot_classic", "LauncherMascotClassic"),
-        Icon("mascot_cheer", "LauncherMascotCheer"),
-        Icon("mascot_quiet", "LauncherMascotQuiet"),
-        Icon("official_whale", "LauncherOfficialWhale"),
-        Icon("official_whale_dark", "LauncherOfficialWhaleDark"),
-        Icon("official_whale_teal", "LauncherOfficialWhaleTeal"),
-        Icon("official_whale_mono", "LauncherOfficialWhaleMono"),
-        Icon("official_whale_black", "LauncherOfficialWhaleBlack"),
-        Icon("official_whale_white", "LauncherOfficialWhaleWhite"),
+        Icon("whale_girl", "LauncherWhaleGirl", "ic_launcher"),
+        Icon("mascot_classic", "LauncherMascotClassic", "ic_launcher_mascot_classic"),
+        Icon("mascot_cheer", "LauncherMascotCheer", "ic_launcher_mascot_cheer"),
+        Icon("mascot_quiet", "LauncherMascotQuiet", "ic_launcher_mascot_quiet"),
+        Icon("official_whale", "LauncherOfficialWhale", "ic_launcher_whale"),
+        Icon("official_whale_dark", "LauncherOfficialWhaleDark", "ic_launcher_whale_dark"),
+        Icon("official_whale_teal", "LauncherOfficialWhaleTeal", "ic_launcher_whale_teal"),
+        Icon("official_whale_mono", "LauncherOfficialWhaleMono", "ic_launcher_whale_mono"),
+        Icon("official_whale_black", "LauncherOfficialWhaleBlack", "ic_launcher_whale_black"),
+        Icon("official_whale_white", "LauncherOfficialWhaleWhite", "ic_launcher_whale_white"),
     )
 
     /** Alias class names belong to the Kotlin namespace, not a variant's application ID. */
