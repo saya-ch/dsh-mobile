@@ -152,6 +152,25 @@ if (previewFrameSource !== undefined) {
   if (!/<span\b(?=[^>]*\btitle=\{path\})(?=[^>]*\bdata-path-label\b)[^>]*>/u.test(pathLabelSource)) {
     throw new Error('DSH PathLabel no longer binds its title to the displayed path')
   }
+  // The preview body reads through the workspace-files Remote, so a rename on
+  // either side silently breaks every preview without touching the header. The
+  // mobile smoke proves the runtime half; these strings keep the contract visible
+  // before a real device run.
+  const previewManifest = await json('packages/client/ui-sidebar-documentpreview/package.json')
+  const previewInject = previewManifest.dsh?.client?.inject
+  if (!Array.isArray(previewInject) || !previewInject.includes('@deepseek-ai/dsh-api-workspace-files')) {
+    throw new Error('DSH document preview no longer depends on the workspace-files Remote')
+  }
+  const workspaceFilesSource = await text('packages/api/workspace-files/src/index.ts')
+  for (const declaration of ["super(ctx, 'workspaceFiles')", 'async read(', 'async readBytes(', 'async stat(']) {
+    if (!workspaceFilesSource.includes(declaration)) {
+      throw new Error(`DSH workspace-files Remote contract changed: missing ${declaration}`)
+    }
+  }
+  const gatewayClientSource = await text('packages/api/gateway/src/client/index.ts')
+  if (!gatewayClientSource.includes("connection.rpc.call('/api', endpoint, { args: prepared.args }, prepared.signal)")) {
+    throw new Error('DSH Gateway client no longer posts unary Remote calls as { args } over /api')
+  }
 }
 
 const connectionSource = await text('packages/client/connection/src/client/index.ts')

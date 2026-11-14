@@ -120,6 +120,7 @@
     "check:mobile-release": "node ./scripts/check-mobile-release.mjs",
     "check:dsh-compatibility": "node ./scripts/check-dsh-compatibility.mjs",
     "smoke:dsh-boot": "node ./scripts/smoke-dsh-mobile-boot.mjs",
+    "smoke:dsh-preview": "node ./scripts/smoke-dsh-mobile-boot.mjs --file-preview",
     "smoke:push-contract": "node ./scripts/smoke-mobile-push-contract.mjs",
     "smoke:web-push": "node ./scripts/smoke-mobile-push.mjs",
     "smoke:transport-recovery": "node ./scripts/smoke-mobile-transport-recovery.mjs",
