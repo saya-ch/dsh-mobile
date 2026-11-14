@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.8**。恢复 DSH 0.2.2-rc.2 下的 Web 推送（AgentRegistry ownership 变更），任务完成事件携带会话标题与有界摘要、并在 App 报告可投递时让出页面通知，新增默认关闭的阅读模式，推送调度不再在容量满时唤醒定时器。插件与 Android App 独立更新；Android App 0.7.5 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.9**。移动页支持点按预览路径条复制完整路径；网关对不受信任的来源网段返回可区分的错误码；抽屉不再裁剪上游固定定位面板（#413）；仓库加入尚未发布的便携 Windows 客户端源码。插件与 Android App 独立更新；Android App 0.7.5 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
 
@@ -450,6 +450,7 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.8.9` | 移动页点按预览路径条复制完整路径；网关对不受信任的来源网段返回 `source_network_untrusted`；抽屉不再裁剪上游固定定位面板（#413）；仓库加入尚未发布的便携 Windows 客户端源码。Android App 为 0.7.5 |
 | `0.8.8` | 在 `0.2.2-rc.2` 上恢复 Web 推送（AgentRegistry ownership 变更），任务完成事件携带会话标题与有界摘要并在 App 报告可投递时让出页面通知，新增默认关闭的阅读模式，推送调度不再在容量满时唤醒定时器。Android App 为 0.7.4 |
 | `0.8.7` | 在 `0.2.2-rc.1` 打包目标上加入默认关闭的会话预取、网关到期连接正常关闭与认证失败分类，并为 Android 0.7.4 准备后台提醒真实状态与通知就地打开；同时更新插件图标与 iroh 排障文档。Android App 为 0.7.4，新增设备端页面缓存与后台提醒真实状态 |
 | `0.8.6` | 在 `0.2.2-rc.1` 打包目标上透传已配对第三方插件的 `x-dsh-*` 请求头、修正网页推送停用语义、向受信 Host 插件开放推送文案接口，并修复 Windows 防火墙校验、iroh 目录诊断与局域网诊断口径。Android App 为 0.7.3，新增可选后台提醒 |
