@@ -187,7 +187,10 @@
     <string name="back_page_unresponsive">页面暂未响应，请再试一次返回。</string>
     <string name="icon_settings">应用图标</string>
     <string name="icon_settings_saved">应用图标已更新。部分桌面启动器可能需要片刻刷新。</string>
-    <string name="icon_choice_whale_girl">DSH 鲸鱼娘</string>
+    <string name="icon_choice_whale_girl">DSH 鲸鱼娘（眨眼）</string>
+    <string name="icon_choice_mascot_classic">DSH 鲸鱼娘（经典）</string>
+    <string name="icon_choice_mascot_cheer">DSH 鲸鱼娘（欢呼）</string>
+    <string name="icon_choice_mascot_quiet">DSH 鲸鱼娘（安静）</string>
     <string name="icon_choice_official_whale">DeepSeek 鲸鱼（品牌蓝）</string>
     <string name="icon_choice_official_whale_dark">DeepSeek 鲸鱼（深蓝）</string>
     <string name="icon_choice_official_whale_teal">DeepSeek 鲸鱼（青绿）</string>

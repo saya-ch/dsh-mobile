@@ -24,7 +24,7 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 | Location | Setting or action |
 | --- | --- |
 | Device list → Settings → Startup behavior | **Open DSH directly** (default) selects the last-used eligible pairing, even when several computers are saved. **Show device list** asks you to choose at each launch. |
-| Device list → Settings → App icon | Choose the mascot or one of six whale-mark colors without changing package identity or paired data. |
+| Device list → Settings → App icon | The default is the DSH whale-girl mascot holding a phone; the classic, cheer and quiet poses plus six whale-mark colors are also selectable. Switching only changes the launcher entry — package identity and paired data stay untouched. |
 | Device list → Settings → Automatic same-computer connection | App 0.6.7+ with plugin 0.6.16+: keep **Manual** (default), choose **Detect and ask**, or enable **Automatic switch and notify**. Pair LAN and remote independently; [switching rules](#automatic-same-computer-connection) explain draft handling. |
 | DSH page → Settings → General → Switch computer | Return to the paired-computer list. Holding the top-left drawer toggle provides another entry. These actions belong inside the app's webpage, not the device-list settings. |
 | <a id="062-update"></a>DSH page → Settings → General → Page zoom | App 0.6.2+ with plugin 0.6.3+: 80–125%, reset to 100%. Saved app-wide without reloading the conversation. |
