@@ -65,7 +65,7 @@ Each later bidirectional stream begins with `{"version":1,"type":"proxy"}` plus 
 
 The plugin does not build this crate on the user's machine. It downloads the pinned `dsh-mobile-iroh 0.1.0-alpha.1` release for the current platform from the npm CDN, verifies the byte length and SHA-256, and only then promotes the executable into plugin-private storage; an already installed companion with a verified copy is reused instead of downloading. The authoritative bytes and hashes are `src/iroh-component.ts` line 14 (`IROH_VERSION`) and lines 34-49 (per-platform entries: Windows x64 14,865,920 bytes, Linux x64 24,451,352 bytes).
 
-Local and CI builds use `npm run build:iroh-host` (`scripts/build-iroh-host.mjs`), not the debug command above. It builds the release profile through `native/Cargo.toml`, copies the binary from `native/target/release` to `bin/` under its published name (`dsh-mobile-iroh-host-win32-x64.exe` or `dsh-mobile-iroh-host-linux-x64`), checks the executable header and prints `bytes`/`sha256` for the release manifest. CI runs the same script on both targets (`.github/workflows/ci.yml:436`).
+Local and CI builds use `npm run build:iroh-host` (`scripts/build-iroh-host.mjs`), not the debug command above. It builds the release profile through `native/Cargo.toml`, copies the binary from `native/target/release` to `bin/` under its published name (`dsh-mobile-iroh-host-win32-x64.exe` or `dsh-mobile-iroh-host-linux-x64`), checks the executable header and prints `bytes`/`sha256` for the release manifest. CI runs the same script in the repository's `iroh host` job (`.github/workflows/ci.yml`).
 
 ## Verification
 
