@@ -42,7 +42,7 @@ class LauncherIconPolicyTest {
         LauncherIconPolicy.switchIcon(LauncherIconPolicy.icons.last().key, true,
             { LauncherIconPolicy.STATE_DEFAULT }) { batches += it }
         assertEquals(1, batches.size)
-        assertEquals(7, batches.single().size)
+        assertEquals(10, batches.single().size)
         assertEquals(1, batches.single().count { it.state == LauncherIconPolicy.STATE_ENABLED })
     }
 
@@ -64,7 +64,7 @@ class LauncherIconPolicyTest {
             assertTrue(error === failure)
         }
         assertEquals(before, states)
-        assertEquals(10, calls)
+        assertEquals(13, calls)
     }
 
     @Test

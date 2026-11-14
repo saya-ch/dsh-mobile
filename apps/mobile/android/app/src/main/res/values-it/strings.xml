@@ -189,7 +189,10 @@
     <string name="back_page_unresponsive">La pagina non risponde. Riprova a tornare indietro.</string>
     <string name="icon_settings">Icona dell\'app</string>
     <string name="icon_settings_saved">Icona aggiornata. Alcuni launcher potrebbero aggiornarsi dopo un attimo.</string>
-    <string name="icon_choice_whale_girl">Mascotte balena DSH</string>
+    <string name="icon_choice_whale_girl">Mascotte balena DSH (occhiolino)</string>
+    <string name="icon_choice_mascot_classic">Mascotte balena DSH (classica)</string>
+    <string name="icon_choice_mascot_cheer">Mascotte balena DSH (esultanza)</string>
+    <string name="icon_choice_mascot_quiet">Mascotte balena DSH (silenzio)</string>
     <string name="icon_choice_official_whale">Balena DeepSeek (blu)</string>
     <string name="icon_choice_official_whale_dark">Balena DeepSeek (blu scuro)</string>
     <string name="icon_choice_official_whale_teal">Balena DeepSeek (verde acqua)</string>

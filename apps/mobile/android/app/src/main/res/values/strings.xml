@@ -188,7 +188,10 @@
     <string name="back_page_unresponsive">Page is not responding. Try Back again.</string>
     <string name="icon_settings">App icon</string>
     <string name="icon_settings_saved">App icon updated. Some launchers may take a moment to refresh.</string>
-    <string name="icon_choice_whale_girl">DSH whale mascot</string>
+    <string name="icon_choice_whale_girl">DSH whale mascot (wink)</string>
+    <string name="icon_choice_mascot_classic">DSH whale mascot (classic)</string>
+    <string name="icon_choice_mascot_cheer">DSH whale mascot (cheer)</string>
+    <string name="icon_choice_mascot_quiet">DSH whale mascot (quiet)</string>
     <string name="icon_choice_official_whale">DeepSeek whale (blue)</string>
     <string name="icon_choice_official_whale_dark">DeepSeek whale (navy)</string>
     <string name="icon_choice_official_whale_teal">DeepSeek whale (teal)</string>

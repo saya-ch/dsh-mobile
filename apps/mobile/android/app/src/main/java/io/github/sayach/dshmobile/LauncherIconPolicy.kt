@@ -7,6 +7,9 @@ internal object LauncherIconPolicy {
 
     val icons = listOf(
         Icon("whale_girl", "LauncherWhaleGirl"),
+        Icon("mascot_classic", "LauncherMascotClassic"),
+        Icon("mascot_cheer", "LauncherMascotCheer"),
+        Icon("mascot_quiet", "LauncherMascotQuiet"),
         Icon("official_whale", "LauncherOfficialWhale"),
         Icon("official_whale_dark", "LauncherOfficialWhaleDark"),
         Icon("official_whale_teal", "LauncherOfficialWhaleTeal"),

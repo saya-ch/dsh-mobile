@@ -1371,6 +1371,9 @@ class MainActivity : Activity() {
         val keys = LauncherIconPolicy.icons.map { it.key }
         val labels = arrayOf(
             getString(R.string.icon_choice_whale_girl),
+            getString(R.string.icon_choice_mascot_classic),
+            getString(R.string.icon_choice_mascot_cheer),
+            getString(R.string.icon_choice_mascot_quiet),
             getString(R.string.icon_choice_official_whale),
             getString(R.string.icon_choice_official_whale_dark),
             getString(R.string.icon_choice_official_whale_teal),

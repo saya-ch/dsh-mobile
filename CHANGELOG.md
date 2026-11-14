@@ -9,6 +9,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Android 0.7.6 - Unreleased
 
+- Give the App a new default icon — the whale-girl mascot holding a phone — and make the previous mascot artwork plus two more poses selectable in the existing App icon setting: classic, cheer and quiet, next to the six whale-mark colors. Switching still only flips a launcher alias, so the package identity, stored pairings and the background service are untouched; a launcher may take a moment to redraw the new entry.
 - Name the same-tailnet case in the Tailscale pairing failure: when a `.ts.net` address stays unreachable, the message now explains that a phone on the same tailnet as the computer cannot pair through the Funnel entry — tailnet-internal traffic is closed there by design — and points at turning Tailscale off on the phone, switching to mobile data, or pairing over the LAN address instead. A phone outside the tailnet keeps the existing VPN, proxy and DNS guidance. Reported in [#340](https://github.com/saya-ch/dsh-mobile/issues/340).
 
 ## 0.8.9 - 2026-11-14
