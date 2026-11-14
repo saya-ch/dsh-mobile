@@ -12,14 +12,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.RadialGradient
-import android.graphics.RectF
-import android.graphics.Shader
-import android.graphics.Outline
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -43,8 +36,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.Window
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
-import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -415,6 +406,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        dismissActiveSheet()
         activityResumed = false
         stopIrohStatusMonitor()
         draftTransfer?.abort()
@@ -663,7 +655,6 @@ class MainActivity : Activity() {
             // Receive unconsumed Insets before the real page while still drawing above it.
             translationZ = dp(1).toFloat()
         }
-        addScreenGlow(waiting)
         for (index in 0 until waiting.childCount) waiting.getChildAt(index).importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -807,6 +798,14 @@ class MainActivity : Activity() {
     /** Depth of the screen on show; a deeper screen enters from the right, a shallower one from the left. */
     private var pageDepth = 0
 
+    /** The one sheet currently on screen; it must not survive an Activity teardown. */
+    private var activeSheet: Dialog? = null
+
+    private fun dismissActiveSheet() {
+        activeSheet?.takeIf { it.isShowing }?.dismiss()
+        activeSheet = null
+    }
+
     private fun setPageContent(root: View, depth: Int = pageDepth.coerceAtLeast(0), animate: Boolean = true) {
         detachConnectionWaitingView()
         setContentView(root)
@@ -823,7 +822,7 @@ class MainActivity : Activity() {
             pageDepth = depth
             return
         }
-        val forward = depth >= pageDepth
+        val forward = depth > pageDepth
         pageDepth = depth
         root.translationX = (if (forward) dp(26) else -dp(18)).toFloat()
         root.alpha = 0.88f
@@ -962,7 +961,7 @@ class MainActivity : Activity() {
             toolbarIconButton(R.drawable.ic_settings, R.string.device_list_settings).apply {
                 setOnClickListener { showSettings() }
             },
-            LinearLayout.LayoutParams(dp(40), dp(40)),
+            LinearLayout.LayoutParams(dp(48), dp(48)),
         )
         val devices = pairedDeviceStore.load()
         if (devices.isEmpty()) {
@@ -1138,19 +1137,51 @@ class MainActivity : Activity() {
                 ).apply { bottomMargin = dp(UiTokens.gap) },
             )
         }
+        // A long list must scroll instead of running off a short screen.
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = ScrollView(this).apply {
+            isFillViewport = false
+            clipToPadding = false
+            addView(
+                body,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
+        sheet.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
         val dialog = Dialog(this).apply {
             requestWindowFeature(Window.FEATURE_NO_TITLE)
             setContentView(sheet)
             setCanceledOnTouchOutside(true)
         }
-        build(sheet, dialog)
+        build(body, dialog)
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             setGravity(Gravity.BOTTOM)
             setDimAmount(0.6f)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
+        if (title != null) dialog.window?.decorView?.accessibilityPaneTitle = title
+        if (isFinishing || isDestroyed) return dialog
+        dialog.setOnDismissListener { if (activeSheet === dialog) activeSheet = null }
         dialog.show()
+        activeSheet = dialog
+        scroll.post {
+            val cap = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+            if (scroll.height > cap) {
+                scroll.layoutParams = scroll.layoutParams.apply { height = cap }
+                scroll.requestLayout()
+            }
+        }
         return dialog
     }
 
@@ -1164,6 +1195,7 @@ class MainActivity : Activity() {
         textSize = UiTokens.itemTitleSp
         setTextColor(getColor(if (danger) R.color.app_error else R.color.app_foreground))
         gravity = Gravity.CENTER_VERTICAL
+        minHeight = dp(48)
         setPadding(dp(UiTokens.gap), dp(UiTokens.bodySmallSp.toInt()), dp(UiTokens.gap), dp(UiTokens.bodySmallSp.toInt()))
         background = roundedRipple(Color.TRANSPARENT, UiTokens.iconRadius)
         isClickable = true
@@ -1224,9 +1256,11 @@ class MainActivity : Activity() {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(UiTokens.gap), dp(12), dp(UiTokens.gap), dp(12))
+                    minimumHeight = dp(48)
                     background = roundedRipple(Color.TRANSPARENT, UiTokens.iconRadius)
                     isClickable = true
                     isFocusable = true
+                    isSelected = index == selected
                     contentDescription = label
                 }
                 artwork?.getOrNull(index)?.let { name ->
@@ -1278,7 +1312,7 @@ class MainActivity : Activity() {
         minHeight = dp(52)
         background = RippleDrawable(
             ColorStateList.valueOf(Color.TRANSPARENT),
-            roundedSurface(getColor(R.color.app_error), UiTokens.controlRadius),
+            roundedSurface(getColor(R.color.app_danger_fill), UiTokens.controlRadius),
             null,
         )
         isClickable = true
@@ -1302,6 +1336,7 @@ class MainActivity : Activity() {
         onFieldEdited(input) { clearInlineError(input, error) }
         sheet.addView(input, fullWidth())
         sheet.addView(error, fullWidth())
+        input.requestFocus()
         return input to error
     }
 
@@ -1464,7 +1499,7 @@ class MainActivity : Activity() {
         updateDeviceRowAccessibility(row, device, status.text)
         row.addView(toolbarIconButton(R.drawable.ic_more_vertical, R.string.device_actions).apply {
             setOnClickListener { showDeviceActions(device) }
-        }, LinearLayout.LayoutParams(dp(40), dp(48)))
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
         row.addView(ImageView(this).apply {
             setImageResource(R.drawable.ic_chevron_right)
             contentDescription = null
@@ -1821,7 +1856,7 @@ class MainActivity : Activity() {
                 PREFERENCE_LAUNCH_BEHAVIOR,
                 if (which == 1) LaunchBehavior.DEVICE_LIST.name else LaunchBehavior.DIRECT_DSH.name,
             ).apply()
-            deviceListStatus?.setText(R.string.launch_setting_saved)
+            Toast.makeText(this, R.string.launch_setting_saved, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1854,7 +1889,7 @@ class MainActivity : Activity() {
                 }
             }
             preferences.edit().putString(PREFERENCE_APP_ICON, icon).apply()
-            deviceListStatus?.setText(R.string.icon_settings_saved)
+            Toast.makeText(this, R.string.icon_settings_saved, Toast.LENGTH_SHORT).show()
         } catch (error: Exception) {
             // Package-manager failure is reported without persisting an unconfirmed selection.
             Toast.makeText(this, R.string.icon_settings_failed, Toast.LENGTH_LONG).show()
@@ -1959,7 +1994,7 @@ class MainActivity : Activity() {
 
         content.addView(primaryButton(R.string.scan_action, 52) { openScanner() }, fullWidth())
         content.addView(spacer(10))
-        content.addView(secondaryButton(R.string.scan_lan, 46) { scanForHarnesses(status, this, results) }, fullWidth())
+        content.addView(secondaryButton(R.string.scan_lan, 48) { scanForHarnesses(status, this, results) }, fullWidth())
         content.addView(sectionLabel(R.string.or_paste_link))
 
         val manualField = field(
@@ -2487,9 +2522,6 @@ class MainActivity : Activity() {
         return android.graphics.drawable.LayerDrawable(arrayOf(base, bands, falloff))
     }
 
-    /** The wash is already smooth, so screens only add it; no blur pass is needed. */
-    private fun addScreenGlow(root: FrameLayout) = Unit
-
     /**
      * Shared frame for every native screen: gradient background, one header row
      * (secondary screens show a back affordance) and a centred content column.
@@ -2505,7 +2537,6 @@ class MainActivity : Activity() {
     ): SetupScreen {
         applyStatusBarIconContrast(window, getColor(R.color.app_background))
         val root = FrameLayout(this).apply { background = screenBackground() }
-        addScreenGlow(root)
         val frame = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(
             frame,
@@ -2521,7 +2552,7 @@ class MainActivity : Activity() {
         if (back != null) {
             header.addView(
                 backButton(back),
-                LinearLayout.LayoutParams(dp(40), dp(40)).apply { rightMargin = dp(10) },
+                LinearLayout.LayoutParams(dp(48), dp(48)).apply { rightMargin = dp(10) },
             )
         }
         header.addView(
@@ -2682,21 +2713,6 @@ class MainActivity : Activity() {
         isClickable = true
         isFocusable = true
         setOnClickListener { onClick() }
-    }
-
-    private fun addScreenAction(screen: SetupScreen, labelResource: Int, onClick: () -> Unit) {
-        screen.root.addView(
-            screenAction(labelResource, onClick),
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM,
-            ).apply {
-                leftMargin = dp(UiTokens.screenPadding)
-                rightMargin = dp(UiTokens.screenPadding)
-                bottomMargin = dp(20)
-            },
-        )
     }
 
     private fun connectManual(origin: GatewayOrigin, status: TextView) {
@@ -3261,18 +3277,25 @@ class MainActivity : Activity() {
                 record.displayName,
                 InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
             )
-            sheet.addView(
-                primaryButton(R.string.save_and_connect, 52) {
+            val saveAndConnect = {
                     val name = normalizedDeviceName(input.text.toString())
                     if (name == null) {
                         showInlineError(input, error, getString(R.string.invalid_device_name))
                     } else {
+                        // Close only after a confirmed write: a failed save must leave
+                        // Skip reachable, or the pairing flow can never complete.
+                        val saved = withCredentialStorage {
+                            pairedDeviceStore.update(record.key) { it.copy(displayName = name) }
+                        } != null
                         dismissSheet(sheetDialog)
-                        if (withCredentialStorage { pairedDeviceStore.update(record.key) { it.copy(displayName = name) } } != null) {
-                            finish()
-                        }
+                        if (saved) finish() else toastError(R.string.session_storage_failed).also { finish() }
                     }
-                },
+            }
+            input.setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE) { saveAndConnect(); true } else false
+            }
+            sheet.addView(
+                primaryButton(R.string.save_and_connect, 52) { saveAndConnect() },
                 fullWidth().apply { topMargin = dp(UiTokens.gap) },
             )
             sheet.addView(
@@ -3369,7 +3392,9 @@ class MainActivity : Activity() {
         sameHostGate.invalidate()
         sameHostProbeCancellation?.cancel()
         sameHostProbeCancellation = null
-        sameHostConfirmation?.dismiss()
+        // dismiss() delivers its listener asynchronously; clear first so the guard
+        // in checkSameHostConnection does not skip the immediate recheck.
+        sameHostConfirmation = null
         checkSameHostConnection()
     }
 
@@ -4898,14 +4923,15 @@ class MainActivity : Activity() {
             R.color.app_button_top, R.color.app_button_mid, R.color.app_button_bottom,
             R.color.app_button_top_pressed, R.color.app_button_mid_pressed, R.color.app_button_bottom_pressed,
         )
+        val lift = this
         stateListAnimator = android.animation.StateListAnimator().apply {
             addState(
                 intArrayOf(android.R.attr.state_pressed),
-                android.animation.ObjectAnimator.ofFloat(this@apply, "translationZ", dp(1).toFloat()),
+                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(1).toFloat()),
             )
             addState(
                 intArrayOf(),
-                android.animation.ObjectAnimator.ofFloat(this@apply, "translationZ", dp(3).toFloat()),
+                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(3).toFloat()),
             )
         }
         setTextColor(getColor(R.color.app_button_text))
@@ -4918,7 +4944,7 @@ class MainActivity : Activity() {
         isAllCaps = false
         textSize = 14f
         minHeight = dp(minHeightDp)
-        setTextColor(getColor(R.color.app_accent))
+        setTextColor(getColor(R.color.app_on_accent_container))
         backgroundTintList = null
         background = glassBackground(UiTokens.controlRadius)
         setOnClickListener { onClick() }

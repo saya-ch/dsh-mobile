@@ -50,6 +50,15 @@ class ThemeContrastTest {
         }
     }
 
+    /** Destructive actions use their own fill, so the caption is checked there too. */
+    @Test fun dangerButtonCaptionsMeetNormalTextContrastInBothThemes() {
+        for (theme in THEMES) {
+            val colors = themeColors(theme)
+            val contrast = contrastRatio(parse(colors.getValue("app_button_text")), parse(colors.getValue("app_danger_fill")))
+            assertTrue("$theme danger label contrast $contrast must be at least 4.5:1", contrast >= 4.5)
+        }
+    }
+
     private fun themeColors(theme: String): Map<String, String> {
         val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
             .parse(sourceFile("res/$theme/colors.xml"))

@@ -7,8 +7,8 @@
     <color name="app_secondary">#52607A</color>
     <color name="app_border">#E3EAF5</color>
     <color name="app_accent">#2563EB</color>
-    <color name="app_on_accent">#FFFFFF</color>
     <color name="app_error_container">#FEF2F2</color>
+    <color name="app_danger_fill">#C81E1E</color>
     <color name="app_error">#C81E1E</color>
     <color name="app_success">#15803D</color>
     <color name="app_accent_container">#EAF1FF</color>
@@ -25,8 +25,8 @@
     <color name="app_button_bottom_pressed">#163C97</color>
     <color name="app_glass_top">#1FFFFFFF</color>
     <color name="app_glass_bottom">#0DFFFFFF</color>
-    <color name="app_field_inset_top">#42000000</color>
-    <color name="app_field_inset_bottom">#1F000000</color>
+    <color name="app_field_inset_top">#1F000000</color>
+    <color name="app_field_inset_bottom">#0F000000</color>
     <color name="app_button_edge">#33FFFFFF</color>
     <color name="app_card_edge_top">#57FFFFFF</color>
     <color name="app_card_edge_bottom">#0AFFFFFF</color>
