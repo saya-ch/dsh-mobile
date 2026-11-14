@@ -66,7 +66,7 @@ internal static class GatewayAuth
         using var ssl = await ConnectAsync(device, bootstrap: true, token);
         await ssl.WriteAsync(Encoding.ASCII.GetBytes(head), token);
         await ssl.FlushAsync(token);
-        var raw = await ReadResponseAsync(ssl, token, MaxCaBytes * 4);
+        var raw = await ReadHttpResponseAsync(ssl, token, MaxCaBytes * 4);
         var headerEnd = HeaderEnd(raw);
         if (headerEnd < 0) throw new InvalidOperationException("invalid ca.cer HTTP response");
         var headers = Encoding.ASCII.GetString(raw, 0, headerEnd);
@@ -180,7 +180,7 @@ internal static class GatewayAuth
         await ssl.WriteAsync(body, token);
         await ssl.FlushAsync(token);
 
-        var raw = await ReadResponseAsync(ssl, token, MaxResponseBytes);
+        var raw = await ReadHttpResponseAsync(ssl, token, MaxResponseBytes);
         return ParseHttpResponse(raw, device.InstanceId, requireDeviceCredential);
     }
 
@@ -211,7 +211,8 @@ internal static class GatewayAuth
         }
     }
 
-    private static async Task<byte[]> ReadResponseAsync(Stream stream, CancellationToken token, int maxBytes)
+    /// <summary>Raw HTTP response bytes; shared with LanDiscovery probes.</summary>
+    internal static async Task<byte[]> ReadHttpResponseAsync(Stream stream, CancellationToken token, int maxBytes)
     {
         using var buffer = new MemoryStream();
         var chunk = new byte[4096];
