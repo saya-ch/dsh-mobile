@@ -302,12 +302,12 @@ App 0.6.7 配合插件 0.6.16，可在列表 **设置 → 同电脑自动连接*
 <table>
   <tr>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/device-management.jpg" width="44%" alt="Android App 已配对设备列表"><br>
-      <sub>设备管理列表：查看已配对电脑、连接方式和可达状态</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg" width="44%" alt="Android App 已配对设备列表：远程与局域网电脑及其可达状态"><br>
+      <sub>已配对设备：每台电脑的名称、连接方式、可达状态与最近连接时间，底部可添加新电脑</sub>
     </td>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Android App 启动行为设置"><br>
-      <sub>启动行为设置：选择直接进入 DSH 或显示设备列表</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Android App 设置页：启动行为、外观、应用图标、同电脑自动连接与检查更新"><br>
+      <sub>设置页：启动行为（直接进入 DSH 或显示设备列表）、外观、应用图标、同电脑自动连接与检查更新</sub>
     </td>
   </tr>
 </table>
@@ -352,19 +352,6 @@ excludedClientModules:
 设置优先级为本设备选择 → 电脑默认 → 插件配置。详细生效与恢复规则见[模块指南](docs/CLIENT_MODULES.md)。
 
 </details>
-
-<table>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/third-party-plugin-adaptation.png" width="96%" alt="Android App 宽屏布局与社区侧边栏插件适配"><br>
-      <sub>Android App 下社区侧边栏插件的兼容</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/websocket-diagnostics.png" width="96%" alt="Android App 第三方 WebSocket 路径诊断"><br>
-      <sub>连接诊断：检查第三方 WebSocket 路径并按需放行</sub>
-    </td>
-  </tr>
-</table>
 
 ## App 与手机浏览器
 

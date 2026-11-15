@@ -302,12 +302,12 @@ Revoking a device permanently deletes its durable record and token digest instea
 <table>
   <tr>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/device-management.jpg" width="44%" alt="Paired computer list in the Android app"><br>
-      <sub>Device management: paired computers, transport, and reachability</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg" width="44%" alt="Paired computer list in the Android app: remote and LAN computers with reachability"><br>
+      <sub>Paired computers: each computer's name, transport, reachability and last connection time, with an add-computer action</sub>
     </td>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Startup behavior settings in the Android app"><br>
-      <sub>Startup behavior: open DSH directly or show the device list</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Android app settings: startup behavior, appearance, app icon, same-computer auto-connect and update check"><br>
+      <sub>Settings: startup behavior (open DSH directly or show the device list), appearance, app icon, same-computer auto-connect and update check</sub>
     </td>
   </tr>
 </table>
@@ -352,19 +352,6 @@ There is no default exclusion list. The plugin rejects unknown or boot-critical 
 Selection priority is device choice → computer defaults → plugin configuration. See the [module guide](docs/CLIENT_MODULES.en.md) for application and recovery rules.
 
 </details>
-
-<table>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/third-party-plugin-adaptation.png" width="96%" alt="Android app wide layout with a community sidebar plugin adapted"><br>
-      <sub>Community sidebar plugin compatibility in the Android app</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/websocket-diagnostics.png" width="96%" alt="Third-party WebSocket path diagnostics in the Android app"><br>
-      <sub>Connection diagnostics: review and allow third-party WebSocket paths</sub>
-    </td>
-  </tr>
-</table>
 
 ## App or mobile browser
 
