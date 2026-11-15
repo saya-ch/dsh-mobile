@@ -17,8 +17,8 @@ class ThemeContrastTest {
             // lightest and the darkest stop, not only the middle one.
             for (stop in listOf("app_button_top", "app_button_mid", "app_button_bottom")) {
                 val contrast = contrastRatio(parse(colors.getValue("app_button_text")), parse(colors.getValue(stop)))
-                // A 15.5sp bold caption is large text, which WCAG measures at 3:1; the fill stays above 3.2 so the button reads light without going thin.
-                assertTrue("$theme $stop label contrast $contrast must be at least 3.1:1", contrast >= 3.1)
+                // The tonal fill is light, so the caption is dark ink and clears normal-text contrast.
+                assertTrue("$theme $stop label contrast $contrast must be at least 4.5:1", contrast >= 4.5)
             }
         }
     }
@@ -55,7 +55,7 @@ class ThemeContrastTest {
     @Test fun dangerButtonCaptionsMeetNormalTextContrastInBothThemes() {
         for (theme in THEMES) {
             val colors = themeColors(theme)
-            val contrast = contrastRatio(parse(colors.getValue("app_button_text")), parse(colors.getValue("app_danger_fill")))
+            val contrast = contrastRatio(parse(colors.getValue("app_danger_text")), parse(colors.getValue("app_danger_fill")))
             assertTrue("$theme danger label contrast $contrast must be at least 4.5:1", contrast >= 4.5)
         }
     }

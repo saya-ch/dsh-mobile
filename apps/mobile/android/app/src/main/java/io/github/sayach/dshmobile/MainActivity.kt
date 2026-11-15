@@ -12,6 +12,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Shader
+import android.animation.ValueAnimator
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
@@ -36,6 +42,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.Window
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -649,6 +656,8 @@ class MainActivity : Activity() {
         }
         val waiting = FrameLayout(this).apply {
             background = screenBackground()
+            addMistBackdrop(this)
+            addGridBackdrop(this)
             isClickable = true
             isFocusableInTouchMode = true
             accessibilityPaneTitle = message
@@ -1404,6 +1413,7 @@ class MainActivity : Activity() {
         setTextColor(getColor(R.color.app_button_text))
         gravity = Gravity.CENTER
         minHeight = dp(52)
+        setTextColor(getColor(R.color.app_danger_text))
         background = RippleDrawable(
             ColorStateList.valueOf(Color.TRANSPARENT),
             roundedSurface(getColor(R.color.app_danger_fill), UiTokens.controlRadius),
@@ -2567,24 +2577,112 @@ class MainActivity : Activity() {
      * falloff. A band, not a spot — the stops are far apart so no circle reads.
      */
     private fun screenBackground(): Drawable {
-        // An opaque base is mandatory: this wash is also used by the connection
-        // waiting layer, which sits over live content.
+        // Opaque base plus a bottom falloff: the moving colour lives in addMistBackdrop.
         val base = GradientDrawable().apply { setColor(getColor(R.color.app_background)) }
-        val bands = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(
-                getColor(R.color.app_aurora_one),
-                getColor(R.color.app_background),
-                getColor(R.color.app_aurora_two),
-                getColor(R.color.app_background),
-                getColor(R.color.app_aurora_three),
-            ),
-        )
         val falloff = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(Color.TRANSPARENT, Color.TRANSPARENT, getColor(R.color.app_background)),
         )
-        return android.graphics.drawable.LayerDrawable(arrayOf(base, bands, falloff))
+        return android.graphics.drawable.LayerDrawable(arrayOf(base, falloff))
+    }
+
+    /**
+     * The drifting mist: the wash is painted once on an oversized view and only its
+     * translation and scale animate, so the colour field moves without a repaint.
+     */
+    private fun addMistBackdrop(root: FrameLayout) {
+        val metrics = resources.displayMetrics
+        val width = metrics.widthPixels * 2
+        val height = metrics.heightPixels * 2
+        val mist = View(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(
+                    getColor(R.color.app_aurora_one),
+                    getColor(R.color.app_background),
+                    getColor(R.color.app_aurora_two),
+                    getColor(R.color.app_background),
+                    getColor(R.color.app_aurora_three),
+                    getColor(R.color.app_background),
+                ),
+            )
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        root.addView(
+            mist,
+            FrameLayout.LayoutParams(width, height).apply {
+                leftMargin = -(width - metrics.widthPixels) / 2
+                topMargin = -(height - metrics.heightPixels) / 2
+            },
+        )
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 26_000
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+                val drift = dp(44).toFloat()
+                mist.translationX = -drift * progress
+                mist.translationY = drift * 0.6f * progress
+                mist.scaleX = 1f + 0.05f * progress
+                mist.scaleY = 1f + 0.05f * progress
+            }
+            start()
+        }
+    }
+
+    /**
+     * A barely-there grid over the wash, drifting one cell at a time. The pattern is
+     * a repeating shader on a view slightly larger than the screen, and only its
+     * translation animates, so the frame never repaints the grid itself.
+     */
+    private fun addGridBackdrop(root: FrameLayout) {
+        val cell = dp(28).coerceAtLeast(8)
+        val tile = Bitmap.createBitmap(cell, cell, Bitmap.Config.ARGB_8888)
+        val tileCanvas = Canvas(tile)
+        val line = Paint().apply {
+            color = getColor(R.color.app_grid_line)
+            strokeWidth = 1f
+        }
+        tileCanvas.drawLine(cell - 1f, 0f, cell - 1f, cell.toFloat(), line)
+        tileCanvas.drawLine(0f, cell - 1f, cell.toFloat(), cell - 1f, line)
+        val grid = object : View(this) {
+            override fun onDraw(canvas: Canvas) {
+                canvas.drawPaint(
+                    Paint().apply {
+                        shader = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+                    },
+                )
+            }
+        }
+        grid.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        root.addView(
+            grid,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ).apply {
+                // the backdrop drifts, so it overhangs by one cell on every side
+                width = resources.displayMetrics.widthPixels + cell
+                height = resources.displayMetrics.heightPixels + cell
+                leftMargin = -cell
+                topMargin = -cell
+            },
+        )
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        ValueAnimator.ofFloat(0f, -cell.toFloat()).apply {
+            duration = 30_000
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { animation ->
+                val offset = animation.animatedValue as Float
+                grid.translationX = offset
+                grid.translationY = offset
+            }
+            start()
+        }
     }
 
     /**
@@ -2602,6 +2700,8 @@ class MainActivity : Activity() {
     ): SetupScreen {
         applyStatusBarIconContrast(window, getColor(R.color.app_background))
         val root = FrameLayout(this).apply { background = screenBackground() }
+        addMistBackdrop(root)
+        addGridBackdrop(root)
         val frame = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(
             frame,
@@ -2694,7 +2794,6 @@ class MainActivity : Activity() {
                 intArrayOf(topColor, midColor, bottomColor),
             ).apply {
                 cornerRadius = dp(radiusDp).toFloat()
-                setStroke(dp(1), getColor(R.color.app_button_edge))
             }
         val states = StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed),
@@ -2718,7 +2817,6 @@ class MainActivity : Activity() {
             ),
         ).apply {
             cornerRadius = dp(radiusDp).toFloat()
-            setStroke(dp(1), getColor(strokeResource))
         }
         val states = StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed), fill(true))
