@@ -122,6 +122,10 @@
     <string name="back">Back</string>
     <string name="add_computer">Add computer</string>
     <string name="launch_settings">Startup behavior</string>
+    <string name="theme_title">Appearance</string>
+    <string name="theme_follow_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
     <string name="launch_direct_dsh">Open DSH directly</string>
     <string name="launch_device_list">Show device list</string>
     <string name="launch_setting_saved">Startup behavior saved.</string>

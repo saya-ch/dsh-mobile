@@ -123,6 +123,10 @@
     <string name="back">Indietro</string>
     <string name="add_computer">Aggiungi computer</string>
     <string name="launch_settings">Comportamento all’avvio</string>
+    <string name="theme_title">Aspetto</string>
+    <string name="theme_follow_system">Segui il sistema</string>
+    <string name="theme_light">Chiaro</string>
+    <string name="theme_dark">Scuro</string>
     <string name="launch_direct_dsh">Apri direttamente DSH</string>
     <string name="launch_device_list">Mostra elenco dispositivi</string>
     <string name="launch_setting_saved">Comportamento all’avvio salvato.</string>

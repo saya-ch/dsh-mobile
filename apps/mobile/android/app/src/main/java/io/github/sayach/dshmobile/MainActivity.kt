@@ -8,6 +8,7 @@ import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -264,6 +265,16 @@ class MainActivity : Activity() {
     private var backRequestGeneration = 0
     private var backRequestPending = false
 
+    /**
+     * Resolve the palette before any view is inflated: an explicit light or dark choice
+     * overrides the system configuration, and following the system needs no wrapper.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val stored = newBase.getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+            .getString(ThemePreference.KEY, null)
+        super.attachBaseContext(ThemePreference.wrap(newBase, ThemePreference.sanitize(stored)))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         savedInstanceState?.getInt(STATE_NEXT_FILE_CHOOSER_CODE)?.let(webFileChooserRequestCodes::restoreAtLeast)
@@ -301,10 +312,13 @@ class MainActivity : Activity() {
 
         val restoredMode = AccessMode.parse(savedInstanceState?.getString(STATE_ACCESS_MODE))
         accessMode = restoredMode ?: AccessMode.LAN
-        if (savedInstanceState?.getBoolean(STATE_SHOWING_SETUP) == true) {
-            showConnectionCenter()
-        } else {
-            restoreColdStartConnection(
+        // A palette change recreates the Activity; land back on the screen that offered it.
+        val reopenSettings = preferences.getBoolean(PREFERENCE_REOPEN_SETTINGS, false)
+        if (reopenSettings) preferences.edit().putBoolean(PREFERENCE_REOPEN_SETTINGS, false).apply()
+        when {
+            reopenSettings -> showSettings(animate = false)
+            savedInstanceState?.getBoolean(STATE_SHOWING_SETUP) == true -> showConnectionCenter()
+            else -> restoreColdStartConnection(
                 restoredMode ?: AccessMode.parse(preferences.getString(PREFERENCE_LAST_ACCESS_MODE, null)),
             )
         }
@@ -854,7 +868,7 @@ class MainActivity : Activity() {
         cancelBackdropAnimators()
         setContentView(root)
         attachConnectionWaitingView()
-        if (animate) playPageTransition(root, depth)
+        if (animate) playPageTransition(root, depth) else pageDepth = depth
     }
 
     /**
@@ -1096,9 +1110,14 @@ class MainActivity : Activity() {
      * Settings page: two labelled groups, each row carrying an icon, the current
      * value and a chevron, so the user reads state without opening anything.
      */
-    private fun showSettings() {
+    private fun showSettings(animate: Boolean = true) {
         deviceListStatus = null
-        val screen = createSetupScreen(R.string.device_list_settings, back = ::showDeviceList, depth = 1)
+        val screen = createSetupScreen(
+            R.string.device_list_settings,
+            back = ::showDeviceList,
+            depth = 1,
+            animate = animate,
+        )
         setupBackAction = ::showDeviceList
 
         val launchValue = getString(
@@ -1128,6 +1147,12 @@ class MainActivity : Activity() {
         )
         group.addView(settingsRow(R.drawable.ic_launch, R.string.launch_settings, launchValue) { showLaunchSettings() })
         divider()
+        group.addView(
+            settingsRow(R.drawable.ic_brightness, R.string.theme_title, getString(themeLabelResource(themeMode()))) {
+                showThemeSettings()
+            },
+        )
+        divider()
         group.addView(settingsRow(R.drawable.ic_palette, R.string.icon_settings, iconValue) { showIconSettings() })
         divider()
         group.addView(settingsRow(R.drawable.ic_sync, R.string.same_host_title, sameHostValue) { showSameHostSettings() })
@@ -1146,6 +1171,39 @@ class MainActivity : Activity() {
             settingsRow(R.drawable.ic_delete, R.string.clear_site_data, danger = true) { confirmClearSiteData() },
         )
         screen.content.addView(dangerGroup, fullWidth().apply { topMargin = dp(UiTokens.gapLg) })
+    }
+
+    /** The palette currently in force: an explicit choice, otherwise the system's. */
+    private fun themeMode(): String = ThemePreference.sanitize(preferences.getString(ThemePreference.KEY, null))
+
+    private fun themeLabelResource(mode: String): Int = when (ThemePreference.sanitize(mode)) {
+        ThemePreference.LIGHT -> R.string.theme_light
+        ThemePreference.DARK -> R.string.theme_dark
+        else -> R.string.theme_follow_system
+    }
+
+    private fun showThemeSettings() {
+        val modes = listOf(ThemePreference.SYSTEM, ThemePreference.LIGHT, ThemePreference.DARK)
+        showChoiceSheet(
+            getString(R.string.theme_title),
+            modes.map { getString(themeLabelResource(it)) },
+            modes.indexOf(themeMode()).coerceAtLeast(0),
+        ) { which -> applyThemeMode(modes[which]) }
+    }
+
+    /**
+     * The palette is resolved from the configuration before the first view exists, so a
+     * change recreates the Activity; the flag brings the user back to this page instead
+     * of the device list they did not ask for.
+     */
+    private fun applyThemeMode(mode: String) {
+        val sanitized = ThemePreference.sanitize(mode)
+        if (sanitized == themeMode()) return
+        preferences.edit()
+            .putString(ThemePreference.KEY, sanitized)
+            .putBoolean(PREFERENCE_REOPEN_SETTINGS, true)
+            .apply()
+        recreate()
     }
 
     /** Destructive and irreversible from inside the app, so it asks once. */
@@ -2793,6 +2851,7 @@ class MainActivity : Activity() {
         back: (() -> Unit)? = null,
         centered: Boolean = false,
         depth: Int = 1,
+        animate: Boolean = true,
     ): SetupScreen {
         applyStatusBarIconContrast(window, getColor(R.color.app_background))
         val root = FrameLayout(this).apply { background = screenBackground() }
@@ -2869,7 +2928,7 @@ class MainActivity : Activity() {
             }
         }
         column.addView(spacer(if (centered) 6 else 18))
-        setPageContent(root, depth)
+        setPageContent(root, depth, animate)
         applySafeAreaInsets(root)
         return SetupScreen(root, header, column, subtitleView)
     }
@@ -5407,6 +5466,7 @@ class MainActivity : Activity() {
         const val PREFERENCE_NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
         const val PREFERENCE_WEB_CHROME_COLOR = "web_chrome_color"
         const val PREFERENCE_APP_ICON = "app_icon"
+        const val PREFERENCE_REOPEN_SETTINGS = "reopen_settings_once"
         const val STATE_SHOWING_SETUP = "showing_setup"
         const val STATE_ACCESS_MODE = "access_mode"
         const val STATE_NATIVE_BRIDGE = "native_bridge"
