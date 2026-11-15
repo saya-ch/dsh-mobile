@@ -51,6 +51,36 @@ class ThemeContrastTest {
         }
     }
 
+    /** The destructive row paints error ink on the card, not on the page background. */
+    @Test fun destructiveRowInkStaysReadableOnTheCard() {
+        for (theme in THEMES) {
+            val colors = themeColors(theme)
+            val contrast = contrastRatio(parse(colors.getValue("app_error")), parse(colors.getValue("app_card_fill")))
+            assertTrue("$theme destructive row ink contrast $contrast must be at least 4.5:1", contrast >= 4.5)
+        }
+    }
+
+    /** Sheets are their own surface: title and body are read on the dialog fill. */
+    @Test fun sheetCopyStaysReadableOnTheDialogSurface() {
+        for (theme in THEMES) {
+            val colors = themeColors(theme)
+            val surface = parse(colors.getValue("app_dialog_surface"))
+            for (ink in listOf("app_foreground", "app_secondary")) {
+                val contrast = contrastRatio(parse(colors.getValue(ink)), surface)
+                assertTrue("$theme $ink on the sheet surface contrast $contrast must be at least 4.5:1", contrast >= 4.5)
+            }
+        }
+    }
+
+    /** A separator nobody can see is not a separator: it has to differ from its card. */
+    @Test fun rowDividersStayVisibleOnTheirCard() {
+        for (theme in THEMES) {
+            val colors = themeColors(theme)
+            val contrast = contrastRatio(parse(colors.getValue("app_divider")), parse(colors.getValue("app_card_fill")))
+            assertTrue("$theme divider contrast $contrast must be at least 1.2:1", contrast >= 1.2)
+        }
+    }
+
     /** Destructive actions use their own fill, so the caption is checked there too. */
     @Test fun dangerButtonCaptionsMeetNormalTextContrastInBothThemes() {
         for (theme in THEMES) {

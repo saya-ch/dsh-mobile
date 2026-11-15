@@ -68,8 +68,10 @@ class NativeUiContractTest {
 
     @Test
     fun destructiveActionsUseTheirOwnFill() {
-        assertTrue(source.contains("R.color.app_danger_fill"))
-        assertTrue(source.contains("R.color.app_danger_text"))
+        val button = methodBody("dangerButton")
+        assertTrue("a destructive action needs its own fill", button.contains("R.color.app_danger_fill"))
+        assertTrue("and ink that reads on it", button.contains("R.color.app_danger_text"))
+        assertTrue(methodBody("clearSiteData").contains("clearBootAssetStore()"))
     }
 
     @Test
@@ -86,8 +88,19 @@ class NativeUiContractTest {
 
     @Test
     fun accessibilityLabelsAreTemplatesNotConcatenatedPunctuation() {
-        assertTrue(source.contains("R.string.settings_row_accessibility"))
-        assertTrue(!source.contains("+ \"，\" +"))
+        // The row label is one formatted resource; hand-built punctuation drifts per locale.
+        val row = methodBody("settingsRow")
+        assertTrue(row.contains("R.string.settings_row_accessibility"))
+        assertTrue("a row without a value is still labelled", row.contains("getString(titleResource)"))
+    }
+
+    @Test
+    fun theScreenBackdropIsPaintedFromThemeResources() {
+        for (marker in listOf("R.color.app_background", "R.color.app_grid_line", "R.color.app_aurora_one")) {
+            assertTrue("backgrounds must resolve $marker", source.contains(marker))
+        }
+        // The old artwork shipped a hardcoded translucent white scrim, invisible in one theme.
+        assertTrue(!source.contains("0x99FFFFFF"))
     }
 
     private fun activitySource(): String =

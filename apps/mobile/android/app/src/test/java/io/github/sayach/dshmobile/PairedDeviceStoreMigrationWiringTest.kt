@@ -49,6 +49,8 @@ class PairedDeviceStoreMigrationWiringTest {
         val actions = activity.substringAfter("private fun showDeviceActions").substringBefore("private fun editDeviceName")
         assertTrue(actions.contains("PairedDeviceOrderPolicy.canMoveUp"))
         assertTrue(actions.contains("PairedDeviceOrderPolicy.canMoveToTop"))
+        assertTrue("the move-up action must exist", actions.indexOf("device_action_move_up") >= 0)
+        assertTrue("the move-top action must exist", actions.indexOf("device_action_move_top") >= 0)
         assertTrue(actions.indexOf("device_action_move_up") < actions.indexOf("device_action_delete"))
         assertTrue(actions.indexOf("device_action_move_top") < actions.indexOf("device_action_delete"))
         for (locale in listOf("values", "values-zh-rCN", "values-it")) {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DeepSeek Harness</string>
-    <string name="background_restore_failed">未能自动恢复上次连接，请选择下面的连接方式。</string>
+    <string name="background_restore_failed">未能自动恢复上次连接，请选择下面的电脑重新连接。</string>
     <string name="lan_access_title">局域网访问</string>
     <string name="remote_access_title">远程访问</string>
     <string name="remote_setup_title">远程访问</string>
@@ -185,6 +185,16 @@
     <string name="icon_choice_official_whale_mono">DeepSeek 鲸鱼（灰色）</string>
     <string name="icon_choice_official_whale_black">DeepSeek 鲸鱼（黑色）</string>
     <string name="icon_choice_official_whale_white">DeepSeek 鲸鱼（白色）</string>
+    <string name="icon_short_whale_girl">鲸鱼娘 · 眨眼</string>
+    <string name="icon_short_mascot_classic">鲸鱼娘 · 经典</string>
+    <string name="icon_short_mascot_cheer">鲸鱼娘 · 欢呼</string>
+    <string name="icon_short_mascot_quiet">鲸鱼娘 · 安静</string>
+    <string name="icon_short_official_whale">鲸鱼 · 品牌蓝</string>
+    <string name="icon_short_official_whale_dark">鲸鱼 · 深蓝</string>
+    <string name="icon_short_official_whale_teal">鲸鱼 · 青绿</string>
+    <string name="icon_short_official_whale_mono">鲸鱼 · 灰</string>
+    <string name="icon_short_official_whale_black">鲸鱼 · 黑</string>
+    <string name="icon_short_official_whale_white">鲸鱼 · 白</string>
     <string name="device_list_settings">设置</string>
     <string name="check_for_updates">检查更新</string>
     <string name="checking_updates">正在检查更新…</string>

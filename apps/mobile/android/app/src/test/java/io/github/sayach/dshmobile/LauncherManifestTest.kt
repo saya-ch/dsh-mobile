@@ -45,6 +45,7 @@ class LauncherManifestTest {
         assertTrue(source.contains("toolbarIconButton(R.drawable.ic_settings, R.string.device_list_settings)"))
         assertTrue(!source.contains("toolbarIconButton(R.drawable.ic_whale_toolbar"))
         val apply = source.substringAfter("private fun applyAppIcon").substringBefore("private fun showIconSettings")
+        assertTrue("the alias switch must still be called", apply.indexOf("LauncherIconPolicy.switchIcon") >= 0)
         assertTrue(apply.indexOf("LauncherIconPolicy.switchIcon") < apply.indexOf("putString(PREFERENCE_APP_ICON"))
         assertTrue(apply.contains("setComponentEnabledSettings"))
         assertTrue(apply.contains("Build.VERSION_CODES.TIRAMISU"))

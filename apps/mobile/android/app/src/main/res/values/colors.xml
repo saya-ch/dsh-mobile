@@ -15,6 +15,7 @@
     <color name="app_accent_container">#EAF1FF</color>
     <color name="app_on_accent_container">#1D4ED8</color>
     <color name="app_grid_line">#1A2563EB</color>
+    <color name="app_divider">#D8E2F1</color>
     <color name="app_aurora_one">#142563EB</color>
     <color name="app_aurora_two">#120EA5B7</color>
     <color name="app_aurora_three">#123730A3</color>

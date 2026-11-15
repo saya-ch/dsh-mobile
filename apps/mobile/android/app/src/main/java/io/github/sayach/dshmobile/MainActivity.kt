@@ -243,7 +243,6 @@ class MainActivity : Activity() {
     private val restoreGeneration: Int get() = restoreAttemptGate.generation
     private val pairingAttemptGate = PairingAttemptGate()
     private val pairingGeneration: Int get() = pairingAttemptGate.generation
-    private var connectionCenterStatus: TextView? = null
     private var recoveryAttempt = 0
     private val recoveryScheduled: Boolean get() = restoreAttemptGate.retryPending
     private val warnedTailscaleOrigins = mutableSetOf<String>()
@@ -313,8 +312,10 @@ class MainActivity : Activity() {
         val restoredMode = AccessMode.parse(savedInstanceState?.getString(STATE_ACCESS_MODE))
         accessMode = restoredMode ?: AccessMode.LAN
         // A palette change recreates the Activity; land back on the screen that offered it.
-        val reopenSettings = preferences.getBoolean(PREFERENCE_REOPEN_SETTINGS, false)
-        if (reopenSettings) preferences.edit().putBoolean(PREFERENCE_REOPEN_SETTINGS, false).apply()
+        // A cold start has no saved state, so a marker left by a killed process can never
+        // take precedence over the normal launch path and its automatic recovery.
+        val reopenSettings = savedInstanceState != null && intent.getBooleanExtra(EXTRA_REOPEN_SETTINGS, false)
+        if (reopenSettings) intent.removeExtra(EXTRA_REOPEN_SETTINGS)
         when {
             reopenSettings -> showSettings(animate = false)
             savedInstanceState?.getBoolean(STATE_SHOWING_SETUP) == true -> showConnectionCenter()
@@ -571,7 +572,7 @@ class MainActivity : Activity() {
             return
         }
         toastError(R.string.device_storage_unavailable)
-        (deviceListStatus ?: connectionCenterStatus)?.apply {
+        deviceListStatus?.apply {
             setText(R.string.device_storage_unavailable)
             visibility = View.VISIBLE
         }
@@ -857,10 +858,16 @@ class MainActivity : Activity() {
 
     /** The one sheet currently on screen; it must not survive an Activity teardown. */
     private var activeSheet: Dialog? = null
+    private var activeSheetDismissOnPause = true
+    private var pairingOrigin: (() -> Unit)? = null
+    private var pendingPairingFailure: Int? = null
 
     private fun dismissActiveSheet() {
-        activeSheet?.takeIf { it.isShowing }?.dismiss()
+        val sheet = activeSheet ?: return
+        if (!activeSheetDismissOnPause) return
+        dismissSheet(sheet)
         activeSheet = null
+        activeSheetDismissOnPause = true
     }
 
     private fun setPageContent(root: View, depth: Int = pageDepth.coerceAtLeast(0), animate: Boolean = true) {
@@ -1112,6 +1119,8 @@ class MainActivity : Activity() {
      */
     private fun showSettings(animate: Boolean = true) {
         deviceListStatus = null
+        deviceListVisible = false
+        stopDeviceListRefresh()
         val screen = createSetupScreen(
             R.string.device_list_settings,
             back = ::showDeviceList,
@@ -1123,9 +1132,7 @@ class MainActivity : Activity() {
         val launchValue = getString(
             if (launchBehavior() == LaunchBehavior.DEVICE_LIST) R.string.launch_device_list else R.string.launch_direct_dsh,
         )
-        val iconValue = getString(iconLabelResource(currentAppIcon()))
-            .removePrefix("DSH ")
-            .removePrefix("Mascotte balena DSH")
+        val iconValue = getString(iconShortLabelResource(currentAppIcon()))
         val sameHostValue = getString(
             when (sameHostMode()) {
                 SameHostSwitchMode.MANUAL -> R.string.same_host_manual
@@ -1141,7 +1148,7 @@ class MainActivity : Activity() {
         fun divider() = group.addView(
             fadingDivider(),
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
-                leftMargin = dp(58)
+                leftMargin = dp(66)
                 rightMargin = dp(UiTokens.gapLg)
             },
         )
@@ -1199,10 +1206,8 @@ class MainActivity : Activity() {
     private fun applyThemeMode(mode: String) {
         val sanitized = ThemePreference.sanitize(mode)
         if (sanitized == themeMode()) return
-        preferences.edit()
-            .putString(ThemePreference.KEY, sanitized)
-            .putBoolean(PREFERENCE_REOPEN_SETTINGS, true)
-            .apply()
+        preferences.edit().putString(ThemePreference.KEY, sanitized).apply()
+        intent.putExtra(EXTRA_REOPEN_SETTINGS, true)
         recreate()
     }
 
@@ -1300,7 +1305,9 @@ class MainActivity : Activity() {
                 background = if (danger) {
                     null
                 } else {
-                    roundedSurface(getColor(R.color.app_accent_container), UiTokens.iconRadius)
+                    roundedSurface(getColor(R.color.app_accent_container), UiTokens.iconRadius).apply {
+                        setStroke(dp(1), getColor(R.color.app_border))
+                    }
                 }
                 contentDescription = null
             },
@@ -1364,7 +1371,12 @@ class MainActivity : Activity() {
      * Action lists and small forms all build on it, so a menu never falls back to
      * the platform dialog chrome.
      */
-    private fun showBottomSheet(title: CharSequence?, build: (LinearLayout, Dialog) -> Unit): Dialog {
+    private fun showBottomSheet(
+        title: CharSequence?,
+        dismissOnPause: Boolean = true,
+        onDismiss: (() -> Unit)? = null,
+        build: (LinearLayout, Dialog) -> Unit,
+    ): Dialog {
         val sheet = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(UiTokens.screenPadding), dp(10), dp(UiTokens.screenPadding), dp(UiTokens.cardRadius))
@@ -1430,9 +1442,16 @@ class MainActivity : Activity() {
         }
         if (title != null) dialog.window?.decorView?.accessibilityPaneTitle = title
         if (isFinishing || isDestroyed) return dialog
-        dialog.setOnDismissListener { if (activeSheet === dialog) activeSheet = null }
-        dialog.show()
+        dialog.setOnDismissListener {
+            if (activeSheet === dialog) {
+                activeSheet = null
+                activeSheetDismissOnPause = true
+            }
+            onDismiss?.invoke()
+        }
+        runCatching { dialog.show() }.onFailure { return dialog }
         activeSheet = dialog
+        activeSheetDismissOnPause = dismissOnPause
         scroll.post {
             val cap = (resources.displayMetrics.heightPixels * 0.72f).toInt()
             if (scroll.height > cap) {
@@ -2145,6 +2164,21 @@ class MainActivity : Activity() {
         else -> R.string.icon_choice_whale_girl
     }
 
+    /** A short caption for the settings summary, where the picker's full label does not fit. */
+    private fun iconShortLabelResource(key: String): Int = when (key) {
+        "whale_girl" -> R.string.icon_short_whale_girl
+        "mascot_classic" -> R.string.icon_short_mascot_classic
+        "mascot_cheer" -> R.string.icon_short_mascot_cheer
+        "mascot_quiet" -> R.string.icon_short_mascot_quiet
+        "official_whale" -> R.string.icon_short_official_whale
+        "official_whale_dark" -> R.string.icon_short_official_whale_dark
+        "official_whale_teal" -> R.string.icon_short_official_whale_teal
+        "official_whale_mono" -> R.string.icon_short_official_whale_mono
+        "official_whale_black" -> R.string.icon_short_official_whale_black
+        "official_whale_white" -> R.string.icon_short_official_whale_white
+        else -> R.string.icon_short_whale_girl
+    }
+
     private fun showIconSettings() {
         val keys = LauncherIconPolicy.icons.map { it.key }
         val selected = keys.indexOf(currentAppIcon()).coerceAtLeast(0)
@@ -2171,7 +2205,7 @@ class MainActivity : Activity() {
         invalidatePairingAttempts()
         activeDeviceKey = device.key
         accessMode = device.mode
-        (deviceListStatus ?: connectionCenterStatus)?.apply {
+        deviceListStatus?.apply {
             text = getString(R.string.connecting_to_device, device.displayName)
             visibility = View.VISIBLE
         }
@@ -2208,9 +2242,10 @@ class MainActivity : Activity() {
         )
         val content = screen.content
         val status = statusLine().apply { setText(R.string.scan_prompt); visibility = View.VISIBLE }
+        applyPendingPairingFailure(status)
         val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        content.addView(primaryButton(R.string.scan_action, 52) { openScanner() }, fullWidth())
+        content.addView(primaryButton(R.string.scan_action, 52) { pairingOrigin = ::showSetup; openScanner() }, fullWidth())
         content.addView(spacer(10))
         content.addView(secondaryButton(R.string.scan_lan, 48) { scanForHarnesses(status, this, results) }, fullWidth())
         content.addView(sectionLabel(R.string.or_paste_link))
@@ -2255,7 +2290,12 @@ class MainActivity : Activity() {
             && GatewayUrlPolicy.pairingKey(raw) != null
         ) {
             clearInlineError(field, error)
-            showPairing(manualHarness(link.origin), prefilledInput = raw, autoConnect = true)
+            showPairing(
+                manualHarness(link.origin),
+                prefilledInput = raw,
+                autoConnect = true,
+                returnTo = ::showSetup,
+            )
             return
         }
         val origin = parseManualOrigin(raw)
@@ -2292,12 +2332,15 @@ class MainActivity : Activity() {
         )
         val card = screen.content
         card.addView(
-            primaryButton(R.string.scan_action, 52) { openScanner() },
+            primaryButton(R.string.scan_action, 52) { pairingOrigin = ::showIrohSetup; openScanner() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
         )
         card.addView(sectionLabel(R.string.or_paste_code))
         val input = field(R.string.iroh_pairing_hint, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
-            EditorInfo.IME_ACTION_DONE, 56, R.string.iroh_pairing_label).apply {
+            EditorInfo.IME_ACTION_DONE, 96, R.string.iroh_pairing_label).apply {
+            isSingleLine = false
+            minLines = 3
+            maxLines = 4
             isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
             imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
@@ -2424,7 +2467,8 @@ class MainActivity : Activity() {
         )
         val content = screen.content
         val status = statusLine()
-        content.addView(primaryButton(R.string.scan_remote_qr, 52) { openScanner() }, fullWidth())
+        applyPendingPairingFailure(status)
+        content.addView(primaryButton(R.string.scan_remote_qr, 52) { pairingOrigin = ::showRemoteSetup; openScanner() }, fullWidth())
         content.addView(sectionLabel(R.string.or_paste_link))
         val linkField = field(
             R.string.remote_link_hint,
@@ -2460,7 +2504,12 @@ class MainActivity : Activity() {
             return
         }
         clearInlineError(field, error)
-        showPairing(manualHarness(connection.origin), prefilledInput = raw.trim(), autoConnect = true)
+        showPairing(
+            manualHarness(connection.origin),
+            prefilledInput = raw.trim(),
+            autoConnect = true,
+            returnTo = ::showRemoteSetup,
+        )
     }
 
     private fun isRemoteTunnelHost(host: String): Boolean = RemoteHostPolicy.isRemoteCandidate(host)
@@ -2616,9 +2665,9 @@ class MainActivity : Activity() {
         stopDeviceListRefresh()
         deviceListVisible = false
         showingSetup = false
-        setupBackAction = null
+        setupBackAction = ::showDeviceList
         destroyWebView()
-        val screen = createSetupScreen(R.string.restoring_trust, depth = 2)
+        val screen = createSetupScreen(R.string.restoring_trust, back = ::showDeviceList, depth = 1)
         screen.content.addView(
             ProgressBar(this).apply { isIndeterminate = true },
             LinearLayout.LayoutParams(dp(44), dp(44)).apply {
@@ -2628,17 +2677,30 @@ class MainActivity : Activity() {
         )
     }
 
-    private fun showPairing(harness: DiscoveredHarness, prefilledInput: String = "", autoConnect: Boolean = false) {
+    /** Where a pairing form returns when the caller did not name the page it came from. */
+    private fun defaultPairingBack(): () -> Unit =
+        if (accessMode == AccessMode.LAN) ::showSetup else ::showRemoteSetup
+
+    private fun showPairing(
+        harness: DiscoveredHarness,
+        prefilledInput: String = "",
+        autoConnect: Boolean = false,
+        returnTo: (() -> Unit)? = null,
+    ) {
         cancelRestoreForConfiguration()
         stopDeviceListRefresh()
         invalidatePairingAttempts()
         deviceListVisible = false
         showingSetup = true
-        setupBackAction = if (accessMode == AccessMode.LAN) ::showSetup else ::showRemoteSetup
+        // The Iroh page also runs in REMOTE mode, so the access mode cannot name the
+        // page that a failed key or the Back action should return to.
+        val backTo = returnTo ?: pairingOrigin ?: defaultPairingBack()
+        pairingOrigin = null
+        setupBackAction = backTo
         val screen = createSetupScreen(
             R.string.pairing_title,
             R.string.pairing_description,
-            back = if (accessMode == AccessMode.LAN) ::showSetup else ::showRemoteSetup,
+            back = backTo,
             depth = 2,
         )
         val card = screen.content
@@ -2667,12 +2729,12 @@ class MainActivity : Activity() {
         val status = statusLine().apply {
             visibility = View.GONE
         }
-        val leaveForm: () -> Unit = { if (accessMode == AccessMode.LAN) showSetup() else showRemoteSetup() }
+        val leaveForm: () -> Unit = { backTo() }
         // A key that arrived by scan or paste is one-time: once it fails this form
         // cannot retry it, so the failure returns to where the key came from.
         val ephemeralFailure: ((Int) -> Unit)? = if (autoConnect) {
             { messageResource ->
-                toast(messageResource)
+                pendingPairingFailure = messageResource
                 leaveForm()
             }
         } else {
@@ -2983,7 +3045,7 @@ class MainActivity : Activity() {
     private fun fadingDivider(): View = View(this).apply {
         background = GradientDrawable(
             GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(Color.TRANSPARENT, getColor(R.color.app_card_edge_top), Color.TRANSPARENT),
+            intArrayOf(Color.TRANSPARENT, getColor(R.color.app_divider), Color.TRANSPARENT),
         )
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
@@ -3037,9 +3099,11 @@ class MainActivity : Activity() {
         val credential = legacyCredentialForRestore()
         if (credential != null) {
             showRestoringTrust()
-            restoreTrustedDevice(origin, credential) { showPairing(manualHarness(origin)) }
+            restoreTrustedDevice(origin, credential) {
+                showPairing(manualHarness(origin), returnTo = ::showDeviceList)
+            }
         } else {
-            showPairing(manualHarness(origin))
+            showPairing(manualHarness(origin), returnTo = ::showDeviceList)
         }
     }
 
@@ -3427,9 +3491,11 @@ class MainActivity : Activity() {
                             setOnClickListener {
                                 if (trustedCredential != null) {
                                     showRestoringTrust()
-                                    restoreTrustedDevice(harness.origin, trustedCredential) { showPairing(harness) }
+                                    restoreTrustedDevice(harness.origin, trustedCredential) {
+                                        showPairing(harness, returnTo = ::showDeviceList)
+                                    }
                                 } else {
-                                    showPairing(harness)
+                                    showPairing(harness, returnTo = ::showDeviceList)
                                 }
                             }
                         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -3518,7 +3584,12 @@ class MainActivity : Activity() {
         val target = PairingScanPolicy.parse(text, accessMode)
         if (target != null) {
             accessMode = target.mode
-            showPairing(manualHarness(target.connection.origin), prefilledInput = text, autoConnect = true)
+            showPairing(
+                manualHarness(target.connection.origin),
+                prefilledInput = text,
+                autoConnect = true,
+                returnTo = pairingOrigin ?: ::showRemoteSetup,
+            )
             return
         }
         toastError(R.string.scan_result_invalid)
@@ -3595,7 +3666,7 @@ class MainActivity : Activity() {
             settled = true
             complete()
         }
-        val dialog = showBottomSheet(getString(R.string.name_new_device)) { sheet, sheetDialog ->
+        val dialog = showBottomSheet(getString(R.string.name_new_device), dismissOnPause = false) { sheet, sheetDialog ->
             sheet.addView(
                 TextView(this).apply {
                     setText(R.string.name_new_device_message)
@@ -3694,7 +3765,10 @@ class MainActivity : Activity() {
 
     /** Enabling the automatic switch changes how reconnects behave, so it asks first. */
     private fun confirmSameHostSwitch(mode: Int) {
-        val dialog = showBottomSheet(getString(R.string.same_host_enable)) { sheet, sheetDialog ->
+        val dialog = showBottomSheet(
+            getString(R.string.same_host_enable),
+            onDismiss = { sameHostConfirmation = null },
+        ) { sheet, sheetDialog ->
             sheet.addView(
                 TextView(this).apply {
                     setText(R.string.same_host_limits)
@@ -3718,8 +3792,8 @@ class MainActivity : Activity() {
                 fullWidth().apply { topMargin = dp(UiTokens.gapSm) },
             )
         }
-        sameHostConfirmation = dialog
-        dialog.setOnDismissListener { sameHostConfirmation = null }
+        // A sheet that never reached the screen must not block the automatic switch.
+        if (dialog.isShowing) sameHostConfirmation = dialog
     }
 
     private fun saveSameHostMode(mode: Int) {
@@ -4098,7 +4172,6 @@ class MainActivity : Activity() {
         releaseCapturedDraft()
         bridgeSessionRenewal.cancel(errorCode = errorCode)
         restoreAttemptGate.invalidate()
-        connectionCenterStatus?.visibility = View.GONE
     }
 
     private fun cancelRestoreForConfiguration() {
@@ -5359,6 +5432,16 @@ class MainActivity : Activity() {
         setPadding(dp(14), dp(12), dp(14), dp(12))
     }
 
+    /**
+     * A failure that sent a one-time key back to the page it came from stays there:
+     * the guidance for an expired or unreachable key does not survive a short toast.
+     */
+    private fun applyPendingPairingFailure(status: TextView) {
+        val failure = pendingPairingFailure ?: return
+        pendingPairingFailure = null
+        showStatus(status, failure, error = true)
+    }
+
     private fun showStatus(view: TextView, message: CharSequence, error: Boolean = false) {
         view.text = message
         view.visibility = View.VISIBLE
@@ -5466,7 +5549,7 @@ class MainActivity : Activity() {
         const val PREFERENCE_NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
         const val PREFERENCE_WEB_CHROME_COLOR = "web_chrome_color"
         const val PREFERENCE_APP_ICON = "app_icon"
-        const val PREFERENCE_REOPEN_SETTINGS = "reopen_settings_once"
+        const val EXTRA_REOPEN_SETTINGS = "reopen_settings"
         const val STATE_SHOWING_SETUP = "showing_setup"
         const val STATE_ACCESS_MODE = "access_mode"
         const val STATE_NATIVE_BRIDGE = "native_bridge"

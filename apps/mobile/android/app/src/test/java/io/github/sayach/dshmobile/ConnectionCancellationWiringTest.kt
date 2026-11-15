@@ -324,8 +324,12 @@ class ConnectionCancellationWiringTest {
         }
     }
 
-    private fun method(source: String, name: String): String =
-        source.substringAfter("private fun $name(").substringBefore("\n    private fun ")
+    private fun method(source: String, name: String): String {
+        val start = source.indexOf("private fun $name(")
+        assertTrue("$name not found", start >= 0)
+        val next = Regex("\\n    (?:private|internal|protected|override|public) ").find(source, start + 1)
+        return source.substring(start, next?.range?.first ?: source.length)
+    }
 
     private fun activitySource(): String = mainSource("java/io/github/sayach/dshmobile/MainActivity.kt")
 

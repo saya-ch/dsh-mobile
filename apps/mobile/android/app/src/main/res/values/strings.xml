@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DeepSeek Harness</string>
-    <string name="background_restore_failed">The last connection could not be restored automatically. Choose a connection below.</string>
+    <string name="background_restore_failed">The last connection could not be restored automatically. Choose a computer below.</string>
     <string name="lan_access_title">Local network</string>
     <string name="remote_access_title">Remote access</string>
     <string name="remote_setup_title">Remote access</string>
@@ -186,6 +186,16 @@
     <string name="icon_choice_official_whale_mono">DeepSeek whale (grey)</string>
     <string name="icon_choice_official_whale_black">DeepSeek whale (black)</string>
     <string name="icon_choice_official_whale_white">DeepSeek whale (white)</string>
+    <string name="icon_short_whale_girl">Whale mascot · wink</string>
+    <string name="icon_short_mascot_classic">Whale mascot · classic</string>
+    <string name="icon_short_mascot_cheer">Whale mascot · cheer</string>
+    <string name="icon_short_mascot_quiet">Whale mascot · quiet</string>
+    <string name="icon_short_official_whale">Whale · blue</string>
+    <string name="icon_short_official_whale_dark">Whale · navy</string>
+    <string name="icon_short_official_whale_teal">Whale · teal</string>
+    <string name="icon_short_official_whale_mono">Whale · grey</string>
+    <string name="icon_short_official_whale_black">Whale · black</string>
+    <string name="icon_short_official_whale_white">Whale · white</string>
     <string name="device_list_settings">Settings</string>
     <string name="check_for_updates">Check for updates</string>
     <string name="checking_updates">Checking for updates…</string>

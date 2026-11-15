@@ -15,9 +15,10 @@
     <color name="app_accent_container">#2496A5FA</color>
     <color name="app_on_accent_container">#93C5FD</color>
     <color name="app_grid_line">#12FFFFFF</color>
-    <color name="app_aurora_one">#661D4ED8</color>
-    <color name="app_aurora_two">#4A10A0B8</color>
-    <color name="app_aurora_three">#523730A3</color>
+    <color name="app_divider">#2A3A55</color>
+    <color name="app_aurora_one">#331D4ED8</color>
+    <color name="app_aurora_two">#2610A0B8</color>
+    <color name="app_aurora_three">#2E3730A3</color>
     <color name="app_button_text">#BFDBFE</color>
     <color name="app_button_top">#1B2D4D</color>
     <color name="app_button_mid">#182742</color>

@@ -1,9 +1,9 @@
 package io.github.sayach.dshmobile
 
+import android.content.res.Configuration
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,11 +29,8 @@ class ThemePreferenceTest {
     fun onlyExplicitChoicesPinANightBit() {
         assertNull("following the system must not override the configuration", ThemePreference.nightMode("system"))
         assertNull(ThemePreference.nightMode(null))
-        val light = ThemePreference.nightMode("light")
-        val dark = ThemePreference.nightMode("dark")
-        assertNotNull(light)
-        assertNotNull(dark)
-        assertTrue("the two choices must not collapse into one bit", light != dark)
+        assertEquals(Configuration.UI_MODE_NIGHT_NO, ThemePreference.nightMode("light"))
+        assertEquals(Configuration.UI_MODE_NIGHT_YES, ThemePreference.nightMode("dark"))
     }
 
     @Test
@@ -63,8 +60,10 @@ class ThemePreferenceTest {
         val apply = member(source, "private fun applyThemeMode(")
         assertTrue(apply.contains("ThemePreference.KEY"))
         assertTrue("a saved palette only takes effect after a rebuild", apply.contains("recreate()"))
-        assertTrue("the user must land back on the settings page", apply.contains("PREFERENCE_REOPEN_SETTINGS"))
-        assertTrue(member(source, "override fun onCreate(").contains("showSettings(animate = false)"))
+        assertTrue("the user must land back on the settings page", apply.contains("EXTRA_REOPEN_SETTINGS"))
+        val create = member(source, "override fun onCreate(")
+        assertTrue(create.contains("showSettings(animate = false)"))
+        assertTrue("a cold start must not inherit the hint", create.contains("savedInstanceState != null"))
     }
 
     @Test
@@ -77,6 +76,13 @@ class ThemePreferenceTest {
             for (key in listOf("theme_title", "theme_follow_system", "theme_light", "theme_dark")) {
                 assertEquals("$locale:$key", 1, names.count { it == key })
             }
+            val captions = listOf("theme_follow_system", "theme_light", "theme_dark").map { key ->
+                (0 until strings.length)
+                    .map { strings.item(it) }
+                    .first { it.attributes.getNamedItem("name").nodeValue == key }
+                    .textContent.trim()
+            }
+            assertEquals("the three choices need their own wording", 3, captions.toSet().size)
         }
         assertTrue(resFile("res/drawable/ic_brightness.xml").isFile)
     }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DeepSeek Harness</string>
-    <string name="background_restore_failed">Non è stato possibile ripristinare automaticamente l\'ultima connessione. Scegline una qui sotto.</string>
+    <string name="background_restore_failed">Non è stato possibile ripristinare automaticamente l\'ultima connessione. Scegli un computer qui sotto.</string>
     <string name="lan_access_title">Rete locale</string>
     <string name="remote_access_title">Accesso remoto</string>
     <string name="remote_setup_title">Accesso remoto</string>
@@ -187,6 +187,16 @@
     <string name="icon_choice_official_whale_mono">Balena DeepSeek (grigio)</string>
     <string name="icon_choice_official_whale_black">Balena DeepSeek (nero)</string>
     <string name="icon_choice_official_whale_white">Balena DeepSeek (bianco)</string>
+    <string name="icon_short_whale_girl">Mascotte · occhiolino</string>
+    <string name="icon_short_mascot_classic">Mascotte · classica</string>
+    <string name="icon_short_mascot_cheer">Mascotte · esultanza</string>
+    <string name="icon_short_mascot_quiet">Mascotte · silenzio</string>
+    <string name="icon_short_official_whale">Balena · blu</string>
+    <string name="icon_short_official_whale_dark">Balena · blu scuro</string>
+    <string name="icon_short_official_whale_teal">Balena · verde acqua</string>
+    <string name="icon_short_official_whale_mono">Balena · grigio</string>
+    <string name="icon_short_official_whale_black">Balena · nero</string>
+    <string name="icon_short_official_whale_white">Balena · bianco</string>
     <string name="device_list_settings">Impostazioni</string>
     <string name="check_for_updates">Verifica aggiornamenti</string>
     <string name="checking_updates">Verifica aggiornamenti…</string>

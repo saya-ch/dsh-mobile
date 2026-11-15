@@ -127,7 +127,7 @@ class BootAssetCachingWiringTest {
         val clearSiteData = member(text, "private fun clearSiteData()")
         assertTrue(clearSiteData.contains("clearBootAssetStore()"))
 
-        val deleteDevice = text.substringAfter("private fun confirmDeleteDevice(").substringBefore("private fun showDeviceUndo(")
+        val deleteDevice = member(text, "private fun performDeleteDevice(")
         assertTrue(deleteDevice.contains("clearBootAssetStore()"))
 
         val clearHelper = text.substringAfter("private fun clearBootAssetStore()").substringBefore("private fun stopIrohTransport(")

@@ -56,6 +56,36 @@ class LauncherIconLabelTest {
     }
 
     @Test
+    fun theSettingsSummaryUsesItsOwnShortCaptions() {
+        // Trimming a localized sentence produced " (occhiolino)" in Italian; the summary
+        // owns a short caption per key instead of rewriting another locale's wording.
+        val source = sourceFile("java/io/github/sayach/dshmobile/MainActivity.kt").readText()
+        assertTrue("the summary must not trim the picker caption", !source.contains("Mascotte balena DSH\")"))
+        val settings = source.substringAfter("private fun showSettings(").substringBefore("private fun themeMode(")
+        assertTrue(settings.contains("iconShortLabelResource("))
+
+        val mapping = source.substringAfter("private fun iconShortLabelResource(key: String): Int")
+            .substringBefore("private fun showIconSettings(")
+        val names = Regex("R\\.string\\.(icon_short_[a-z_]+)").findAll(mapping)
+            .map { it.groupValues[1] }
+            .toSet()
+        assertEquals("one short caption per icon", LauncherIconPolicy.icons.size, names.size)
+
+        for (locale in listOf("values", "values-zh-rCN", "values-it")) {
+            val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                .parse(sourceFile("res/$locale/strings.xml"))
+            val nodes = document.getElementsByTagName("string")
+            val entries = (0 until nodes.length).map { nodes.item(it) as Element }
+                .filter { it.getAttribute("name").startsWith("icon_short_") }
+            val present = entries.map { it.getAttribute("name") }.toSet()
+            for (name in names) {
+                assertTrue("$locale is missing $name", present.contains(name))
+            }
+            assertEquals("$locale short captions must differ", names.size, entries.map { it.textContent.trim() }.toSet().size)
+        }
+    }
+
+    @Test
     fun artworkNamesExistForEveryIcon() {
         // The mascot art ships as density mipmaps; the whale marks are single nodpi drawables.
         val roots = listOf("res/mipmap-xxxhdpi", "res/mipmap-xxhdpi", "res/mipmap-mdpi", "res/drawable-nodpi")
