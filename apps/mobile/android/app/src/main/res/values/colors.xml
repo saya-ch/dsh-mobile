@@ -1,15 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="app_background">#F7F8FA</color>
+    <color name="app_background">#F3F6FC</color>
     <color name="app_surface">#FFFFFF</color>
-    <color name="app_surface_translucent">#F2FFFFFF</color>
-    <color name="app_setup_scrim">#99FFFFFF</color>
-    <color name="app_surface_tinted">#F2F4F7</color>
-    <color name="app_foreground">#111827</color>
-    <color name="app_secondary">#667085</color>
-    <color name="app_border">#E4E7EC</color>
+    <color name="app_surface_tinted">#EEF3FB</color>
+    <color name="app_foreground">#0F172A</color>
+    <color name="app_secondary">#52607A</color>
+    <color name="app_border">#E3EAF5</color>
     <color name="app_accent">#2563EB</color>
-    <color name="app_on_accent">#FFFFFF</color>
-    <color name="app_error">#B91C1C</color>
+    <color name="app_error_container">#FEF2F2</color>
+    <color name="app_danger_text">#FFFFFF</color>
+    <color name="app_danger_fill">#C81E1E</color>
+    <color name="app_error">#C81E1E</color>
     <color name="app_success">#15803D</color>
+    <color name="app_accent_container">#EAF1FF</color>
+    <color name="app_on_accent_container">#1D4ED8</color>
+    <color name="app_grid_line">#1A2563EB</color>
+    <color name="app_divider">#D8E2F1</color>
+    <color name="app_aurora_one">#142563EB</color>
+    <color name="app_aurora_two">#120EA5B7</color>
+    <color name="app_aurora_three">#123730A3</color>
+    <color name="app_button_text">#1D4ED8</color>
+    <color name="app_button_top">#E8F0FE</color>
+    <color name="app_button_mid">#DCE8FD</color>
+    <color name="app_button_bottom">#CBDCFB</color>
+    <color name="app_button_top_pressed">#DCE9FD</color>
+    <color name="app_button_mid_pressed">#D0E1FC</color>
+    <color name="app_button_bottom_pressed">#C9DAFB</color>
+    <color name="app_glass_top">#1FFFFFFF</color>
+    <color name="app_glass_bottom">#0DFFFFFF</color>
+    <color name="app_field_inset_top">#1F000000</color>
+    <color name="app_field_inset_bottom">#0F000000</color>
+    <color name="app_button_edge">#B9D0F5</color>
+    <color name="app_card_edge_top">#57FFFFFF</color>
+    <color name="app_card_edge_bottom">#0AFFFFFF</color>
+    <color name="app_dialog_surface">#FFFFFF</color>
+    <color name="app_card_fill">#FFFFFF</color>
 </resources>

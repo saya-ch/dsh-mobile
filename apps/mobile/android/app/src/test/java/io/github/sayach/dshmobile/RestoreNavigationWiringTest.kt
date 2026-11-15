@@ -14,7 +14,7 @@ class RestoreNavigationWiringTest {
             val body = methodBody(activity, name)
             val cancellation = body.indexOf("cancelRestoreForConfiguration()")
             assertTrue("$name must cancel the old restore before rendering", cancellation >= 0)
-            assertTrue("$name must cancel before creating form content", cancellation < body.indexOf("val card ="))
+            assertTrue("$name must cancel before creating form content", cancellation < body.indexOf("createSetupScreen("))
         }
     }
 

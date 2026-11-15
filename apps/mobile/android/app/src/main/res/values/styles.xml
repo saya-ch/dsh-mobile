@@ -7,6 +7,23 @@
         <item name="android:statusBarColor">@color/app_background</item>
         <item name="android:navigationBarColor">@color/app_background</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:alertDialogTheme">@style/DshDialog</item>
+        <item name="android:dialogTheme">@style/DshDialog</item>
         <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <!-- One dialog surface for the whole app: platform dialogs otherwise keep
+         their own white sheet, system blue buttons and square corners. -->
+    <style name="DshDialog" parent="android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/dialog_surface</item>
+        <item name="android:colorAccent">@color/app_accent</item>
+        <item name="android:textColorPrimary">@color/app_foreground</item>
+        <item name="android:textColorSecondary">@color/app_secondary</item>
+        <item name="android:windowTitleStyle">@style/DshDialogTitle</item>
+        <item name="android:windowMinWidthMajor">85%</item>
+        <item name="android:windowMinWidthMinor">85%</item>
+    </style>
+    <style name="DshDialogTitle" parent="android:style/TextAppearance.Material.DialogWindowTitle">
+        <item name="android:textColor">@color/app_foreground</item>
+        <item name="android:textSize">17sp</item>
     </style>
 </resources>

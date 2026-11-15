@@ -3,15 +3,27 @@ package io.github.sayach.dshmobile
 import android.annotation.SuppressLint
 import android.Manifest
 import android.app.Activity
+import android.app.Dialog
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Shader
+import android.animation.ValueAnimator
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.StateListDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.net.Uri
@@ -29,7 +41,10 @@ import android.text.method.PasswordTransformationMethod
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.Window
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.webkit.CookieManager
@@ -41,6 +56,7 @@ import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewDatabase
+import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -227,7 +243,6 @@ class MainActivity : Activity() {
     private val restoreGeneration: Int get() = restoreAttemptGate.generation
     private val pairingAttemptGate = PairingAttemptGate()
     private val pairingGeneration: Int get() = pairingAttemptGate.generation
-    private var connectionCenterStatus: TextView? = null
     private var recoveryAttempt = 0
     private val recoveryScheduled: Boolean get() = restoreAttemptGate.retryPending
     private val warnedTailscaleOrigins = mutableSetOf<String>()
@@ -248,6 +263,16 @@ class MainActivity : Activity() {
     private var rendererCrashTimes: List<Long> = emptyList()
     private var backRequestGeneration = 0
     private var backRequestPending = false
+
+    /**
+     * Resolve the palette before any view is inflated: an explicit light or dark choice
+     * overrides the system configuration, and following the system needs no wrapper.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val stored = newBase.getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+            .getString(ThemePreference.KEY, null)
+        super.attachBaseContext(ThemePreference.wrap(newBase, ThemePreference.sanitize(stored)))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -286,10 +311,15 @@ class MainActivity : Activity() {
 
         val restoredMode = AccessMode.parse(savedInstanceState?.getString(STATE_ACCESS_MODE))
         accessMode = restoredMode ?: AccessMode.LAN
-        if (savedInstanceState?.getBoolean(STATE_SHOWING_SETUP) == true) {
-            showConnectionCenter()
-        } else {
-            restoreColdStartConnection(
+        // A palette change recreates the Activity; land back on the screen that offered it.
+        // A cold start has no saved state, so a marker left by a killed process can never
+        // take precedence over the normal launch path and its automatic recovery.
+        val reopenSettings = savedInstanceState != null && intent.getBooleanExtra(EXTRA_REOPEN_SETTINGS, false)
+        if (reopenSettings) intent.removeExtra(EXTRA_REOPEN_SETTINGS)
+        when {
+            reopenSettings -> showSettings(animate = false)
+            savedInstanceState?.getBoolean(STATE_SHOWING_SETUP) == true -> showConnectionCenter()
+            else -> restoreColdStartConnection(
                 restoredMode ?: AccessMode.parse(preferences.getString(PREFERENCE_LAST_ACCESS_MODE, null)),
             )
         }
@@ -398,6 +428,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        dismissActiveSheet()
         activityResumed = false
         stopIrohStatusMonitor()
         draftTransfer?.abort()
@@ -422,6 +453,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        cancelBackdropAnimators()
         stopIrohTransport()
         irohController.close()
         withdrawConnectionAttempt()
@@ -447,6 +479,9 @@ class MainActivity : Activity() {
             }
             connectionCancellationExecutor.shutdown()
         }, "dsh-mobile-connection-teardown").start()
+        // A sheet held across a pause would survive this instance and leak its window.
+        activeSheet?.takeIf { it.isShowing }?.dismiss()
+        activeSheet = null
         super.onDestroy()
     }
 
@@ -540,7 +575,7 @@ class MainActivity : Activity() {
             return
         }
         toastError(R.string.device_storage_unavailable)
-        (deviceListStatus ?: connectionCenterStatus)?.apply {
+        deviceListStatus?.apply {
             setText(R.string.device_storage_unavailable)
             visibility = View.VISIBLE
         }
@@ -639,14 +674,15 @@ class MainActivity : Activity() {
             getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(focused.windowToken, 0)
         }
         val waiting = FrameLayout(this).apply {
-            setBackgroundColor(getColor(R.color.app_background))
+            background = screenBackground()
+            addMistBackdrop(this)
+            addGridBackdrop(this)
             isClickable = true
             isFocusableInTouchMode = true
             accessibilityPaneTitle = message
             // Receive unconsumed Insets before the real page while still drawing above it.
             translationZ = dp(1).toFloat()
         }
-        addSetupArtwork(waiting)
         for (index in 0 until waiting.childCount) waiting.getChildAt(index).importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -663,7 +699,7 @@ class MainActivity : Activity() {
             addView(spacer(16))
             addView(TextView(this@MainActivity).apply {
                 text = message
-                textSize = 16f
+                textSize = UiTokens.bodySp
                 gravity = Gravity.CENTER
                 setTextColor(getColor(R.color.app_secondary))
                 accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -787,10 +823,83 @@ class MainActivity : Activity() {
         applyStatusBarIconContrast(window, getColor(R.color.app_background))
     }
 
-    private fun setPageContent(root: View) {
+    /** Depth of the screen on show; a deeper screen enters from the right, a shallower one from the left. */
+    private var pageDepth = 0
+
+    /** Background animators currently attached to a live screen. */
+    private val backdropAnimators = mutableListOf<ValueAnimator>()
+
+    /**
+     * Starts a backdrop animator and ties its life to the view it moves: an infinite
+     * ValueAnimator is held by the UI thread's animation handler, so without this it
+     * outlives the screen and drags the Activity with it.
+     */
+    private fun trackBackdrop(animator: ValueAnimator, view: View) {
+        view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                if (!animator.isStarted && ValueAnimator.areAnimatorsEnabled()) {
+                    animator.start()
+                    if (!backdropAnimators.contains(animator)) backdropAnimators += animator
+                }
+            }
+
+            override fun onViewDetachedFromWindow(v: View) {
+                animator.cancel()
+                backdropAnimators -= animator
+            }
+        })
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            animator.start()
+            backdropAnimators += animator
+        }
+    }
+
+    private fun cancelBackdropAnimators() {
+        backdropAnimators.forEach { it.cancel() }
+        backdropAnimators.clear()
+    }
+
+    /** The one sheet currently on screen; it must not survive an Activity teardown. */
+    private var activeSheet: Dialog? = null
+    private var activeSheetDismissOnPause = true
+    private var pairingOrigin: (() -> Unit)? = null
+    private var pendingPairingFailure: Int? = null
+
+    private fun dismissActiveSheet() {
+        val sheet = activeSheet ?: return
+        if (!activeSheetDismissOnPause) return
+        dismissSheet(sheet)
+        activeSheet = null
+        activeSheetDismissOnPause = true
+    }
+
+    private fun setPageContent(root: View, depth: Int = pageDepth.coerceAtLeast(0), animate: Boolean = true) {
         detachConnectionWaitingView()
+        cancelBackdropAnimators()
         setContentView(root)
         attachConnectionWaitingView()
+        if (animate) playPageTransition(root, depth) else pageDepth = depth
+    }
+
+    /**
+     * A short slide toward the reading direction. The animation is skipped when the
+     * system reports animations off, so a reduced-motion setting keeps pages instant.
+     */
+    private fun playPageTransition(root: View, depth: Int) {
+        if (!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            pageDepth = depth
+            return
+        }
+        val forward = depth > pageDepth
+        pageDepth = depth
+        root.translationX = (if (forward) dp(26) else -dp(18)).toFloat()
+        root.alpha = 0.88f
+        root.animate()
+            .translationX(0f)
+            .alpha(1f)
+            .setDuration(if (forward) 240L else 200L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun dismissConnectionProgress() {
@@ -893,11 +1002,7 @@ class MainActivity : Activity() {
     }
 
     private fun showConnectionCenter() {
-        if (pairedDeviceStore.load().isNotEmpty()) {
-            showDeviceList()
-            return
-        }
-        showConnectionChoices()
+        showDeviceList()
     }
 
     /** Render the stable device-management root used when more than one computer is paired. */
@@ -916,40 +1021,701 @@ class MainActivity : Activity() {
         deviceListVisible = true
         deviceStatusViews.clear()
 
-        val card = createSetupCard(surface = false)
-        val heading = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        heading.addView(textView(R.string.paired_devices_title, 30f, Typeface.BOLD), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        heading.addView(toolbarIconButton(R.drawable.ic_settings, R.string.device_list_settings).apply {
-            setOnClickListener { showDeviceListSettings() }
-        }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        card.addView(heading)
-        card.addView(spacer(8))
-        deviceListStatus = textView(R.string.paired_devices_description, 16f, Typeface.NORMAL, R.color.app_secondary).apply {
+        val screen = createSetupScreen(R.string.paired_devices_title, R.string.paired_devices_description, depth = 0)
+        deviceListStatus = screen.subtitle?.apply {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
-        card.addView(deviceListStatus)
-        card.addView(spacer(18))
-        val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        screen.header.addView(
+            toolbarIconButton(R.drawable.ic_settings, R.string.device_list_settings).apply {
+                setOnClickListener { showSettings() }
+            },
+            LinearLayout.LayoutParams(dp(48), dp(48)),
+        )
         val devices = pairedDeviceStore.load()
-        devices.forEachIndexed { index, device ->
-            if (index > 0) rows.addView(spacer(10))
-            rows.addView(deviceRow(device))
+        if (devices.isEmpty()) {
+            // First-use empty state: a compact illustration, the reason the list is
+            // empty, and one action that changes it. No placeholder list.
+            val empty = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(UiTokens.gapSm), 0, dp(UiTokens.gapSm), 0)
+                addView(
+                    TextView(this@MainActivity).apply {
+                        setText(R.string.paired_devices_empty_title)
+                        textSize = UiTokens.displaySp
+                        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                        setTextColor(getColor(R.color.app_foreground))
+                        gravity = Gravity.CENTER
+                    },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+                addView(
+                    TextView(this@MainActivity).apply {
+                        setText(R.string.paired_devices_empty)
+                        textSize = 13f
+                        setTextColor(getColor(R.color.app_secondary))
+                        gravity = Gravity.CENTER
+                        setLineSpacing(dp(3).toFloat(), 1f)
+                    },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply { topMargin = dp(8) },
+                )
+                addView(
+                    primaryButton(R.string.add_computer, 48) { showAddComputerSheet() },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply { topMargin = dp(22) },
+                )
+            }
+            screen.content.addView(
+                empty,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        } else {
+            val group = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = glassSurface(R.color.app_surface, UiTokens.cardRadius)
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+            }
+            devices.forEachIndexed { index, device ->
+                if (index > 0) {
+                    group.addView(
+                        fadingDivider(),
+                        LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                            leftMargin = dp(16)
+                            rightMargin = dp(16)
+                        },
+                    )
+                }
+                group.addView(
+                    deviceRow(device),
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+            }
+            screen.content.addView(
+                group,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            addAddComputerAction(screen)
         }
-        card.addView(rows)
-        card.addView(spacer(18))
-        card.addView(primaryButton(R.string.add_computer, 52) { showConnectionChoices() }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         refreshDeviceStatuses(devices)
+    }
+
+    /**
+     * Settings page: two labelled groups, each row carrying an icon, the current
+     * value and a chevron, so the user reads state without opening anything.
+     */
+    private fun showSettings(animate: Boolean = true) {
+        deviceListStatus = null
+        deviceListVisible = false
+        stopDeviceListRefresh()
+        val screen = createSetupScreen(
+            R.string.device_list_settings,
+            back = ::showDeviceList,
+            depth = 1,
+            animate = animate,
+        )
+        setupBackAction = ::showDeviceList
+
+        val launchValue = getString(
+            if (launchBehavior() == LaunchBehavior.DEVICE_LIST) R.string.launch_device_list else R.string.launch_direct_dsh,
+        )
+        val iconValue = getString(iconShortLabelResource(currentAppIcon()))
+        val sameHostValue = getString(
+            when (sameHostMode()) {
+                SameHostSwitchMode.MANUAL -> R.string.same_host_manual
+                SameHostSwitchMode.CONFIRM -> R.string.same_host_detect
+                else -> R.string.same_host_enable
+            },
+        )
+
+        val group = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = glassSurface(R.color.app_card_fill, UiTokens.cardRadius)
+        }
+        fun divider() = group.addView(
+            fadingDivider(),
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                leftMargin = dp(66)
+                rightMargin = dp(UiTokens.gapLg)
+            },
+        )
+        group.addView(settingsRow(R.drawable.ic_launch, R.string.launch_settings, launchValue) { showLaunchSettings() })
+        divider()
+        group.addView(
+            settingsRow(R.drawable.ic_brightness, R.string.theme_title, getString(themeLabelResource(themeMode()))) {
+                showThemeSettings()
+            },
+        )
+        divider()
+        group.addView(settingsRow(R.drawable.ic_palette, R.string.icon_settings, iconValue) { showIconSettings() })
+        divider()
+        group.addView(settingsRow(R.drawable.ic_sync, R.string.same_host_title, sameHostValue) { showSameHostSettings() })
+        divider()
+        group.addView(
+            settingsRow(R.drawable.ic_refresh, R.string.check_for_updates, "v" + BuildConfig.VERSION_NAME) { checkForAppUpdate() },
+        )
+        screen.content.addView(group, fullWidth())
+
+        // Destructive and rare, so it sits apart from the switches that are used often.
+        val dangerGroup = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = glassSurface(R.color.app_card_fill, UiTokens.cardRadius)
+        }
+        dangerGroup.addView(
+            settingsRow(R.drawable.ic_delete, R.string.clear_site_data, danger = true) { confirmClearSiteData() },
+        )
+        screen.content.addView(dangerGroup, fullWidth().apply { topMargin = dp(UiTokens.gapLg) })
+    }
+
+    /** The palette currently in force: an explicit choice, otherwise the system's. */
+    private fun themeMode(): String = ThemePreference.sanitize(preferences.getString(ThemePreference.KEY, null))
+
+    private fun themeLabelResource(mode: String): Int = when (ThemePreference.sanitize(mode)) {
+        ThemePreference.LIGHT -> R.string.theme_light
+        ThemePreference.DARK -> R.string.theme_dark
+        else -> R.string.theme_follow_system
+    }
+
+    private fun showThemeSettings() {
+        val modes = listOf(ThemePreference.SYSTEM, ThemePreference.LIGHT, ThemePreference.DARK)
+        showChoiceSheet(
+            getString(R.string.theme_title),
+            modes.map { getString(themeLabelResource(it)) },
+            modes.indexOf(themeMode()).coerceAtLeast(0),
+        ) { which -> applyThemeMode(modes[which]) }
+    }
+
+    /**
+     * The palette is resolved from the configuration before the first view exists, so a
+     * change recreates the Activity; the flag brings the user back to this page instead
+     * of the device list they did not ask for.
+     */
+    private fun applyThemeMode(mode: String) {
+        val sanitized = ThemePreference.sanitize(mode)
+        if (sanitized == themeMode()) return
+        preferences.edit().putString(ThemePreference.KEY, sanitized).apply()
+        intent.putExtra(EXTRA_REOPEN_SETTINGS, true)
+        recreate()
+    }
+
+    /** Destructive and irreversible from inside the app, so it asks once. */
+    private fun confirmClearSiteData() {
+        showBottomSheet(getString(R.string.clear_site_data_title)) { sheet, dialog ->
+            sheet.addView(
+                TextView(this).apply {
+                    setText(R.string.clear_site_data_message)
+                    textSize = UiTokens.bodySp
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dp(UiTokens.gapLg) },
+            )
+            sheet.addView(
+                dangerButton(R.string.clear) {
+                    dismissSheet(dialog)
+                    clearSiteData()
+                },
+                fullWidth().apply { bottomMargin = dp(UiTokens.gapSm) },
+            )
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(dialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                fullWidth(),
+            )
+        }
+    }
+
+    /**
+     * Removes every trace of the current DSH session. The credential store goes
+     * first: if it cannot be cleared nothing else is touched, because a half reset
+     * would leave the app paired to a computer it no longer remembers.
+     */
+    private fun clearSiteData() {
+        if (withCredentialStorage {
+                lanCredentialStore.clear()
+                remoteCredentialStore.clear()
+                pairedDeviceStore.clear()
+            } == null) return
+        webView?.apply {
+            stopLoading()
+            clearHistory()
+            clearCache(true)
+            clearSslPreferences()
+        }
+        WebStorage.getInstance().deleteAllData()
+        // Site data and cached boot batches belong to the same session; clearing one clears both.
+        clearBootAssetStore()
+        WebViewDatabase.getInstance(this).apply {
+            clearHttpAuthUsernamePassword()
+        }
+        WebView.clearClientCertPreferences(null)
+        preferences.edit().clear().apply()
+        CookieManager.getInstance().removeAllCookies {
+            CookieManager.getInstance().flush()
+            if (!isFinishing && !isDestroyed) runOnUiThread { showConnectionCenter() }
+        }
+    }
+
+    /**
+     * One settings entry. A row without a value is a plain action, so it drops the
+     * trailing text and chevron instead of leaving an empty gap; [danger] recolours
+     * the ink for the entries that destroy state.
+     */
+    private fun settingsRow(
+        iconResource: Int,
+        titleResource: Int,
+        value: String = "",
+        danger: Boolean = false,
+        onClick: () -> Unit,
+    ): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = dp(58)
+        setPadding(dp(UiTokens.gapLg), dp(UiTokens.gap), dp(UiTokens.gap), dp(UiTokens.gap))
+        background = roundedRipple(Color.TRANSPARENT, 0)
+        isClickable = true
+        isFocusable = true
+        contentDescription = if (value.isEmpty()) {
+            getString(titleResource)
+        } else {
+            getString(R.string.settings_row_accessibility, getString(titleResource), value)
+        }
+        addView(
+            ImageView(this@MainActivity).apply {
+                setImageResource(iconResource)
+                setColorFilter(getColor(if (danger) R.color.app_error else R.color.app_on_accent_container))
+                setPadding(dp(9), dp(9), dp(9), dp(9))
+                // A destructive row keeps the outline of the others but not their accent fill.
+                background = if (danger) {
+                    null
+                } else {
+                    roundedSurface(getColor(R.color.app_accent_container), UiTokens.iconRadius).apply {
+                        setStroke(dp(1), getColor(R.color.app_border))
+                    }
+                }
+                contentDescription = null
+            },
+            LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(UiTokens.gap) },
+        )
+        addView(
+            TextView(this@MainActivity).apply {
+                setText(titleResource)
+                textSize = UiTokens.itemTitleSp
+                setTextColor(getColor(if (danger) R.color.app_error else R.color.app_foreground))
+                maxLines = 1
+            },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
+        if (value.isNotEmpty()) {
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = value
+                    textSize = UiTokens.captionSp
+                    setTextColor(getColor(R.color.app_secondary))
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    gravity = Gravity.END
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(UiTokens.gapSm)
+                },
+            )
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_chevron_right)
+                    setColorFilter(getColor(R.color.app_secondary))
+                    contentDescription = null
+                },
+                LinearLayout.LayoutParams(dp(22), dp(22)).apply { leftMargin = dp(UiTokens.gapSm) },
+            )
+        }
+        setOnClickListener { onClick() }
+    }
+
+    /** Bottom action that opens the add-computer sheet. */
+    private fun addAddComputerAction(screen: SetupScreen) {
+        val main = screenAction(R.string.add_computer) { }
+        main.setOnClickListener { showAddComputerSheet() }
+        screen.root.addView(
+            main,
+            FrameLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM,
+            ).apply {
+                leftMargin = dp(UiTokens.screenPadding)
+                rightMargin = dp(UiTokens.screenPadding)
+                bottomMargin = dp(20)
+            },
+        )
+    }
+
+    /**
+     * Shared bottom sheet: scrim, rounded card, grabber and an optional title.
+     * Action lists and small forms all build on it, so a menu never falls back to
+     * the platform dialog chrome.
+     */
+    private fun showBottomSheet(
+        title: CharSequence?,
+        dismissOnPause: Boolean = true,
+        onDismiss: (() -> Unit)? = null,
+        build: (LinearLayout, Dialog) -> Unit,
+    ): Dialog {
+        val sheet = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(UiTokens.screenPadding), dp(10), dp(UiTokens.screenPadding), dp(UiTokens.cardRadius))
+            background = roundedSurface(getColor(R.color.app_dialog_surface), UiTokens.cardRadius).apply {
+                setStroke(dp(1), getColor(R.color.app_border))
+            }
+        }
+        sheet.addView(
+            View(this).apply { background = roundedSurface(getColor(R.color.app_border), 999) },
+            LinearLayout.LayoutParams(dp(36), dp(4)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(UiTokens.gap)
+            },
+        )
+        if (title != null) {
+            sheet.addView(
+                TextView(this).apply {
+                    text = title
+                    textSize = UiTokens.headerSp
+                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    setTextColor(getColor(R.color.app_foreground))
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dp(UiTokens.gap) },
+            )
+        }
+        // A long list must scroll instead of running off a short screen.
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = ScrollView(this).apply {
+            isFillViewport = false
+            clipToPadding = false
+            addView(
+                body,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
+        sheet.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        val dialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(sheet)
+            setCanceledOnTouchOutside(true)
+        }
+        build(body, dialog)
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setGravity(Gravity.BOTTOM)
+            setDimAmount(0.42f)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
+        if (title != null) dialog.window?.decorView?.accessibilityPaneTitle = title
+        if (isFinishing || isDestroyed) return dialog
+        dialog.setOnDismissListener {
+            if (activeSheet === dialog) {
+                activeSheet = null
+                activeSheetDismissOnPause = true
+            }
+            onDismiss?.invoke()
+        }
+        runCatching { dialog.show() }.onFailure { return dialog }
+        activeSheet = dialog
+        activeSheetDismissOnPause = dismissOnPause
+        scroll.post {
+            val cap = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+            if (scroll.height > cap) {
+                scroll.layoutParams = scroll.layoutParams.apply { height = cap }
+                scroll.requestLayout()
+            }
+        }
+        return dialog
+    }
+
+    /** One row inside a sheet: label, optional chevron and an optional danger colour. */
+    private fun sheetRow(
+        label: CharSequence,
+        danger: Boolean = false,
+        onClick: () -> Unit,
+    ): TextView = TextView(this).apply {
+        text = label
+        textSize = UiTokens.itemTitleSp
+        setTextColor(getColor(if (danger) R.color.app_error else R.color.app_foreground))
+        gravity = Gravity.CENTER_VERTICAL
+        minHeight = dp(48)
+        setPadding(dp(UiTokens.gap), dp(UiTokens.bodySmallSp.toInt()), dp(UiTokens.gap), dp(UiTokens.bodySmallSp.toInt()))
+        background = roundedRipple(Color.TRANSPARENT, UiTokens.iconRadius)
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onClick() }
+    }
+
+    /** Action list rendered as a sheet; the last row is always Cancel. */
+    private fun showActionSheet(
+        title: CharSequence?,
+        actions: List<Triple<String, Boolean, () -> Unit>>,
+    ) {
+        showBottomSheet(title) { sheet, dialog ->
+            actions.forEach { action ->
+                sheet.addView(
+                    sheetRow(action.first, action.second) {
+                        dismissSheet(dialog)
+                        action.third()
+                    },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+            }
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(dialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
+    }
+
+    /** Check mark drawn as a tinted circle, so a selected row reads at a glance. */
+    private fun selectionMark(): View = View(this).apply {
+        background = roundedSurface(getColor(R.color.app_accent), 999)
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+
+    /**
+     * Single-choice sheet. A row may carry artwork (the icon picker needs it) and
+     * the current entry is marked instead of relying on the platform radio list.
+     */
+    private fun showChoiceSheet(
+        title: CharSequence,
+        labels: List<String>,
+        selected: Int,
+        artwork: List<String>? = null,
+        onPick: (Int) -> Unit,
+    ) {
+        showBottomSheet(title) { sheet, dialog ->
+            labels.forEachIndexed { index, label ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(UiTokens.gap), dp(12), dp(UiTokens.gap), dp(12))
+                    minimumHeight = dp(48)
+                    background = roundedRipple(Color.TRANSPARENT, UiTokens.iconRadius)
+                    isClickable = true
+                    isFocusable = true
+                    isSelected = index == selected
+                    contentDescription = label
+                }
+                artwork?.getOrNull(index)?.let { name ->
+                    val id = resources.getIdentifier(name, "mipmap", packageName)
+                    if (id != 0) {
+                        row.addView(
+                            ImageView(this@MainActivity).apply {
+                                setImageResource(id)
+                                contentDescription = null
+                                scaleType = ImageView.ScaleType.FIT_CENTER
+                            },
+                            LinearLayout.LayoutParams(dp(36), dp(36)).apply { rightMargin = dp(UiTokens.gap) },
+                        )
+                    }
+                }
+                val current = index == selected
+                row.addView(
+                    TextView(this@MainActivity).apply {
+                        text = label
+                        textSize = UiTokens.itemTitleSp
+                        setTextColor(getColor(if (current) R.color.app_accent else R.color.app_foreground))
+                        if (current) setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                        maxLines = 1
+                        ellipsize = TextUtils.TruncateAt.END
+                    },
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+                )
+                if (current) {
+                    row.addView(selectionMark(), LinearLayout.LayoutParams(dp(8), dp(8)).apply {
+                        leftMargin = dp(UiTokens.gap)
+                    })
+                }
+                row.setOnClickListener {
+                    dismissSheet(dialog)
+                    onPick(index)
+                }
+                sheet.addView(row, fullWidth())
+            }
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(dialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                fullWidth(),
+            )
+        }
+    }
+
+    /** Destructive action styled like the primary one but in the error colour. */
+    private fun dangerButton(textResource: Int, onClick: () -> Unit): TextView = TextView(this).apply {
+        setText(textResource)
+        textSize = UiTokens.buttonSp
+        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+        setTextColor(getColor(R.color.app_danger_text))
+        gravity = Gravity.CENTER
+        minHeight = dp(52)
+        val sink = this
+        stateListAnimator = android.animation.StateListAnimator().apply {
+            addState(
+                intArrayOf(android.R.attr.state_pressed),
+                android.animation.ObjectAnimator.ofFloat(sink, "translationZ", dp(0).toFloat()),
+            )
+            addState(
+                intArrayOf(),
+                android.animation.ObjectAnimator.ofFloat(sink, "translationZ", dp(3).toFloat()),
+            )
+        }
+        background = RippleDrawable(
+            ColorStateList.valueOf(Color.TRANSPARENT),
+            roundedSurface(getColor(R.color.app_danger_fill), UiTokens.controlRadius),
+            null,
+        )
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onClick() }
+    }
+
+    /** Small helper for the sheets built around a single input field. */
+    private fun sheetField(
+        sheet: LinearLayout,
+        hintResource: Int,
+        contentDescriptionResource: Int,
+        initial: String,
+        inputType: Int,
+    ): Pair<EditText, TextView> {
+        val input = field(hintResource, inputType, EditorInfo.IME_ACTION_DONE, 56, contentDescriptionResource).apply {
+            setText(initial)
+            setSelection(initial.length)
+        }
+        val error = inlineError()
+        onFieldEdited(input) { clearInlineError(input, error) }
+        sheet.addView(input, fullWidth())
+        sheet.addView(error, fullWidth())
+        input.requestFocus()
+        return input to error
+    }
+
+    /** Names follow one rule everywhere: 1-32 code units, no control characters. */
+    private fun normalizedDeviceName(raw: String): String? {
+        val name = java.text.Normalizer.normalize(raw, java.text.Normalizer.Form.NFC).trim()
+        return name.takeIf { it.length in 1..32 && !Regex("[\u0000-\u001f\u007f]").containsMatchIn(it) }
+    }
+
+    /** Dismissing by reference keeps the sheet independent from its builder. */
+    private fun dismissSheet(dialog: Dialog?) {
+        dialog?.takeIf { it.isShowing }?.dismiss()
+    }
+
+    /**
+     * Add-computer sheet: the three transports live in one bottom panel with its own
+     * scrim, so the choice never floats loose in the middle of the screen.
+     */
+    /**
+     * Add-computer sheet: the three transports live in the shared bottom sheet, so
+     * the window chrome, animation and accessibility title cannot drift.
+     */
+    private fun showAddComputerSheet() {
+        showBottomSheet(getString(R.string.add_computer)) { sheet, dialog ->
+            val entries: List<Triple<Int, Int, () -> Unit>> = listOf(
+                Triple(R.drawable.ic_lan, R.string.lan_access_title, { showSetup() }),
+                Triple(R.drawable.ic_cloud, R.string.remote_access_title, { showRemoteSetup() }),
+                Triple(R.drawable.ic_bolt, R.string.iroh_access_title, { showIrohSetup() }),
+            )
+            entries.forEach { entry ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(64)
+                    setPadding(dp(UiTokens.gap), dp(10), dp(UiTokens.gap), dp(10))
+                    background = roundedRipple(Color.TRANSPARENT, UiTokens.iconRadius)
+                    isClickable = true
+                    isFocusable = true
+                    contentDescription = getString(entry.second)
+                    addView(
+                        ImageView(this@MainActivity).apply {
+                            setImageResource(entry.first)
+                            setColorFilter(getColor(R.color.app_on_accent_container))
+                            setPadding(dp(10), dp(10), dp(10), dp(10))
+                            background = roundedSurface(getColor(R.color.app_accent_container), 13)
+                            contentDescription = null
+                        },
+                        LinearLayout.LayoutParams(dp(42), dp(42)).apply { rightMargin = dp(UiTokens.gap) },
+                    )
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            setText(entry.second)
+                            textSize = UiTokens.itemTitleSp
+                            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                            setTextColor(getColor(R.color.app_foreground))
+                        },
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+                    )
+                    addView(
+                        ImageView(this@MainActivity).apply {
+                            setImageResource(R.drawable.ic_chevron_right)
+                            setColorFilter(getColor(R.color.app_secondary))
+                            contentDescription = null
+                        },
+                        LinearLayout.LayoutParams(dp(22), dp(22)),
+                    )
+                }
+                row.setOnClickListener {
+                    dismissSheet(dialog)
+                    entry.third()
+                }
+                sheet.addView(row, fullWidth())
+            }
+        }
     }
 
     private fun deviceRow(device: PairedDeviceRecord): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(12), dp(8), dp(12))
-            background = roundedRipple(getColor(R.color.app_surface), 16)
+            setPadding(dp(UiTokens.gapLg), dp(14), dp(4), dp(14))
+            background = roundedRipple(Color.TRANSPARENT, UiTokens.itemRadius)
             isClickable = true
             isFocusable = true
             contentDescription = getString(R.string.open_paired_device, device.displayName)
@@ -957,7 +1723,7 @@ class MainActivity : Activity() {
         val details = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val title = TextView(this).apply {
             text = device.displayName
-            textSize = 17f
+            textSize = 15.5f
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             setTextColor(getColor(R.color.app_foreground))
             maxLines = 1
@@ -965,22 +1731,27 @@ class MainActivity : Activity() {
         }
         val address = TextView(this).apply {
             text = getString(R.string.paired_device_address, device.modeLabel(), device.origin.serialized)
-            textSize = 12f
+            textSize = UiTokens.captionSmallSp
             setTextColor(getColor(R.color.app_secondary))
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.MIDDLE
         }
         val status = TextView(this).apply {
-            textSize = 12f
+            textSize = UiTokens.captionSmallSp
             setTextColor(getColor(R.color.app_secondary))
             deviceStatusViews[device.key] = this
             setDeviceStatusText(this, device)
         }
         details.addView(title)
-        details.addView(spacer(3))
-        details.addView(address)
-        details.addView(status)
-        row.addView(details, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        details.addView(address, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = dp(3) })
+        details.addView(status, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = dp(5) })
+        row.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         updateDeviceRowAccessibility(row, device, status.text)
         row.addView(toolbarIconButton(R.drawable.ic_more_vertical, R.string.device_actions).apply {
             setOnClickListener { showDeviceActions(device) }
@@ -988,8 +1759,9 @@ class MainActivity : Activity() {
         row.addView(ImageView(this).apply {
             setImageResource(R.drawable.ic_chevron_right)
             contentDescription = null
+            setColorFilter(getColor(R.color.app_secondary))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(32), dp(48)))
+        }, LinearLayout.LayoutParams(dp(28), dp(48)))
         row.setOnClickListener { connectPairedDevice(device) }
         row.setOnLongClickListener {
             row.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
@@ -1127,11 +1899,12 @@ class MainActivity : Activity() {
             })
         }
         actions.add(getString(R.string.device_action_delete) to { confirmDeleteDevice(device) })
-        AlertDialog.Builder(this)
-            .setTitle(device.displayName)
-            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        showActionSheet(
+            device.displayName,
+            actions.map { action ->
+                Triple(action.first, action.first == getString(R.string.device_action_delete), action.second)
+            },
+        )
     }
 
     private fun repairPairedDevice(device: PairedDeviceRecord) {
@@ -1141,57 +1914,83 @@ class MainActivity : Activity() {
     }
 
     private fun editDeviceName(device: PairedDeviceRecord) {
-        val input = EditText(this).apply {
-            setText(device.displayName)
-            setSelection(text.length)
-            hint = getString(R.string.device_name_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            minHeight = dp(48)
-            setPadding(dp(12), 0, dp(12), 0)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.edit_device_name)
-            .setView(input)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.save) { _, _ ->
-                val name = java.text.Normalizer.normalize(input.text.toString(), java.text.Normalizer.Form.NFC).trim()
-                if (name.length !in 1..32 || Regex("[\\u0000-\\u001f\\u007f]").containsMatchIn(name)) {
-                    Toast.makeText(this, R.string.invalid_device_name, Toast.LENGTH_SHORT).show()
+        showBottomSheet(getString(R.string.edit_device_name)) { sheet, dialog ->
+            val (input, error) = sheetField(
+                sheet,
+                R.string.device_name_hint,
+                R.string.edit_device_name,
+                device.displayName,
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
+            )
+            val save = {
+                val name = normalizedDeviceName(input.text.toString())
+                if (name == null) {
+                    showInlineError(input, error, getString(R.string.invalid_device_name))
                 } else {
-                    if (withCredentialStorage { pairedDeviceStore.update(device.key) { it.copy(displayName = name) } } == null) return@setPositiveButton
-                    showDeviceList()
+                    dismissSheet(dialog)
+                    if (withCredentialStorage { pairedDeviceStore.update(device.key) { it.copy(displayName = name) } } != null) {
+                        showDeviceList()
+                    }
                 }
             }
-            .show()
+            input.setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE) { save(); true } else false
+            }
+            sheet.addView(
+                primaryButton(R.string.save, 52) { save() },
+                fullWidth().apply { topMargin = dp(UiTokens.gap) },
+            )
+        }
     }
 
     private fun confirmDeleteDevice(device: PairedDeviceRecord) {
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.delete_device_title, device.displayName))
-            .setMessage(R.string.delete_device_message)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.delete) { _, _ ->
-                if (!prepareCredentialStorage()) return@setPositiveButton
-                val legacyCredential = credentialStore(device.mode).load()
-                    ?.takeIf { it.instanceId == device.instanceId }
-                val legacyOrigin = preferences.getString(originPreference(device.mode), null)
-                if (withCredentialStorage { pairedDeviceStore.remove(device.key) } != true) return@setPositiveButton
-                clearBootAssetStore()
-                if (activeDeviceKey == device.key) {
-                    stopIrohTransport()
-                    BackgroundNotificationService.disable(this)
-                    activeDeviceKey = null
-                    destroyWebView()
-                }
-                val legacyCleared = legacyCredential == null || withCredentialStorage { credentialStore(device.mode).clear() } != null
-                if (legacyCredential != null && legacyOrigin == device.origin.serialized) {
-                    preferences.edit().remove(originPreference(device.mode)).apply()
-                }
-                showConnectionCenter()
-                showDeviceUndo(device, legacyCredential, legacyOrigin)
-                if (!legacyCleared) showCredentialStorageFailure()
-            }
-            .show()
+        showBottomSheet(getString(R.string.delete_device_title, device.displayName)) { sheet, dialog ->
+            sheet.addView(
+                TextView(this).apply {
+                    setText(R.string.delete_device_message)
+                    textSize = UiTokens.bodySmallSp
+                    setTextColor(getColor(R.color.app_secondary))
+                    setLineSpacing(dp(3).toFloat(), 1f)
+                },
+                fullWidth().apply { bottomMargin = dp(UiTokens.gapLg) },
+            )
+            sheet.addView(
+                dangerButton(R.string.delete) {
+                    dismissSheet(dialog)
+                    performDeleteDevice(device)
+                },
+                fullWidth(),
+            )
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(dialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                fullWidth().apply { topMargin = dp(UiTokens.gapSm) },
+            )
+        }
+    }
+
+    /** Removes one pairing and its stored credentials, then offers an undo strip. */
+    private fun performDeleteDevice(device: PairedDeviceRecord) {
+        if (!prepareCredentialStorage()) return
+        val legacyCredential = credentialStore(device.mode).load()
+            ?.takeIf { it.instanceId == device.instanceId }
+        val legacyOrigin = preferences.getString(originPreference(device.mode), null)
+        if (withCredentialStorage { pairedDeviceStore.remove(device.key) } != true) return
+        clearBootAssetStore()
+        if (activeDeviceKey == device.key) {
+            stopIrohTransport()
+            BackgroundNotificationService.disable(this)
+            activeDeviceKey = null
+            destroyWebView()
+        }
+        val legacyCleared = legacyCredential == null || withCredentialStorage { credentialStore(device.mode).clear() } != null
+        if (legacyCredential != null && legacyOrigin == device.origin.serialized) {
+            preferences.edit().remove(originPreference(device.mode)).apply()
+        }
+        showConnectionCenter()
+        showDeviceUndo(device, legacyCredential, legacyOrigin)
+        if (!legacyCleared) showCredentialStorageFailure()
     }
 
     private fun showDeviceUndo(
@@ -1262,21 +2061,6 @@ class MainActivity : Activity() {
         deviceUndoPopup = null
     }
 
-    private fun showDeviceListSettings() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.device_list_settings)
-            .setItems(arrayOf(getString(R.string.launch_settings), getString(R.string.icon_settings), getString(R.string.same_host_title), getString(R.string.check_for_updates))) { _, which ->
-                when (which) {
-                    0 -> showLaunchSettings()
-                    1 -> showIconSettings()
-                    2 -> showSameHostSettings()
-                    else -> checkForAppUpdate()
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
     private var updateCheckInFlight = false
 
     /**
@@ -1318,17 +2102,18 @@ class MainActivity : Activity() {
     }
 
     private fun showLaunchSettings() {
-        val values = arrayOf(getString(R.string.launch_direct_dsh), getString(R.string.launch_device_list))
         val selected = if (launchBehavior() == LaunchBehavior.DEVICE_LIST) 1 else 0
-        AlertDialog.Builder(this)
-            .setTitle(R.string.launch_settings)
-            .setSingleChoiceItems(values, selected) { dialog, which ->
-                preferences.edit().putString(PREFERENCE_LAUNCH_BEHAVIOR, if (which == 1) LaunchBehavior.DEVICE_LIST.name else LaunchBehavior.DIRECT_DSH.name).apply()
-                dialog.dismiss()
-                deviceListStatus?.setText(R.string.launch_setting_saved)
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        showChoiceSheet(
+            getString(R.string.launch_settings),
+            listOf(getString(R.string.launch_direct_dsh), getString(R.string.launch_device_list)),
+            selected,
+        ) { which ->
+            preferences.edit().putString(
+                PREFERENCE_LAUNCH_BEHAVIOR,
+                if (which == 1) LaunchBehavior.DEVICE_LIST.name else LaunchBehavior.DIRECT_DSH.name,
+            ).apply()
+            Toast.makeText(this, R.string.launch_setting_saved, Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** Flip the launcher icon between the DSH whale mascot and the official whale marks. */
@@ -1360,36 +2145,52 @@ class MainActivity : Activity() {
                 }
             }
             preferences.edit().putString(PREFERENCE_APP_ICON, icon).apply()
-            deviceListStatus?.setText(R.string.icon_settings_saved)
+            Toast.makeText(this, R.string.icon_settings_saved, Toast.LENGTH_SHORT).show()
         } catch (error: Exception) {
             // Package-manager failure is reported without persisting an unconfirmed selection.
             Toast.makeText(this, R.string.icon_settings_failed, Toast.LENGTH_LONG).show()
         }
     }
 
+    /** The one place an icon key becomes a caption; the picker and the summary share it. */
+    private fun iconLabelResource(key: String): Int = when (key) {
+        "whale_girl" -> R.string.icon_choice_whale_girl
+        "mascot_classic" -> R.string.icon_choice_mascot_classic
+        "mascot_cheer" -> R.string.icon_choice_mascot_cheer
+        "mascot_quiet" -> R.string.icon_choice_mascot_quiet
+        "official_whale" -> R.string.icon_choice_official_whale
+        "official_whale_dark" -> R.string.icon_choice_official_whale_dark
+        "official_whale_teal" -> R.string.icon_choice_official_whale_teal
+        "official_whale_mono" -> R.string.icon_choice_official_whale_mono
+        "official_whale_black" -> R.string.icon_choice_official_whale_black
+        "official_whale_white" -> R.string.icon_choice_official_whale_white
+        else -> R.string.icon_choice_whale_girl
+    }
+
+    /** A short caption for the settings summary, where the picker's full label does not fit. */
+    private fun iconShortLabelResource(key: String): Int = when (key) {
+        "whale_girl" -> R.string.icon_short_whale_girl
+        "mascot_classic" -> R.string.icon_short_mascot_classic
+        "mascot_cheer" -> R.string.icon_short_mascot_cheer
+        "mascot_quiet" -> R.string.icon_short_mascot_quiet
+        "official_whale" -> R.string.icon_short_official_whale
+        "official_whale_dark" -> R.string.icon_short_official_whale_dark
+        "official_whale_teal" -> R.string.icon_short_official_whale_teal
+        "official_whale_mono" -> R.string.icon_short_official_whale_mono
+        "official_whale_black" -> R.string.icon_short_official_whale_black
+        "official_whale_white" -> R.string.icon_short_official_whale_white
+        else -> R.string.icon_short_whale_girl
+    }
+
     private fun showIconSettings() {
         val keys = LauncherIconPolicy.icons.map { it.key }
-        val labels = arrayOf(
-            getString(R.string.icon_choice_whale_girl),
-            getString(R.string.icon_choice_mascot_classic),
-            getString(R.string.icon_choice_mascot_cheer),
-            getString(R.string.icon_choice_mascot_quiet),
-            getString(R.string.icon_choice_official_whale),
-            getString(R.string.icon_choice_official_whale_dark),
-            getString(R.string.icon_choice_official_whale_teal),
-            getString(R.string.icon_choice_official_whale_mono),
-            getString(R.string.icon_choice_official_whale_black),
-            getString(R.string.icon_choice_official_whale_white),
-        )
         val selected = keys.indexOf(currentAppIcon()).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.icon_settings)
-            .setSingleChoiceItems(labels, selected) { dialog, which ->
-                dialog.dismiss()
-                applyAppIcon(keys[which])
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        showChoiceSheet(
+            getString(R.string.icon_settings),
+            keys.map { getString(iconLabelResource(it)) },
+            selected,
+            artwork = LauncherIconPolicy.icons.map { it.mipmap },
+        ) { which -> applyAppIcon(keys[which]) }
     }
     private fun connectPairedDevice(snapshot: PairedDeviceRecord) {
         if (!prepareCredentialStorage()) return
@@ -1407,7 +2208,7 @@ class MainActivity : Activity() {
         invalidatePairingAttempts()
         activeDeviceKey = device.key
         accessMode = device.mode
-        (deviceListStatus ?: connectionCenterStatus)?.apply {
+        deviceListStatus?.apply {
             text = getString(R.string.connecting_to_device, device.displayName)
             visibility = View.VISIBLE
         }
@@ -1421,119 +2222,6 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showConnectionChoices() {
-        stopIrohTransport()
-        withdrawConnectionAttempt()
-        stopDeviceListRefresh()
-        deviceListVisible = false
-        invalidateRestoreAttempts()
-        invalidatePairingAttempts()
-        showingSetup = true
-        setupBackAction = null
-        gatewayOrigin = null
-        retryUrl = null
-        destroyWebView()
-        cancelAutomaticRecovery()
-        failureDialog?.dismiss()
-
-        val card = createSetupCard(surface = false)
-        card.addView(textView(R.string.connection_center_title, 30f, Typeface.BOLD))
-        card.addView(spacer(8))
-        card.addView(textView(R.string.connection_center_description, 16f, Typeface.NORMAL, R.color.app_secondary))
-        val restoreStatus = textView(
-            R.string.background_restore_running,
-            14f,
-            Typeface.NORMAL,
-            R.color.app_secondary,
-        ).apply {
-            visibility = View.GONE
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-            setPadding(0, dp(12), 0, 0)
-        }
-        connectionCenterStatus = restoreStatus
-        card.addView(restoreStatus)
-        card.addView(spacer(24))
-        card.addView(accessChoice(
-            R.string.lan_access_title,
-            R.string.lan_access_description,
-            legacyCredentialForRestore(AccessMode.LAN)?.expiresAt?.let { it > System.currentTimeMillis() } == true,
-            action = { openAccessMode(AccessMode.LAN, restoreSaved = pairedDeviceStore.load().isEmpty()) },
-            configure = { openAccessMode(AccessMode.LAN, restoreSaved = false) },
-        ))
-        card.addView(spacer(12))
-        card.addView(accessChoice(
-            R.string.remote_access_title,
-            R.string.remote_access_description,
-            legacyCredentialForRestore(AccessMode.REMOTE)?.expiresAt?.let { it > System.currentTimeMillis() } == true,
-            action = { openAccessMode(AccessMode.REMOTE, restoreSaved = pairedDeviceStore.load().isEmpty()) },
-            configure = { openAccessMode(AccessMode.REMOTE, restoreSaved = false) },
-        ))
-        card.addView(spacer(12))
-        card.addView(accessChoice(
-            R.string.iroh_access_title,
-            R.string.iroh_access_description,
-            false,
-            action = { showIrohSetup() },
-            configure = { showIrohSetup() },
-        ))
-    }
-
-    private fun accessChoice(
-        titleResource: Int,
-        descriptionResource: Int,
-        trusted: Boolean,
-        action: () -> Unit,
-        configure: () -> Unit,
-    ): View =
-        LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(18))
-            background = roundedRipple(getColor(R.color.app_surface), 18)
-            isClickable = true
-            isFocusable = true
-            contentDescription = getString(titleResource)
-            addView(textView(titleResource, 18f, Typeface.BOLD))
-            addView(spacer(6))
-            addView(textView(descriptionResource, 14f, Typeface.NORMAL, R.color.app_secondary))
-            if (trusted) {
-                addView(spacer(10))
-                addView(LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    addView(
-                        textView(R.string.paired_device_ready, 13f, Typeface.BOLD, R.color.app_accent),
-                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-                    )
-                    addView(textView(R.string.reconfigure_connection, 13f, Typeface.BOLD, R.color.app_accent).apply {
-                        isClickable = true
-                        isFocusable = true
-                        setPadding(dp(12), dp(6), 0, dp(6))
-                        setOnClickListener { configure() }
-                    })
-                })
-            }
-            setOnClickListener { action() }
-        }
-
-    private fun openAccessMode(mode: AccessMode, restoreSaved: Boolean = true) {
-        cancelAutomaticRecovery()
-        invalidateRestoreAttempts()
-        connectionCenterStatus = null
-        accessMode = mode
-        val origin = GatewayOrigin.parse(preferences.getString(originPreference(), "").orEmpty())
-        val credential = legacyCredentialForRestore()
-        if (restoreSaved && origin != null && credential != null && credential.expiresAt > System.currentTimeMillis()) {
-            showRestoringTrust()
-            restoreTrustedDevice(origin, credential) {
-                if (mode == AccessMode.LAN) showSetup() else showRemoteSetup()
-            }
-        } else if (mode == AccessMode.LAN) {
-            showSetup()
-        } else {
-            showRemoteSetup()
-        }
-    }
-
     private fun showSetup() {
         stopIrohTransport()
         cancelRestoreForConfiguration()
@@ -1542,66 +2230,85 @@ class MainActivity : Activity() {
         deviceListVisible = false
         accessMode = AccessMode.LAN
         showingSetup = true
-        setupBackAction = ::showConnectionCenter
+        setupBackAction = ::showDeviceList
         gatewayOrigin = null
         retryUrl = null
         destroyWebView()
         failureDialog?.dismiss()
 
-        val card = createSetupCard(surface = false)
-        card.addView(textView(R.string.discovery_title, 30f, Typeface.BOLD))
-        card.addView(spacer(10))
-        card.addView(textView(R.string.discovery_description, 16f, Typeface.NORMAL, R.color.app_secondary))
-        card.addView(spacer(28))
-
-        val discovery = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-            background = roundedSurface(getColor(R.color.app_surface_translucent), 20).apply {
-                setStroke(dp(1), getColor(R.color.app_border))
-            }
-        }
-
-        val status = TextView(this).apply {
-            setText(R.string.scan_prompt)
-            setTextColor(getColor(R.color.app_secondary))
-            textSize = 15f
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        }
+        val screen = createSetupScreen(
+            R.string.discovery_title,
+            R.string.discovery_description,
+            back = ::showDeviceList,
+            centered = true,
+            depth = 1,
+        )
+        val content = screen.content
+        val status = statusLine().apply { setText(R.string.scan_prompt); visibility = View.VISIBLE }
+        applyPendingPairingFailure(status)
         val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val scanQr = primaryButton(R.string.scan_action, 56) { openScanner() }
-        val scan = primaryButton(R.string.scan_lan, 56) { scanForHarnesses(status, this, results) }
-        val manual = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
+
+        content.addView(primaryButton(R.string.scan_action, 52) { pairingOrigin = ::showSetup; openScanner() }, fullWidth())
+        content.addView(spacer(10))
+        content.addView(secondaryButton(R.string.scan_lan, 48) { scanForHarnesses(status, this, results) }, fullWidth())
+        content.addView(sectionLabel(R.string.or_paste_link))
+
         val manualField = field(
-            R.string.gateway_hint,
+            R.string.lan_link_hint,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
             EditorInfo.IME_ACTION_GO,
-            52,
-            R.string.gateway_label,
+            56,
+            R.string.lan_link_label,
         )
-        val manualAction = { connectManual(manualField.text.toString(), status) }
-        val manualConnect = secondaryButton(R.string.connect, 52) { manualAction() }.apply {
-            setPadding(dp(12), 0, dp(12), 0)
-        }
+        val manualError = inlineError()
+        onFieldEdited(manualField) { clearInlineError(manualField, manualError) }
+        val manualAction = { showManualAddress(manualField, manualError, status) }
         manualField.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_GO) { manualAction(); true } else false
+            if (actionId == EditorInfo.IME_ACTION_GO) { showManualAddress(manualField, manualError, status); true } else false
         }
-        manual.addView(manualField, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-        manual.addView(spacer(8))
-        manual.addView(manualConnect, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        discovery.addView(scanQr, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        discovery.addView(spacer(10))
-        discovery.addView(scan, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        discovery.addView(spacer(18))
-        discovery.addView(status)
-        discovery.addView(spacer(12))
-        discovery.addView(manual)
-        discovery.addView(spacer(12))
-        discovery.addView(results, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        card.addView(discovery, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        content.addView(manualField, fullWidth())
+        content.addView(manualError, fullWidth())
+        content.addView(spacer(10))
+        content.addView(
+            primaryButton(R.string.pair_and_connect, 52) { showManualAddress(manualField, manualError, status) },
+            fullWidth(),
+        )
+        content.addView(spacer(12))
+        content.addView(status, fullWidth())
+        content.addView(results, fullWidth())
+    }
+
+    /**
+     * A pasted pairing link carries the one-time token, so it can start pairing
+     * directly; a bare address is still accepted and asks for the code next.
+     */
+    private fun showManualAddress(field: EditText, error: TextView, status: TextView) {
+        val raw = field.text.toString().trim()
+        if (raw.isEmpty()) {
+            showInlineError(field, error, getString(R.string.pairing_link_required))
+            return
+        }
+        val link = GatewayConnection.parse(raw)
+        if (link != null && isOriginAllowedForAccessMode(link.origin)
+            && GatewayUrlPolicy.pairingKey(raw) != null
+        ) {
+            clearInlineError(field, error)
+            showPairing(
+                manualHarness(link.origin),
+                prefilledInput = raw,
+                autoConnect = true,
+                returnTo = ::showSetup,
+            )
+            return
+        }
+        val origin = parseManualOrigin(raw)
+        if (origin == null) {
+            showInlineError(field, error, getString(R.string.invalid_pairing_link))
+            showStatus(status, getString(R.string.scan_prompt))
+            return
+        }
+        clearInlineError(field, error)
+        connectManual(origin, status)
     }
 
     private fun showIrohSetup(prefilled: String = "", autoConnect: Boolean = false) {
@@ -1613,22 +2320,26 @@ class MainActivity : Activity() {
         deviceListVisible = false
         showingSetup = true
         accessMode = AccessMode.REMOTE
-        setupBackAction = ::showConnectionCenter
+        setupBackAction = ::showDeviceList
         gatewayOrigin = null
         retryUrl = null
         destroyWebView()
         cancelAutomaticRecovery()
         failureDialog?.dismiss()
-        val card = createSetupCard(surface = false)
-        card.addView(textView(R.string.iroh_access_title, 30f, Typeface.BOLD))
-        card.addView(spacer(8))
-        card.addView(textView(R.string.iroh_pairing_help, 16f, Typeface.NORMAL, R.color.app_secondary))
-        card.addView(spacer(20))
-        card.addView(secondaryButton(R.string.scan_action, 52) { openScanner() })
-        card.addView(spacer(16))
-        card.addView(textView(R.string.iroh_pairing_label, 14f, Typeface.BOLD))
-        card.addView(spacer(8))
-        val input = field(R.string.iroh_pairing_hint, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+        val screen = createSetupScreen(
+            R.string.iroh_access_title,
+            R.string.iroh_pairing_help,
+            back = ::showDeviceList,
+            centered = true,
+            depth = 1,
+        )
+        val card = screen.content
+        card.addView(
+            primaryButton(R.string.scan_action, 52) { pairingOrigin = ::showIrohSetup; openScanner() },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
+        card.addView(sectionLabel(R.string.or_paste_code))
+        val input = field(R.string.iroh_pairing_hint, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             EditorInfo.IME_ACTION_DONE, 96, R.string.iroh_pairing_label).apply {
             isSingleLine = false
             minLines = 3
@@ -1640,22 +2351,25 @@ class MainActivity : Activity() {
             filters = arrayOf(InputFilter.LengthFilter(IrohPairingDescriptor.MAX_BYTES))
             setText(prefilled)
         }
-        card.addView(input)
+        val inputError = inlineError()
+        onFieldEdited(input) { clearInlineError(input, inputError) }
+        card.addView(input, fullWidth())
+        card.addView(inputError, fullWidth())
         card.addView(spacer(12))
-        val status = textView(R.string.iroh_pairing_private, 14f, Typeface.NORMAL, R.color.app_secondary).apply {
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        val status = statusLine().apply {
+            setText(R.string.iroh_pairing_private)
+            visibility = View.VISIBLE
         }
-        val connect = primaryButton(R.string.iroh_connect_action, 52) { }
+        applyPendingPairingFailure(status)
+        val connect = primaryButton(R.string.pair_and_connect, 52) { }
         fun submit() {
             val descriptor = try { IrohPairingDescriptor.parse(input.text.toString().trim()) } catch (_: Exception) {
-                input.error = getString(R.string.iroh_pairing_invalid)
-                status.setTextColor(getColor(R.color.app_error))
-                status.setText(R.string.iroh_pairing_invalid)
-                input.requestFocus()
+                showInlineError(input, inputError, getString(R.string.iroh_pairing_invalid))
+                showStatus(status, getString(R.string.iroh_pairing_private))
                 return
             }
             if (!prepareCredentialStorage()) return
-            input.error = null
+            clearInlineError(input, inputError)
             connect.isEnabled = false
             val attempt = startConnectionAttempt(AccessMode.REMOTE, onCancelled = { showIrohSetup() })
             val generation = beginPairingAttempt() ?: run {
@@ -1670,9 +2384,7 @@ class MainActivity : Activity() {
                 pairingAttemptGate.complete(generation)
                 // Pairing may have committed remotely; do not replay either one-time secret.
                 input.text.clear()
-                input.error = getString(R.string.iroh_pairing_retry_new)
-                status.setTextColor(getColor(R.color.app_error))
-                status.setText(R.string.iroh_pairing_retry_new)
+                showInlineError(input, inputError, getString(R.string.iroh_pairing_retry_new))
                 connect.isEnabled = true
             }
             startIrohCarrier(descriptor.binding, descriptor.irohCode, attempt, onReady = { carrier ->
@@ -1729,11 +2441,9 @@ class MainActivity : Activity() {
             }, onFailure = { failed() })
         }
         connect.setOnClickListener { submit() }
-        card.addView(connect)
-        card.addView(spacer(8))
-        card.addView(status)
-        card.addView(spacer(16))
-        card.addView(secondaryButton(R.string.back_to_connections, 48) { showConnectionCenter() })
+        card.addView(connect, fullWidth())
+        card.addView(spacer(12))
+        card.addView(status, fullWidth())
         val formGeneration = pairingGeneration
         if (autoConnect) input.post { if (!isFinishing && !isDestroyed && formGeneration == pairingGeneration) submit() }
     }
@@ -1746,67 +2456,64 @@ class MainActivity : Activity() {
         deviceListVisible = false
         accessMode = AccessMode.REMOTE
         showingSetup = true
-        setupBackAction = ::showConnectionCenter
+        setupBackAction = ::showDeviceList
         gatewayOrigin = null
         retryUrl = null
         destroyWebView()
         failureDialog?.dismiss()
 
-        val card = createSetupCard(surface = false)
-        card.addView(textView(R.string.remote_setup_title, 30f, Typeface.BOLD))
-        card.addView(spacer(10))
-        card.addView(textView(R.string.remote_setup_description, 16f, Typeface.NORMAL, R.color.app_secondary))
-        card.addView(spacer(24))
-        val remote = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-            background = roundedSurface(getColor(R.color.app_surface_translucent), 20).apply {
-                setStroke(dp(1), getColor(R.color.app_border))
-            }
-        }
-        remote.addView(textView(R.string.remote_step_one, 15f, Typeface.BOLD))
-        remote.addView(spacer(8))
-        remote.addView(textView(R.string.remote_step_two, 14f, Typeface.NORMAL, R.color.app_secondary))
-        remote.addView(spacer(18))
-        remote.addView(primaryButton(R.string.scan_remote_qr, 56) { openScanner() })
-        remote.addView(spacer(18))
-        val status = TextView(this).apply {
-            setTextColor(getColor(R.color.app_secondary))
-            textSize = 14f
-            visibility = View.GONE
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        }
+        val screen = createSetupScreen(
+            R.string.remote_setup_title,
+            R.string.remote_setup_description,
+            back = ::showDeviceList,
+            centered = true,
+            depth = 1,
+        )
+        val content = screen.content
+        val status = statusLine()
+        applyPendingPairingFailure(status)
+        content.addView(primaryButton(R.string.scan_remote_qr, 52) { pairingOrigin = ::showRemoteSetup; openScanner() }, fullWidth())
+        content.addView(sectionLabel(R.string.or_paste_link))
         val linkField = field(
             R.string.remote_link_hint,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
             EditorInfo.IME_ACTION_GO,
-            52,
+            56,
             R.string.remote_link_label,
         )
-        val connectAction = { connectRemoteLink(linkField.text.toString(), status) }
+        val linkError = inlineError()
+        onFieldEdited(linkField) { clearInlineError(linkField, linkError) }
+        val connectAction = { connectRemoteLink(linkField, linkError, status) }
         linkField.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) { connectAction(); true } else false
         }
-        remote.addView(linkField, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        remote.addView(spacer(10))
-        remote.addView(secondaryButton(R.string.connect_remote, 48) { connectAction() }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        remote.addView(spacer(8))
-        remote.addView(status)
-        card.addView(remote, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        card.addView(spacer(12))
-        card.addView(secondaryButton(R.string.back_to_connections, 48) { showConnectionCenter() }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        content.addView(linkField, fullWidth())
+        content.addView(linkError, fullWidth())
+        content.addView(spacer(10))
+        content.addView(primaryButton(R.string.pair_and_connect, 52) { connectAction() }, fullWidth())
+        content.addView(spacer(12))
+        content.addView(status, fullWidth())
     }
 
-    private fun connectRemoteLink(raw: String, status: TextView) {
+    private fun connectRemoteLink(field: EditText, error: TextView, status: TextView) {
+        val raw = field.text.toString()
+        if (raw.trim().isEmpty()) {
+            showInlineError(field, error, getString(R.string.pairing_link_required))
+            return
+        }
         val connection = GatewayConnection.parse(raw.trim())
         if (connection == null || !isRemoteTunnelHost(connection.origin.host)
             || GatewayUrlPolicy.pairingKey(raw.trim()) == null) {
-            status.setTextColor(getColor(R.color.app_error))
-            status.setText(R.string.invalid_remote_link)
-            status.visibility = View.VISIBLE
+            showInlineError(field, error, getString(R.string.invalid_remote_link))
             return
         }
-        showPairing(manualHarness(connection.origin), prefilledInput = raw.trim(), autoConnect = true)
+        clearInlineError(field, error)
+        showPairing(
+            manualHarness(connection.origin),
+            prefilledInput = raw.trim(),
+            autoConnect = true,
+            returnTo = ::showRemoteSetup,
+        )
     }
 
     private fun isRemoteTunnelHost(host: String): Boolean = RemoteHostPolicy.isRemoteCandidate(host)
@@ -1962,43 +2669,50 @@ class MainActivity : Activity() {
         stopDeviceListRefresh()
         deviceListVisible = false
         showingSetup = false
-        setupBackAction = null
+        setupBackAction = ::showDeviceList
         destroyWebView()
-        applyStatusBarIconContrast(window, getColor(R.color.app_background))
-        val root = FrameLayout(this).apply {
-            setBackgroundColor(getColor(R.color.app_background))
-        }
-        addSetupArtwork(root)
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(32), dp(32), dp(32), dp(32))
-        }
-        content.addView(textView(R.string.restoring_trust, 16f, Typeface.NORMAL, R.color.app_secondary).apply {
-            gravity = Gravity.CENTER
-        })
-        root.addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        setPageContent(root)
-        applySafeAreaInsets(root)
+        val screen = createSetupScreen(R.string.restoring_trust, back = ::showDeviceList, depth = 1)
+        screen.content.addView(
+            ProgressBar(this).apply { isIndeterminate = true },
+            LinearLayout.LayoutParams(dp(44), dp(44)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                topMargin = dp(48)
+            },
+        )
     }
 
-    private fun showPairing(harness: DiscoveredHarness, prefilledInput: String = "", autoConnect: Boolean = false) {
+    /** Where a pairing form returns when the caller did not name the page it came from. */
+    private fun defaultPairingBack(): () -> Unit =
+        if (accessMode == AccessMode.LAN) ::showSetup else ::showRemoteSetup
+
+    private fun showPairing(
+        harness: DiscoveredHarness,
+        prefilledInput: String = "",
+        autoConnect: Boolean = false,
+        returnTo: (() -> Unit)? = null,
+    ) {
         cancelRestoreForConfiguration()
         stopDeviceListRefresh()
         invalidatePairingAttempts()
         deviceListVisible = false
         showingSetup = true
-        setupBackAction = if (accessMode == AccessMode.LAN) ::showSetup else ::showRemoteSetup
-        val card = createSetupCard()
-        card.addView(textView(R.string.pairing_title, 30f, Typeface.BOLD))
-        card.addView(spacer(12))
-        card.addView(textView(R.string.pairing_description, 16f, Typeface.NORMAL, R.color.app_secondary))
-        card.addView(spacer(24))
+        // The Iroh page also runs in REMOTE mode, so the access mode cannot name the
+        // page that a failed key or the Back action should return to.
+        val backTo = returnTo ?: pairingOrigin ?: defaultPairingBack()
+        pairingOrigin = null
+        setupBackAction = backTo
+        val screen = createSetupScreen(
+            R.string.pairing_title,
+            R.string.pairing_description,
+            back = backTo,
+            depth = 2,
+        )
+        val card = screen.content
         card.addView(textView(R.string.selected_harness, 14f, Typeface.BOLD))
         card.addView(spacer(6))
         card.addView(TextView(this).apply {
             text = "${harness.deviceName}\n${harness.origin.serialized}"
-            textSize = 16f
+            textSize = UiTokens.bodySp
             setTextColor(getColor(R.color.app_foreground))
             setTextIsSelectable(true)
         })
@@ -2016,16 +2730,26 @@ class MainActivity : Activity() {
         }
         card.addView(pairing, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         card.addView(spacer(20))
-        val status = TextView(this).apply {
-            setTextColor(getColor(R.color.app_error))
-            textSize = 14f
+        val status = statusLine().apply {
             visibility = View.GONE
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
-        val connect = primaryButton(R.string.connect, 52) { connect(harness, pairing, status, this) }
+        val leaveForm: () -> Unit = { backTo() }
+        // A key that arrived by scan or paste is one-time: once it fails this form
+        // cannot retry it, so the failure returns to where the key came from.
+        val ephemeralFailure: ((Int) -> Unit)? = if (autoConnect) {
+            { messageResource ->
+                pendingPairingFailure = messageResource
+                leaveForm()
+            }
+        } else {
+            null
+        }
+        val connect = primaryButton(R.string.pair_and_connect, 52) {
+            connect(harness, pairing, status, this, ephemeralFailure)
+        }
         pairing.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                connect(harness, pairing, status, connect)
+                connect(harness, pairing, status, connect, ephemeralFailure)
                 true
             } else {
                 false
@@ -2035,93 +2759,355 @@ class MainActivity : Activity() {
         card.addView(spacer(10))
         card.addView(status)
         card.addView(spacer(12))
-        card.addView(secondaryButton(R.string.back_to_scan, 48) {
-            if (accessMode == AccessMode.LAN) showSetup() else showRemoteSetup()
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        if (autoConnect && prefilledInput.isNotEmpty()) connect(harness, pairing, status, connect)
+        card.addView(secondaryButton(R.string.back_to_scan, 48) { leaveForm() },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (autoConnect && prefilledInput.isNotEmpty()) connect(harness, pairing, status, connect, ephemeralFailure)
     }
 
-    private fun createSetupCard(surface: Boolean = true): LinearLayout {
-        applyStatusBarIconContrast(window, getColor(R.color.app_background))
-        val root = FrameLayout(this).apply {
-            setBackgroundColor(getColor(R.color.app_background))
+    /** Type scale and geometry shared by the native screens. */
+    private object UiTokens {
+        const val screenPadding = 20
+        const val cardRadius = 20
+        const val itemRadius = 16
+        const val controlRadius = 14
+        const val iconRadius = 12
+        const val gapSm = 8
+        const val gap = 12
+        const val gapLg = 16
+        const val titleSp = 27f
+        const val displaySp = 20f
+        const val headerSp = 17f
+        const val itemTitleSp = 15.5f
+        const val bodySp = 15f
+        const val bodySmallSp = 14f
+        const val captionSp = 12.5f
+        const val captionSmallSp = 11.5f
+        const val buttonSp = 15f
+    }
+
+    /** The shell parts a screen can extend after creation. */
+    private data class SetupScreen(
+        val root: FrameLayout,
+        val header: LinearLayout,
+        val content: LinearLayout,
+        val subtitle: TextView? = null,
+    )
+
+    /**
+     * Opaque base plus a bottom falloff. The moving colour lives in addMistBackdrop.
+     */
+    private fun screenBackground(): Drawable {
+        // Opaque base plus a bottom falloff: the moving colour lives in addMistBackdrop.
+        val base = GradientDrawable().apply { setColor(getColor(R.color.app_background)) }
+        val falloff = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.TRANSPARENT, Color.TRANSPARENT, getColor(R.color.app_background)),
+        )
+        return android.graphics.drawable.LayerDrawable(arrayOf(base, falloff))
+    }
+
+    /**
+     * The drifting mist: the wash is painted once on an oversized view and only its
+     * translation and scale animate, so the colour field moves without a repaint.
+     */
+    private fun addMistBackdrop(root: FrameLayout) {
+        val metrics = resources.displayMetrics
+        val width = metrics.widthPixels * 2
+        val height = metrics.heightPixels * 2
+        val mist = View(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(
+                    getColor(R.color.app_aurora_one),
+                    getColor(R.color.app_background),
+                    getColor(R.color.app_aurora_two),
+                    getColor(R.color.app_background),
+                    getColor(R.color.app_aurora_three),
+                    getColor(R.color.app_background),
+                ),
+            )
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-        addSetupArtwork(root)
+        root.addView(
+            mist,
+            FrameLayout.LayoutParams(width, height).apply {
+                leftMargin = -(width - metrics.widthPixels) / 2
+                topMargin = -(height - metrics.heightPixels) / 2
+            },
+        )
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        val mistAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 26_000
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { animation ->
+                val progress = animation.animatedValue as Float
+                val drift = dp(44).toFloat()
+                mist.translationX = -drift * progress
+                mist.translationY = drift * 0.6f * progress
+                mist.scaleX = 1f + 0.05f * progress
+                mist.scaleY = 1f + 0.05f * progress
+            }
+        }
+        trackBackdrop(mistAnimator, mist)
+    }
+
+    /**
+     * A barely-there grid over the wash, drifting one cell at a time. The pattern is
+     * a repeating shader on a view slightly larger than the screen, and only its
+     * translation animates, so the frame never repaints the grid itself.
+     */
+    private fun addGridBackdrop(root: FrameLayout) {
+        val cell = dp(28).coerceAtLeast(8)
+        val tile = Bitmap.createBitmap(cell, cell, Bitmap.Config.ARGB_8888)
+        val tileCanvas = Canvas(tile)
+        val line = Paint().apply {
+            color = getColor(R.color.app_grid_line)
+            strokeWidth = 1f
+        }
+        tileCanvas.drawLine(cell - 1f, 0f, cell - 1f, cell.toFloat(), line)
+        tileCanvas.drawLine(0f, cell - 1f, cell.toFloat(), cell - 1f, line)
+        val grid = object : View(this) {
+            override fun onDraw(canvas: Canvas) {
+                canvas.drawPaint(
+                    Paint().apply {
+                        shader = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+                    },
+                )
+            }
+        }
+        grid.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        root.addView(
+            grid,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ).apply {
+                // the backdrop drifts, so it overhangs by one cell on every side
+                width = resources.displayMetrics.widthPixels + cell * 2
+                height = resources.displayMetrics.heightPixels + cell * 2
+                leftMargin = -cell
+                topMargin = -cell
+            },
+        )
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        val gridAnimator = ValueAnimator.ofFloat(0f, -cell.toFloat()).apply {
+            duration = 30_000
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { animation ->
+                val offset = animation.animatedValue as Float
+                grid.translationX = offset
+                grid.translationY = offset
+            }
+        }
+        trackBackdrop(gridAnimator, grid)
+    }
+
+    /**
+     * Shared frame for every native screen: gradient background, one header row
+     * (secondary screens show a back affordance) and a centred content column.
+     * Artwork no longer sits behind the text, so long addresses keep contrast and
+     * the tablet column stays the width of the phone one.
+     */
+    private fun createSetupScreen(
+        titleResource: Int,
+        subtitleResource: Int? = null,
+        back: (() -> Unit)? = null,
+        centered: Boolean = false,
+        depth: Int = 1,
+        animate: Boolean = true,
+    ): SetupScreen {
+        applyStatusBarIconContrast(window, getColor(R.color.app_background))
+        val root = FrameLayout(this).apply { background = screenBackground() }
+        addMistBackdrop(root)
+        addGridBackdrop(root)
+        val frame = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(
+            frame,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        val available = (resources.displayMetrics.widthPixels - dp(UiTokens.screenPadding * 2)).coerceAtLeast(dp(280))
+        val columnWidth = min(available, dp(560))
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(UiTokens.screenPadding), dp(16), dp(UiTokens.screenPadding), dp(6))
+        }
+        if (back != null) {
+            header.addView(
+                backButton(back),
+                LinearLayout.LayoutParams(dp(48), dp(48)).apply { rightMargin = dp(10) },
+            )
+        }
+        header.addView(
+            TextView(this).apply {
+                setText(titleResource)
+                textSize = if (back == null) UiTokens.titleSp else UiTokens.headerSp
+                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                setTextColor(getColor(R.color.app_foreground))
+            },
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+        )
+        frame.addView(
+            header,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             clipToPadding = false
-            setPadding(0, dp(24), 0, dp(24))
         }
-        root.addView(
+        frame.addView(
             scroll,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f),
+        )
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (centered) gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(UiTokens.screenPadding), dp(8), dp(UiTokens.screenPadding), dp(96))
+        }
+        scroll.addView(
+            column,
             FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                columnWidth,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER_HORIZONTAL,
             ),
         )
-
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            if (surface) {
-                setPadding(dp(24), dp(24), dp(24), dp(24))
-                background = roundedSurface(getColor(R.color.app_surface), 20).apply {
-                    setStroke(dp(1), getColor(R.color.app_border))
-                }
+        val subtitleView = subtitleResource?.let { resource ->
+            TextView(this).apply {
+                setText(resource)
+                textSize = UiTokens.captionSp
+                setTextColor(getColor(R.color.app_secondary))
+            }.also { view ->
+                column.addView(
+                    view,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    ).apply { topMargin = dp(6) },
+                )
             }
         }
-        val availableWidth = (resources.displayMetrics.widthPixels - dp(48)).coerceAtLeast(dp(280))
-        scroll.addView(
-            card,
-            FrameLayout.LayoutParams(
-                min(availableWidth, dp(560)),
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER_HORIZONTAL,
-            ).apply {
-                topMargin = dp(24)
-                bottomMargin = dp(24)
-            },
-        )
-        scroll.addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
-            val width = setupCardWidth(right - left, dp(24), dp(560))
-            if (card.layoutParams.width != width) {
-                card.layoutParams = card.layoutParams.apply { this.width = width }
-            }
-        }
-        setPageContent(root)
+        column.addView(spacer(if (centered) 6 else 18))
+        setPageContent(root, depth, animate)
         applySafeAreaInsets(root)
-        return card
+        return SetupScreen(root, header, column, subtitleView)
     }
 
-    /** Pre-connection artwork: covers the whole screen (edges may crop), under a theme-aware scrim. */
-    private fun addSetupArtwork(root: FrameLayout) {
-        root.addView(
-            ImageView(this).apply {
-                setImageResource(R.drawable.setup_background_image)
-                scaleType = ImageView.ScaleType.CENTER_CROP
-            },
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-        )
-        root.addView(
-            View(this).apply { setBackgroundColor(getColor(R.color.app_setup_scrim)) },
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-        )
-    }
-
-    /** Reconnect to a manually entered origin, falling back to pairing when unknown. */
-    private fun connectManual(raw: String, status: TextView) {
-        val origin = parseManualOrigin(raw)
-        if (origin == null) {
-            status.setTextColor(getColor(R.color.app_error))
-            status.setText(R.string.invalid_gateway)
-            status.visibility = View.VISIBLE
-            return
+    /**
+     * Raised fill for the primary action: a three-stop vertical gradient with its own
+     * pressed state, so the control reads as a surface instead of a coloured rectangle.
+     */
+    private fun reliefBackground(
+        radiusDp: Int,
+        top: Int, mid: Int, bottom: Int,
+        topPressed: Int, midPressed: Int, bottomPressed: Int,
+    ): Drawable {
+        fun fill(topColor: Int, midColor: Int, bottomColor: Int) =
+            GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(topColor, midColor, bottomColor),
+            ).apply {
+                cornerRadius = dp(radiusDp).toFloat()
+            }
+        val states = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed),
+                fill(getColor(topPressed), getColor(midPressed), getColor(bottomPressed)))
+            addState(intArrayOf(), fill(getColor(top), getColor(mid), getColor(bottom)))
         }
+        return RippleDrawable(
+            ColorStateList.valueOf(getColor(R.color.app_button_edge)),
+            states,
+            null,
+        )
+    }
+
+    /** Quiet glass fill: two soft white stops, no stroke and no shadow. */
+    private fun glassBackground(radiusDp: Int): Drawable {
+        fun fill(pressed: Boolean) = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(
+                getColor(if (pressed) R.color.app_surface_tinted else R.color.app_glass_top),
+                getColor(R.color.app_glass_bottom),
+            ),
+        ).apply {
+            cornerRadius = dp(radiusDp).toFloat()
+        }
+        val states = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), fill(true))
+            addState(intArrayOf(), fill(false))
+        }
+        return RippleDrawable(ColorStateList.valueOf(Color.TRANSPARENT), states, null)
+    }
+
+    /** Gradient hairline used between grouped rows; both ends fade out. */
+    private fun fadingDivider(): View = View(this).apply {
+        background = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(Color.TRANSPARENT, getColor(R.color.app_divider), Color.TRANSPARENT),
+        )
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+
+    /** Glass surface shared by cards and rows: translucent fill plus a hairline. */
+    private fun glassSurface(
+        colorResource: Int = R.color.app_card_fill,
+        radiusDp: Int = UiTokens.itemRadius,
+    ): Drawable {
+        val edge = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(getColor(R.color.app_card_edge_top), getColor(R.color.app_card_edge_bottom)),
+        ).apply { cornerRadius = dp(radiusDp).toFloat() }
+        val fill = roundedSurface(getColor(colorResource), radiusDp)
+        return android.graphics.drawable.LayerDrawable(
+            arrayOf(edge, android.graphics.drawable.InsetDrawable(fill, dp(1))),
+        )
+    }
+
+    private fun backButton(back: () -> Unit): ImageButton = ImageButton(this).apply {
+        setImageResource(R.drawable.ic_arrow_back)
+        contentDescription = getString(R.string.back)
+        setColorFilter(getColor(R.color.app_foreground))
+        scaleType = ImageView.ScaleType.CENTER
+        setPadding(dp(9), dp(9), dp(9), dp(9))
+        background = roundedRipple(getColor(R.color.app_surface), 12)
+        setOnClickListener { back() }
+    }
+
+    /** Bottom action with the brand gradient; screens place it over their scroll view. */
+    private fun screenAction(labelResource: Int, onClick: () -> Unit): TextView = TextView(this).apply {
+        setText(labelResource)
+        textSize = UiTokens.buttonSp
+        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+        setTextColor(getColor(R.color.app_button_text))
+        gravity = Gravity.CENTER
+        minHeight = dp(54)
+        letterSpacing = 0.02f
+        elevation = dp(10).toFloat()
+        background = reliefBackground(
+            UiTokens.controlRadius,
+            R.color.app_button_top, R.color.app_button_mid, R.color.app_button_bottom,
+            R.color.app_button_top_pressed, R.color.app_button_mid_pressed, R.color.app_button_bottom_pressed,
+        )
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { onClick() }
+    }
+
+    private fun connectManual(origin: GatewayOrigin, status: TextView) {
         val credential = legacyCredentialForRestore()
         if (credential != null) {
             showRestoringTrust()
-            restoreTrustedDevice(origin, credential) { showPairing(manualHarness(origin)) }
+            restoreTrustedDevice(origin, credential) {
+                showPairing(manualHarness(origin), returnTo = ::showDeviceList)
+            }
         } else {
-            showPairing(manualHarness(origin))
+            showPairing(manualHarness(origin), returnTo = ::showDeviceList)
         }
     }
 
@@ -2139,12 +3125,29 @@ class MainActivity : Activity() {
     private fun manualHarness(origin: GatewayOrigin): DiscoveredHarness =
         DiscoveredHarness(deviceName = "DeepSeek Harness", origin = origin, instanceId = "")
 
-    private fun connect(harness: DiscoveredHarness, pairing: EditText, status: TextView, button: Button) {
+    /**
+     * @param onEphemeralFailure when set, a failure is handed to the caller instead
+     * of being painted here: a scanned or pasted one-time key cannot be retried on
+     * this form, so the caller returns to where the key came from.
+     */
+    private fun connect(
+        harness: DiscoveredHarness,
+        pairing: EditText,
+        status: TextView,
+        button: Button,
+        onEphemeralFailure: ((Int) -> Unit)? = null,
+    ) {
         if (pairingAttemptGate.busy) return
         if (!prepareCredentialStorage()) {
             status.setText(R.string.device_storage_unavailable)
             status.visibility = View.VISIBLE
             return
+        }
+        // One exit for "the computer rejected or could not be reached": a key that
+        // arrived by scan or paste is spent, so the caller takes the failure back.
+        fun reportPairingFailure(messageResource: Int) {
+            if (onEphemeralFailure != null) onEphemeralFailure(messageResource)
+            else showStatus(status, messageResource, error = true)
         }
         val input = pairing.text.toString().trim()
         val directKey = PairingKey.parse(input)
@@ -2217,8 +3220,7 @@ class MainActivity : Activity() {
             if (trustFailure != null) {
                 runOnUiThread {
                     if (generation != pairingGeneration) return@runOnUiThread
-                    status.setTextColor(getColor(R.color.app_error))
-                    status.setText(pairingFailureMessage(trustFailure, origin))
+                    reportPairingFailure(pairingFailureMessage(trustFailure, origin))
                     completePairingAttempt(generation)
                     button.isEnabled = true
                 }
@@ -2228,8 +3230,7 @@ class MainActivity : Activity() {
             if (trust == null) {
                 runOnUiThread {
                     if (generation != pairingGeneration) return@runOnUiThread
-                    status.setTextColor(getColor(R.color.app_error))
-                    status.setText(R.string.pairing_tls_failed)
+                    reportPairingFailure(R.string.pairing_tls_failed)
                     completePairingAttempt(generation)
                     button.isEnabled = true
                 }
@@ -2265,8 +3266,7 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         if (generation != pairingGeneration) return@runOnUiThread
                         if (renewed.instanceId != existingCredential.instanceId) {
-                            status.setTextColor(getColor(R.color.app_error))
-                            status.setText(R.string.pairing_failed)
+                            reportPairingFailure(R.string.pairing_failed)
                             completePairingAttempt(generation)
                             button.isEnabled = true
                         } else {
@@ -2297,8 +3297,7 @@ class MainActivity : Activity() {
                 if (!ConnectionRestorePolicy.mayPairAfterRenewFailure(renewalFailure)) {
                     runOnUiThread {
                         if (generation != pairingGeneration) return@runOnUiThread
-                        status.setTextColor(getColor(R.color.app_error))
-                        status.setText(pairingFailureMessage(renewalFailure, origin))
+                        reportPairingFailure(pairingFailureMessage(renewalFailure, origin))
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     }
@@ -2309,8 +3308,7 @@ class MainActivity : Activity() {
                 } catch (_: CredentialStorageUnavailable) {
                     runOnUiThread {
                         if (generation != pairingGeneration) return@runOnUiThread
-                        status.setTextColor(getColor(R.color.app_error))
-                        status.setText(R.string.device_storage_unavailable)
+                        reportPairingFailure(R.string.device_storage_unavailable)
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     }
@@ -2325,8 +3323,7 @@ class MainActivity : Activity() {
                     val expiresAt = session.deviceExpiresAt
                     if (deviceToken == null || expiresAt == null
                         || (expectedInstanceId != null && session.instanceId != expectedInstanceId)) {
-                        status.setTextColor(getColor(R.color.app_error))
-                        status.setText(R.string.pairing_failed)
+                        reportPairingFailure(R.string.pairing_failed)
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     } else if (!runCatching {
@@ -2335,8 +3332,7 @@ class MainActivity : Activity() {
                                 store.save(DeviceCredential(session.instanceId, deviceToken, expiresAt, certificate))
                             }
                         }.isSuccess) {
-                        status.setTextColor(getColor(R.color.app_error))
-                        status.setText(R.string.device_storage_unavailable)
+                        reportPairingFailure(R.string.device_storage_unavailable)
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     } else {
@@ -2375,8 +3371,7 @@ class MainActivity : Activity() {
                 } }
                 .onFailure { error -> runOnUiThread {
                     if (generation != pairingGeneration) return@runOnUiThread
-                    status.setTextColor(getColor(R.color.app_error))
-                    status.setText(pairingFailureMessage(error, origin))
+                    reportPairingFailure(pairingFailureMessage(error, origin))
                     completePairingAttempt(generation)
                     button.isEnabled = true
                 } }
@@ -2385,15 +3380,13 @@ class MainActivity : Activity() {
 
     private fun showCompatibilityIssue(issue: CompatibilityIssue, status: TextView, button: Button) {
         button.isEnabled = true
-        status.setTextColor(getColor(R.color.app_error))
         val required = issue.requiredVersion.orEmpty()
         val (title, message) = when (issue.kind) {
             CompatibilityIssueKind.APP_TOO_OLD -> R.string.app_update_required_title to getString(R.string.app_update_required_message, required)
             CompatibilityIssueKind.PLUGIN_TOO_OLD -> R.string.plugin_update_required_title to getString(R.string.plugin_update_required_message, required)
             CompatibilityIssueKind.PROTOCOL_UNSUPPORTED -> R.string.connection_version_mismatch_title to getString(R.string.connection_version_mismatch_message)
         }
-        status.text = message
-        status.visibility = View.VISIBLE
+        showStatus(status, message, error = true)
         val dialog = AlertDialog.Builder(this).setTitle(title).setMessage(message)
         if (issue.kind == CompatibilityIssueKind.APP_TOO_OLD) {
             dialog.setPositiveButton(R.string.download_update) { _, _ -> openExternal(Uri.parse(APP_RELEASES_URL)) }
@@ -2473,8 +3466,7 @@ class MainActivity : Activity() {
                     status.setTextColor(getColor(R.color.app_secondary))
                     status.setText(R.string.scan_prompt)
                 } else if (found.isEmpty()) {
-                    status.setTextColor(getColor(R.color.app_error))
-                    status.setText(R.string.no_harness_found)
+                    showStatus(status, R.string.no_harness_found, error = true)
                 } else {
                     status.setTextColor(getColor(R.color.app_secondary))
                     status.text = resources.getQuantityString(R.plurals.harnesses_found, found.size, found.size)
@@ -2503,9 +3495,11 @@ class MainActivity : Activity() {
                             setOnClickListener {
                                 if (trustedCredential != null) {
                                     showRestoringTrust()
-                                    restoreTrustedDevice(harness.origin, trustedCredential) { showPairing(harness) }
+                                    restoreTrustedDevice(harness.origin, trustedCredential) {
+                                        showPairing(harness, returnTo = ::showDeviceList)
+                                    }
                                 } else {
-                                    showPairing(harness)
+                                    showPairing(harness, returnTo = ::showDeviceList)
                                 }
                             }
                         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -2588,13 +3582,19 @@ class MainActivity : Activity() {
                 toastError(R.string.iroh_pairing_invalid)
                 return
             }
+            pairingOrigin = null
             showIrohSetup(text, autoConnect = true)
             return
         }
         val target = PairingScanPolicy.parse(text, accessMode)
         if (target != null) {
             accessMode = target.mode
-            showPairing(manualHarness(target.connection.origin), prefilledInput = text, autoConnect = true)
+            showPairing(
+                manualHarness(target.connection.origin),
+                prefilledInput = text,
+                autoConnect = true,
+                returnTo = pairingOrigin ?: ::showRemoteSetup,
+            )
             return
         }
         toastError(R.string.scan_result_invalid)
@@ -2665,34 +3665,59 @@ class MainActivity : Activity() {
     }
 
     private fun showPairedDeviceNamePrompt(record: PairedDeviceRecord, complete: () -> Unit) {
-        val input = EditText(this).apply {
-            setText(record.displayName)
-            setSelection(text.length)
-            hint = getString(R.string.device_name_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            minHeight = dp(48)
+        var settled = false
+        fun finish() {
+            if (settled) return
+            settled = true
+            complete()
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.name_new_device)
-            .setMessage(R.string.name_new_device_message)
-            .setView(input)
-            .setNegativeButton(R.string.skip) { _, _ -> complete() }
-            .setPositiveButton(R.string.save_and_connect, null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val name = java.text.Normalizer.normalize(input.text.toString(), java.text.Normalizer.Form.NFC).trim()
-                if (name.length !in 1..32 || Regex("[\\u0000-\\u001f\\u007f]").containsMatchIn(name)) {
-                    Toast.makeText(this, R.string.invalid_device_name, Toast.LENGTH_SHORT).show()
-                } else {
-                    if (withCredentialStorage { pairedDeviceStore.update(record.key) { it.copy(displayName = name) } } == null) return@setOnClickListener
-                    dialog.dismiss()
-                    complete()
-                }
+        val dialog = showBottomSheet(getString(R.string.name_new_device), dismissOnPause = false) { sheet, sheetDialog ->
+            sheet.addView(
+                TextView(this).apply {
+                    setText(R.string.name_new_device_message)
+                    textSize = UiTokens.bodySmallSp
+                    setTextColor(getColor(R.color.app_secondary))
+                    setLineSpacing(dp(3).toFloat(), 1f)
+                },
+                fullWidth().apply { bottomMargin = dp(UiTokens.gap) },
+            )
+            val (input, error) = sheetField(
+                sheet,
+                R.string.device_name_hint,
+                R.string.name_new_device,
+                record.displayName,
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
+            )
+            val saveAndConnect = {
+                    val name = normalizedDeviceName(input.text.toString())
+                    if (name == null) {
+                        showInlineError(input, error, getString(R.string.invalid_device_name))
+                    } else {
+                        // Close only after a confirmed write: a failed save must leave
+                        // Skip reachable, or the pairing flow can never complete.
+                        val saved = withCredentialStorage {
+                            pairedDeviceStore.update(record.key) { it.copy(displayName = name) }
+                        } != null
+                        dismissSheet(sheetDialog)
+                        if (saved) finish() else toastError(R.string.session_storage_failed).also { finish() }
+                    }
             }
+            input.setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE) { saveAndConnect(); true } else false
+            }
+            sheet.addView(
+                primaryButton(R.string.save_and_connect, 52) { saveAndConnect() },
+                fullWidth().apply { topMargin = dp(UiTokens.gap) },
+            )
+            sheet.addView(
+                sheetRow(getString(R.string.skip)) {
+                    dismissSheet(sheetDialog)
+                    finish()
+                },
+                fullWidth(),
+            )
         }
-        dialog.setOnCancelListener { complete() }
-        dialog.show()
+        dialog.setOnCancelListener { finish() }
     }
 
     private fun handleDeviceRevoked() {
@@ -2717,7 +3742,7 @@ class MainActivity : Activity() {
         webView?.setOnTouchListener(null)
     }
     private var draftTransfer: PlainTextDraftTransfer? = null
-    private var sameHostConfirmation: AlertDialog? = null
+    private var sameHostConfirmation: Dialog? = null
     private var sameHostRestoreAttempt: ConnectionAttemptController.Attempt? = null
     private var sameHostProbeCancellation: NativeConnectionCancellation? = null
     private var sameHostObservedWifi: Boolean? = null
@@ -2726,25 +3751,65 @@ class MainActivity : Activity() {
     private fun automaticSameHost() = sameHostMode() != SameHostSwitchMode.MANUAL
 
     private fun showSameHostSettings() {
-        val choices = arrayOf(getString(R.string.same_host_manual), getString(R.string.same_host_detect), getString(R.string.same_host_enable))
-        AlertDialog.Builder(this).setTitle(R.string.same_host_title)
-            .setSingleChoiceItems(choices, sameHostMode().ordinal) { dialog, which ->
-                fun save() {
-                    preferences.edit().putString("same_host_mode", SameHostSwitchMode.entries[which].name).apply()
-                    sameHostGate.invalidate()
-                    sameHostProbeCancellation?.cancel()
-                    sameHostProbeCancellation = null
-                    sameHostConfirmation?.dismiss()
-                    checkSameHostConnection()
-                }
-                dialog.dismiss()
-                if (which == SameHostSwitchMode.AUTOMATIC.ordinal) {
-                    AlertDialog.Builder(this).setTitle(R.string.same_host_enable).setMessage(R.string.same_host_limits)
-                        .setNegativeButton(R.string.cancel, null)
-                        .setPositiveButton(R.string.same_host_enable) { _, _ -> save() }.show()
-                } else save()
+        showChoiceSheet(
+            getString(R.string.same_host_title),
+            listOf(
+                getString(R.string.same_host_manual),
+                getString(R.string.same_host_detect),
+                getString(R.string.same_host_enable),
+            ),
+            sameHostMode().ordinal,
+        ) { which ->
+            if (which == SameHostSwitchMode.AUTOMATIC.ordinal) {
+                confirmSameHostSwitch(which)
+            } else {
+                saveSameHostMode(which)
             }
-            .setNegativeButton(R.string.cancel, null).show()
+        }
+    }
+
+    /** Enabling the automatic switch changes how reconnects behave, so it asks first. */
+    private fun confirmSameHostSwitch(mode: Int) {
+        val dialog = showBottomSheet(
+            getString(R.string.same_host_enable),
+            onDismiss = { sameHostConfirmation = null },
+        ) { sheet, sheetDialog ->
+            sheet.addView(
+                TextView(this).apply {
+                    setText(R.string.same_host_limits)
+                    textSize = UiTokens.bodySmallSp
+                    setTextColor(getColor(R.color.app_secondary))
+                    setLineSpacing(dp(3).toFloat(), 1f)
+                },
+                fullWidth().apply { bottomMargin = dp(UiTokens.gapLg) },
+            )
+            sheet.addView(
+                primaryButton(R.string.same_host_enable, 52) {
+                    dismissSheet(sheetDialog)
+                    saveSameHostMode(mode)
+                },
+                fullWidth(),
+            )
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(sheetDialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                fullWidth().apply { topMargin = dp(UiTokens.gapSm) },
+            )
+        }
+        // A sheet that never reached the screen must not block the automatic switch.
+        if (dialog.isShowing) sameHostConfirmation = dialog
+    }
+
+    private fun saveSameHostMode(mode: Int) {
+        preferences.edit().putString("same_host_mode", SameHostSwitchMode.entries[mode].name).apply()
+        sameHostGate.invalidate()
+        sameHostProbeCancellation?.cancel()
+        sameHostProbeCancellation = null
+        // dismiss() delivers its listener asynchronously; clear first so the guard
+        // in checkSameHostConnection does not skip the immediate recheck.
+        sameHostConfirmation = null
+        checkSameHostConnection()
     }
 
     /** Only authenticated probes can trigger recovery or offer a voluntary LAN return. */
@@ -3112,7 +4177,6 @@ class MainActivity : Activity() {
         releaseCapturedDraft()
         bridgeSessionRenewal.cancel(errorCode = errorCode)
         restoreAttemptGate.invalidate()
-        connectionCenterStatus?.visibility = View.GONE
     }
 
     private fun cancelRestoreForConfiguration() {
@@ -3553,10 +4617,7 @@ class MainActivity : Activity() {
         destroyWebView(rendererGone = true)
         if (!decision.retry) {
             showDeviceList()
-            deviceListStatus?.apply {
-                setText(R.string.webview_renderer_failed)
-                setTextColor(getColor(R.color.app_error))
-            }
+            deviceListStatus?.let { showStatus(it, R.string.webview_renderer_failed, error = true) }
             return
         }
         showRestoringTrust()
@@ -4099,49 +5160,6 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun confirmClearSiteData() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.clear_site_data_title)
-            .setMessage(R.string.clear_site_data_message)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.clear) { _, _ -> clearSiteData() }
-            .show()
-    }
-
-    private fun clearSiteData() {
-        if (withCredentialStorage {
-                lanCredentialStore.clear()
-                remoteCredentialStore.clear()
-                pairedDeviceStore.clear()
-            } == null) return
-        webView?.apply {
-            stopLoading()
-            clearHistory()
-            clearCache(true)
-            clearSslPreferences()
-        }
-        WebStorage.getInstance().deleteAllData()
-        // Site data and cached boot batches belong to the same session; clearing one clears both.
-        clearBootAssetStore()
-        WebViewDatabase.getInstance(this).apply {
-            clearHttpAuthUsernamePassword()
-        }
-        WebView.clearClientCertPreferences(null)
-        preferences.edit().clear().apply()
-        CookieManager.getInstance().removeAllCookies {
-            CookieManager.getInstance().flush()
-            if (!isFinishing && !isDestroyed) runOnUiThread { showConnectionCenter() }
-        }
-    }
-
-    private fun shareGateway(origin: GatewayOrigin) {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, origin.serialized)
-        }
-        startActivity(Intent.createChooser(intent, getString(R.string.share_gateway_title)))
-    }
-
     private fun openExternal(uri: Uri) {
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             addCategory(Intent.CATEGORY_BROWSABLE)
@@ -4275,24 +5293,51 @@ class MainActivity : Activity() {
     private fun primaryButton(textResource: Int, minHeightDp: Int, onClick: Button.() -> Unit): Button = Button(this).apply {
         setText(textResource)
         isAllCaps = false
-        textSize = 17f
+        textSize = UiTokens.buttonSp
         setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-        minHeight = dp(minHeightDp)
+        minHeight = dp(maxOf(minHeightDp, 54))
         backgroundTintList = null
-        background = roundedRipple(getColor(R.color.app_accent), 16)
-        setTextColor(getColor(R.color.app_on_accent))
+        letterSpacing = 0.02f
+        background = reliefBackground(
+            UiTokens.itemRadius,
+            R.color.app_button_top, R.color.app_button_mid, R.color.app_button_bottom,
+            R.color.app_button_top_pressed, R.color.app_button_mid_pressed, R.color.app_button_bottom_pressed,
+        )
+        val lift = this
+        // Pressing sinks the button into the surface: it drops its lift and shrinks
+        // a hair, which reads as depth instead of a colour swap.
+        val press = android.animation.AnimatorSet().apply {
+            playTogether(
+                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(0).toFloat()),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleX", 0.975f),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleY", 0.975f),
+            )
+        }
+        val rest = android.animation.AnimatorSet().apply {
+            playTogether(
+                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(4).toFloat()),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleX", 1f),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleY", 1f),
+            )
+        }
+        stateListAnimator = android.animation.StateListAnimator().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), press)
+            addState(intArrayOf(), rest)
+        }
+        setTextColor(getColor(R.color.app_button_text))
         setOnClickListener { onClick() }
     }
 
-    /** Secondary action button: tinted fill, quieter than the primary one. */
+    /** Secondary action button: glass fill, quieter than the primary one. */
     private fun secondaryButton(textResource: Int, minHeightDp: Int, onClick: Button.() -> Unit): Button = Button(this).apply {
         setText(textResource)
         isAllCaps = false
-        textSize = 15f
-        minHeight = dp(minHeightDp)
-        setTextColor(getColor(R.color.app_foreground))
+        textSize = 14f
+        letterSpacing = 0.015f
+        minHeight = dp(maxOf(minHeightDp, 52))
+        setTextColor(getColor(R.color.app_on_accent_container))
         backgroundTintList = null
-        background = roundedRipple(getColor(R.color.app_surface_tinted), 12)
+        background = glassBackground(UiTokens.itemRadius)
         setOnClickListener { onClick() }
     }
 
@@ -4309,10 +5354,140 @@ class MainActivity : Activity() {
         this.imeOptions = imeOptions
         isSingleLine = true
         minHeight = dp(minHeightDp)
-        textSize = 16f
-        setPadding(dp(16), 0, dp(16), 0)
-        background = roundedSurface(getColor(R.color.app_surface_tinted), 12)
+        textSize = 15f
+        setTextColor(getColor(R.color.app_foreground))
+        setHintTextColor(getColor(R.color.app_secondary))
+        setPadding(dp(16), dp(14), dp(16), dp(14))
+        background = fieldSurface(false)
         this.contentDescription = getString(contentDescriptionResource)
+        setOnFocusChangeListener { view, _ -> view.background = fieldSurface(view.hasFocus()) }
+    }
+
+    /**
+     * Focused fields swap the hairline for the accent stroke and an invalid field
+     * takes the error stroke, so focus and failure never look the same.
+     */
+    private fun fieldSurface(focused: Boolean, invalid: Boolean = false): Drawable =
+        GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(
+                getColor(R.color.app_field_inset_top),
+                getColor(R.color.app_field_inset_bottom),
+            ),
+        ).apply {
+            cornerRadius = dp(14).toFloat()
+            setStroke(
+                dp(if (focused && !invalid) 2 else 1),
+                getColor(
+                    when {
+                        invalid -> R.color.app_error
+                        focused -> R.color.app_accent
+                        else -> R.color.app_border
+                    },
+                ),
+            )
+        }
+
+    /** One column width for every control in the pairing screens. */
+    private fun fullWidth(): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+
+    /** Validation label that sits directly under the field it belongs to. */
+    private fun inlineError(): TextView = TextView(this).apply {
+        textSize = 12.5f
+        maxLines = 2
+        ellipsize = TextUtils.TruncateAt.END
+        setTextColor(getColor(R.color.app_error))
+        visibility = View.GONE
+        accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        setPadding(dp(4), dp(8), dp(4), 0)
+    }
+
+    /** Mark a field invalid and explain why under it; the reason never floats elsewhere. */
+    private fun showInlineError(field: EditText, label: TextView, message: CharSequence) {
+        label.text = message
+        label.visibility = View.VISIBLE
+        field.background = fieldSurface(field.hasFocus(), invalid = true)
+        if (!field.hasFocus()) field.requestFocus()
+    }
+
+    private fun clearInlineError(field: EditText, label: TextView) {
+        label.visibility = View.GONE
+        field.background = fieldSurface(field.hasFocus())
+    }
+
+    /** Editing a field drops its own validation message instead of leaving it stale. */
+    private fun onFieldEdited(field: EditText, action: () -> Unit) {
+        field.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) = action()
+            override fun afterTextChanged(text: android.text.Editable?) = Unit
+        })
+    }
+
+    /**
+     * Status line for an operation: neutral while working and a tinted error strip
+     * when it fails, so a failure never reads like plain helper text.
+     */
+    private fun statusLine(): TextView = TextView(this).apply {
+        textSize = 13f
+        setTextColor(getColor(R.color.app_secondary))
+        visibility = View.GONE
+        accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+    }
+
+    /**
+     * A failure that sent a one-time key back to the page it came from stays there:
+     * the guidance for an expired or unreachable key does not survive a short toast.
+     */
+    private fun applyPendingPairingFailure(status: TextView) {
+        val failure = pendingPairingFailure ?: return
+        pendingPairingFailure = null
+        showStatus(status, failure, error = true)
+    }
+
+    private fun showStatus(view: TextView, message: CharSequence, error: Boolean = false) {
+        view.text = message
+        view.visibility = View.VISIBLE
+        if (error) {
+            view.setTextColor(getColor(R.color.app_error))
+            view.background = roundedSurface(getColor(R.color.app_error_container), 12).apply {
+                setStroke(dp(1), getColor(R.color.app_error))
+            }
+        } else {
+            view.setTextColor(getColor(R.color.app_secondary))
+            view.background = null
+        }
+    }
+
+    private fun showStatus(view: TextView, messageResource: Int, error: Boolean = false) =
+        showStatus(view, getString(messageResource), error)
+
+    /** Divider that marks where the primary entry method ends and the manual one starts. */
+    private fun sectionLabel(textResource: Int): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, dp(UiTokens.gapLg), 0, dp(UiTokens.gap))
+        addView(
+            View(this@MainActivity).apply { setBackgroundColor(getColor(R.color.app_border)) },
+            LinearLayout.LayoutParams(0, dp(1), 1f),
+        )
+        addView(
+            TextView(this@MainActivity).apply {
+                setText(textResource)
+                textSize = 12f
+                setTextColor(getColor(R.color.app_secondary))
+            },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { leftMargin = dp(12); rightMargin = dp(12) },
+        )
+        addView(
+            View(this@MainActivity).apply { setBackgroundColor(getColor(R.color.app_border)) },
+            LinearLayout.LayoutParams(0, dp(1), 1f),
+        )
     }
 
     private fun roundedSurface(color: Int, radiusDp: Int): GradientDrawable = GradientDrawable().apply {
@@ -4379,6 +5554,7 @@ class MainActivity : Activity() {
         const val PREFERENCE_NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
         const val PREFERENCE_WEB_CHROME_COLOR = "web_chrome_color"
         const val PREFERENCE_APP_ICON = "app_icon"
+        const val EXTRA_REOPEN_SETTINGS = "reopen_settings"
         const val STATE_SHOWING_SETUP = "showing_setup"
         const val STATE_ACCESS_MODE = "access_mode"
         const val STATE_NATIVE_BRIDGE = "native_bridge"
