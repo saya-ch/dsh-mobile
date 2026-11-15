@@ -11,8 +11,6 @@
     <string name="remote_link_hint">Incolla il link generato sul computer</string>
     <string name="invalid_remote_link">Link remoto non valido\nNon è un link di abbinamento remoto completo generato da DSH. Generane uno nuovo sul computer e incollalo per intero.</string>
     <string name="tailscale_vpn_warning">Connessione tramite Tailscale. Nella Cina continentale questo percorso può richiedere una VPN; se è lento o non disponibile, scegli un altro metodo di accesso remoto in DSH sul computer.</string>
-    <string name="setup_title">Connetti a DeepSeek Harness</string>
-    <string name="setup_description">Trova DSH su questa rete Wi-Fi, quindi inserisci la chiave monouso mostrata sul computer.</string>
     <string name="discovery_title">Connetti a DeepSeek Harness</string>
     <string name="discovery_description">Scansiona la rete locale e scegli un computer.</string>
     <string name="scan_prompt">Verifica che telefono e computer usino la stessa rete Wi-Fi o lo stesso hotspot.</string>
@@ -29,7 +27,6 @@
     <string name="scan_lan">Avvia scansione</string>
     <string name="scanning_lan">Scansione della rete locale…</string>
     <string name="no_harness_found">Computer non trovato\nAccesso mobile potrebbe essere disattivato, un firewall potrebbe bloccarlo oppure la rete potrebbe isolare i dispositivi. Apri nel browser del telefono l\'indirizzo mostrato; se non è raggiungibile, prova l\'hotspot del telefono.</string>
-    <string name="harness_found">DeepSeek Harness trovato. Inserisci la chiave di abbinamento mostrata sul computer.</string>
     <string name="harness_list_item">%1$s\n%2$s</string>
     <string name="open_harness_pairing">Abbina con %1$s</string>
     <plurals name="harnesses_found">
@@ -51,8 +48,6 @@
     <string name="scan_camera_denied">Scansione QR non disponibile\nL\'autorizzazione per la fotocamera non è stata concessa. Consentila oppure incolla il link di abbinamento.</string>
     <string name="scan_result_invalid">Codice QR non valido\nNon è stato riconosciuto alcun link di abbinamento DSH. Genera un nuovo QR sul computer e verifica che app e plugin siano aggiornati.</string>
     <string name="share">Condividi</string>
-    <string name="refresh">Aggiorna</string>
-    <string name="more">Altro</string>
     <string name="edit_connection">Modifica connessione</string>
     <string name="clear_site_data">Cancella dati del sito</string>
     <string name="clear_site_data_title">Cancellare i dati DSH?</string>
@@ -81,7 +76,6 @@
     <string name="download_in_progress">Download in corso…</string>
     <string name="download_complete">Download salvato.</string>
     <string name="download_failed">Download non riuscito\nIl file potrebbe non essere più disponibile oppure la rete potrebbe essersi interrotta. Controlla la connessione e riprova.</string>
-    <string name="share_gateway_title">Condividi indirizzo DSH</string>
     <string name="restoring_trust">Riconnessione a questo DSH attendibile…</string>
     <string name="open_harness_trusted">Riconnetti a %1$s attendibile</string>
     <string name="scanning_lan_limited">Scansione con rilevamento limitato… Il permesso per i dispositivi vicini è stato negato; i metodi alternativi UDP e HTTPS continueranno a funzionare.</string>
