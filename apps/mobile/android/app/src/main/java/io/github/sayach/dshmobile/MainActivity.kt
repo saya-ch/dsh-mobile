@@ -2768,8 +2768,9 @@ class MainActivity : Activity() {
         setTypeface(Typeface.DEFAULT, Typeface.BOLD)
         setTextColor(getColor(R.color.app_button_text))
         gravity = Gravity.CENTER
-        minHeight = dp(52)
-        elevation = dp(8).toFloat()
+        minHeight = dp(54)
+        letterSpacing = 0.02f
+        elevation = dp(10).toFloat()
         background = reliefBackground(
             UiTokens.controlRadius,
             R.color.app_button_top, R.color.app_button_mid, R.color.app_button_bottom,
@@ -4992,23 +4993,34 @@ class MainActivity : Activity() {
         isAllCaps = false
         textSize = UiTokens.buttonSp
         setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-        minHeight = dp(minHeightDp)
+        minHeight = dp(maxOf(minHeightDp, 54))
         backgroundTintList = null
+        letterSpacing = 0.02f
         background = reliefBackground(
-            14,
+            UiTokens.itemRadius,
             R.color.app_button_top, R.color.app_button_mid, R.color.app_button_bottom,
             R.color.app_button_top_pressed, R.color.app_button_mid_pressed, R.color.app_button_bottom_pressed,
         )
         val lift = this
+        // Pressing sinks the button into the surface: it drops its lift and shrinks
+        // a hair, which reads as depth instead of a colour swap.
+        val press = android.animation.AnimatorSet().apply {
+            playTogether(
+                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(0).toFloat()),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleX", 0.975f),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleY", 0.975f),
+            )
+        }
+        val rest = android.animation.AnimatorSet().apply {
+            playTogether(
+                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(4).toFloat()),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleX", 1f),
+                android.animation.ObjectAnimator.ofFloat(lift, "scaleY", 1f),
+            )
+        }
         stateListAnimator = android.animation.StateListAnimator().apply {
-            addState(
-                intArrayOf(android.R.attr.state_pressed),
-                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(1).toFloat()),
-            )
-            addState(
-                intArrayOf(),
-                android.animation.ObjectAnimator.ofFloat(lift, "translationZ", dp(3).toFloat()),
-            )
+            addState(intArrayOf(android.R.attr.state_pressed), press)
+            addState(intArrayOf(), rest)
         }
         setTextColor(getColor(R.color.app_button_text))
         setOnClickListener { onClick() }
@@ -5019,10 +5031,11 @@ class MainActivity : Activity() {
         setText(textResource)
         isAllCaps = false
         textSize = 14f
-        minHeight = dp(minHeightDp)
+        letterSpacing = 0.015f
+        minHeight = dp(maxOf(minHeightDp, 52))
         setTextColor(getColor(R.color.app_on_accent_container))
         backgroundTintList = null
-        background = glassBackground(UiTokens.controlRadius)
+        background = glassBackground(UiTokens.itemRadius)
         setOnClickListener { onClick() }
     }
 
