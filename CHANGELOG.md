@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Android 0.8.1 - Unreleased
+
+- Add **Settings → Picture-in-picture**: leaving the app can keep the current DSH page in a floating window, so a status plugin stays readable while the user works elsewhere. Only a live DSH page floats; the device list and every setup, pairing and settings screen stay a normal background switch, and the setting ships off. [#411](https://github.com/saya-ch/dsh-mobile/issues/411)
+
 ## 0.8.10 - 2026-11-15
 
 - Stop reporting a ready Tailscale Funnel that cannot be reached: the sidecar binds the public listener and announces `serving` before any certificate exists, because tsnet resolves the HTTPS certificate lazily on the first handshake. A hostname whose certificate was never issued therefore showed a ready address in the panel while every public connection failed during the handshake, which is the reported `serving` state with no working 443. The sidecar now fetches the certificate once, under its own deadline, before announcing `serving`, and reports `funnel_certificate_failed` with its own action instead of a generic start failure; an authorization cause keeps the official HTTPS setup link. [#348](https://github.com/saya-ch/dsh-mobile/issues/348)

@@ -199,6 +199,10 @@
     <string name="icon_short_official_whale_white">Balena · bianco</string>
     <string name="device_list_settings">Impostazioni</string>
     <string name="check_for_updates">Verifica aggiornamenti</string>
+    <string name="picture_in_picture_title">Picture-in-picture</string>
+    <string name="picture_in_picture_summary">Mantiene visibile la pagina DSH corrente in una piccola finestra quando esci dall’app. Le schermate senza pagina DSH non entrano mai in picture-in-picture.</string>
+    <string name="picture_in_picture_on">Attiva</string>
+    <string name="picture_in_picture_off">Disattiva</string>
     <string name="checking_updates">Verifica aggiornamenti…</string>
     <string name="update_up_to_date">Hai già la versione più recente</string>
     <string name="update_available_title">Aggiornamento disponibile</string>

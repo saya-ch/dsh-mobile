@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.Manifest
 import android.app.Activity
 import android.app.Dialog
+import android.app.PictureInPictureParams
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.ClipData
@@ -38,6 +39,7 @@ import android.text.TextUtils
 import android.text.InputType
 import android.text.InputFilter
 import android.text.method.PasswordTransformationMethod
+import android.util.Rational
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -171,6 +173,8 @@ class MainActivity : Activity() {
     private var irohRequestId: Long? = null
     private var irohCancellationRegistration: (() -> Unit)? = null
     private var activityResumed = false
+    /** Set while the activity is being sent to picture-in-picture, so onPause keeps the page live. */
+    private var pictureInPictureRequested = false
     private class IrohCompatibilityFailure(val issue: CompatibilityIssue) : java.io.IOException("Unsupported mobile protocol")
     private val recoveryHandler = Handler(Looper.getMainLooper())
     private val restoreUiHandler = Handler(Looper.getMainLooper())
@@ -418,6 +422,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         activityResumed = true
+        // A dismissed or expanded floating window must not leave the page marked live.
+        if (!isInPictureInPictureMode) pictureInPictureRequested = false
         sameHostGate.resume()
         sameHostMonitor.start()
         nativeBridge?.onHostResumed()
@@ -425,6 +431,33 @@ class MainActivity : Activity() {
         window.decorView.requestApplyInsets()
         if (deviceListVisible && showingSetup) refreshDeviceStatuses(pairedDeviceStore.load())
         startIrohStatusMonitor()
+    }
+
+    /** Leaving for the home screen floats the DSH page when the user asked for it. */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (!PictureInPicturePolicy.shouldEnter(
+                enabled = pictureInPictureEnabled(),
+                browserPageVisible = browserPageVisible(),
+                sdkInt = Build.VERSION.SDK_INT,
+                finishingOrDestroyed = isFinishing || isDestroyed,
+                alreadyInPictureInPicture = isInPictureInPictureMode,
+            )
+        ) return
+        val browser = webView ?: return
+        val (width, height) = PictureInPicturePolicy.aspectRatio(browser.width, browser.height)
+        val params = PictureInPictureParams.Builder()
+            .setAspectRatio(Rational(width, height))
+            .build()
+        pictureInPictureRequested = runCatching { enterPictureInPictureMode(params) }.getOrDefault(false)
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (isInPictureInPictureMode) return
+        // Returning to full screen: restore the page the paused window left behind.
+        pictureInPictureRequested = false
+        webView?.onResume()
     }
 
     override fun onPause() {
@@ -447,7 +480,8 @@ class MainActivity : Activity() {
         pauseDeviceListRefresh()
         cancelPendingWebBack()
         nativeBridge?.updateKeyboardState(NativeKeyboardState(false, false))
-        webView?.onPause()
+        // A floating window must keep drawing the page; only a real background pause stops it.
+        if (!pictureInPictureRequested && !isInPictureInPictureMode) webView?.onPause()
         CookieManager.getInstance().flush()
         super.onPause()
     }
@@ -1168,6 +1202,14 @@ class MainActivity : Activity() {
         group.addView(settingsRow(R.drawable.ic_sync, R.string.same_host_title, sameHostValue) { showSameHostSettings() })
         divider()
         group.addView(
+            settingsRow(
+                R.drawable.ic_picture_in_picture,
+                R.string.picture_in_picture_title,
+                getString(pictureInPictureLabelResource()),
+            ) { showPictureInPictureSettings() },
+        )
+        divider()
+        group.addView(
             settingsRow(R.drawable.ic_refresh, R.string.check_for_updates, "v" + BuildConfig.VERSION_NAME) { checkForAppUpdate() },
         )
         screen.content.addView(group, fullWidth())
@@ -1181,6 +1223,30 @@ class MainActivity : Activity() {
             settingsRow(R.drawable.ic_delete, R.string.clear_site_data, danger = true) { confirmClearSiteData() },
         )
         screen.content.addView(dangerGroup, fullWidth().apply { topMargin = dp(UiTokens.gapLg) })
+    }
+
+    /** The DSH page is on screen, so a floating window would show something real. */
+    private fun browserPageVisible(): Boolean =
+        webView != null && !deviceListVisible && !showingSetup && !isFinishing && !isDestroyed
+
+    private fun pictureInPictureEnabled(): Boolean =
+        preferences.getBoolean(PREFERENCE_PICTURE_IN_PICTURE, false)
+
+    private fun pictureInPictureLabelResource(): Int =
+        if (pictureInPictureEnabled()) R.string.picture_in_picture_on else R.string.picture_in_picture_off
+
+    /**
+     * Toggles the floating window. Android 12+ also honours an automatic entry, which
+     * this activity opts into through the manifest flag and [onUserLeaveHint].
+     */
+    private fun showPictureInPictureSettings() {
+        showChoiceSheet(
+            getString(R.string.picture_in_picture_title),
+            listOf(getString(R.string.picture_in_picture_off), getString(R.string.picture_in_picture_on)),
+            if (pictureInPictureEnabled()) 1 else 0,
+        ) { which ->
+            preferences.edit().putBoolean(PREFERENCE_PICTURE_IN_PICTURE, which == 1).apply()
+        }
     }
 
     /** The palette currently in force: an explicit choice, otherwise the system's. */
@@ -5555,6 +5621,7 @@ class MainActivity : Activity() {
         const val PREFERENCE_WEB_CHROME_COLOR = "web_chrome_color"
         const val PREFERENCE_APP_ICON = "app_icon"
         const val EXTRA_REOPEN_SETTINGS = "reopen_settings"
+        const val PREFERENCE_PICTURE_IN_PICTURE = "picture_in_picture"
         const val STATE_SHOWING_SETUP = "showing_setup"
         const val STATE_ACCESS_MODE = "access_mode"
         const val STATE_NATIVE_BRIDGE = "native_bridge"

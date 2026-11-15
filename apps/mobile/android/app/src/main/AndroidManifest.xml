@@ -39,6 +39,7 @@
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden"
             android:exported="true"
             android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
             android:windowSoftInputMode="adjustResize" />
         <!-- MainActivity stays exported for existing explicit launcher shortcuts and
              notification intents. New launcher entries use the selectable aliases. -->

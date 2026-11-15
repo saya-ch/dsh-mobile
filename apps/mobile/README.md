@@ -37,6 +37,10 @@ Page zoom changes the whole page and is separate from per-address text preferenc
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
 
+## 0.8.1 candidate changes
+
+- Add **Settings → Picture-in-picture**: leaving the app keeps the current DSH page in a floating window, so status plugins stay visible. Only a live DSH page floats; the device list and the setup screens never do. Turning it off restores the previous behaviour of a plain background switch.
+
 ## 0.8.0 update
 
 - Rebuild the App's own screens on one visual system: a diagonal colour wash over a faint drifting grid, glass cards, tonal primary actions with their own pressed state, one bottom-sheet family for every menu and prompt, and page transitions that follow the screen depth. Light and dark palettes are tuned together, and the light wash stays under 8% so body text keeps its contrast.

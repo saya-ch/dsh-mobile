@@ -198,6 +198,10 @@
     <string name="icon_short_official_whale_white">Whale · white</string>
     <string name="device_list_settings">Settings</string>
     <string name="check_for_updates">Check for updates</string>
+    <string name="picture_in_picture_title">Picture-in-picture</string>
+    <string name="picture_in_picture_summary">Keep this DSH page visible in a small floating window when you leave the app. Screens with no DSH page never float.</string>
+    <string name="picture_in_picture_on">On</string>
+    <string name="picture_in_picture_off">Off</string>
     <string name="checking_updates">Checking for updates…</string>
     <string name="update_up_to_date">You are on the latest version</string>
     <string name="update_available_title">Update available</string>
