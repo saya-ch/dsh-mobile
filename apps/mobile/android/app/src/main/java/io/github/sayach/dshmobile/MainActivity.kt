@@ -479,6 +479,9 @@ class MainActivity : Activity() {
             }
             connectionCancellationExecutor.shutdown()
         }, "dsh-mobile-connection-teardown").start()
+        // A sheet held across a pause would survive this instance and leak its window.
+        activeSheet?.takeIf { it.isShowing }?.dismiss()
+        activeSheet = null
         super.onDestroy()
     }
 
@@ -2357,6 +2360,7 @@ class MainActivity : Activity() {
             setText(R.string.iroh_pairing_private)
             visibility = View.VISIBLE
         }
+        applyPendingPairingFailure(status)
         val connect = primaryButton(R.string.pair_and_connect, 52) { }
         fun submit() {
             val descriptor = try { IrohPairingDescriptor.parse(input.text.toString().trim()) } catch (_: Exception) {
@@ -3578,6 +3582,7 @@ class MainActivity : Activity() {
                 toastError(R.string.iroh_pairing_invalid)
                 return
             }
+            pairingOrigin = null
             showIrohSetup(text, autoConnect = true)
             return
         }
