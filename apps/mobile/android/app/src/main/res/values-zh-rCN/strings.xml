@@ -35,10 +35,8 @@
     <string name="lan_link_hint">粘贴配对链接，或输入电脑地址</string>
     <string name="invalid_pairing_link">不是有效的配对链接，请从电脑端复制完整链接。</string>
     <string name="gateway_label">网关地址</string>
-        <string name="or_manual_address">或手动输入地址</string>
     <string name="or_paste_link">或粘贴配对链接</string>
     <string name="or_paste_code">或粘贴配对码</string>
-    <string name="manual_address_toggle">或手动输入地址</string>
     <string name="gateway_hint">https://192.168.1.20:3443</string>
     <string name="gateway_helper">自动发现使用默认端口 3443，也可在这里手动输入自定义 HTTPS 地址。</string>
     <string name="scan_lan">开始扫描</string>
@@ -249,6 +247,5 @@
     <string name="connection_mode_iroh">iroh</string>
     <string name="iroh_status_connect_to_check">点按连接后检测</string>
     <string name="session_storage_failed">无法更新本机保存的网页会话。请从设备列表重新进入这台电脑，无需删除配对。</string>
-    <string name="settings_group_startup">启动</string>
-    <string name="settings_group_connection">连接</string>
+    <string name="settings_row_accessibility">%1$s：%2$s</string>
 </resources>

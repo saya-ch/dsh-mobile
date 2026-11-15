@@ -35,10 +35,8 @@
     <string name="lan_link_hint">Incolla un link di abbinamento o digita l\'indirizzo</string>
     <string name="invalid_pairing_link">Link non valido. Copia il link completo dal computer.</string>
     <string name="gateway_label">Indirizzo del gateway</string>
-        <string name="or_manual_address">Oppure inserisci l\'indirizzo</string>
     <string name="or_paste_link">Oppure incolla il link di accoppiamento</string>
     <string name="or_paste_code">Oppure incolla il codice di accoppiamento</string>
-    <string name="manual_address_toggle">Oppure inserisci l\'indirizzo</string>
     <string name="gateway_hint">https://192.168.1.20:3443</string>
     <string name="gateway_helper">Il rilevamento usa la porta predefinita 3443. Puoi comunque inserire qui un indirizzo HTTPS personalizzato.</string>
     <string name="scan_lan">Avvia scansione</string>
@@ -251,6 +249,5 @@
     <string name="connection_mode_iroh">iroh</string>
     <string name="iroh_status_connect_to_check">Connetti per verificare</string>
     <string name="session_storage_failed">Impossibile aggiornare la sessione web sul dispositivo. Riapri il computer dall\'elenco dei dispositivi senza eliminare l\'associazione.</string>
-    <string name="settings_group_startup">Avvio</string>
-    <string name="settings_group_connection">Connessione</string>
+    <string name="settings_row_accessibility">%1$s: %2$s</string>
 </resources>

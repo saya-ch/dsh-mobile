@@ -15,7 +15,7 @@ class ThemeContrastTest {
             val colors = themeColors(theme)
             // The button is a three-stop gradient, so the caption has to clear the
             // lightest and the darkest stop, not only the middle one.
-            for (stop in listOf("app_button_top", "app_button_mid", "app_button_bottom")) {
+            for (stop in listOf("app_button_top", "app_button_mid", "app_button_bottom", "app_button_top_pressed", "app_button_mid_pressed", "app_button_bottom_pressed")) {
                 val contrast = contrastRatio(parse(colors.getValue("app_button_text")), parse(colors.getValue(stop)))
                 // The tonal fill is light, so the caption is dark ink and clears normal-text contrast.
                 assertTrue("$theme $stop label contrast $contrast must be at least 4.5:1", contrast >= 4.5)

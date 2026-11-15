@@ -35,10 +35,8 @@
     <string name="lan_link_hint">Paste a pairing link, or type the computer address</string>
     <string name="invalid_pairing_link">Not a valid pairing link. Copy the whole link from the computer.</string>
     <string name="gateway_label">Gateway address</string>
-        <string name="or_manual_address">Or enter the address</string>
     <string name="or_paste_link">Or paste the pairing link</string>
     <string name="or_paste_code">Or paste the pairing code</string>
-    <string name="manual_address_toggle">Or enter the address manually</string>
     <string name="gateway_hint">https://192.168.1.20:3443</string>
     <string name="gateway_helper">Discovery uses the default port 3443. You can still enter a custom HTTPS address here.</string>
     <string name="scan_lan">Start scanning</string>
@@ -250,6 +248,5 @@
     <string name="connection_mode_iroh">iroh</string>
     <string name="iroh_status_connect_to_check">Connect to check</string>
     <string name="session_storage_failed">Could not update this computer\'s web session on the device. Reopen the computer from the device list; do not delete the pairing.</string>
-    <string name="settings_group_startup">Startup</string>
-    <string name="settings_group_connection">Connection</string>
+    <string name="settings_row_accessibility">%1$s: %2$s</string>
 </resources>

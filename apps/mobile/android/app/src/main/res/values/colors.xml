@@ -22,9 +22,9 @@
     <color name="app_button_top">#E8F0FE</color>
     <color name="app_button_mid">#DCE8FD</color>
     <color name="app_button_bottom">#CBDCFB</color>
-    <color name="app_button_top_pressed">#D8E5FC</color>
-    <color name="app_button_mid_pressed">#CBDAFA</color>
-    <color name="app_button_bottom_pressed">#B9CEF7</color>
+    <color name="app_button_top_pressed">#DCE9FD</color>
+    <color name="app_button_mid_pressed">#D0E1FC</color>
+    <color name="app_button_bottom_pressed">#C9DAFB</color>
     <color name="app_glass_top">#1FFFFFFF</color>
     <color name="app_glass_bottom">#0DFFFFFF</color>
     <color name="app_field_inset_top">#1F000000</color>

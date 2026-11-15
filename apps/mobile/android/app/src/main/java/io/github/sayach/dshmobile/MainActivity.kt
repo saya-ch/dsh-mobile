@@ -1118,7 +1118,7 @@ class MainActivity : Activity() {
                 "official_whale_white" -> R.string.icon_choice_official_whale_white
                 else -> R.string.icon_choice_whale_girl
             },
-        ).removePrefix("DSH ")
+        ).removePrefix("DSH ").removePrefix("Mascotte balena DSH")
         val sameHostValue = getString(
             when (sameHostMode()) {
                 SameHostSwitchMode.MANUAL -> R.string.same_host_manual
@@ -1171,7 +1171,7 @@ class MainActivity : Activity() {
         background = roundedRipple(Color.TRANSPARENT, 0)
         isClickable = true
         isFocusable = true
-        contentDescription = getString(titleResource) + "，" + value
+        contentDescription = getString(R.string.settings_row_accessibility, getString(titleResource), value)
         addView(
             ImageView(this@MainActivity).apply {
                 setImageResource(iconResource)
@@ -1449,6 +1449,17 @@ class MainActivity : Activity() {
         gravity = Gravity.CENTER
         minHeight = dp(52)
         setTextColor(getColor(R.color.app_danger_text))
+        val sink = this
+        stateListAnimator = android.animation.StateListAnimator().apply {
+            addState(
+                intArrayOf(android.R.attr.state_pressed),
+                android.animation.ObjectAnimator.ofFloat(sink, "translationZ", dp(0).toFloat()),
+            )
+            addState(
+                intArrayOf(),
+                android.animation.ObjectAnimator.ofFloat(sink, "translationZ", dp(3).toFloat()),
+            )
+        }
         background = RippleDrawable(
             ColorStateList.valueOf(Color.TRANSPARENT),
             roundedSurface(getColor(R.color.app_danger_fill), UiTokens.controlRadius),
@@ -2608,8 +2619,7 @@ class MainActivity : Activity() {
     )
 
     /**
-     * Diagonal colour wash: three cool stops crossing the screen under a vertical
-     * falloff. A band, not a spot — the stops are far apart so no circle reads.
+     * Opaque base plus a bottom falloff. The moving colour lives in addMistBackdrop.
      */
     private fun screenBackground(): Drawable {
         // Opaque base plus a bottom falloff: the moving colour lives in addMistBackdrop.
@@ -2814,9 +2824,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Raised fill for the primary action: a three-stop vertical gradient with a lit
-     * edge and its own pressed state, so the control reads as a physical surface
-     * instead of a coloured rectangle.
+     * Raised fill for the primary action: a three-stop vertical gradient with its own
+     * pressed state, so the control reads as a surface instead of a coloured rectangle.
      */
     private fun reliefBackground(
         radiusDp: Int,
@@ -2842,8 +2851,8 @@ class MainActivity : Activity() {
         )
     }
 
-    /** Quiet glass fill: two soft white stops with the same lit edge, no shadow. */
-    private fun glassBackground(radiusDp: Int, strokeResource: Int = R.color.app_card_edge_top): Drawable {
+    /** Quiet glass fill: two soft white stops, no stroke and no shadow. */
+    private fun glassBackground(radiusDp: Int): Drawable {
         fun fill(pressed: Boolean) = GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(
@@ -2956,6 +2965,12 @@ class MainActivity : Activity() {
             status.visibility = View.VISIBLE
             return
         }
+        // One exit for "the computer rejected or could not be reached": a key that
+        // arrived by scan or paste is spent, so the caller takes the failure back.
+        fun reportPairingFailure(messageResource: Int) {
+            if (onEphemeralFailure != null) onEphemeralFailure(messageResource)
+            else showStatus(status, messageResource, error = true)
+        }
         val input = pairing.text.toString().trim()
         val directKey = PairingKey.parse(input)
         val connection = if (directKey == null) GatewayConnection.parse(input) else null
@@ -3027,7 +3042,7 @@ class MainActivity : Activity() {
             if (trustFailure != null) {
                 runOnUiThread {
                     if (generation != pairingGeneration) return@runOnUiThread
-                    showStatus(status, pairingFailureMessage(trustFailure, origin), error = true)
+                    reportPairingFailure(pairingFailureMessage(trustFailure, origin))
                     completePairingAttempt(generation)
                     button.isEnabled = true
                 }
@@ -3037,7 +3052,7 @@ class MainActivity : Activity() {
             if (trust == null) {
                 runOnUiThread {
                     if (generation != pairingGeneration) return@runOnUiThread
-                    showStatus(status, R.string.pairing_tls_failed, error = true)
+                    reportPairingFailure(R.string.pairing_tls_failed)
                     completePairingAttempt(generation)
                     button.isEnabled = true
                 }
@@ -3073,7 +3088,7 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         if (generation != pairingGeneration) return@runOnUiThread
                         if (renewed.instanceId != existingCredential.instanceId) {
-                            showStatus(status, R.string.pairing_failed, error = true)
+                            reportPairingFailure(R.string.pairing_failed)
                             completePairingAttempt(generation)
                             button.isEnabled = true
                         } else {
@@ -3104,7 +3119,7 @@ class MainActivity : Activity() {
                 if (!ConnectionRestorePolicy.mayPairAfterRenewFailure(renewalFailure)) {
                     runOnUiThread {
                         if (generation != pairingGeneration) return@runOnUiThread
-                        showStatus(status, pairingFailureMessage(renewalFailure, origin), error = true)
+                        reportPairingFailure(pairingFailureMessage(renewalFailure, origin))
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     }
@@ -3115,7 +3130,7 @@ class MainActivity : Activity() {
                 } catch (_: CredentialStorageUnavailable) {
                     runOnUiThread {
                         if (generation != pairingGeneration) return@runOnUiThread
-                        showStatus(status, R.string.device_storage_unavailable, error = true)
+                        reportPairingFailure(R.string.device_storage_unavailable)
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     }
@@ -3130,7 +3145,7 @@ class MainActivity : Activity() {
                     val expiresAt = session.deviceExpiresAt
                     if (deviceToken == null || expiresAt == null
                         || (expectedInstanceId != null && session.instanceId != expectedInstanceId)) {
-                        showStatus(status, R.string.pairing_failed, error = true)
+                        reportPairingFailure(R.string.pairing_failed)
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     } else if (!runCatching {
@@ -3139,7 +3154,7 @@ class MainActivity : Activity() {
                                 store.save(DeviceCredential(session.instanceId, deviceToken, expiresAt, certificate))
                             }
                         }.isSuccess) {
-                        showStatus(status, R.string.device_storage_unavailable, error = true)
+                        reportPairingFailure(R.string.device_storage_unavailable)
                         completePairingAttempt(generation)
                         button.isEnabled = true
                     } else {
@@ -3178,7 +3193,7 @@ class MainActivity : Activity() {
                 } }
                 .onFailure { error -> runOnUiThread {
                     if (generation != pairingGeneration) return@runOnUiThread
-                    showStatus(status, pairingFailureMessage(error, origin), error = true)
+                    reportPairingFailure(pairingFailureMessage(error, origin))
                     completePairingAttempt(generation)
                     button.isEnabled = true
                 } }
