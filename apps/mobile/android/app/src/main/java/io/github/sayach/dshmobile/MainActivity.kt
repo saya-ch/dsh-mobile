@@ -438,6 +438,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        cancelBackdropAnimators()
         stopIrohTransport()
         irohController.close()
         withdrawConnectionAttempt()
@@ -807,6 +808,39 @@ class MainActivity : Activity() {
     /** Depth of the screen on show; a deeper screen enters from the right, a shallower one from the left. */
     private var pageDepth = 0
 
+    /** Background animators currently attached to a live screen. */
+    private val backdropAnimators = mutableListOf<ValueAnimator>()
+
+    /**
+     * Starts a backdrop animator and ties its life to the view it moves: an infinite
+     * ValueAnimator is held by the UI thread's animation handler, so without this it
+     * outlives the screen and drags the Activity with it.
+     */
+    private fun trackBackdrop(animator: ValueAnimator, view: View) {
+        view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                if (!animator.isStarted && ValueAnimator.areAnimatorsEnabled()) {
+                    animator.start()
+                    if (!backdropAnimators.contains(animator)) backdropAnimators += animator
+                }
+            }
+
+            override fun onViewDetachedFromWindow(v: View) {
+                animator.cancel()
+                backdropAnimators -= animator
+            }
+        })
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            animator.start()
+            backdropAnimators += animator
+        }
+    }
+
+    private fun cancelBackdropAnimators() {
+        backdropAnimators.forEach { it.cancel() }
+        backdropAnimators.clear()
+    }
+
     /** The one sheet currently on screen; it must not survive an Activity teardown. */
     private var activeSheet: Dialog? = null
 
@@ -817,6 +851,7 @@ class MainActivity : Activity() {
 
     private fun setPageContent(root: View, depth: Int = pageDepth.coerceAtLeast(0), animate: Boolean = true) {
         detachConnectionWaitingView()
+        cancelBackdropAnimators()
         setContentView(root)
         attachConnectionWaitingView()
         if (animate) playPageTransition(root, depth)
@@ -2616,7 +2651,7 @@ class MainActivity : Activity() {
             },
         )
         if (!ValueAnimator.areAnimatorsEnabled()) return
-        ValueAnimator.ofFloat(0f, 1f).apply {
+        val mistAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 26_000
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
@@ -2629,8 +2664,8 @@ class MainActivity : Activity() {
                 mist.scaleX = 1f + 0.05f * progress
                 mist.scaleY = 1f + 0.05f * progress
             }
-            start()
         }
+        trackBackdrop(mistAnimator, mist)
     }
 
     /**
@@ -2665,14 +2700,14 @@ class MainActivity : Activity() {
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ).apply {
                 // the backdrop drifts, so it overhangs by one cell on every side
-                width = resources.displayMetrics.widthPixels + cell
-                height = resources.displayMetrics.heightPixels + cell
+                width = resources.displayMetrics.widthPixels + cell * 2
+                height = resources.displayMetrics.heightPixels + cell * 2
                 leftMargin = -cell
                 topMargin = -cell
             },
         )
         if (!ValueAnimator.areAnimatorsEnabled()) return
-        ValueAnimator.ofFloat(0f, -cell.toFloat()).apply {
+        val gridAnimator = ValueAnimator.ofFloat(0f, -cell.toFloat()).apply {
             duration = 30_000
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
@@ -2681,8 +2716,8 @@ class MainActivity : Activity() {
                 grid.translationX = offset
                 grid.translationY = offset
             }
-            start()
         }
+        trackBackdrop(gridAnimator, grid)
     }
 
     /**
