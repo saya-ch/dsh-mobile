@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## 0.8.10 - Unreleased
+## 0.8.10 - 2026-11-15
 
 - Stop reporting a ready Tailscale Funnel that cannot be reached: the sidecar binds the public listener and announces `serving` before any certificate exists, because tsnet resolves the HTTPS certificate lazily on the first handshake. A hostname whose certificate was never issued therefore showed a ready address in the panel while every public connection failed during the handshake, which is the reported `serving` state with no working 443. The sidecar now fetches the certificate once, under its own deadline, before announcing `serving`, and reports `funnel_certificate_failed` with its own action instead of a generic start failure; an authorization cause keeps the official HTTPS setup link. [#348](https://github.com/saya-ch/dsh-mobile/issues/348)
 - Centre the conversation column on a wide window instead of letting it stretch with the viewport: a landscape tablet measured 1021px of line length for content that reads comfortably at about 700, so the column is capped at 720px and centred while the main area still keeps 900px beside it. The composer shares that slot, so it follows the column on the same axis instead of remaining a separately sized bar. A portrait tablet's 569px main area, a docked right panel and a landscape phone keep the previous full-width column, and a third-party panel is never capped because it owns its own layout. Thanks @LUgABeEEE for the measurements in [#347](https://github.com/saya-ch/dsh-mobile/issues/347).
