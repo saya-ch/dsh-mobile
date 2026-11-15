@@ -198,7 +198,6 @@
     <string name="device_list_settings">设置</string>
     <string name="check_for_updates">检查更新</string>
     <string name="picture_in_picture_title">画中画</string>
-    <string name="picture_in_picture_summary">离开 App 时把当前 DSH 页面保留在小窗口中，状态类插件仍可见。没有展示 DSH 页面的界面不会浮窗。</string>
     <string name="picture_in_picture_on">开启</string>
     <string name="picture_in_picture_off">关闭</string>
     <string name="checking_updates">正在检查更新…</string>
