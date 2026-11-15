@@ -1,26 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DeepSeek Harness</string>
-    <string name="connection_center_title">选择连接方式</string>
-    <string name="connection_center_description">局域网与远程访问彼此独立。请选择手机这次连接电脑的方式。</string>
-    <string name="background_restore_running">正在后台恢复上次连接；你也可以直接选择下面的连接方式。</string>
     <string name="background_restore_failed">未能自动恢复上次连接，请选择下面的连接方式。</string>
     <string name="lan_access_title">局域网访问</string>
-    <string name="lan_access_description">同一 Wi-Fi 或手机热点下自动发现，连接更快、延迟更低。</string>
     <string name="remote_access_title">远程访问</string>
-    <string name="remote_access_description">在外网连接电脑。先在电脑端 DSH 开启远程访问，再扫码或粘贴配对链接。</string>
-    <string name="paired_device_ready">已配对，点击即可连接</string>
-    <string name="reconfigure_connection">重新配置</string>
     <string name="remote_setup_title">远程访问</string>
     <string name="remote_setup_description">先在电脑端 DSH 开启远程访问，再扫描配对二维码或粘贴配对链接。</string>
-    <string name="remote_step_one">1. 在电脑端 DSH 开启远程访问</string>
-    <string name="remote_step_two">2. 扫描远程配对二维码或粘贴配对链接</string>
     <string name="scan_remote_qr">扫描远程配对二维码</string>
     <string name="remote_link_label">远程配对链接</string>
     <string name="remote_link_hint">粘贴电脑端生成的配对链接</string>
     <string name="invalid_remote_link">远程链接无效\n这不是 DSH 生成的完整远程配对链接。请在电脑端重新生成并完整粘贴。</string>
     <string name="tailscale_vpn_warning">正在通过 Tailscale 连接。中国大陆网络可能需要 VPN；若连接缓慢或失败，可在电脑端 DSH 改用其他远程方式。</string>
-    <string name="back_to_connections">返回连接方式</string>
     <string name="setup_title">连接 DeepSeek Harness</string>
     <string name="setup_description">先在当前 Wi-Fi 中找到 DSH，再输入电脑端显示的一次性配对密钥。</string>
     <string name="discovery_title">连接 DeepSeek Harness</string>
@@ -34,16 +24,12 @@
     <string name="lan_link_label">局域网配对链接</string>
     <string name="lan_link_hint">粘贴配对链接，或输入电脑地址</string>
     <string name="invalid_pairing_link">不是有效的配对链接，请从电脑端复制完整链接。</string>
-    <string name="gateway_label">网关地址</string>
     <string name="or_paste_link">或粘贴配对链接</string>
     <string name="or_paste_code">或粘贴配对码</string>
-    <string name="gateway_hint">https://192.168.1.20:3443</string>
-    <string name="gateway_helper">自动发现使用默认端口 3443，也可在这里手动输入自定义 HTTPS 地址。</string>
     <string name="scan_lan">开始扫描</string>
     <string name="scanning_lan">正在扫描局域网…</string>
     <string name="no_harness_found">未发现电脑\n移动访问可能未开启、被防火墙阻止，或当前网络隔离设备。请先用手机浏览器打开电脑端显示的地址；不通时改用手机热点。</string>
     <string name="harness_found">已找到 DeepSeek Harness，请输入电脑端显示的配对密钥。</string>
-    <string name="choose_harness">选择 DeepSeek Harness</string>
     <string name="harness_list_item">%1$s\n%2$s</string>
     <string name="open_harness_pairing">与 %1$s 配对</string>
     <plurals name="harnesses_found">
@@ -62,8 +48,6 @@
     <string name="camera_unavailable">无法打开相机\n相机可能被占用或设备不支持。请关闭其他相机应用，或改为粘贴配对链接。</string>
     <string name="scan_camera_denied">无法扫码\n未授予相机权限。请允许相机权限，或改为粘贴配对链接。</string>
     <string name="scan_result_invalid">二维码无效\n未识别到 DSH 配对链接。请在电脑端重新生成后立即扫描，并确认 App 与插件均为最新版。</string>
-    <string name="invalid_gateway">地址无效\n缺少有效的 HTTPS 地址或端口。请输入电脑端显示的完整地址，例如 https://192.168.1.20:3443。</string>
-    <string name="toolbar_title">DeepSeek Harness</string>
     <string name="share">分享</string>
     <string name="refresh">刷新</string>
     <string name="more">更多</string>
@@ -134,7 +118,6 @@
     <string name="background_notifications_connecting_text">打开 DSH 重试或管理提醒</string>
     <string name="background_notifications_done_title">任务已完成</string>
     <string name="background_notifications_done_body">你的 DSH 任务已完成</string>
-    <string name="task_notification_settings">任务通知设置</string>
     <string name="task_notifications_enabled">任务通知已开启。</string>
     <string name="task_notifications_denied">任务通知仍处于关闭状态，可从 DSH 的“常规”设置再次尝试。</string>
     <string name="paired_devices_title">已配对设备</string>
@@ -185,7 +168,6 @@
     <string name="device_last_connected_minutes">%1$d 分钟前</string>
     <string name="device_last_connected_hours">%1$d 小时前</string>
     <string name="device_last_connected_days">%1$d 天前</string>
-    <string name="background_restore_device">正在连接“%1$s”…</string>
     <string name="connecting_to_device">正在连接“%1$s”…</string>
     <string name="name_new_device">给这台电脑命名</string>
     <string name="name_new_device_message">名称只保存在本 App，用于区分已配对的电脑。</string>
@@ -237,7 +219,6 @@
     <string name="same_host_switched">正在自动切换连接…</string>
     <string name="same_host_migration_retained">迁移未完成，已保留原页面。</string>
     <string name="iroh_access_title">iroh 连接（实验）</string>
-    <string name="iroh_access_description">使用原生加密直连或中继，无需另行配置 HTTPS 隧道。</string>
     <string name="iroh_pairing_help">在你信任的电脑上生成配对信息，然后扫码或粘贴到这里。App 会核对电脑身份和证书后再配对。</string>
     <string name="iroh_pairing_label">配对信息</string>
     <string name="iroh_pairing_hint">粘贴电脑端生成的配对信息</string>

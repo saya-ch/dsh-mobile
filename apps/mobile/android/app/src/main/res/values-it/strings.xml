@@ -1,26 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DeepSeek Harness</string>
-    <string name="connection_center_title">Scegli una connessione</string>
-    <string name="connection_center_description">L\'accesso locale e quello remoto sono configurati separatamente. Scegli come collegare questo telefono al computer.</string>
-    <string name="background_restore_running">Ripristino dell\'ultima connessione in background. Puoi già scegliere una connessione qui sotto.</string>
     <string name="background_restore_failed">Non è stato possibile ripristinare automaticamente l\'ultima connessione. Scegline una qui sotto.</string>
     <string name="lan_access_title">Rete locale</string>
-    <string name="lan_access_description">Connessione rapida sulla stessa rete Wi-Fi o sull\'hotspot del telefono, con rilevamento automatico.</string>
     <string name="remote_access_title">Accesso remoto</string>
-    <string name="remote_access_description">Collegati da una rete esterna con il codice QR o il link di abbinamento generato da DSH sul computer.</string>
-    <string name="paired_device_ready">Abbinato — tocca per connetterti</string>
-    <string name="reconfigure_connection">Configura di nuovo</string>
     <string name="remote_setup_title">Accesso remoto</string>
     <string name="remote_setup_description">Abilita Accesso remoto in DSH sul computer, poi scansiona il codice QR o incolla il link di abbinamento.</string>
-    <string name="remote_step_one">1. Abilita Accesso remoto in DSH sul computer</string>
-    <string name="remote_step_two">2. Scansiona il codice QR remoto o incolla il link di abbinamento</string>
     <string name="scan_remote_qr">Scansiona il QR remoto</string>
     <string name="remote_link_label">Link di abbinamento remoto</string>
     <string name="remote_link_hint">Incolla il link generato sul computer</string>
     <string name="invalid_remote_link">Link remoto non valido\nNon è un link di abbinamento remoto completo generato da DSH. Generane uno nuovo sul computer e incollalo per intero.</string>
     <string name="tailscale_vpn_warning">Connessione tramite Tailscale. Nella Cina continentale questo percorso può richiedere una VPN; se è lento o non disponibile, scegli un altro metodo di accesso remoto in DSH sul computer.</string>
-    <string name="back_to_connections">Torna alle connessioni</string>
     <string name="setup_title">Connetti a DeepSeek Harness</string>
     <string name="setup_description">Trova DSH su questa rete Wi-Fi, quindi inserisci la chiave monouso mostrata sul computer.</string>
     <string name="discovery_title">Connetti a DeepSeek Harness</string>
@@ -34,16 +24,12 @@
     <string name="lan_link_label">Link di abbinamento LAN</string>
     <string name="lan_link_hint">Incolla un link di abbinamento o digita l\'indirizzo</string>
     <string name="invalid_pairing_link">Link non valido. Copia il link completo dal computer.</string>
-    <string name="gateway_label">Indirizzo del gateway</string>
     <string name="or_paste_link">Oppure incolla il link di accoppiamento</string>
     <string name="or_paste_code">Oppure incolla il codice di accoppiamento</string>
-    <string name="gateway_hint">https://192.168.1.20:3443</string>
-    <string name="gateway_helper">Il rilevamento usa la porta predefinita 3443. Puoi comunque inserire qui un indirizzo HTTPS personalizzato.</string>
     <string name="scan_lan">Avvia scansione</string>
     <string name="scanning_lan">Scansione della rete locale…</string>
     <string name="no_harness_found">Computer non trovato\nAccesso mobile potrebbe essere disattivato, un firewall potrebbe bloccarlo oppure la rete potrebbe isolare i dispositivi. Apri nel browser del telefono l\'indirizzo mostrato; se non è raggiungibile, prova l\'hotspot del telefono.</string>
     <string name="harness_found">DeepSeek Harness trovato. Inserisci la chiave di abbinamento mostrata sul computer.</string>
-    <string name="choose_harness">Scegli DeepSeek Harness</string>
     <string name="harness_list_item">%1$s\n%2$s</string>
     <string name="open_harness_pairing">Abbina con %1$s</string>
     <plurals name="harnesses_found">
@@ -64,8 +50,6 @@
     <string name="camera_unavailable">Fotocamera non disponibile\nUn\'altra app potrebbe usarla oppure il dispositivo potrebbe non supportarla. Chiudi le altre app della fotocamera o incolla il link di abbinamento.</string>
     <string name="scan_camera_denied">Scansione QR non disponibile\nL\'autorizzazione per la fotocamera non è stata concessa. Consentila oppure incolla il link di abbinamento.</string>
     <string name="scan_result_invalid">Codice QR non valido\nNon è stato riconosciuto alcun link di abbinamento DSH. Genera un nuovo QR sul computer e verifica che app e plugin siano aggiornati.</string>
-    <string name="invalid_gateway">Indirizzo non valido\nManca un indirizzo HTTPS o una porta validi. Inserisci l\'indirizzo completo mostrato sul computer, ad esempio https://192.168.1.20:3443.</string>
-    <string name="toolbar_title">DeepSeek Harness</string>
     <string name="share">Condividi</string>
     <string name="refresh">Aggiorna</string>
     <string name="more">Altro</string>
@@ -136,7 +120,6 @@
     <string name="background_notifications_connecting_text">Apri DSH per riprovare o gestire i promemoria</string>
     <string name="background_notifications_done_title">Attività completata</string>
     <string name="background_notifications_done_body">Il tuo task DSH è terminato</string>
-    <string name="task_notification_settings">Impostazioni notifiche attività</string>
     <string name="task_notifications_enabled">Notifiche attività attivate.</string>
     <string name="task_notifications_denied">Le notifiche attività restano disattivate. Puoi riprovare dalle impostazioni Generali di DSH.</string>
     <string name="paired_devices_title">Computer abbinati</string>
@@ -187,7 +170,6 @@
     <string name="device_last_connected_minutes">%1$d min fa</string>
     <string name="device_last_connected_hours">%1$d ore fa</string>
     <string name="device_last_connected_days">%1$d giorni fa</string>
-    <string name="background_restore_device">Connessione a %1$s…</string>
     <string name="connecting_to_device">Connessione a %1$s…</string>
     <string name="name_new_device">Dai un nome a questo computer</string>
     <string name="name_new_device_message">Il nome resta solo in questa app e aiuta a distinguere i computer abbinati.</string>
@@ -239,7 +221,6 @@
     <string name="same_host_switched">Cambio automatico della connessione in corso…</string>
     <string name="same_host_migration_retained">Migrazione non completata. La pagina originale è stata mantenuta.</string>
     <string name="iroh_access_title">Accesso iroh (sperimentale)</string>
-    <string name="iroh_access_description">Connessione nativa cifrata diretta o tramite relay, senza configurare un tunnel HTTPS.</string>
     <string name="iroh_pairing_help">Genera le informazioni di abbinamento sul tuo computer fidato, poi scansionale o incollale qui. L’app verifica identità e certificato del computer prima dell’abbinamento.</string>
     <string name="iroh_pairing_label">Informazioni di abbinamento</string>
     <string name="iroh_pairing_hint">Incolla le informazioni generate dal computer</string>

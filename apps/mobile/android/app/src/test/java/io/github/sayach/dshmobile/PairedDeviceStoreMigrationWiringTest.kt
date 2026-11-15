@@ -69,12 +69,20 @@ class PairedDeviceStoreMigrationWiringTest {
         assertTrue(automatic.contains("legacyCredentialForRestore()?.expiresAt"))
         assertFalse(automatic.contains("credentialStore(mode).load()"))
         assertFalse(automatic.contains("credentialStore().load()"))
-        val reset = activity.substringAfter("private fun clearSiteData()").substringBefore("private fun shareGateway(")
+        val reset = member(activity, "private fun clearSiteData()")
         assertTrue(reset.contains("withCredentialStorage"))
         assertTrue(reset.indexOf("lanCredentialStore.clear()") < reset.indexOf("pairedDeviceStore.clear()"))
         assertTrue(reset.indexOf("remoteCredentialStore.clear()") < reset.indexOf("pairedDeviceStore.clear()"))
         assertTrue(reset.indexOf("pairedDeviceStore.clear()") < reset.indexOf("WebStorage.getInstance().deleteAllData()"))
         assertTrue(reset.contains("} == null) return"))
+    }
+
+    /** One member's source, from its signature to the next member at the same indent. */
+    private fun member(text: String, signature: String): String {
+        val start = text.indexOf(signature)
+        assertTrue("$signature not found", start >= 0)
+        val next = Regex("\\n    (?:private|internal|protected|override|public) ").find(text, start + signature.length)
+        return text.substring(start, next?.range?.first ?: text.length)
     }
 
     private fun sourceFile(path: String): File {

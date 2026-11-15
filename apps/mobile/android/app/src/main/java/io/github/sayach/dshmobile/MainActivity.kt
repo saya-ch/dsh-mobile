@@ -1104,21 +1104,9 @@ class MainActivity : Activity() {
         val launchValue = getString(
             if (launchBehavior() == LaunchBehavior.DEVICE_LIST) R.string.launch_device_list else R.string.launch_direct_dsh,
         )
-        val iconKey = currentAppIcon()
-        val iconValue = getString(
-            when (iconKey) {
-                "mascot_classic" -> R.string.icon_choice_mascot_classic
-                "mascot_cheer" -> R.string.icon_choice_mascot_cheer
-                "mascot_quiet" -> R.string.icon_choice_mascot_quiet
-                "official_whale" -> R.string.icon_choice_official_whale
-                "official_whale_dark" -> R.string.icon_choice_official_whale_dark
-                "official_whale_teal" -> R.string.icon_choice_official_whale_teal
-                "official_whale_mono" -> R.string.icon_choice_official_whale_mono
-                "official_whale_black" -> R.string.icon_choice_official_whale_black
-                "official_whale_white" -> R.string.icon_choice_official_whale_white
-                else -> R.string.icon_choice_whale_girl
-            },
-        ).removePrefix("DSH ").removePrefix("Mascotte balena DSH")
+        val iconValue = getString(iconLabelResource(currentAppIcon()))
+            .removePrefix("DSH ")
+            .removePrefix("Mascotte balena DSH")
         val sameHostValue = getString(
             when (sameHostMode()) {
                 SameHostSwitchMode.MANUAL -> R.string.same_host_manual
@@ -1148,20 +1136,89 @@ class MainActivity : Activity() {
             settingsRow(R.drawable.ic_refresh, R.string.check_for_updates, "v" + BuildConfig.VERSION_NAME) { checkForAppUpdate() },
         )
         screen.content.addView(group, fullWidth())
+
+        // Destructive and rare, so it sits apart from the switches that are used often.
+        val dangerGroup = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = glassSurface(R.color.app_card_fill, UiTokens.cardRadius)
+        }
+        dangerGroup.addView(
+            settingsRow(R.drawable.ic_delete, R.string.clear_site_data, danger = true) { confirmClearSiteData() },
+        )
+        screen.content.addView(dangerGroup, fullWidth().apply { topMargin = dp(UiTokens.gapLg) })
     }
 
-    private fun settingsGroupLabel(textResource: Int): TextView = TextView(this).apply {
-        setText(textResource)
-        textSize = UiTokens.captionSp
-        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-        setTextColor(getColor(R.color.app_secondary))
-        setPadding(dp(6), dp(24), dp(6), dp(UiTokens.gapSm))
+    /** Destructive and irreversible from inside the app, so it asks once. */
+    private fun confirmClearSiteData() {
+        showBottomSheet(getString(R.string.clear_site_data_title)) { sheet, dialog ->
+            sheet.addView(
+                TextView(this).apply {
+                    setText(R.string.clear_site_data_message)
+                    textSize = UiTokens.bodySp
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dp(UiTokens.gapLg) },
+            )
+            sheet.addView(
+                dangerButton(R.string.clear) {
+                    dismissSheet(dialog)
+                    clearSiteData()
+                },
+                fullWidth().apply { bottomMargin = dp(UiTokens.gapSm) },
+            )
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(dialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                fullWidth(),
+            )
+        }
     }
 
+    /**
+     * Removes every trace of the current DSH session. The credential store goes
+     * first: if it cannot be cleared nothing else is touched, because a half reset
+     * would leave the app paired to a computer it no longer remembers.
+     */
+    private fun clearSiteData() {
+        if (withCredentialStorage {
+                lanCredentialStore.clear()
+                remoteCredentialStore.clear()
+                pairedDeviceStore.clear()
+            } == null) return
+        webView?.apply {
+            stopLoading()
+            clearHistory()
+            clearCache(true)
+            clearSslPreferences()
+        }
+        WebStorage.getInstance().deleteAllData()
+        // Site data and cached boot batches belong to the same session; clearing one clears both.
+        clearBootAssetStore()
+        WebViewDatabase.getInstance(this).apply {
+            clearHttpAuthUsernamePassword()
+        }
+        WebView.clearClientCertPreferences(null)
+        preferences.edit().clear().apply()
+        CookieManager.getInstance().removeAllCookies {
+            CookieManager.getInstance().flush()
+            if (!isFinishing && !isDestroyed) runOnUiThread { showConnectionCenter() }
+        }
+    }
+
+    /**
+     * One settings entry. A row without a value is a plain action, so it drops the
+     * trailing text and chevron instead of leaving an empty gap; [danger] recolours
+     * the ink for the entries that destroy state.
+     */
     private fun settingsRow(
         iconResource: Int,
         titleResource: Int,
-        value: String,
+        value: String = "",
+        danger: Boolean = false,
         onClick: () -> Unit,
     ): View = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -1171,13 +1228,22 @@ class MainActivity : Activity() {
         background = roundedRipple(Color.TRANSPARENT, 0)
         isClickable = true
         isFocusable = true
-        contentDescription = getString(R.string.settings_row_accessibility, getString(titleResource), value)
+        contentDescription = if (value.isEmpty()) {
+            getString(titleResource)
+        } else {
+            getString(R.string.settings_row_accessibility, getString(titleResource), value)
+        }
         addView(
             ImageView(this@MainActivity).apply {
                 setImageResource(iconResource)
-                setColorFilter(getColor(R.color.app_on_accent_container))
+                setColorFilter(getColor(if (danger) R.color.app_error else R.color.app_on_accent_container))
                 setPadding(dp(9), dp(9), dp(9), dp(9))
-                background = roundedSurface(getColor(R.color.app_accent_container), UiTokens.iconRadius)
+                // A destructive row keeps the outline of the others but not their accent fill.
+                background = if (danger) {
+                    null
+                } else {
+                    roundedSurface(getColor(R.color.app_accent_container), UiTokens.iconRadius)
+                }
                 contentDescription = null
             },
             LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(UiTokens.gap) },
@@ -1186,32 +1252,34 @@ class MainActivity : Activity() {
             TextView(this@MainActivity).apply {
                 setText(titleResource)
                 textSize = UiTokens.itemTitleSp
-                setTextColor(getColor(R.color.app_foreground))
+                setTextColor(getColor(if (danger) R.color.app_error else R.color.app_foreground))
                 maxLines = 1
             },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT),
         )
-        addView(
-            TextView(this@MainActivity).apply {
-                text = value
-                textSize = UiTokens.captionSp
-                setTextColor(getColor(R.color.app_secondary))
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-                gravity = Gravity.END
-            },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = dp(UiTokens.gapSm)
-            },
-        )
-        addView(
-            ImageView(this@MainActivity).apply {
-                setImageResource(R.drawable.ic_chevron_right)
-                setColorFilter(getColor(R.color.app_secondary))
-                contentDescription = null
-            },
-            LinearLayout.LayoutParams(dp(22), dp(22)).apply { leftMargin = dp(UiTokens.gapSm) },
-        )
+        if (value.isNotEmpty()) {
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = value
+                    textSize = UiTokens.captionSp
+                    setTextColor(getColor(R.color.app_secondary))
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    gravity = Gravity.END
+                },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = dp(UiTokens.gapSm)
+                },
+            )
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_chevron_right)
+                    setColorFilter(getColor(R.color.app_secondary))
+                    contentDescription = null
+                },
+                LinearLayout.LayoutParams(dp(22), dp(22)).apply { leftMargin = dp(UiTokens.gapSm) },
+            )
+        }
         setOnClickListener { onClick() }
     }
 
@@ -1445,10 +1513,9 @@ class MainActivity : Activity() {
         setText(textResource)
         textSize = UiTokens.buttonSp
         setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-        setTextColor(getColor(R.color.app_button_text))
+        setTextColor(getColor(R.color.app_danger_text))
         gravity = Gravity.CENTER
         minHeight = dp(52)
-        setTextColor(getColor(R.color.app_danger_text))
         val sink = this
         stateListAnimator = android.animation.StateListAnimator().apply {
             addState(
@@ -2005,24 +2072,27 @@ class MainActivity : Activity() {
         }
     }
 
+    /** The one place an icon key becomes a caption; the picker and the summary share it. */
+    private fun iconLabelResource(key: String): Int = when (key) {
+        "whale_girl" -> R.string.icon_choice_whale_girl
+        "mascot_classic" -> R.string.icon_choice_mascot_classic
+        "mascot_cheer" -> R.string.icon_choice_mascot_cheer
+        "mascot_quiet" -> R.string.icon_choice_mascot_quiet
+        "official_whale" -> R.string.icon_choice_official_whale
+        "official_whale_dark" -> R.string.icon_choice_official_whale_dark
+        "official_whale_teal" -> R.string.icon_choice_official_whale_teal
+        "official_whale_mono" -> R.string.icon_choice_official_whale_mono
+        "official_whale_black" -> R.string.icon_choice_official_whale_black
+        "official_whale_white" -> R.string.icon_choice_official_whale_white
+        else -> R.string.icon_choice_whale_girl
+    }
+
     private fun showIconSettings() {
         val keys = LauncherIconPolicy.icons.map { it.key }
-        val labels = arrayOf(
-            getString(R.string.icon_choice_whale_girl),
-            getString(R.string.icon_choice_mascot_classic),
-            getString(R.string.icon_choice_mascot_cheer),
-            getString(R.string.icon_choice_mascot_quiet),
-            getString(R.string.icon_choice_official_whale),
-            getString(R.string.icon_choice_official_whale_dark),
-            getString(R.string.icon_choice_official_whale_teal),
-            getString(R.string.icon_choice_official_whale_mono),
-            getString(R.string.icon_choice_official_whale_black),
-            getString(R.string.icon_choice_official_whale_white),
-        )
         val selected = keys.indexOf(currentAppIcon()).coerceAtLeast(0)
         showChoiceSheet(
             getString(R.string.icon_settings),
-            labels.toList(),
+            keys.map { getString(iconLabelResource(it)) },
             selected,
             artwork = LauncherIconPolicy.icons.map { it.mipmap },
         ) { which -> applyAppIcon(keys[which]) }
@@ -2054,25 +2124,6 @@ class MainActivity : Activity() {
                 setText(R.string.connection_failed)
                 visibility = View.VISIBLE
             }
-        }
-    }
-
-    private fun openAccessMode(mode: AccessMode, restoreSaved: Boolean = true) {
-        cancelAutomaticRecovery()
-        invalidateRestoreAttempts()
-        connectionCenterStatus = null
-        accessMode = mode
-        val origin = GatewayOrigin.parse(preferences.getString(originPreference(), "").orEmpty())
-        val credential = legacyCredentialForRestore()
-        if (restoreSaved && origin != null && credential != null && credential.expiresAt > System.currentTimeMillis()) {
-            showRestoringTrust()
-            restoreTrustedDevice(origin, credential) {
-                if (mode == AccessMode.LAN) showSetup() else showRemoteSetup()
-            }
-        } else if (mode == AccessMode.LAN) {
-            showSetup()
-        } else {
-            showRemoteSetup()
         }
     }
 
@@ -4970,40 +5021,6 @@ class MainActivity : Activity() {
         } catch (_: RejectedExecutionException) {
             toastError(R.string.download_failed)
         }
-    }
-
-    private fun clearSiteData() {
-        if (withCredentialStorage {
-                lanCredentialStore.clear()
-                remoteCredentialStore.clear()
-                pairedDeviceStore.clear()
-            } == null) return
-        webView?.apply {
-            stopLoading()
-            clearHistory()
-            clearCache(true)
-            clearSslPreferences()
-        }
-        WebStorage.getInstance().deleteAllData()
-        // Site data and cached boot batches belong to the same session; clearing one clears both.
-        clearBootAssetStore()
-        WebViewDatabase.getInstance(this).apply {
-            clearHttpAuthUsernamePassword()
-        }
-        WebView.clearClientCertPreferences(null)
-        preferences.edit().clear().apply()
-        CookieManager.getInstance().removeAllCookies {
-            CookieManager.getInstance().flush()
-            if (!isFinishing && !isDestroyed) runOnUiThread { showConnectionCenter() }
-        }
-    }
-
-    private fun shareGateway(origin: GatewayOrigin) {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, origin.serialized)
-        }
-        startActivity(Intent.createChooser(intent, getString(R.string.share_gateway_title)))
     }
 
     private fun openExternal(uri: Uri) {

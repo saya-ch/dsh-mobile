@@ -124,7 +124,7 @@ class BootAssetCachingWiringTest {
         assertTrue(text.contains("fetcher = HttpBootAssetFetcher(origin, transport, caCertificate, userAgent)"))
         assertTrue(text.contains("bootAssets = BootAssetResponder(createBootAssetCache(origin, caCertificate, browser.settings.userAgentString))"))
 
-        val clearSiteData = text.substringAfter("private fun clearSiteData()").substringBefore("private fun shareGateway(")
+        val clearSiteData = member(text, "private fun clearSiteData()")
         assertTrue(clearSiteData.contains("clearBootAssetStore()"))
 
         val deleteDevice = text.substringAfter("private fun confirmDeleteDevice(").substringBefore("private fun showDeviceUndo(")
@@ -145,6 +145,14 @@ class BootAssetCachingWiringTest {
         val create = text.substringAfter("private fun createBootAssetCache(").substringBefore("private fun logBootAssetMetrics(")
         assertTrue(create.contains("if (!BOOT_ASSET_CACHE_ENABLED) return null"))
         assertFalse(BootAssetResponder(null).enabled)
+    }
+
+    /** One member's source, from its signature to the next member at the same indent. */
+    private fun member(text: String, signature: String): String {
+        val start = text.indexOf(signature)
+        assertTrue("$signature not found", start >= 0)
+        val next = Regex("\\n    (?:private|internal|protected|override|public) ").find(text, start + signature.length)
+        return text.substring(start, next?.range?.first ?: text.length)
     }
 
     private fun source(name: String): String = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
