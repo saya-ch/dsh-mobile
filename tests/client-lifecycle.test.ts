@@ -898,6 +898,9 @@ describe('mobile-control localization', () => {
   it('uses raw Host controller codes to render specific actions in every locale', async () => {
     const failures = [
       { provider: 'tailscale', code: 'funnel_permission_required', key: 'funnelPermission' },
+      // A bound listener without an issued certificate is its own failure: the panel
+      // must not claim readiness, and the action has to name the certificate.
+      { provider: 'tailscale', code: 'funnel_certificate_failed', key: 'funnelCertificate' },
       { provider: 'frp', code: 'frp_component_missing', key: 'frpMissing' },
       { provider: 'tailscale', code: 'sidecar_exited', key: 'controlChannelFailed' },
     ] as const

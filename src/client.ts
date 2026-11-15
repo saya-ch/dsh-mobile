@@ -920,6 +920,7 @@ const REMOTE_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   funnel_permission_required: 'funnelPermission',
   funnel_https_required: 'funnelHttps',
   funnel_start_failed: 'funnelStart',
+  funnel_certificate_failed: 'funnelCertificate',
   funnel_start_timeout: 'funnelTimeout',
   funnel_state_invalid: 'funnelStateInvalid',
   cpolar_path_invalid: 'componentPathUnsafe',
@@ -1045,7 +1046,8 @@ const DIAGNOSTIC_CONTROLLER_ACTION_OVERRIDES: Readonly<Record<string, string>> =
 /** Only codes with a specific diagnostic action use the status message key. */
 const DIAGNOSTIC_CONTROLLER_ACTION_CODES: ReadonlySet<string> = new Set([
   ...Object.keys(ORIGIN_ERROR_MESSAGE_KEYS),
-  'funnel_permission_required', 'funnel_https_required', 'funnel_start_failed', 'funnel_start_timeout',
+  'funnel_permission_required', 'funnel_https_required', 'funnel_start_failed', 'funnel_certificate_failed',
+  'funnel_start_timeout',
   'tailscale_dns_missing', 'control_channel_failed', 'gateway_start_failed',
   'cpolar_component_missing', 'cpolar_component_invalid', 'cpolar_config_missing', 'cpolar_config_invalid',
   'cpolar_extract_tools_failed', 'cpolar_extract_archive_failed', 'cpolar_extract_database_failed',

@@ -25,6 +25,10 @@ import (
 
 const protocolVersion = 1
 
+// errCertificate marks a missing or unissuable public certificate, which is not an
+// authorization problem and needs its own product message.
+var errCertificate = errors.New("funnel certificate unavailable")
+
 var (
 	hostnamePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,62}$`)
 	loginURLPattern = regexp.MustCompile(`https://login\.tailscale\.com/[A-Za-z0-9?&=_./%-]+`)
@@ -158,6 +162,32 @@ func classifyFunnelFailure(err error) (code, setupURL string) {
 	default:
 		return "funnel_start_failed", ""
 	}
+}
+
+// certificateTimeout bounds the one certificate fetch made before reporting serving.
+const certificateTimeout = 30 * time.Second
+
+// verifyCertificate fetches the public certificate before the listener is reported as
+// serving. tsnet resolves it lazily on the first TLS handshake, so a hostname whose
+// certificate was never issued still produces a bound listener: the panel would show a
+// ready remote address while every public connection failed during the handshake.
+func verifyCertificate(ctx context.Context, server *tsnet.Server, origin string) error {
+	host := strings.TrimPrefix(origin, "https://")
+	if host == "" || host == origin || strings.ContainsAny(host, "/:") {
+		return errors.New("invalid certificate host")
+	}
+	client, err := server.LocalClient()
+	if err != nil {
+		return err
+	}
+	fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), certificateTimeout)
+	defer cancel()
+	_, _, err = client.CertPair(fetchCtx, host)
+	if err != nil && ctx.Err() != nil {
+		// The caller stopped while the fetch was in flight; that is not a certificate failure.
+		return ctx.Err()
+	}
+	return err
 }
 
 func officialSetupURL(raw string) string {
@@ -304,6 +334,12 @@ func serveFunnel(ctx context.Context, server *tsnet.Server, target *url.URL, ori
 		http.Error(response, "gateway unavailable", http.StatusBadGateway)
 	}
 
+	if err := verifyCertificate(ctx, server, origin); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return fmt.Errorf("%w: %v", errCertificate, err)
+	}
 	output.emit(map[string]any{"type": "serving", "origin": origin})
 	return serveHTTP(ctx, listener, proxy)
 }
@@ -368,6 +404,13 @@ func run(arguments []string, input io.Reader, output io.Writer) int {
 			return 0
 		}
 		code, setupURL := classifyFunnelFailure(serveErr)
+		if errors.Is(serveErr, errCertificate) {
+			code, setupURL = "funnel_certificate_failed", ""
+			// The control plane names HTTPS provisioning in the fetch error.
+			if strings.Contains(serveErr.Error(), "https://tailscale.com/s/https") {
+				code, setupURL = "funnel_https_required", "https://tailscale.com/s/https"
+			}
+		}
 		if code == "funnel_permission_required" || code == "funnel_https_required" {
 			if interactiveURL := queryFunnelSetupURL(ctx, server); interactiveURL != "" {
 				setupURL = interactiveURL

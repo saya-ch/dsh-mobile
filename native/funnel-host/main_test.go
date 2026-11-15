@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -284,5 +285,28 @@ func TestOfficialSetupURL(t *testing.T) {
 		if got := officialSetupURL(invalid); got != "" {
 			t.Fatalf("officialSetupURL(%q) = %q, want empty", invalid, got)
 		}
+	}
+}
+
+func TestVerifyCertificateRejectsAnOriginThatCannotNameACertificate(t *testing.T) {
+	// The public origin is the only place a certificate name may come from; anything
+	// else would let the sidecar ask the control plane for an unrelated certificate.
+	for _, origin := range []string{"", "https://", "http://example.ts.net", "example.ts.net", "https://example.ts.net/path", "https://example.ts.net:443"} {
+		if err := verifyCertificate(context.Background(), nil, origin); err == nil {
+			t.Fatalf("verifyCertificate(%q) accepted an invalid origin", origin)
+		}
+	}
+}
+
+func TestCertificateFailureIsReportedInsteadOfServing(t *testing.T) {
+	// tsnet resolves the certificate lazily, so a bound listener alone must not be
+	// announced: the panel would show a ready address while every handshake failed.
+	cause := fmt.Errorf("%w: acme: no certificate for dsh-example.ts.net", errCertificate)
+	if !errors.Is(cause, errCertificate) {
+		t.Fatal("wrapped certificate failure lost its sentinel")
+	}
+	code, setupURL := classifyFunnelFailure(cause)
+	if code != "funnel_start_failed" || setupURL != "" {
+		t.Fatalf("classifyFunnelFailure() = (%q, %q), want the generic start failure", code, setupURL)
 	}
 }
