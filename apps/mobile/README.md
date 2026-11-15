@@ -4,14 +4,14 @@
 
 DeepSeek Harness is the display name of this community-maintained Android WebView app. It opens the plugin's authenticated HTTPS page rather than bundling another DSH frontend. The app and mobile browsers receive the same DSH features and computer-side mobile customizations.
 
-The current stable app is **0.7.6** (build 91). The npm plugin and Android App have independent versions: a plugin update does not automatically require another APK. See the [0.7.6 changes](#076-update).
+The current stable app is **0.8.0** (build 93). The npm plugin and Android App have independent versions: a plugin update does not automatically require another APK. See the [0.8.0 changes](#080-update).
 
 This APK supports Android 10 or later. iPhone and iPad use the [Safari Home Screen web app and optional Web Push](../../docs/WEB_PUSH.en.md), not this Android package; no native iOS app is distributed.
 
 ## Install and pair
 
 1. Install and enable the plugin using the [project quick start](../../README.en.md#quick-start). Complete LAN setup from the command line or the computer's **Mobile Access** panel.
-2. Install a signed Android APK from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.6). Choose the compatibility `.apk` for existing HTTPS channels, or the full `-iroh.apk` for experimental iroh on arm64-v8a/x86_64. Both have the same package ID and official signer; install only one and upgrade in place to retain pairings. A differently signed Debug APK cannot replace it; do not uninstall or clear data just to bypass that mismatch.
+2. Install a signed Android APK from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0). Choose the compatibility `.apk` for existing HTTPS channels, or the full `-iroh.apk` for experimental iroh on arm64-v8a/x86_64. Both have the same package ID and official signer; install only one and upgrade in place to retain pairings. A differently signed Debug APK cannot replace it; do not uninstall or clear data just to bypass that mismatch.
 3. On the computer, generate a pairing key/link under **Mobile Access → Local network**, or configure a remote provider and generate its remote pairing QR code. In the app, choose the matching connection mode and scan or paste the link.
 4. Name the computer. The app stores each LAN or remote pairing as its own record. The phone does not need a cpolar, Cloudflare or Tailscale app.
 
@@ -36,6 +36,15 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in Simplified Chinese, English or Italian; webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
+
+## 0.8.0 update
+
+- Rebuild the App's own screens on one visual system: a diagonal colour wash over a faint drifting grid, glass cards, tonal primary actions with their own pressed state, one bottom-sheet family for every menu and prompt, and page transitions that follow the screen depth. Light and dark palettes are tuned together, and the light wash stays under 8% so body text keeps its contrast.
+- Add **Settings → Appearance**: follow the system (default), light or dark. The choice is resolved before the first view is painted and returns to the settings page after the rebuild.
+- Fix the pairing and connection defects the review found: an exhausted one-time key returns to the page it came from with its guidance shown inline (the Iroh page included), the post-pairing name sheet survives a background round trip, a returning page keeps its back direction, and the drifting backdrop no longer keeps a left page alive.
+- Restore the clear-data entry on its own settings card, and repair the light-mode separators, the night wash, the icon tiles and the icon summary captions.
+
+Both APKs keep the same package identity and the established signer.
 
 ## 0.7.6 update
 
@@ -211,10 +220,11 @@ Native builds also include the JVM TLS verifier matching `native/Cargo.lock`, fr
 
 Current-source Debug builds use package `io.github.sayach.dshmobile.debug` with a `-debug` version suffix. They install beside the official App with separate storage and pairings. They do not upgrade or migrate an older unsuffixed Debug installation; preserve that app and its data rather than uninstalling or clearing it to switch packages. Release builds keep `io.github.sayach.dshmobile` and the established signer.
 
-The verified stable release is [Android 0.7.6](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.6), build 91. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
+The verified stable release is [Android 0.8.0](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0), build 93. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
 
 ## Acceptance and known limits
 
+- Both public App 0.8.0 APKs were downloaded and re-verified after publication: compatibility 1,970,961 B with no native libraries, full 30,103,008 B carrying only the arm64-v8a/x86_64 iroh transport, both signed by `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` at `versionCode 93`/`versionName 0.8.0` with matching `.sha256` assets. The tagged tree passed `npm run verify`, `lintDebug` (0 errors) and 575 Android unit tests. Device acceptance covered the light/dark switch, the settings page, the add-computer sheet and the multi-line iroh descriptor field; the pairing-failure, name-sheet-pause, cancellation and TalkBack paths remain source-test evidence only.
 - Both public App 0.7.6 APKs passed checksum, manifest, established-signer and size checks; the compatibility APK contains no native libraries and the full APK carries only the two iroh transport ABIs. This version adds no device regression: the launcher rendering of the new icons and the Tailscale message are covered only by Android unit tests and the CI release build.
 - Both public App 0.7.5 APKs passed checksum, manifest, established-signer and size checks; the compatibility APK contains no native libraries and the full APK carries only the two iroh transport ABIs. The final CI-built APK was not reinstalled on a phone because the device disconnected during the release; the same 0.7.5/90 code had already been accepted from a local release-signed build earlier that day (in-place upgrade, three pairings retained, native Check for updates exercised).
 
