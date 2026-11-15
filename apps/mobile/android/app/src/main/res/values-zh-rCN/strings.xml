@@ -249,4 +249,6 @@
     <string name="connection_mode_iroh">iroh</string>
     <string name="iroh_status_connect_to_check">点按连接后检测</string>
     <string name="session_storage_failed">无法更新本机保存的网页会话。请从设备列表重新进入这台电脑，无需删除配对。</string>
+    <string name="settings_group_startup">启动</string>
+    <string name="settings_group_connection">连接</string>
 </resources>

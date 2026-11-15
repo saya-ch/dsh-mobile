@@ -1048,29 +1048,117 @@ class MainActivity : Activity() {
         refreshDeviceStatuses(devices)
     }
 
-    /** Settings page reached from the corner gear; every row is a full-width glass row. */
+    /**
+     * Settings page: two labelled groups, each row carrying an icon, the current
+     * value and a chevron, so the user reads state without opening anything.
+     */
     private fun showSettings() {
+        deviceListStatus = null
         val screen = createSetupScreen(R.string.device_list_settings, back = ::showDeviceList, depth = 1)
         setupBackAction = ::showDeviceList
-        screen.content.addView(settingsRow(R.string.launch_settings) { showLaunchSettings() })
-        screen.content.addView(spacer(10))
-        screen.content.addView(settingsRow(R.string.icon_settings) { showIconSettings() })
-        screen.content.addView(spacer(10))
-        screen.content.addView(settingsRow(R.string.same_host_title) { showSameHostSettings() })
-        screen.content.addView(spacer(10))
-        screen.content.addView(settingsRow(R.string.check_for_updates) { checkForAppUpdate() })
+
+        val launchValue = getString(
+            if (launchBehavior() == LaunchBehavior.DEVICE_LIST) R.string.launch_device_list else R.string.launch_direct_dsh,
+        )
+        val iconKey = currentAppIcon()
+        val iconValue = getString(
+            when (iconKey) {
+                "mascot_classic" -> R.string.icon_choice_mascot_classic
+                "mascot_cheer" -> R.string.icon_choice_mascot_cheer
+                "mascot_quiet" -> R.string.icon_choice_mascot_quiet
+                "official_whale" -> R.string.icon_choice_official_whale
+                "official_whale_dark" -> R.string.icon_choice_official_whale_dark
+                "official_whale_teal" -> R.string.icon_choice_official_whale_teal
+                "official_whale_mono" -> R.string.icon_choice_official_whale_mono
+                "official_whale_black" -> R.string.icon_choice_official_whale_black
+                "official_whale_white" -> R.string.icon_choice_official_whale_white
+                else -> R.string.icon_choice_whale_girl
+            },
+        ).removePrefix("DSH ")
+        val sameHostValue = getString(
+            when (sameHostMode()) {
+                SameHostSwitchMode.MANUAL -> R.string.same_host_manual
+                SameHostSwitchMode.CONFIRM -> R.string.same_host_detect
+                else -> R.string.same_host_enable
+            },
+        )
+
+        val group = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = glassSurface(R.color.app_card_fill, UiTokens.cardRadius)
+        }
+        fun divider() = group.addView(
+            fadingDivider(),
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+                leftMargin = dp(58)
+                rightMargin = dp(UiTokens.gapLg)
+            },
+        )
+        group.addView(settingsRow(R.drawable.ic_launch, R.string.launch_settings, launchValue) { showLaunchSettings() })
+        divider()
+        group.addView(settingsRow(R.drawable.ic_palette, R.string.icon_settings, iconValue) { showIconSettings() })
+        divider()
+        group.addView(settingsRow(R.drawable.ic_sync, R.string.same_host_title, sameHostValue) { showSameHostSettings() })
+        divider()
+        group.addView(
+            settingsRow(R.drawable.ic_refresh, R.string.check_for_updates, "v" + BuildConfig.VERSION_NAME) { checkForAppUpdate() },
+        )
+        screen.content.addView(group, fullWidth())
     }
 
-    private fun settingsRow(titleResource: Int, onClick: () -> Unit): View = LinearLayout(this).apply {
+    private fun settingsGroupLabel(textResource: Int): TextView = TextView(this).apply {
+        setText(textResource)
+        textSize = UiTokens.captionSp
+        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+        setTextColor(getColor(R.color.app_secondary))
+        setPadding(dp(6), dp(24), dp(6), dp(UiTokens.gapSm))
+    }
+
+    private fun settingsRow(
+        iconResource: Int,
+        titleResource: Int,
+        value: String,
+        onClick: () -> Unit,
+    ): View = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(UiTokens.gapLg), dp(UiTokens.gapLg), dp(UiTokens.gap), dp(UiTokens.gapLg))
-        background = glassSurface(R.color.app_surface, UiTokens.itemRadius)
+        minimumHeight = dp(58)
+        setPadding(dp(UiTokens.gapLg), dp(UiTokens.gap), dp(UiTokens.gap), dp(UiTokens.gap))
+        background = roundedRipple(Color.TRANSPARENT, 0)
         isClickable = true
         isFocusable = true
+        contentDescription = getString(titleResource) + "，" + value
         addView(
-            textView(titleResource, 15.5f, Typeface.NORMAL),
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+            ImageView(this@MainActivity).apply {
+                setImageResource(iconResource)
+                setColorFilter(getColor(R.color.app_on_accent_container))
+                setPadding(dp(9), dp(9), dp(9), dp(9))
+                background = roundedSurface(getColor(R.color.app_accent_container), UiTokens.iconRadius)
+                contentDescription = null
+            },
+            LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(UiTokens.gap) },
+        )
+        addView(
+            TextView(this@MainActivity).apply {
+                setText(titleResource)
+                textSize = UiTokens.itemTitleSp
+                setTextColor(getColor(R.color.app_foreground))
+                maxLines = 1
+            },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+        )
+        addView(
+            TextView(this@MainActivity).apply {
+                text = value
+                textSize = UiTokens.captionSp
+                setTextColor(getColor(R.color.app_secondary))
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                gravity = Gravity.END
+            },
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(UiTokens.gapSm)
+            },
         )
         addView(
             ImageView(this@MainActivity).apply {
@@ -1078,7 +1166,7 @@ class MainActivity : Activity() {
                 setColorFilter(getColor(R.color.app_secondary))
                 contentDescription = null
             },
-            LinearLayout.LayoutParams(dp(22), dp(22)),
+            LinearLayout.LayoutParams(dp(22), dp(22)).apply { leftMargin = dp(UiTokens.gapSm) },
         )
         setOnClickListener { onClick() }
     }
@@ -1167,7 +1255,7 @@ class MainActivity : Activity() {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             setGravity(Gravity.BOTTOM)
-            setDimAmount(0.6f)
+            setDimAmount(0.42f)
             setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
         if (title != null) dialog.window?.decorView?.accessibilityPaneTitle = title
@@ -1299,6 +1387,12 @@ class MainActivity : Activity() {
                 }
                 sheet.addView(row, fullWidth())
             }
+            sheet.addView(
+                sheetRow(getString(R.string.cancel), onClick = { dismissSheet(dialog) }).apply {
+                    setTextColor(getColor(R.color.app_secondary))
+                },
+                fullWidth(),
+            )
         }
     }
 
@@ -1355,102 +1449,61 @@ class MainActivity : Activity() {
      * Add-computer sheet: the three transports live in one bottom panel with its own
      * scrim, so the choice never floats loose in the middle of the screen.
      */
+    /**
+     * Add-computer sheet: the three transports live in the shared bottom sheet, so
+     * the window chrome, animation and accessibility title cannot drift.
+     */
     private fun showAddComputerSheet() {
-        val sheet = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(UiTokens.screenPadding), dp(12), dp(UiTokens.screenPadding), dp(UiTokens.gapSm + 12))
-            background = roundedSurface(getColor(R.color.app_dialog_surface), UiTokens.cardRadius).apply {
-                setStroke(dp(1), getColor(R.color.app_border))
-            }
-        }
-        sheet.addView(
-            View(this).apply { background = roundedSurface(getColor(R.color.app_border), 999) },
-            LinearLayout.LayoutParams(dp(36), dp(4)).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                bottomMargin = dp(14)
-            },
-        )
-        sheet.addView(
-            TextView(this).apply {
-                setText(R.string.add_computer)
-                textSize = 17f
-                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-                setTextColor(getColor(R.color.app_foreground))
-                setPadding(dp(6), 0, 0, dp(10))
-            },
-        )
-        val dialog = Dialog(this).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setContentView(sheet)
-            setCanceledOnTouchOutside(true)
-        }
-        val entries: List<Triple<Int, Int, () -> Unit>> = listOf(
-            Triple(R.drawable.ic_lan, R.string.lan_access_title, { showSetup() }),
-            Triple(R.drawable.ic_cloud, R.string.remote_access_title, { showRemoteSetup() }),
-            Triple(R.drawable.ic_bolt, R.string.iroh_access_title, { showIrohSetup() }),
-        )
-        entries.forEach { entry ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(UiTokens.gap), dp(14), dp(UiTokens.gap), dp(14))
-                background = roundedRipple(Color.TRANSPARENT, UiTokens.itemRadius)
-                isClickable = true
-                isFocusable = true
-                addView(
-                    ImageView(this@MainActivity).apply {
-                        setImageResource(entry.first)
-                        setColorFilter(getColor(R.color.app_on_accent_container))
-                        setPadding(dp(10), dp(10), dp(10), dp(10))
-                        background = roundedSurface(getColor(R.color.app_accent_container), 13)
-                        contentDescription = null
-                    },
-                    LinearLayout.LayoutParams(dp(42), dp(42)).apply { rightMargin = dp(12) },
-                )
-                addView(
-                    TextView(this@MainActivity).apply {
-                        setText(entry.second)
-                        textSize = 15.5f
-                        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-                        setTextColor(getColor(R.color.app_foreground))
-                    },
-                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
-                )
-                addView(
-                    ImageView(this@MainActivity).apply {
-                        setImageResource(R.drawable.ic_chevron_right)
-                        setColorFilter(getColor(R.color.app_secondary))
-                        contentDescription = null
-                    },
-                    LinearLayout.LayoutParams(dp(22), dp(22)),
-                )
-            }
-            row.setOnClickListener {
-                dialog.dismiss()
-                entry.third()
-            }
-            sheet.addView(
-                row,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                ).apply { bottomMargin = dp(6) },
+        showBottomSheet(getString(R.string.add_computer)) { sheet, dialog ->
+            val entries: List<Triple<Int, Int, () -> Unit>> = listOf(
+                Triple(R.drawable.ic_lan, R.string.lan_access_title, { showSetup() }),
+                Triple(R.drawable.ic_cloud, R.string.remote_access_title, { showRemoteSetup() }),
+                Triple(R.drawable.ic_bolt, R.string.iroh_access_title, { showIrohSetup() }),
             )
-        }
-        dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            setLayout(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            setGravity(Gravity.BOTTOM)
-            setDimAmount(0.6f)
-        }
-        dialog.show()
-        sheet.translationY = dp(280).toFloat()
-        sheet.post {
-            sheet.animate()
-                .translationY(0f)
-                .setDuration(250)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
+            entries.forEach { entry ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(64)
+                    setPadding(dp(UiTokens.gap), dp(10), dp(UiTokens.gap), dp(10))
+                    background = roundedRipple(Color.TRANSPARENT, UiTokens.iconRadius)
+                    isClickable = true
+                    isFocusable = true
+                    contentDescription = getString(entry.second)
+                    addView(
+                        ImageView(this@MainActivity).apply {
+                            setImageResource(entry.first)
+                            setColorFilter(getColor(R.color.app_on_accent_container))
+                            setPadding(dp(10), dp(10), dp(10), dp(10))
+                            background = roundedSurface(getColor(R.color.app_accent_container), 13)
+                            contentDescription = null
+                        },
+                        LinearLayout.LayoutParams(dp(42), dp(42)).apply { rightMargin = dp(UiTokens.gap) },
+                    )
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            setText(entry.second)
+                            textSize = UiTokens.itemTitleSp
+                            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                            setTextColor(getColor(R.color.app_foreground))
+                        },
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+                    )
+                    addView(
+                        ImageView(this@MainActivity).apply {
+                            setImageResource(R.drawable.ic_chevron_right)
+                            setColorFilter(getColor(R.color.app_secondary))
+                            contentDescription = null
+                        },
+                        LinearLayout.LayoutParams(dp(22), dp(22)),
+                    )
+                }
+                row.setOnClickListener {
+                    dismissSheet(dialog)
+                    entry.third()
+                }
+                sheet.addView(row, fullWidth())
+            }
         }
     }
 
@@ -2449,10 +2502,23 @@ class MainActivity : Activity() {
         val status = statusLine().apply {
             visibility = View.GONE
         }
-        val connect = primaryButton(R.string.pair_and_connect, 52) { connect(harness, pairing, status, this) }
+        val leaveForm: () -> Unit = { if (accessMode == AccessMode.LAN) showSetup() else showRemoteSetup() }
+        // A key that arrived by scan or paste is one-time: once it fails this form
+        // cannot retry it, so the failure returns to where the key came from.
+        val ephemeralFailure: ((Int) -> Unit)? = if (autoConnect) {
+            { messageResource ->
+                toast(messageResource)
+                leaveForm()
+            }
+        } else {
+            null
+        }
+        val connect = primaryButton(R.string.pair_and_connect, 52) {
+            connect(harness, pairing, status, this, ephemeralFailure)
+        }
         pairing.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) {
-                connect(harness, pairing, status, connect)
+                connect(harness, pairing, status, connect, ephemeralFailure)
                 true
             } else {
                 false
@@ -2462,10 +2528,9 @@ class MainActivity : Activity() {
         card.addView(spacer(10))
         card.addView(status)
         card.addView(spacer(12))
-        card.addView(secondaryButton(R.string.back_to_scan, 48) {
-            if (accessMode == AccessMode.LAN) showSetup() else showRemoteSetup()
-        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        if (autoConnect && prefilledInput.isNotEmpty()) connect(harness, pairing, status, connect)
+        card.addView(secondaryButton(R.string.back_to_scan, 48) { leaveForm() },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (autoConnect && prefilledInput.isNotEmpty()) connect(harness, pairing, status, connect, ephemeralFailure)
     }
 
     /** Type scale and geometry shared by the native screens. */
@@ -2739,7 +2804,18 @@ class MainActivity : Activity() {
     private fun manualHarness(origin: GatewayOrigin): DiscoveredHarness =
         DiscoveredHarness(deviceName = "DeepSeek Harness", origin = origin, instanceId = "")
 
-    private fun connect(harness: DiscoveredHarness, pairing: EditText, status: TextView, button: Button) {
+    /**
+     * @param onEphemeralFailure when set, a failure is handed to the caller instead
+     * of being painted here: a scanned or pasted one-time key cannot be retried on
+     * this form, so the caller returns to where the key came from.
+     */
+    private fun connect(
+        harness: DiscoveredHarness,
+        pairing: EditText,
+        status: TextView,
+        button: Button,
+        onEphemeralFailure: ((Int) -> Unit)? = null,
+    ) {
         if (pairingAttemptGate.busy) return
         if (!prepareCredentialStorage()) {
             status.setText(R.string.device_storage_unavailable)

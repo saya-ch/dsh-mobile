@@ -251,4 +251,6 @@
     <string name="connection_mode_iroh">iroh</string>
     <string name="iroh_status_connect_to_check">Connetti per verificare</string>
     <string name="session_storage_failed">Impossibile aggiornare la sessione web sul dispositivo. Riapri il computer dall\'elenco dei dispositivi senza eliminare l\'associazione.</string>
+    <string name="settings_group_startup">Avvio</string>
+    <string name="settings_group_connection">Connessione</string>
 </resources>

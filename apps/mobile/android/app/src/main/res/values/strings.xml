@@ -250,4 +250,6 @@
     <string name="connection_mode_iroh">iroh</string>
     <string name="iroh_status_connect_to_check">Connect to check</string>
     <string name="session_storage_failed">Could not update this computer\'s web session on the device. Reopen the computer from the device list; do not delete the pairing.</string>
+    <string name="settings_group_startup">Startup</string>
+    <string name="settings_group_connection">Connection</string>
 </resources>
