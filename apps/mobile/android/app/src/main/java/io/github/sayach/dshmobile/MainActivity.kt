@@ -431,6 +431,12 @@ class MainActivity : Activity() {
         window.decorView.requestApplyInsets()
         if (deviceListVisible && showingSetup) refreshDeviceStatuses(pairedDeviceStore.load())
         startIrohStatusMonitor()
+        // An opt-in kept through a temporary stop (a package replacement, a background-start
+        // restriction, a spent foreground budget) is retried when the user is back in the app,
+        // so the feature recovers without another package launch and without toggling it (#442).
+        activeDeviceKey?.let { key ->
+            runCatching { BackgroundNotificationService.resumeIfEnabled(this, key) }
+        }
     }
 
     /** Leaving for the home screen floats the DSH page when the user asked for it. */

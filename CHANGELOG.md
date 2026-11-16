@@ -4,6 +4,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Android 0.8.1 - Unreleased
 
+- Keep the background task notification opt-in across a package replacement: every service stop wrote `enabled=false`, including the temporary ones. A package replacement kills the process, the system's sticky restart lands while the app is in the background, Android 12+ refuses to start a foreground service from there, and the refusal erased the stored choice — so each App upgrade silently turned the switch off and the user had to turn it back on. Only an unrecoverable stop (device missing or revoked or expired, pairing expired, an iroh device) withdraws the opt-in now; a rejected start, a spent foreground budget and a reconnect keep it, `lastError` carries the reason, and the App retries on resume instead of waiting for the next launch. [#442](https://github.com/saya-ch/dsh-mobile/issues/442)
 - Add **Settings → Picture-in-picture**: leaving the app can keep the current DSH page in a floating window, so a status plugin stays readable while the user works elsewhere. Only a live DSH page floats; the device list and every setup, pairing and settings screen stay a normal background switch, and the setting ships off. [#411](https://github.com/saya-ch/dsh-mobile/issues/411)
 
 ## 0.8.12 - Unreleased
