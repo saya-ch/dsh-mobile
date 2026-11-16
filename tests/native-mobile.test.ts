@@ -58,22 +58,18 @@ describe('native mobile presentation', () => {
     expect(overlay).not.toContain('[data-shell-overlay] > * { pointer-events:auto')
   })
 
-  it('wraps only the assistant runtime row so a plugin cannot collapse the user bubble', () => {
-    // DSH renders the user message's clock (data-clock="start") as a direct child of
-    // the same actions element it uses for the assistant completion row
-    // (data-clock="end", whose label sits inside _endInfo). An unscoped
-    // "_actions:has(> _timeStart)" rule therefore widened the USER actions row; with a
-    // plugin that turns that row into a reversed flex line (#441) the user bubble
-    // collapsed to a sliver. Only the assistant row may be widened, and the rule must
-    // reach the element that actually wraps its label.
-    // The rule lives inside the narrow-overlay block, so assert over the whole sheet.
-    // The user-side clock must not select the widening rule.
-    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_actions"]:has(> [class*="_timeStart"])')
-    // The assistant label is not a direct child of the actions row.
-    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_actions"]:has(> [class*="_timeEnd"])')
-    expect(NATIVE_MOBILE_STYLES).toContain('[class*="_actions"][data-clock="end"] { box-sizing:border-box !important; width:100% !important;')
-    expect(NATIVE_MOBILE_STYLES).toContain('[class*="_actions"][data-clock="end"] > [class*="_endInfo"] {')
-    expect(NATIVE_MOBILE_STYLES).toContain('[class*="_actions"][data-clock="end"] [class*="_timeEnd"] {')
+  it('leaves message runtime labels inline so a plugin cannot collapse the user bubble', () => {
+    // DSH renders the user message's own clock (data-clock="start") as a DIRECT child of
+    // the message actions row, while the assistant's label sits inside _endInfo. A rule
+    // matching "_actions:has(> _timeStart)" therefore widened the USER row; with a plugin
+    // that turns that row into a reversed flex line the user bubble collapsed to a sliver
+    // (#441). The assistant half never matched anything. DSH's own row keeps both labels on
+    // one line down to 320px, so the plugin contributes no rule for them at all.
+    // Assert on selectors, not on prose: the explanatory comment names these classes.
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_timeStart"]')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_timeEnd"]')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_runTimeDot"]')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_actions"]:has(')
   })
 
   it('styles the injected attachment actions on every viewport, not only the narrow overlay', () => {

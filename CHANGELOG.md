@@ -8,7 +8,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## 0.8.12 - Unreleased
 
-- Keep a plugin that reverses the user message row from collapsing the bubble: the narrow-screen rule that gives the assistant's TTFT and throughput label its own line selected `_actions:has(> _timeStart)`, but DSH renders the user message's own clock as a direct child of the same actions element, so the rule widened the USER row instead. With `ds-bot` turning that row into a reversed flex line, the user bubble collapsed to a 24px sliver. The rule now keys on the assistant row only (`data-clock="end"` and its `_endInfo` wrapper). The assistant label was never a direct child either, so that half of the rule had never taken effect. [#441](https://github.com/saya-ch/dsh-mobile/issues/441)
+- Keep a plugin that reverses the user message row from collapsing the bubble: a narrow-screen rule widened any message actions row holding a `_timeStart` or `_timeEnd` child, but DSH renders the user message's own clock (`data-clock="start"`) as a direct child of that row, so the rule widened the USER row rather than the assistant one. With `ds-bot` turning that row into a reversed flex line, the user bubble collapsed to a sliver. The rule is gone; DSH's own actions row already keeps both labels on one line down to a 320px viewport. [#441](https://github.com/saya-ch/dsh-mobile/issues/441)
 
 ## 0.8.11 - 2026-11-16
 
