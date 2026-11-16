@@ -207,11 +207,17 @@ func verifyCertificate(ctx context.Context, server *tsnet.Server, origin string,
 	fetchCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	_, _, err = client.CertPair(fetchCtx, host)
-	if err != nil && ctx.Err() != nil {
-		// The caller stopped while the fetch was in flight; that is not a certificate failure.
+	return certificateError(ctx, err)
+}
+
+// certificateError reports a fetch result without blaming the certificate for a stop the
+// caller requested: the budget expiring under a live parent is a certificate failure, while
+// a stopped parent is the clean stop serveFunnel already knows how to unwind.
+func certificateError(ctx context.Context, fetchErr error) error {
+	if fetchErr != nil && ctx.Err() != nil {
 		return ctx.Err()
 	}
-	return err
+	return fetchErr
 }
 
 func officialSetupURL(raw string) string {
@@ -364,6 +370,10 @@ func serveFunnel(ctx context.Context, server *tsnet.Server, target *url.URL, ori
 			return nil
 		}
 		return fmt.Errorf("%w: %v", errCertificate, err)
+	}
+	if ctx.Err() != nil {
+		// Stopped while the certificate was arriving: announce serving only for a live parent.
+		return nil
 	}
 	output.emit(map[string]any{"type": "serving", "origin": origin})
 	return serveHTTP(ctx, listener, proxy)

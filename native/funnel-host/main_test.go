@@ -337,3 +337,28 @@ func TestCertificateFailureIsReportedInsteadOfServing(t *testing.T) {
 		t.Fatalf("classifyFunnelFailure() = (%q, %q), want the generic start failure", code, setupURL)
 	}
 }
+
+func TestCertificateErrorDistinguishesAStopFromAnExpiredBudget(t *testing.T) {
+	// With the fetch bound to its parent, these two outcomes arrive through the same
+	// error value, so the rule that separates them is what keeps a user-requested stop
+	// from surfacing as funnel_certificate_failed.
+	failing := errors.New("acme: no certificate")
+
+	stopped, cancelStopped := context.WithCancel(context.Background())
+	cancelStopped()
+	if err := certificateError(stopped, context.DeadlineExceeded); !errors.Is(err, context.Canceled) {
+		t.Fatalf("a stopped parent yielded %v, want context.Canceled", err)
+	}
+	if err := certificateError(stopped, failing); !errors.Is(err, context.Canceled) {
+		t.Fatalf("a stopped parent yielded %v, want context.Canceled", err)
+	}
+
+	// A live parent keeps the fetch error, so a genuinely unavailable certificate is still
+	// reported as one.
+	if err := certificateError(context.Background(), failing); !errors.Is(err, failing) {
+		t.Fatalf("a live parent lost the fetch error: %v", err)
+	}
+	if err := certificateError(context.Background(), nil); err != nil {
+		t.Fatalf("a successful fetch yielded %v, want nil", err)
+	}
+}
