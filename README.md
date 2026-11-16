@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.10**。Tailscale Funnel 不再在证书未签发时谎报就绪；宽屏平板的会话列定宽居中、composer 与列同轴（#347）；文件预览的读取链路有端到端证据。插件与 Android App 独立更新；Android App 0.8.0 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.10) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.11**。Tailscale Funnel 不再在证书未签发时谎报就绪，且取证书的等待时间按实际签发耗时放宽到 180 秒并可用环境变量覆盖（#348）；宽屏平板的会话列定宽居中、composer 与列同轴（#347）；文件预览的读取链路有端到端证据。插件与 Android App 独立更新；Android App 0.8.0 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.11) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 

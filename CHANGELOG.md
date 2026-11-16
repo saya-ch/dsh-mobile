@@ -6,7 +6,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 - Add **Settings → Picture-in-picture**: leaving the app can keep the current DSH page in a floating window, so a status plugin stays readable while the user works elsewhere. Only a live DSH page floats; the device list and every setup, pairing and settings screen stay a normal background switch, and the setting ships off. [#411](https://github.com/saya-ch/dsh-mobile/issues/411)
 
-## 0.8.11 - Unreleased
+## 0.8.11 - 2026-11-16
 
 - Give the Funnel certificate fetch a realistic budget: the 0.8.10 warm-up that stopped reporting a ready address before the certificate existed used a 30-second timeout, but a cold ACME issuance can take around 40 seconds on a slow public route, so that build could report `funnel_certificate_failed` for a certificate that was simply still being issued. The default is now 180 seconds and can be widened further with `DSH_FUNNEL_CERTIFICATE_TIMEOUT_SECONDS` without a rebuild. Disabling the Funnel still aborts the fetch immediately instead of waiting out the budget. [#348](https://github.com/saya-ch/dsh-mobile/issues/348)
 

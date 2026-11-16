@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.10**. Tailscale Funnel no longer reports a ready listener whose certificate was never issued; a wide tablet centres the conversation column and keeps the composer on that axis (#347); the file-preview read path now has end-to-end evidence. Plugin and Android App releases remain independent; Android App 0.8.0 is the current app release. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.10) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.11**. Tailscale Funnel no longer reports a ready listener whose certificate was never issued, and its certificate wait now matches a real issuance at 180 seconds with an environment override (#348); a wide tablet centres the conversation column and keeps the composer on that axis (#347); the file-preview read path now has end-to-end evidence. Plugin and Android App releases remain independent; Android App 0.8.0 is the current app release. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.11) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 
