@@ -72,6 +72,8 @@
     "docs/CLIENT_MODULES.en.md",
     "docs/TRUSTED_NETWORKS.md",
     "docs/TRUSTED_NETWORKS.en.md",
+    "docs/LOOPBACK_TUNNEL.md",
+    "docs/LOOPBACK_TUNNEL.en.md",
     "docs/SLOW_CONNECTIONS.md",
     "docs/SLOW_CONNECTIONS.en.md",
     "docs/CONNECTION_DIAGNOSTICS.md",

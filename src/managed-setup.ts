@@ -10,7 +10,7 @@ import { networkInterfaces, type NetworkInterfaceInfo } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { generate } from 'selfsigned'
 import { restrictPrivateFile } from './private-file.js'
-import { parseCidr } from './network.js'
+import { formatHostname, parseCidr } from './network.js'
 
 /** One active private IPv4 address tied to a stable operating-system interface name. */
 export interface LanNetwork {
@@ -28,6 +28,13 @@ export interface ManagedSetup {
   readonly upstreamOrigin: string
   /** Additional admin-selected source networks; the active LAN subnet remains trusted. */
   readonly extraAllowedCidrs?: readonly string[]
+  /**
+   * Also accept the gateway through a local tunnel the administrator runs themselves
+   * (an frp stcp visitor on the phone, for example). It adds 127.0.0.1/::1 to the
+   * server leaf and to the accepted authorities; it does not widen which origins,
+   * CIDRs or credentials are trusted. Absent means off.
+   */
+  readonly loopbackTunnel?: boolean
   readonly tls: {
     readonly mode: 'managed'
     readonly caCertFile: string
@@ -60,7 +67,7 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
   }
   const record = value as Record<string, unknown>
   if (record.version !== 2 || Reflect.ownKeys(record)
-    .some(key => typeof key !== 'string' || !['version', 'networkInterface', 'listenPort', 'upstreamOrigin', 'tls', 'extraAllowedCidrs'].includes(key))) {
+    .some(key => typeof key !== 'string' || !['version', 'networkInterface', 'listenPort', 'upstreamOrigin', 'tls', 'extraAllowedCidrs', 'loopbackTunnel'].includes(key))) {
     throw new Error('mobile setup file has an unsupported format')
   }
   if (!Number.isSafeInteger(record.listenPort) || (record.listenPort as number) < 1024
@@ -80,6 +87,7 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
     networkInterface: requiredString(record.networkInterface, 'mobile setup networkInterface'),
     listenPort: record.listenPort as number,
     upstreamOrigin: requiredString(record.upstreamOrigin, 'mobile setup upstreamOrigin'),
+    ...(record.loopbackTunnel === undefined ? {} : { loopbackTunnel: parseLoopbackTunnel(record.loopbackTunnel) }),
     ...(record.extraAllowedCidrs === undefined ? {} : { extraAllowedCidrs: parseAdditionalTrustedNetworks(record.extraAllowedCidrs) }),
     tls: Object.freeze({
       mode: 'managed',
@@ -90,6 +98,23 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
     }),
   })
 }
+
+/** Validate the loopback-tunnel opt-in: an absent key means off, and only a real boolean
+ * is accepted so a stringified "false" cannot silently turn the tunnel on.
+ * @param value - Submitted setting value.
+ * @returns The validated opt-in.
+ */
+export function parseLoopbackTunnel(value: unknown): boolean {
+  if (typeof value !== 'boolean') throw new Error('loopbackTunnel must be a boolean')
+  return value
+}
+
+/**
+ * The loopback names a local tunnel can present. Both are IP literals: the phone
+ * reaches its own visitor on 127.0.0.1 (frp stcp's default bind address), and ::1
+ * covers an IPv6-only bind. Nothing here widens DNS names or public ranges.
+ */
+export const LOOPBACK_TUNNEL_ADDRESSES: readonly string[] = Object.freeze(['127.0.0.1', '::1'])
 
 /** Validate explicitly trusted networks without adding implicit VPN or private ranges.
  * @param value - CIDR strings submitted by the computer administrator.
@@ -154,6 +179,48 @@ export async function saveManagedTrustedNetworks(setupFile: string, values: unkn
   await atomicWrite(setupFile, `${JSON.stringify(next, null, 2)}\n`)
   await restrictPrivateFile(setupFile)
   return next
+}
+
+/** Save the loopback-tunnel opt-in without replacing the interface or pairing identity.
+ * @param setupFile - Existing managed setup file.
+ * @param enabled - Whether a locally tunnelled loopback name is accepted.
+ * @returns The saved managed setup.
+ */
+export async function saveManagedLoopbackTunnel(setupFile: string, enabled: unknown): Promise<ManagedSetup> {
+  const loopbackTunnel = parseLoopbackTunnel(enabled)
+  const setup = parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))
+  const next = Object.freeze({ ...setup, loopbackTunnel })
+  await atomicWrite(setupFile, `${JSON.stringify(next, null, 2)}\n`)
+  await restrictPrivateFile(setupFile)
+  return next
+}
+
+/**
+ * Read the durable setup for a runtime start, treating the file as authoritative.
+ *
+ * `parseManagedSetup` runs once when the plugin activates, so a switch saved later (the
+ * loopback tunnel, extra trusted networks) would otherwise stay invisible until a full DSH
+ * restart even though the panel said a rebind was enough. `fresh` says whether the file was
+ * actually read: a caller must not claim a saved change took effect when it fell back.
+ *
+ * @param setupFile - Absolute path of the managed setup file.
+ * @param fallback - Last known setup, used only when the file cannot be read or parsed.
+ */
+export async function readManagedSetupForStart(
+  setupFile: string,
+  fallback: ManagedSetup,
+): Promise<{ readonly setup: ManagedSetup; readonly fresh: boolean }> {
+  try {
+    return { setup: parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8'))), fresh: true }
+  } catch (error) {
+    // A transient read/parse failure must not take the gateway down, but it must be visible:
+    // running on a stale snapshot is exactly the state that is hard to diagnose later.
+    process.emitWarning(
+      `Mobile access could not re-read its saved setup and is using the last known one: ${error instanceof Error ? error.message : String(error)}`,
+      { code: 'DSH_MOBILE_SETUP_STALE' },
+    )
+    return { setup: fallback, fresh: false }
+  }
 }
 
 /** Persist an existing managed setup without resetting its identity, paths or extra trusted networks. */
@@ -512,9 +579,14 @@ export async function issueServerCertificate(
 
 /** Sign and atomically install a server leaf for the interface's current address. */
 export async function refreshManagedServerCertificate(setup: ManagedSetup, address: string): Promise<void> {
+  // The LAN address always stays first: existing pairings pin a leaf for it, and the
+  // loopback names are an addition, never a replacement.
+  const ipAddresses = setup.loopbackTunnel === true
+    ? [address, ...LOOPBACK_TUNNEL_ADDRESSES]
+    : [address]
   await issueServerCertificate(
     { caCertFile: setup.tls.caCertFile, caKeyFile: setup.tls.caKeyFile },
-    { commonName: 'DeepSeek Harness Mobile', ipAddresses: [address] },
+    { commonName: 'DeepSeek Harness Mobile', ipAddresses },
     { certFile: setup.tls.certFile, keyFile: setup.tls.keyFile },
   )
 }
@@ -533,6 +605,14 @@ export async function materializeManagedSetup(
     allowedCidrs: parseAdditionalTrustedNetworks([network.cidr, ...(setup.extraAllowedCidrs ?? [])]),
     instanceId: ca.fingerprint256.replaceAll(':', '').toLowerCase(),
     pairingCaFile: setup.tls.caCertFile,
+    // A loopback visitor binds the same port number on the phone, so the declared
+    // authority is exact: config validation already rejects any authority whose port
+    // differs from the listener port, which keeps this from becoming a wildcard.
+    // Always emitted, empty when off: a managed start must never inherit a stale
+    // additionalAuthorities value from the profile it spreads over.
+    additionalAuthorities: setup.loopbackTunnel === true
+      ? LOOPBACK_TUNNEL_ADDRESSES.map(address => `${formatHostname(address)}:${String(setup.listenPort)}`)
+      : [],
     tls: {
       mode: 'provided',
       certFile: setup.tls.certFile,

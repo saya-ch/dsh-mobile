@@ -199,7 +199,8 @@ export function parseAuthority(source: string): AuthoritySpec {
   return port === undefined ? Object.freeze({ hostname }) : Object.freeze({ hostname, port })
 }
 
-function formatHostname(hostname: string): string {
+/** Bracket an IPv6 literal so it can be used inside an authority. */
+export function formatHostname(hostname: string): string {
   return hostname.includes(':') && !hostname.startsWith('[') ? `[${hostname}]` : hostname
 }
 

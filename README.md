@@ -195,6 +195,8 @@ dsh plugin --profile web add dshmarket
 | 自有反向代理 | 已有公开 HTTPS 代理 | 插件只提供私有认证后端；[配置指南](docs/SELF_HOSTED_ORIGIN.md) | 可沿用自己的代理设施，稳定性取决于代理、线路与运维 |
 | 托管 Caddy | 腾讯云 DNSPod 管理的域名与公网入站 | 插件管理 HTTPS 与证书；Windows/Linux x64；[配置指南](docs/CADDY_MANAGED.md) | 不提供内网穿透，需自行确认入站端口和映射；已有 Cloudflared 用户不必迁移 |
 
+如果你已经有自己的 frps，也可以用 frp 的 **stcp** 让手机经本地回环接入、完全不发布公网端口：电脑端跑 `type = stcp` 的 frpc，手机端（Termux）配 stcp visitor，只把网关的 HTTPS 端口经 frps 转到手机自己的 `127.0.0.1`。这需要用插件下一版本的「回环隧道接入」开关，且**手机端端口必须等于电脑端网关监听端口**（默认 3443）。与上表中由插件管理的通道不同，这条链路的 frpc 要你自己运行；配置步骤、必须一致的端口和残余风险见 [回环隧道接入](docs/LOOPBACK_TUNNEL.md)。
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/remote-access.png" width="82%" alt="DSH Mobile 远程访问与通道选择">
 </p>

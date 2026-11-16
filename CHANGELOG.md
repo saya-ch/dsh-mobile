@@ -9,6 +9,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## 0.8.12 - Unreleased
 
+- Add an opt-in **Loopback tunnel** seat under Mobile access → Local network: when the administrator runs a local tunnel themselves, such as an frp stcp visitor on the phone, the gateway also accepts the loopback names. The server certificate gains `127.0.0.1` and `::1` while the LAN address stays, and the pairing response offers a loopback link. It adds two exact names only — Origin, CSRF, trusted-network and credential checks are unchanged — and the tunnel must bind the same port number as the gateway. Off by default. [#444](https://github.com/saya-ch/dsh-mobile/issues/444)
 - Keep a plugin that reverses the user message row from collapsing the bubble: a narrow-screen rule widened any message actions row holding a `_timeStart` or `_timeEnd` child, but DSH renders the user message's own clock (`data-clock="start"`) as a direct child of that row, so the rule widened the USER row rather than the assistant one. With `ds-bot` turning that row into a reversed flex line, the user bubble collapsed to a sliver. The rule is gone; DSH's own actions row already keeps both labels on one line down to a 320px viewport. [#441](https://github.com/saya-ch/dsh-mobile/issues/441)
 
 ## 0.8.11 - 2026-11-16
