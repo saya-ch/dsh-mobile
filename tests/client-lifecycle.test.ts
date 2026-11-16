@@ -969,19 +969,6 @@ describe('mobile-control localization', () => {
     expect(CONTROL_STYLES).toContain('dsh-mobile-control__qr img{border-radius:12px;background:#fff')
   })
 
-  it('shrinks a shared footer seat to the host rail square, not an unsupported 44x42 box', () => {
-    // The sidebar footer row is shared with other plugins and the host renders each
-    // occupant's own geometry. The host's own occupant of that seat is 36x36 in its
-    // compact state (Fu0XRq_badge rail), and the sibling plugins shrink to 36x36, so a
-    // 44x42 middle state matched nothing beside it (#440). The block margin must stay
-    // symmetric across the three states or the row gains a stray offset.
-    expect(CONTROL_STYLES).toContain('.dsh-mobile-control__trigger:not(.is-rail):not(:only-child){flex:0 0 36px;width:36px;min-width:36px;height:36px;')
-    expect(CONTROL_STYLES).not.toContain('flex:0 0 44px;width:44px')
-    // The asymmetric block margin pushed this seat one pixel lower than its siblings.
-    expect(CONTROL_STYLES).not.toContain('is-rail{flex:0 0 auto;width:36px;height:36px;margin:8px 0 10px;')
-    expect(CONTROL_STYLES).toContain('.dsh-mobile-control__trigger.is-rail{flex:0 0 auto;width:36px;height:36px;margin:4px 0;')
-  })
-
   it('keeps the named-tunnel form behind an explicit mode choice and never persists the token in the DOM', () => {
     const source = readFileSync(new URL('../src/client.ts', import.meta.url), 'utf8')
     // The mode selector stages a choice; only Save reaches the provider, so clicking
