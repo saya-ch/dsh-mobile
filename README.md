@@ -302,11 +302,11 @@ App 0.6.7 配合插件 0.6.16，可在列表 **设置 → 同电脑自动连接*
 <table>
   <tr>
     <td align="center" valign="top" width="50%">
-      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg" width="44%" alt="Android App 已配对设备列表：远程与局域网电脑及其可达状态"><br>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg?v=067b814bfc51" width="44%" alt="Android App 已配对设备列表：远程与局域网电脑及其可达状态"><br>
       <sub>已配对设备：每台电脑的名称、连接方式、可达状态与最近连接时间，底部可添加新电脑</sub>
     </td>
     <td align="center" valign="top" width="50%">
-      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Android App 设置页：启动行为、外观、应用图标、同电脑自动连接与检查更新"><br>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg?v=b6fe814aa2ed" width="44%" alt="Android App 设置页：启动行为、外观、应用图标、同电脑自动连接与检查更新"><br>
       <sub>设置页：启动行为（直接进入 DSH 或显示设备列表）、外观、应用图标、同电脑自动连接与检查更新</sub>
     </td>
   </tr>

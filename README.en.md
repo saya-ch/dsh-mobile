@@ -302,11 +302,11 @@ Revoking a device permanently deletes its durable record and token digest instea
 <table>
   <tr>
     <td align="center" valign="top" width="50%">
-      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg" width="44%" alt="Paired computer list in the Android app: remote and LAN computers with reachability"><br>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg?v=067b814bfc51" width="44%" alt="Paired computer list in the Android app: remote and LAN computers with reachability"><br>
       <sub>Paired computers: each computer's name, transport, reachability and last connection time, with an add-computer action</sub>
     </td>
     <td align="center" valign="top" width="50%">
-      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Android app settings: startup behavior, appearance, app icon, same-computer auto-connect and update check"><br>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg?v=b6fe814aa2ed" width="44%" alt="Android app settings: startup behavior, appearance, app icon, same-computer auto-connect and update check"><br>
       <sub>Settings: startup behavior (open DSH directly or show the device list), appearance, app icon, same-computer auto-connect and update check</sub>
     </td>
   </tr>
