@@ -250,14 +250,17 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] [data-composer-stats] [class*="_pill"] svg { display:inline-block !important; vertical-align:-2px !important; margin-right:6px !important; }
   [data-dsh-mobile-center] [data-composer-stats]:has(span[class*="_pill"]) { flex-wrap:wrap !important; overflow:visible !important; }
   [data-dsh-mobile-center] [data-composer-stats] span[class*="_pill"] { flex:0 1 auto !important; max-width:100% !important; white-space:normal !important; overflow:visible !important; overflow-wrap:anywhere !important; text-overflow:clip !important; }
-  /* Message runtime details are inline on desktop. Give the clock/runtime
-     label its own wrapping row on narrow screens so TTFT and throughput do
-     not push the action buttons or clip at the viewport edge. */
-  [data-dsh-mobile-center] [class*="_actions"]:has(> [class*="_timeStart"]),
-  [data-dsh-mobile-center] [class*="_actions"]:has(> [class*="_timeEnd"]) { box-sizing:border-box !important; width:100% !important; flex-wrap:wrap !important; justify-content:flex-end !important; height:auto !important; min-height:28px !important; row-gap:2px !important; }
-  [data-dsh-mobile-center] [class*="_timeStart"],
-  [data-dsh-mobile-center] [class*="_timeEnd"] { box-sizing:border-box !important; flex:1 1 100% !important; order:2 !important; min-width:0 !important; max-width:100% !important; padding:0 !important; line-height:20px !important; text-align:center !important; white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-center] [class*="_timeStart"] { box-sizing:border-box !important; flex:1 1 100% !important; order:2 !important; min-width:0 !important; max-width:100% !important; padding:0 !important; line-height:20px !important; text-align:center !important; white-space:normal !important; overflow-wrap:anywhere !important; }
+  /* Message runtime details are inline on desktop. Give the assistant's TTFT and
+     throughput row its own wrapping line on narrow screens so it cannot push the
+     action buttons or clip at the viewport edge.
+     Scope this to clock="end": DSH renders the user message's own clock
+     (clock="start") as a direct child of the same actions element, and widening
+     that row collapsed the user bubble to a sliver once a plugin turned the row
+     into a reversed flex line. The assistant's time label is not a direct child
+     either, so target the row that actually wraps it. */
+  [data-dsh-mobile-center] [class*="_actions"][data-clock="end"] { box-sizing:border-box !important; width:100% !important; flex-wrap:wrap !important; justify-content:flex-end !important; height:auto !important; min-height:28px !important; row-gap:2px !important; }
+  [data-dsh-mobile-center] [class*="_actions"][data-clock="end"] > [class*="_endInfo"] { box-sizing:border-box !important; flex:1 1 100% !important; order:2 !important; min-width:0 !important; max-width:100% !important; justify-content:center !important; margin-left:0 !important; }
+  [data-dsh-mobile-center] [class*="_actions"][data-clock="end"] [class*="_timeEnd"] { box-sizing:border-box !important; min-width:0 !important; max-width:100% !important; padding:0 !important; line-height:20px !important; text-align:center !important; white-space:normal !important; overflow-wrap:anywhere !important; }
   [data-dsh-mobile-center] [class*="_timeStart"] [class*="_runTimeDot"],
   [data-dsh-mobile-center] [class*="_timeEnd"] [class*="_runTimeDot"] { margin:0 6px !important; }
   /* Keep the context meter's legend rows as readable label/value pairs.

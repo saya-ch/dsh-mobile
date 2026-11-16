@@ -58,6 +58,24 @@ describe('native mobile presentation', () => {
     expect(overlay).not.toContain('[data-shell-overlay] > * { pointer-events:auto')
   })
 
+  it('wraps only the assistant runtime row so a plugin cannot collapse the user bubble', () => {
+    // DSH renders the user message's clock (data-clock="start") as a direct child of
+    // the same actions element it uses for the assistant completion row
+    // (data-clock="end", whose label sits inside _endInfo). An unscoped
+    // "_actions:has(> _timeStart)" rule therefore widened the USER actions row; with a
+    // plugin that turns that row into a reversed flex line (#441) the user bubble
+    // collapsed to a sliver. Only the assistant row may be widened, and the rule must
+    // reach the element that actually wraps its label.
+    // The rule lives inside the narrow-overlay block, so assert over the whole sheet.
+    // The user-side clock must not select the widening rule.
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_actions"]:has(> [class*="_timeStart"])')
+    // The assistant label is not a direct child of the actions row.
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_actions"]:has(> [class*="_timeEnd"])')
+    expect(NATIVE_MOBILE_STYLES).toContain('[class*="_actions"][data-clock="end"] { box-sizing:border-box !important; width:100% !important;')
+    expect(NATIVE_MOBILE_STYLES).toContain('[class*="_actions"][data-clock="end"] > [class*="_endInfo"] {')
+    expect(NATIVE_MOBILE_STYLES).toContain('[class*="_actions"][data-clock="end"] [class*="_timeEnd"] {')
+  })
+
   it('styles the injected attachment actions on every viewport, not only the narrow overlay', () => {
     const shared = NATIVE_MOBILE_STYLES.slice(0, NATIVE_MOBILE_STYLES.indexOf('@media'))
     expect(shared).toContain('.dsh-mobile-media-action { box-sizing:border-box; display:flex;')

@@ -183,7 +183,7 @@ describe('desktop Mobile Access footer', () => {
       flex: '0 0 auto',
       width: '36px',
       height: '36px',
-      margin: '8px 0 10px',
+      margin: '4px 0',
       padding: '0',
       gap: '0',
       'justify-content': 'center',
@@ -203,9 +203,10 @@ describe('desktop Mobile Access footer', () => {
 
   it('reserves an icon target when another footer entry shares the row', () => {
     expect(declarations('.dsh-mobile-control__trigger:not(.is-rail):not(:only-child)')).toEqual({
-      flex: '0 0 44px',
-      width: '44px',
-      'min-width': '44px',
+      flex: '0 0 36px',
+      width: '36px',
+      'min-width': '36px',
+      height: '36px',
       padding: '0',
       'justify-content': 'center',
       gap: '0',

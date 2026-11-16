@@ -6,6 +6,11 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 - Add **Settings → Picture-in-picture**: leaving the app can keep the current DSH page in a floating window, so a status plugin stays readable while the user works elsewhere. Only a live DSH page floats; the device list and every setup, pairing and settings screen stay a normal background switch, and the setting ships off. [#411](https://github.com/saya-ch/dsh-mobile/issues/411)
 
+## 0.8.12 - Unreleased
+
+- Keep a plugin that reverses the user message row from collapsing the bubble: the narrow-screen rule that gives the assistant's TTFT and throughput label its own line selected `_actions:has(> _timeStart)`, but DSH renders the user message's own clock as a direct child of the same actions element, so the rule widened the USER row instead. With `ds-bot` turning that row into a reversed flex line, the user bubble collapsed to a 24px sliver. The rule now keys on the assistant row only (`data-clock="end"` and its `_endInfo` wrapper). The assistant label was never a direct child either, so that half of the rule had never taken effect. [#441](https://github.com/saya-ch/dsh-mobile/issues/441)
+- Shrink a shared sidebar footer seat to the host's 36x36 square instead of a 44x42 box that matched nothing beside it, and drop the asymmetric `8px 0 10px` rail margin that sat one pixel lower than the rows above. The host's own occupant of that seat is 36x36 with a symmetric margin. [#440](https://github.com/saya-ch/dsh-mobile/issues/440)
+
 ## 0.8.11 - 2026-11-16
 
 - Give the Funnel certificate fetch a realistic budget: the 0.8.10 warm-up that stopped reporting a ready address before the certificate existed used a 30-second timeout, but a cold ACME issuance can take around 40 seconds on a slow public route, so that build could report `funnel_certificate_failed` for a certificate that was simply still being issued. The default is now 180 seconds and can be widened further with `DSH_FUNNEL_CERTIFICATE_TIMEOUT_SECONDS` without a rebuild. Disabling the Funnel still aborts the fetch immediately instead of waiting out the budget. [#348](https://github.com/saya-ch/dsh-mobile/issues/348)
