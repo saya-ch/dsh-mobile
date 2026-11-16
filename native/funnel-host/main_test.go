@@ -292,8 +292,35 @@ func TestVerifyCertificateRejectsAnOriginThatCannotNameACertificate(t *testing.T
 	// The public origin is the only place a certificate name may come from; anything
 	// else would let the sidecar ask the control plane for an unrelated certificate.
 	for _, origin := range []string{"", "https://", "http://example.ts.net", "example.ts.net", "https://example.ts.net/path", "https://example.ts.net:443"} {
-		if err := verifyCertificate(context.Background(), nil, origin); err == nil {
+		if err := verifyCertificate(context.Background(), nil, origin, defaultCertificateTimeout); err == nil {
 			t.Fatalf("verifyCertificate(%q) accepted an invalid origin", origin)
+		}
+	}
+}
+
+func TestCertificateTimeoutDefaultsGenerouslyAndIsOverridable(t *testing.T) {
+	// A cold ACME issuance measured ~39s on a slow public route; the default must clear
+	// that comfortably, and an operator must be able to widen it without a rebuild.
+	if defaultCertificateTimeout < 90*time.Second {
+		t.Fatalf("default certificate timeout %v is below the measured issuance time", defaultCertificateTimeout)
+	}
+	cases := []struct {
+		raw  string
+		want time.Duration
+	}{
+		{"", defaultCertificateTimeout},
+		{"   ", defaultCertificateTimeout},
+		{"abc", defaultCertificateTimeout},
+		{"-5", defaultCertificateTimeout},
+		{"0", defaultCertificateTimeout},
+		{"39", 39 * time.Second},
+		{"600", 600 * time.Second},
+		{"5", minCertificateTimeout},
+		{"100000", maxCertificateTimeout},
+	}
+	for _, c := range cases {
+		if got := resolveCertificateTimeout(c.raw); got != c.want {
+			t.Fatalf("resolveCertificateTimeout(%q) = %v, want %v", c.raw, got, c.want)
 		}
 	}
 }

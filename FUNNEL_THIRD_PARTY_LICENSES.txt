@@ -4,7 +4,7 @@ This file is generated from the Go module metadata embedded in
 bin/dsh-mobile-funnel-win32-x64.exe. DSH Mobile itself is licensed under
 the repository root LICENSE file. Do not edit this generated file by hand.
 
-Source binary SHA-256: 7dc1b8402702e6ca103ac0c490e3e5f0ec07debde3102a99fe8ee3fc802fb5b9
+Source binary SHA-256: 11db154a0674247041effcb604ea10e390d0f717ca49a044a3c1879202aa8a9d
 Go toolchain: go1.26.6
 Embedded third-party modules: 36
 

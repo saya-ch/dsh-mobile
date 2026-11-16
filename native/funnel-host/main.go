@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -164,14 +165,37 @@ func classifyFunnelFailure(err error) (code, setupURL string) {
 	}
 }
 
-// certificateTimeout bounds the one certificate fetch made before reporting serving.
-const certificateTimeout = 30 * time.Second
+// The one certificate fetch made before reporting serving must tolerate a cold ACME
+// issuance, which measured about 39 seconds on a slow public route. The default keeps
+// generous headroom; an operator can widen it through the environment without a rebuild.
+const (
+	defaultCertificateTimeout = 180 * time.Second
+	minCertificateTimeout     = 30 * time.Second
+	maxCertificateTimeout     = 900 * time.Second
+)
+
+// resolveCertificateTimeout reads the operator override in seconds and clamps it, so a
+// malformed or hostile value cannot disable the bound or make shutdown hang for hours.
+func resolveCertificateTimeout(raw string) time.Duration {
+	seconds, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || seconds <= 0 {
+		return defaultCertificateTimeout
+	}
+	limit := time.Duration(seconds) * time.Second
+	if limit < minCertificateTimeout {
+		return minCertificateTimeout
+	}
+	if limit > maxCertificateTimeout {
+		return maxCertificateTimeout
+	}
+	return limit
+}
 
 // verifyCertificate fetches the public certificate before the listener is reported as
 // serving. tsnet resolves it lazily on the first TLS handshake, so a hostname whose
 // certificate was never issued still produces a bound listener: the panel would show a
 // ready remote address while every public connection failed during the handshake.
-func verifyCertificate(ctx context.Context, server *tsnet.Server, origin string) error {
+func verifyCertificate(ctx context.Context, server *tsnet.Server, origin string, timeout time.Duration) error {
 	host := strings.TrimPrefix(origin, "https://")
 	if host == "" || host == origin || strings.ContainsAny(host, "/:") {
 		return errors.New("invalid certificate host")
@@ -180,7 +204,7 @@ func verifyCertificate(ctx context.Context, server *tsnet.Server, origin string)
 	if err != nil {
 		return err
 	}
-	fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), certificateTimeout)
+	fetchCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	_, _, err = client.CertPair(fetchCtx, host)
 	if err != nil && ctx.Err() != nil {
@@ -334,7 +358,8 @@ func serveFunnel(ctx context.Context, server *tsnet.Server, target *url.URL, ori
 		http.Error(response, "gateway unavailable", http.StatusBadGateway)
 	}
 
-	if err := verifyCertificate(ctx, server, origin); err != nil {
+	if err := verifyCertificate(ctx, server, origin,
+		resolveCertificateTimeout(os.Getenv("DSH_FUNNEL_CERTIFICATE_TIMEOUT_SECONDS"))); err != nil {
 		if ctx.Err() != nil {
 			return nil
 		}
