@@ -34,9 +34,9 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin that lets your phone pick up the DSH work running on your computer. The native app currently ships for Android only; on an iPhone or iPad, just open it in Safari, or [add DSH Mobile to your Home Screen as a web app](<#iphone-and-ipad-home-screen-web-app-pwa>) — no app to install.
 >
-> **Current stable release: 0.8.9**. Tap the preview path bar on touch devices to copy the full path; the gateway answers an untrusted source network with its own error; the drawer no longer clips stock fixed-position panels (#413); the repository adds the source of the unpublished portable Windows client. Plugin and Android App releases remain independent; Android App 0.7.5 is the current app release. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [Full changelog](CHANGELOG.md).
+> **Current versions**: plugin 0.8.9, Android app 0.7.5. They ship separately, and **a plugin update usually does not require reinstalling the app**; when it does, the release line says so. Install the plugin first, then the app: [plugin download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [app download](#download-the-android-app) · [what changed](CHANGELOG.md).
 >
-> **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. [Compatibility notes](#compatibility).
+> Want the Windows client on a Windows PC? It is still in progress: **there is no installer yet, so nothing to click for now** ([source and build notes](apps/windows/README.md)).
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
