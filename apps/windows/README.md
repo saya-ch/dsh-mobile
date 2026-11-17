@@ -18,11 +18,11 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 ## 功能
 
 - **三种连接通道**
-  - `iroh`：粘贴 iroh 配对 JSON 描述符，经官方 sidecar（`phone-sim`）建立 QUIC 隧道 + 本地回环 TLS 载体；sidecar 不随仓库分发，按固定 URL + SHA-256 获取并在每次启动进程前校验；
-  - `局域网` / `远程`：粘贴 `https://…/mobile-access/pair#…` 配对链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），从 `/mobile-access/ca.cer` 引导获取配对 CA（TOFU + instanceId 指纹锚定），直连网关。
-- **免扫码重连**：首次配对保存设备凭据（deviceToken 经 DPAPI 加密落盘），后续启动直接点「连接」，iroh 走 Hello、直连走 `native-renew`。
-- **设备管理**：多设备卡片、重命名、删除；每张卡片显示通道类型与凭据有效期。
-- **安全**：配对 CA 是固定通道的唯一信任锚；叶子证书按 `Issuer` → CA/叶子有效期 → 非 CA → `EKU(serverAuth)` → 链固定到 CA → `SAN`（DNS 精确或单层通配；局域网网关的 IP SAN 逐字节比较）逐项校验后才放行 WebView2 证书错误。WebView2 错误路径对 `Expired`/`Revoked` 一律拒绝；自定义 CA 的 native TLS 通道不查吊销（`X509RevocationMode.NoCheck`，配对 CA 自签、无吊销信息）。
+  - `iroh`：粘贴 iroh 配对内容，由官方组件建立加密隧道；
+  - `局域网` / `远程`：粘贴 `https://…/mobile-access/pair#…` 配对链接，直连网关。
+- **免扫码重连**：配对一次后，以后直接点「连接」即可，不用再粘贴。
+- **设备管理**：多设备卡片、重命名、删除；每张卡片显示连接方式和凭据有效期。
+- **安全**：配对时自动固定这台电脑的证书，对不上就拒绝连接，不会让你往系统里装证书。凭据用 Windows 账户加密保存在本目录，换台电脑或换个用户就要重新配对。
 - **顶栏与标题栏**：原生标题栏下方的窗口级顶栏行（设备列表 / 连接状态 / 断开），颜色与 DWM 标题栏一致；页面 DOM 零注入、零改动。
 - **深浅色**：语义颜色 token（`design-system/dsh-mobile/MASTER.md`），跟随系统深浅色；环境变量 `DSH_MOBILE_THEME=light|dark` 可覆盖。
 
