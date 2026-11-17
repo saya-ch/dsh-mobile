@@ -920,6 +920,7 @@ const REMOTE_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
   funnel_permission_required: 'funnelPermission',
   funnel_https_required: 'funnelHttps',
   funnel_start_failed: 'funnelStart',
+  funnel_certificate_failed: 'funnelCertificate',
   funnel_start_timeout: 'funnelTimeout',
   funnel_state_invalid: 'funnelStateInvalid',
   cpolar_path_invalid: 'componentPathUnsafe',
@@ -1045,7 +1046,8 @@ const DIAGNOSTIC_CONTROLLER_ACTION_OVERRIDES: Readonly<Record<string, string>> =
 /** Only codes with a specific diagnostic action use the status message key. */
 const DIAGNOSTIC_CONTROLLER_ACTION_CODES: ReadonlySet<string> = new Set([
   ...Object.keys(ORIGIN_ERROR_MESSAGE_KEYS),
-  'funnel_permission_required', 'funnel_https_required', 'funnel_start_failed', 'funnel_start_timeout',
+  'funnel_permission_required', 'funnel_https_required', 'funnel_start_failed', 'funnel_certificate_failed',
+  'funnel_start_timeout',
   'tailscale_dns_missing', 'control_channel_failed', 'gateway_start_failed',
   'cpolar_component_missing', 'cpolar_component_invalid', 'cpolar_config_missing', 'cpolar_config_invalid',
   'cpolar_extract_tools_failed', 'cpolar_extract_archive_failed', 'cpolar_extract_database_failed',
@@ -1266,6 +1268,61 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       trustedNetworksBusy = false; syncTrustedNetworksControls()
     })
   })
+  const loopbackTunnel = element('details', 'dsh-mobile-control__details')
+  const loopbackTunnelSummary = element('summary'); loopbackTunnelSummary.textContent = t('loopbackTunnelTitle')
+  const loopbackTunnelHelp = element('p', 'dsh-mobile-control__component-note'); loopbackTunnelHelp.textContent = t('loopbackTunnelHelp')
+  const loopbackTunnelRisk = element('p', 'dsh-mobile-control__component-note')
+  const loopbackTunnelToggle = element('button', 'dsh-mobile-control__secondary'); loopbackTunnelToggle.type = 'button'
+  const loopbackTunnelStatus = element('p', 'dsh-mobile-control__status'); loopbackTunnelStatus.setAttribute('role', 'status'); loopbackTunnelStatus.setAttribute('aria-live', 'polite')
+  loopbackTunnel.append(loopbackTunnelSummary, loopbackTunnelHelp, loopbackTunnelRisk, loopbackTunnelToggle, loopbackTunnelStatus)
+  let loopbackTunnelLoaded = false
+  let loopbackTunnelLoading = false
+  let loopbackTunnelSupported = false
+  let loopbackTunnelBusy = false
+  let loopbackTunnelEnabled = false
+  let loopbackTunnelPort = 3443
+  const syncLoopbackTunnelControls = (): void => {
+    const ready = loopbackTunnelLoaded && loopbackTunnelSupported && !loopbackTunnelLoading && !loopbackTunnelBusy
+    loopbackTunnelToggle.disabled = !ready
+    loopbackTunnelToggle.hidden = loopbackTunnelLoaded && !loopbackTunnelSupported
+    loopbackTunnelToggle.setAttribute('aria-pressed', String(loopbackTunnelEnabled))
+    loopbackTunnelToggle.textContent = loopbackTunnelEnabled ? t('loopbackTunnelOn') : t('loopbackTunnelOff')
+    loopbackTunnelRisk.textContent = t('loopbackTunnelRisk').replaceAll('{port}', String(loopbackTunnelPort))
+    loopbackTunnel.setAttribute('aria-busy', String(loopbackTunnelLoading || loopbackTunnelBusy))
+  }
+  syncLoopbackTunnelControls()
+  const renderLoopbackTunnel = (data: Record<string, unknown>): void => {
+    loopbackTunnelLoaded = true
+    loopbackTunnelSupported = data.supported === true
+    loopbackTunnelEnabled = data.enabled === true
+    if (typeof data.listenPort === 'number') loopbackTunnelPort = data.listenPort
+    syncLoopbackTunnelControls()
+    loopbackTunnelStatus.textContent = !loopbackTunnelSupported
+      ? t('loopbackTunnelUnavailable')
+      : data.restartRequired === true ? t('loopbackTunnelRestart') : ''
+  }
+  // The switch changes what the listener accepts, so it is read on open and saved on
+  // toggle; a saved change reports that a restart is still pending rather than
+  // pretending the running listener already honours it.
+  loopbackTunnel.addEventListener('toggle', () => {
+    if (!loopbackTunnel.open || loopbackTunnelLoading) return
+    loopbackTunnelLoading = true
+    syncLoopbackTunnelControls()
+    loopbackTunnelStatus.textContent = t('loadingStatus')
+    void controlRequestJson('/api/mobile-access/lan/loopback-tunnel').then(renderLoopbackTunnel, () => {
+      loopbackTunnelLoaded = false; loopbackTunnelSupported = false
+      loopbackTunnelStatus.textContent = t('loopbackTunnelFailed')
+    }).finally(() => { loopbackTunnelLoading = false; syncLoopbackTunnelControls() })
+  })
+  loopbackTunnelToggle.addEventListener('click', () => {
+    if (loopbackTunnelBusy || !loopbackTunnelLoaded || !loopbackTunnelSupported) return
+    loopbackTunnelBusy = true; syncLoopbackTunnelControls()
+    void controlRequestJson('/api/mobile-access/lan/loopback-tunnel', {
+      method: 'POST', body: JSON.stringify({ enabled: !loopbackTunnelEnabled }),
+    }).then(renderLoopbackTunnel, () => {
+      loopbackTunnelStatus.textContent = t('loopbackTunnelInvalid')
+    }).finally(() => { loopbackTunnelBusy = false; syncLoopbackTunnelControls() })
+  })
   lanSetupLabel.append(lanSetupSelect); lanSetupActions.append(lanSetupRefresh, lanSetupConfigure); lanSetupForm.append(lanSetupLabel, lanSetupNote, lanSetupActions); lanSetup.append(lanSetupTitle, lanSetupIntro, lanSetupForm, lanSetupStatus)
   const access = element('div', 'dsh-mobile-control__access'); access.hidden = true
   const accessLabel = element('span', 'dsh-mobile-control__access-label'); accessLabel.textContent = t('browserAccess')
@@ -1274,6 +1331,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const qrBox = element('div', 'dsh-mobile-control__qr')
   const lanPairingValidity = element('p', 'dsh-mobile-control__component-status'); lanPairingValidity.hidden = true
   let activeLanPairUrl = ''
+  let activeLanLoopbackPairUrl = ''
   let activeLanPairExpiresAt = 0
   let lanPairingBusy = false
   let lanPairingGeneration = 0
@@ -1283,6 +1341,9 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const toggle = element('button', 'dsh-mobile-control__secondary'); toggle.type = 'button'
   const pair = element('button', 'dsh-mobile-control__primary'); pair.type = 'button'; pair.textContent = t('generateCopyKey')
   const linkPair = element('button', 'dsh-mobile-control__secondary'); linkPair.type = 'button'; linkPair.textContent = t('copyPairLink')
+  // Shown only when the gateway reported a loopback address, so a LAN-only setup never
+  // offers a link it cannot honour.
+  const loopbackPair = element('button', 'dsh-mobile-control__secondary dsh-mobile-control__loopback-pair'); loopbackPair.type = 'button'; loopbackPair.hidden = true; loopbackPair.textContent = t('loopbackPairCopy')
   const manageRow = element('div', 'dsh-mobile-control__manage-row')
   const manageDevices = element('button', 'dsh-mobile-control__manage'); manageDevices.type = 'button'; manageDevices.textContent = t('managePairedDevices')
   const resetAll = element('button', 'dsh-mobile-control__manage'); resetAll.type = 'button'; resetAll.textContent = t('clearAllDevices')
@@ -1980,8 +2041,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const diagnosticsDetailsSummary = element('summary'); diagnosticsDetailsSummary.textContent = t('diagnosticsAdvanced')
   const diagnosticsReport = element('pre', 'dsh-mobile-control__diagnostic-report')
   diagnosticsDetails.append(diagnosticsDetailsSummary, diagnosticsReport)
-  header.append(title, headerActions); actions.append(toggle, pair, linkPair)
-  lanView.append(lanSetup, lanChange, access, qrBox, lanPairingValidity, status, extensionStatus, actions, trustedNetworks)
+  header.append(title, headerActions); actions.append(toggle, pair, linkPair, loopbackPair)
+  lanView.append(lanSetup, lanChange, access, qrBox, lanPairingValidity, status, extensionStatus, actions, trustedNetworks, loopbackTunnel)
   // Two-column remote layout: the channel list on the left, its configuration on
   // the right, so switching providers no longer scrolls the setup out of view.
   const channelPane = element('div', 'dsh-mobile-control__channel-pane')
@@ -2186,6 +2247,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     lanPairingValidity.hidden = false
     if (Date.now() >= activeLanPairExpiresAt) {
       activeLanPairUrl = ''
+      activeLanLoopbackPairUrl = ''
+      loopbackPair.hidden = true
       showQr('')
       qrBox.textContent = t('pairingExpired')
       lanPairingValidity.textContent = t('pairingExpired')
@@ -2227,6 +2290,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     if (!running || previousOrigin !== origin) {
       lanPairingGeneration += 1
       activeLanPairUrl = ''
+      activeLanLoopbackPairUrl = ''
+      loopbackPair.hidden = true
       activeLanPairExpiresAt = 0
       lanPairingValidity.hidden = true
       showQr('')
@@ -2431,13 +2496,15 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     const generation = lanPairingGeneration
     if (target === 'key' || activeLanPairExpiresAt <= Date.now()) {
       activeLanPairUrl = ''
+      activeLanLoopbackPairUrl = ''
+      loopbackPair.hidden = true
       activeLanPairExpiresAt = 0
       lanPairingValidity.hidden = true
       status.classList.remove('is-key')
       showQr('')
     }
     const operation = target === 'link' && activeLanPairUrl !== '' && activeLanPairExpiresAt > Date.now()
-      ? Promise.resolve({ pairUrl: activeLanPairUrl, expiresAt: activeLanPairExpiresAt })
+      ? Promise.resolve({ pairUrl: activeLanPairUrl, expiresAt: activeLanPairExpiresAt, loopbackPairUrl: activeLanLoopbackPairUrl })
       : controlRequestJson('/api/mobile-access/lan/pairing/open', { method: 'POST', body: '{}' })
     void operation.then(async data => {
       if (lifecycle.signal.aborted || !running || origin !== pairingOrigin || generation !== lanPairingGeneration) return
@@ -2447,6 +2514,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
         return
       }
       activeLanPairUrl = value
+      activeLanLoopbackPairUrl = typeof data.loopbackPairUrl === 'string' ? data.loopbackPairUrl : ''
+      loopbackPair.hidden = activeLanLoopbackPairUrl === ''
       activeLanPairExpiresAt = data.expiresAt
       lanPairingValidity.hidden = false
       lanPairingValidity.textContent = t('pairingExpires', { time: formatTime(data.expiresAt) })
@@ -4389,6 +4458,17 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   })
   pair.addEventListener('click', () => { openPairing('key') })
   linkPair.addEventListener('click', () => { openPairing('link') })
+  loopbackPair.addEventListener('click', () => {
+    // The token is the same one the LAN link carries, so the button follows its expiry.
+    const value = activeLanLoopbackPairUrl
+    if (value === '' || activeLanPairExpiresAt <= Date.now()) { loopbackPair.hidden = true; return }
+    void navigator.clipboard.writeText(value).then(() => {
+      status.textContent = t('linkCopied')
+    }, () => {
+      status.textContent = t('copySecret', { kind: t('pairingLink'), value })
+      status.classList.add('is-key')
+    })
+  })
   close.addEventListener('click', () => { setOpen(false) })
   const dismiss = (event: PointerEvent): void => {
     if (panel.hidden || !(event.target instanceof Node)) return
@@ -5559,7 +5639,7 @@ export const CONTROL_STYLES = `
 .dsh-mobile-control__provider:hover{border-color:transparent;background:var(--dsw-alias-interactive-bg-hover,#f1f5f9)}
 .dsh-mobile-control__provider.is-selected{border-color:transparent;background:var(--dsw-alias-interactive-bg-active,#f5f8ff);box-shadow:none}
 .dsh-mobile-control__provider.is-lan:not(.is-selected){border-color:transparent;background:transparent}
-.dsh-mobile-control__view:not(.is-remote)>.dsh-mobile-control__actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dsh-mobile-control__view:not(.is-remote)>.dsh-mobile-control__actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.dsh-mobile-control__view:not(.is-remote)>.dsh-mobile-control__actions>.dsh-mobile-control__loopback-pair{grid-column:1/-1}
 .dsh-mobile-control__view.is-diagnostics,.dsh-mobile-control__view.is-devices{flex:1;min-height:0;overflow-y:auto;padding:14px 20px}
 .dsh-mobile-control__view.is-devices .dsh-mobile-control__devices{max-height:none;margin-top:0}
 .dsh-mobile-control__actions button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25;height:auto;padding-top:8px;padding-bottom:8px;word-break:break-word}

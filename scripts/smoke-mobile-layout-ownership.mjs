@@ -201,6 +201,45 @@ async function geometry(page) {
   })
 }
 
+// A wide shell caps and centres the conversation slot instead of letting the
+// column stretch with the viewport. Driving the shell marker the layout
+// publishes keeps this a stylesheet check: the decision itself is covered by the
+// layout unit tests.
+async function assertCenteredColumn(page, at, mainArea) {
+  // The layout publishes this value itself; the smoke drives the same variable
+  // so the check covers the gutter rule rather than the measurement.
+  const gutter = (mainArea - 720) / 2
+  const measure = () => page.evaluate(() => {
+    const contentNode = document.querySelector('.dshm-mainContent')
+    const innerNode = document.querySelector('.Conversation_fixture_root')
+    const box = contentNode.getBoundingClientRect()
+    const css = getComputedStyle(contentNode)
+    const inner = innerNode.getBoundingClientRect()
+    return {
+      content: box.width, inner: inner.width, innerX: inner.x - box.x,
+      paddingLeft: parseFloat(css.paddingLeft), paddingRight: parseFloat(css.paddingRight),
+    }
+  })
+  const setShell = value => page.evaluate(([v, g]) => {
+    const shell = document.querySelector('.dshm-shell')
+    shell.dataset.dshmContentColumn = v
+    shell.style.setProperty('--dshm-content-column-gutter', `${g}px`)
+  }, [value, gutter])
+  const setPanel = value => page.evaluate(v => { document.querySelector('.dshm-main').dataset.dshPanel = v }, value)
+  const close = (a, b) => Math.abs(a - b) <= 0.5
+  await setShell('1')
+  const centred = await measure()
+  assert(close(centred.inner, 720), `${at}: the centred column kept ${centred.inner}px`)
+  assert(close(centred.paddingLeft, centred.paddingRight), `${at}: the gutter is asymmetric (${centred.paddingLeft}/${centred.paddingRight})`)
+  assert(close(centred.innerX, centred.paddingLeft), `${at}: the column does not start at its gutter`)
+  // A third-party panel owns its own layout, so the gutter must not reach it.
+  await setPanel('1')
+  assert(close((await measure()).inner, centred.content), `${at}: a third-party panel was narrowed`)
+  await setPanel('0')
+  await setShell('0')
+  assert(close((await measure()).inner, centred.content), `${at}: the full-width column did not return`)
+}
+
 // The band is one JS decision published as a shell attribute; CSS must never
 // re-decide it from a viewport metric. This check sits exactly on the 900px
 // boundary, forces a document scrollbar, and proves the rendering follows the
@@ -408,6 +447,9 @@ try {
           assert.equal(boxes['.dshm-drawer'].width, sidebarWidth, `${key}: wide sidebar width`)
           assert.equal(boxes['.dshm-main'].x, sidebarWidth, `${key}: main was not placed after the sidebar`)
           assert.equal(boxes['.dshm-main'].width, view.width - sidebarWidth, `${key}: main column lost available width`)
+          // Only a main area wider than the cap can prove the centring.
+          const mainArea = view.width - sidebarWidth
+          if (mainArea >= 900) await assertCenteredColumn(page, key, mainArea)
         } else {
           if (!open && view.width > 720) {
             // The persistent rail starts above the phone drawer breakpoint.
@@ -477,4 +519,4 @@ try {
   try { await browser?.close() } catch (error) { recordSmokeFailure(failures, error) }
 }
 completeSmoke(failures, negative ? marker : undefined, observedNegative)
-console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, the wide band following its shell marker on the 900px boundary instead of a viewport metric, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)
+console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, the wide band following its shell marker on the 900px boundary instead of a viewport metric, the centred conversation column with its third-party-panel exemption, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)

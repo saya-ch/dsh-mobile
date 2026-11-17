@@ -46,7 +46,15 @@ internal class BackgroundNotificationService : Service() {
             return START_NOT_STICKY
         }
         preferences().edit().putString(KEY_DEVICE, key).apply()
-        startForeground(FOREGROUND_ID, foregroundNotification())
+        val foreground = runCatching { startForeground(FOREGROUND_ID, foregroundNotification()) }
+        if (foreground.isFailure) {
+            // A background-start restriction lands here. The opt-in stays so the next launch
+            // retries; `lastError` carries the stage the way a revoked device does (#442).
+            markDisconnected("start:rejected")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        hosting = true
         val alreadyRunning = running.getAndSet(true)
         markConnecting()
         if (!alreadyRunning) worker.execute { runLoop() }
@@ -57,6 +65,7 @@ internal class BackgroundNotificationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        hosting = false
         running.set(false)
         connection?.disconnect()
         connection = null
@@ -81,8 +90,10 @@ internal class BackgroundNotificationService : Service() {
     }
 
     /**
-     * Stop the timed-out stream the same way a revoked device does, and withdraw the persisted
-     * opt-in so `notification.background.get` cannot keep claiming an enabled service.
+     * Stop the timed-out stream. Only a reason that cannot heal on its own withdraws the
+     * persisted opt-in; a platform time budget refills, so this keeps the opt-in and reports
+     * `service:timeout` instead. Otherwise an app upgrade or a long-lived stream would
+     * silently discard a choice the user made explicitly (#442).
      */
     private fun handleForegroundTimeout() {
         running.set(false)
@@ -90,8 +101,13 @@ internal class BackgroundNotificationService : Service() {
         connection = null
         markDisconnected("service:timeout")
         stopForeground(STOP_FOREGROUND_REMOVE)
-        setEnabled(this, false)
+        withdrawOptInUnless(BackgroundStopReason.FOREGROUND_TIMEOUT)
         stopSelf()
+    }
+
+    /** Withdraw the persisted opt-in only when [reason] cannot heal on its own. */
+    private fun withdrawOptInUnless(reason: BackgroundStopReason) {
+        if (!BackgroundOptInPolicy.keepsOptIn(reason)) setEnabled(this, false)
     }
 
     private fun runLoop() {
@@ -99,17 +115,17 @@ internal class BackgroundNotificationService : Service() {
         var lastFailure = "stream:closed"
         while (running.get()) {
             var stage = "renew"
-            var stopService = false
+            var stopReason: BackgroundStopReason? = null
             try {
                 val record = readDevice()
                 if (record == null) {
                     markDisconnected("device:missing")
-                    setEnabled(this, false)
+                    withdrawOptInUnless(BackgroundStopReason.DEVICE_MISSING)
                     break
                 }
                 if (record.iroh != null) {
                     markDisconnected("device:iroh-unsupported")
-                    setEnabled(this, false)
+                    withdrawOptInUnless(BackgroundStopReason.DEVICE_IROH_UNSUPPORTED)
                     break
                 }
                 stage = "renew"
@@ -128,14 +144,14 @@ internal class BackgroundNotificationService : Service() {
                 lastFailure = "stream:closed"
             } catch (failure: NativeAuthFailure) {
                 lastFailure = "renew:${failure.kind.name.lowercase()}"
-                if (failure.kind == NativeAuthFailureKind.DEVICE_REVOKED
-                    || failure.kind == NativeAuthFailureKind.DEVICE_EXPIRED
-                    || failure.kind == NativeAuthFailureKind.PAIRING_EXPIRED
-                ) {
-                    stopService = true
-                } else {
-                    failedAttempts = (failedAttempts + 1).coerceAtMost(6)
+                stopReason = when (failure.kind) {
+                    NativeAuthFailureKind.DEVICE_REVOKED -> BackgroundStopReason.DEVICE_REVOKED
+                    NativeAuthFailureKind.DEVICE_EXPIRED -> BackgroundStopReason.DEVICE_EXPIRED
+                    NativeAuthFailureKind.PAIRING_EXPIRED -> BackgroundStopReason.PAIRING_EXPIRED
+                    // Anything else may heal: retry with backoff instead of withdrawing.
+                    else -> null
                 }
+                if (stopReason == null) failedAttempts = (failedAttempts + 1).coerceAtMost(6)
             } catch (_: Exception) {
                 lastFailure = "$stage:failed"
                 failedAttempts = (failedAttempts + 1).coerceAtMost(6)
@@ -146,8 +162,9 @@ internal class BackgroundNotificationService : Service() {
             if (!running.get()) break
             Log.w(LOG_TAG, "background attempt ended: $lastFailure")
             markDisconnected(lastFailure)
-            if (stopService) {
-                setEnabled(this, false)
+            val unrecoverable = stopReason
+            if (unrecoverable != null) {
+                withdrawOptInUnless(unrecoverable)
                 break
             }
             try {
@@ -342,6 +359,13 @@ internal class BackgroundNotificationService : Service() {
     }
 
     companion object {
+        /**
+         * Whether this process currently hosts the service. `connected` is false during a
+         * reconnect backoff, so it cannot answer "is the service already running?" and a
+         * resume-time retry would otherwise force a restart on every resume.
+         */
+        @Volatile private var hosting = false
+
         private const val ACTION_START = "io.github.sayach.dshmobile.BACKGROUND_NOTIFY_START"
         private const val ACTION_STOP = "io.github.sayach.dshmobile.BACKGROUND_NOTIFY_STOP"
         private const val EXTRA_DEVICE_KEY = "deviceKey"
@@ -388,10 +412,13 @@ internal class BackgroundNotificationService : Service() {
         }
 
         /**
-         * Opt in and start the foreground stream. The persisted claim is written before the start
-         * because [onStartCommand] refuses to run without it, and is rolled back when the platform
-         * rejects the start; otherwise a rejected start keeps `isEnabled` claiming a service that
-         * is not running.
+         * Opt in and start the foreground stream. The persisted opt-in and device binding are
+         * written before the start because [onStartCommand] refuses to run without them.
+         *
+         * A rejected start (a background-start restriction, for example) keeps the opt-in: the
+         * reason is temporary, and discarding the user's choice would mean an app upgrade or a
+         * background restriction silently turned the feature off (#442). `connected` and
+         * `lastError` carry the "not running right now" fact instead.
          */
         fun enable(context: Context, deviceKey: String): Boolean {
             if (deviceKey.isEmpty()) return false
@@ -406,18 +433,20 @@ internal class BackgroundNotificationService : Service() {
                     .commit()
             }.getOrDefault(false)
             if (!persisted) {
+                // The opt-in never reached disk, so there is nothing to honor later.
                 clearEnabled(context)
                 return false
             }
             val intent = Intent(context, BackgroundNotificationService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_DEVICE_KEY, deviceKey)
-            // A rejected start (a background-start restriction, for example) must not survive as a claim.
+            // A rejected start (a background-start restriction, for example) keeps the opt-in
+            // and reports the stage; the next launch retries it. The call still reports success
+            // because the opt-in is what this call owns: reporting failure here while the flag
+            // says enabled left the switch drawn off over a persisted "on" choice. `connected`
+            // and `lastError` are what say the service is not running yet.
             val started = runCatching { context.startForegroundService(intent) }.getOrNull() != null
-            if (!started) {
-                clearEnabled(context)
-                return false
-            }
+            if (!started) recordStatusError(context, "start:rejected")
             return true
         }
 
@@ -426,10 +455,19 @@ internal class BackgroundNotificationService : Service() {
             context.stopService(Intent(context, BackgroundNotificationService::class.java))
         }
 
+        /**
+         * Re-arm the stream the user opted into. Idempotent: a healthy stream already bound to
+         * [deviceKey] is left alone, so this is safe to call on every resume.
+         */
         fun resumeIfEnabled(context: Context, deviceKey: String) {
             val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             if (!prefs.getBoolean(KEY_ENABLED, false)) return
-            if (prefs.getString(KEY_DEVICE, null) != deviceKey) {
+            val bound = prefs.getString(KEY_DEVICE, null)
+            // An opt-in kept through a temporary stop is retried here rather than waiting for the
+            // next package launch. A stream this process is already serving is left alone: a
+            // reconnect in progress reports connected=false, so ask the live flag instead.
+            if (bound == deviceKey && hosting) return
+            if (bound != deviceKey) {
                 // The active paired computer changed while the opt-in was on. Rebind a service
                 // that is still enabled instead of leaving it retrying the previous Origin.
                 val device = runCatching {
@@ -447,7 +485,9 @@ internal class BackgroundNotificationService : Service() {
                 }
                 runCatching { context.stopService(Intent(context, BackgroundNotificationService::class.java)) }
             }
-            if (!enable(context, deviceKey)) clearEnabled(context)
+            // enable() records its own outcome; a failed start keeps the opt-in for the next
+            // launch instead of withdrawing the user's choice (#442).
+            enable(context, deviceKey)
         }
 
         private fun setEnabled(context: Context, enabled: Boolean) {

@@ -85,16 +85,21 @@ class BackgroundNotificationWiringTest {
     }
 
     @Test
-    fun serviceWithdrawsItsClaimOnAPlatformTimeoutAndNotificationsIdentifyTheirTag() {
+    fun serviceStopsOnAPlatformTimeoutWithoutDiscardingTheOptIn() {
         val service = source("java/io/github/sayach/dshmobile/BackgroundNotificationService.kt")
         // Android 14 delivers the bounded type through onTimeout(startId); Android 15+ for dataSync
-        // through onTimeout(startId, fgsType). Both must stop the service and drop the opt-in.
+        // through onTimeout(startId, fgsType). Both must stop the service, but a spent time budget
+        // refills: withdrawing the opt-in there turned a temporary platform stop into a silent
+        // "the user turned it off" (#442).
         assertTrue(service.contains("override fun onTimeout(startId: Int)"))
         assertTrue(service.contains("override fun onTimeout(startId: Int, fgsType: Int)"))
         assertTrue(service.contains("stopForeground(STOP_FOREGROUND_REMOVE)"))
-        assertTrue(service.contains("setEnabled(this, false)"))
-        // A rejected platform start must roll the persisted claim back instead of reporting enabled.
-        assertTrue(service.contains("clearEnabled(context)"))
+        assertTrue(service.contains("withdrawOptInUnless(BackgroundStopReason.FOREGROUND_TIMEOUT)"))
+        // The withdrawal decision is the policy's, not a bare write at each stop site.
+        assertTrue(service.contains("private fun withdrawOptInUnless(reason: BackgroundStopReason)"))
+        assertTrue(service.contains("if (!BackgroundOptInPolicy.keepsOptIn(reason)) setEnabled(this, false)"))
+        // A rejected platform start keeps the opt-in: only an unreachable disk copy withdraws it.
+        assertTrue(service.contains("recordStatusError(context, \"start:rejected\")"))
 
         val publisher = source("java/io/github/sayach/dshmobile/TaskNotificationPublisher.kt")
         assertTrue(publisher.contains("data = Uri.parse(NativeBridgePolicy.notificationIntentData(tag))"))

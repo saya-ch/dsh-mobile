@@ -115,7 +115,10 @@ import {
   materializeManagedSetup,
   refreshManagedUpstreamOrigin,
   parseAdditionalTrustedNetworks,
+  parseLoopbackTunnel,
   parseManagedSetup,
+  readManagedSetupForStart,
+  saveManagedLoopbackTunnel,
   saveManagedTrustedNetworks,
   preferredLanInterfaceNames,
   selectLanNetwork,
@@ -873,6 +876,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   let lanGateway: MobileAccessGateway | undefined
   let preparedLanSetup: ManagedLanSetupResult | undefined
   let trustedNetworksRestartRequired = false
+  let loopbackTunnelRestartRequired = false
   let lanConfigurationWork: Promise<void> = Promise.resolve()
   let adminClosing = false
   const mutateLan = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -919,14 +923,25 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     if (loaded.kind === 'unconfigured') throw new Error(preparedLanSetup === undefined ? 'lan_setup_required' : 'lan_setup_restart_required')
     if (loaded.kind === 'fixed') return startGateway(loaded.config)
     const following = new FollowingMobileAccessRuntime(async () => {
-      const setup = managedSetupOverride ?? loaded.setup
+      const { setup, fresh } = await readManagedSetupForStart(loaded.setupFile, managedSetupOverride ?? loaded.setup)
       const network = selectLanNetwork(undefined, setup.networkInterface)
       return {
         key: `${network.name}\0${network.address}\0${network.cidr}`,
-        start: async () => startGateway({
-          ...loaded.config,
-          ...await materializeManagedSetup(setup),
-        }),
+        start: async () => {
+          const runtime = await startGateway({
+            ...loaded.config,
+            ...await materializeManagedSetup(setup),
+          })
+          // This start re-issued the certificate and rebuilt the accepted authorities from
+          // the setup it just read, so no saved switch is still waiting to be applied.
+          // Only a start that really read the saved file has applied the pending switch.
+          // Falling back to an older snapshot must leave the prompt in place.
+          if (fresh) {
+            trustedNetworksRestartRequired = false
+            loopbackTunnelRestartRequired = false
+          }
+          return runtime
+        },
       }
     }, (error) => {
       process.emitWarning(`DSH Mobile could not follow the current LAN address: ${error instanceof Error ? error.message : String(error)}`, {
@@ -1241,6 +1256,18 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       windowsFirewall: process.platform === 'win32',
     }
   }
+  const loopbackTunnelPayload = async (): Promise<Record<string, unknown>> => {
+    if (loaded.kind !== 'managed') return { supported: false }
+    const saved = parseManagedSetup(JSON.parse(await readFile(loaded.setupFile, 'utf8')))
+    return {
+      supported: true,
+      enabled: saved.loopbackTunnel === true,
+      listenPort: saved.listenPort,
+      // The leaf SAN and the accepted authorities are fixed at listener start, so a
+      // change needs the restart that re-issues the certificate.
+      restartRequired: loopbackTunnelRestartRequired,
+    }
+  }
   const diagnosticsPayload = async (request: IncomingMessage): Promise<Record<string, unknown>> => {
     const connection = (ctx as Context & { readonly connection?: BrowserAuthenticatedConnection }).connection
     const admission = connection?.admit?.(request)
@@ -1401,6 +1428,24 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           sendJson(response, 200, await trustedNetworksPayload(), false)
           return
         }
+        if (target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/lan/loopback-tunnel`) {
+          if (request.method === 'GET') {
+            sendJson(response, 200, await loopbackTunnelPayload(), false)
+            return
+          }
+          if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed')
+          if (loaded.kind !== 'managed') throw new HttpError(409, 'lan_loopback_tunnel_unavailable')
+          const body = await readJsonObject(request, 4096)
+          let enabled: boolean
+          try { enabled = parseLoopbackTunnel(body.enabled) }
+          catch { throw new HttpError(400, 'lan_loopback_tunnel_invalid') }
+          await mutateLan(async () => {
+            await saveManagedLoopbackTunnel(loaded.setupFile, enabled)
+            loopbackTunnelRestartRequired = true
+          })
+          sendJson(response, 200, await loopbackTunnelPayload(), false)
+          return
+        }
         if (request.method === 'GET' && target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/diagnostics`) {
           sendJson(response, 200, await diagnosticsPayload(request), false)
           return
@@ -1505,6 +1550,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
                 publish: setup => { managedSetupOverride = setup },
               })
               trustedNetworksRestartRequired = false
+              loopbackTunnelRestartRequired = false
               lanRebindRecoveryRequired = false
               return { origin: lanGateway?.address().origin ?? `https://${network.address}:${String(result.setup.listenPort)}`,
                 previousOrigin, restartRequired: false, disconnected: result.running, ready: lanGateway !== undefined }

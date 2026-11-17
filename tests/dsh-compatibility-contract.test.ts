@@ -57,6 +57,7 @@ function sourceFixture(version = '0.1.2-alpha.2', architecture: 'renderer-v2' | 
     'this.connection = connection', 'get $host(): RemoteHostFacts {',
     'if (this.hostFacts === undefined || this.hostFacts.home !== home) {',
     'this.hostFacts = { home, isLoopback: this.connection.isLoopback }', '}', '}',
+    "const result = await connection.rpc.call('/api', endpoint, { args: prepared.args }, prepared.signal)",
   ].join('\n')
   sources['packages/client/ui-sidebar/src/client/SidebarRoot.tsx'] = 'css.fallbackBrandName\nDSH Local Build'
   sources['packages/client/ui-user-questions/src/client/QuestionComposer.tsx'] = 'data-question-key data-question-scroll'
@@ -69,6 +70,19 @@ function sourceFixture(version = '0.1.2-alpha.2', architecture: 'renderer-v2' | 
   sources['packages/client/ui-deliverables/src/client/ReviewTab.tsx'] = 'data-changes-review'
   sources['packages/client/ui-primitives/src/PathLabel.tsx'] =
     '<span {...attributes} ref={boxRef} className={clsx(css.path, className)} title={path} data-path-label>'
+  // The preview body reads through the workspace-files Remote, so the package
+  // edge, the Remote namespace and the unary POST shape move together. A rename on
+  // any side breaks every preview without touching the header or the copy action.
+  sources['packages/client/ui-sidebar-documentpreview/package.json'] = manifest(version, [
+    '@deepseek-ai/dsh-api-workspace-files',
+    '@deepseek-ai/dsh-client-resources',
+  ])
+  sources['packages/api/workspace-files/src/index.ts'] = [
+    "super(ctx, 'workspaceFiles')",
+    'async read(workspaceFileScope: WorkspaceFileScope, path: string, range: WorkspaceFileRange, signal: AbortSignal) {',
+    'async readBytes(workspaceFileScope: WorkspaceFileScope, path: string, options: WorkspaceFileBytesOptions, signal: AbortSignal) {',
+    'async stat(workspaceFileScope: WorkspaceFileScope, path: string, signal: AbortSignal) {',
+  ].join('\n')
   sources['packages/host/webserver/src/injections.ts'] = 'globalThis[${name}] = ${value}'
   return sources
 }
@@ -141,6 +155,9 @@ describe('DSH source compatibility gate', () => {
     ['the path marker moves off the PathLabel', 'packages/client/ui-sidebar-documentpreview/src/client/PreviewFrame.tsx', '<PathLabel path={path} className={css.path} data-textpreview-path {...pathTrigger} />', '<div data-textpreview-path><PathLabel path={path} className={css.path} {...pathTrigger} /></div>', 'data-textpreview-path'],
     ['the changes-review scope marker disappears', 'packages/client/ui-deliverables/src/client/ReviewTab.tsx', 'data-changes-review', 'data-review-pane', 'data-changes-review'],
     ['PathLabel stops binding title to the path', 'packages/client/ui-primitives/src/PathLabel.tsx', 'title={path} ', '', 'binds its title'],
+    ['the preview drops its workspace-files edge', 'packages/client/ui-sidebar-documentpreview/package.json', '"@deepseek-ai/dsh-api-workspace-files"', '"@deepseek-ai/dsh-api-other"', 'no longer depends on the workspace-files Remote'],
+    ['the workspace-files Remote loses readBytes', 'packages/api/workspace-files/src/index.ts', 'async readBytes(', 'async readOther(', 'workspace-files Remote contract changed'],
+    ['the Gateway client stops posting { args }', 'packages/api/gateway/src/client/index.ts', '{ args: prepared.args }', 'prepared.args', 'no longer posts unary Remote calls'],
   ] as const)('rejects when the %s', async (_label, path, expected, replacement, error) => {
     const sources = sourceFixture()
     sources[path] = sources[path]!.replace(expected, replacement)
@@ -163,7 +180,7 @@ describe('DSH source compatibility gate', () => {
     ['Remote assembly loses Gateway', 'packages/api/remotes/package.json', manifest('0.2.1-alpha.3', []), 'Remote assembly trust dependency changed'],
     ['Gateway loses Connection', 'packages/api/gateway/package.json', manifest('0.2.1-alpha.3', []), 'API Gateway trust dependency changed'],
     ['renderer acquires a cyclic dependency', 'packages/client/ui-renderer/package.json', manifest('0.2.1-alpha.3', [gateway]), 'renderer gained dependencies'],
-    ['Gateway alters Host authentication facts', 'packages/api/gateway/src/client/index.ts', 'get $host() { return { isLoopback: false } }', 'API Gateway Host facts contract changed'],
+    ['Gateway alters Host authentication facts', 'packages/api/gateway/src/client/index.ts', 'get $host() { return { isLoopback: false } }\nconst result = await connection.rpc.call(\'/api\', endpoint, { args: prepared.args }, prepared.signal)', 'API Gateway Host facts contract changed'],
   ] as const)('rejects Host-only settings when %s', async (_label, path, replacement, error) => {
     const sources = hostSettingsFixture()
     sources[path] = replacement
@@ -191,7 +208,7 @@ describe('DSH source compatibility gate', () => {
     ['Gateway no longer depends on Connection', 'packages/api/gateway/package.json', manifest('0.1.2-alpha.2', []), 'API Gateway trust dependency changed'],
     ['renderer acquires a cyclic dependency', 'packages/client/ui-renderer/package.json', manifest('0.1.2-alpha.2', [gateway]), 'renderer gained dependencies'],
     ['renderer requires a runtime service', 'packages/client/ui-renderer/src/client/index.ts', "export const inject = ['remote']\nnew SlotRegistry(ctx)", 'UI renderer trust ordering contract changed'],
-    ['Gateway changes Host trust source', 'packages/api/gateway/src/client/index.ts', 'get $host() { return { isLoopback: false } }', 'API Gateway Host facts contract changed'],
+    ['Gateway changes Host trust source', 'packages/api/gateway/src/client/index.ts', 'get $host() { return { isLoopback: false } }\nconst result = await connection.rpc.call(\'/api\', endpoint, { args: prepared.args }, prepared.signal)', 'API Gateway Host facts contract changed'],
     ['Remote assembly skips its runtime dependency', 'packages/api/remotes/src/client/index.ts', 'export const inject = []\nctx.remote.$mount(contribution)', 'Remote assembly contract changed'],
     ['settings switches to unknown trust state', 'packages/client/ui-settings/src/client/index.ts', "ctx.remote.$host.trusted ? 'host' : 'memory'", 'settings trust contract changed'],
     ['Gateway is from a different DSH release', 'packages/api/gateway/package.json', manifest('0.1.2-alpha.1', [connection]), 'API Gateway version does not match'],

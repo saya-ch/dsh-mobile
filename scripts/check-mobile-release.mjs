@@ -214,8 +214,18 @@ async function checkAndroid() {
     fail('Android native bridge must accept only exact-origin main-frame WebMessages')
   }
   requireSameResourceNames(defaultColors, nightColors, 'color', 'Night theme')
-  if (!mainActivity.includes('R.color.app_setup_scrim') || mainActivity.includes('0x99FFFFFF')) {
-    fail('Android setup artwork must use the theme-aware app_setup_scrim resource')
+  // The screens paint their own wash, grid and base fill; a hardcoded translucent
+  // white scrim is what made the old artwork unreadable in one of the two themes.
+  for (const resource of ['app_background', 'app_grid_line', 'app_aurora_one']) {
+    if (!defaultColors.includes(`name="${resource}"`) || !nightColors.includes(`name="${resource}"`)) {
+      fail(`Android screen background resource ${resource} is missing from one theme`)
+    }
+  }
+  for (const marker of ['R.color.app_background', 'R.color.app_grid_line', 'R.color.app_aurora_one']) {
+    if (!mainActivity.includes(marker)) fail(`Android screen backgrounds must use ${marker}`)
+  }
+  if (mainActivity.includes('0x99FFFFFF')) {
+    fail('Android screen backgrounds must not hardcode a translucent white scrim')
   }
   if (!mainActivity.includes('DSHMobile/${BuildConfig.VERSION_NAME}')) {
     fail('Android WebView user agent must report BuildConfig.VERSION_NAME')

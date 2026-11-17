@@ -89,7 +89,7 @@ import {
   MINIMUM_ANDROID_APP_VERSION,
   MOBILE_METADATA_VERSION,
 } from './version.js'
-import { addressAllowed, isLoopbackAddress, type ParsedCidr, RequestTrustPolicy } from './network.js'
+import { addressAllowed, isLoopbackAddress, resolveAuthority, type ParsedCidr, RequestTrustPolicy } from './network.js'
 import type { DeviceStore } from './storage.js'
 import { createWorkspaceDirectory, listComputerImages, listWorkspaceDirectories, readComputerImage } from './computer-images.js'
 import {
@@ -1848,6 +1848,27 @@ export class MobileAccessGateway {
     await new Promise<void>(resolve => {
       bonjour.unpublishAll(() => { bonjour.destroy(() => resolve()) })
     })
+  }
+
+  /**
+   * The loopback origin this gateway additionally accepts, when the administrator enabled
+   * a local tunnel. It must be one of the declared extra authorities, not merely a loopback
+   * origin that happens to be in the policy: a gateway that only listens on 127.0.0.1 has a
+   * loopback origin without any tunnel, and advertising it as one would be misleading.
+   */
+  loopbackOrigin(): string | undefined {
+    const port = this.listenerPort
+    if (this.policy === undefined || port === undefined) return undefined
+    const extras = this.config.additionalAuthorities
+    if (extras.length === 0) return undefined
+    const declared = new Set(extras.map(spec => resolveAuthority(spec, port).toLowerCase()))
+    for (const origin of this.policy.origins) {
+      const url = new URL(origin)
+      if (!declared.has(url.host.toLowerCase())) continue
+      if (!isLoopbackAddress(url.hostname.replace(/^\[|\]$/gu, ''))) continue
+      return origin
+    }
+    return undefined
   }
 
   /** Actual bound address, available after start and safe for loopback status output. */
@@ -4598,6 +4619,10 @@ export class MobileAccessGateway {
               : `instance=${this.config.instanceId}&token=${opened.token}`
             const pairUrl = `${this.address().origin}/mobile-access/pair#${fragment}`
             const appPairUrl = pairUrl
+            // A locally tunnelled phone binds the same port on its own loopback, so the
+            // one-time pairing fragment is valid there too; without the opt-in this is
+            // undefined and no loopback address is ever advertised.
+            const loopbackOrigin = this.loopbackOrigin()
             // The QR code is an enhancement; a failed render must not waste an opened window.
             let qrSvg = ''
             try {
@@ -4610,6 +4635,9 @@ export class MobileAccessGateway {
               appKey,
               pairUrl,
               appPairUrl,
+              ...(loopbackOrigin === undefined
+                ? {}
+                : { loopbackPairUrl: `${loopbackOrigin}/mobile-access/pair#${fragment}` }),
               qrSvg,
             }, false)
             return

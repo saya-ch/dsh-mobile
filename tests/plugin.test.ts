@@ -810,6 +810,50 @@ describe('stock DSH lifecycle', () => {
     expect(saved.status).toBe(503)
   })
 
+  it('exposes the loopback tunnel as managed-only and refuses a non-boolean value', async () => {
+    // Fixed mode has no durable setup record to hold the switch, so the route reports
+    // unsupported and every write is refused rather than silently ignored.
+    const fixed = await mount()
+    const read = await invoke(fixed.route, 'GET', '/api/mobile-access/lan/loopback-tunnel')
+    expect(read.status).toBe(200)
+    expect(JSON.parse(read.body).supported).toBe(false)
+    const write = await invoke(fixed.route, 'POST', '/api/mobile-access/lan/loopback-tunnel', JSON.stringify({ enabled: true }))
+    expect(write.status).toBe(409)
+  })
+
+  it('saves the loopback tunnel opt-in and reports the pending restart', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-loopback-route-'))
+    temporaryDirectories.push(directory)
+    const setupFile = join(directory, 'setup.json')
+    await writeFile(setupFile, JSON.stringify({
+      version: 2, networkInterface: 'en0', listenPort: 3443, upstreamOrigin: 'http://127.0.0.1:3080',
+      tls: { mode: 'managed', caCertFile: join(directory, 'ca.pem'), caKeyFile: join(directory, 'ca-key.pem'),
+        certFile: join(directory, 'cert.pem'), keyFile: join(directory, 'key.pem') },
+    }))
+    await managedSetup.ensureManagedCa({
+      mode: 'managed', caCertFile: join(directory, 'ca.pem'), caKeyFile: join(directory, 'ca-key.pem'),
+      certFile: join(directory, 'cert.pem'), keyFile: join(directory, 'key.pem'),
+    })
+    const managed = await mount(false, 3080, { setupFile })
+    const before = JSON.parse((await invoke(managed.route, 'GET', '/api/mobile-access/lan/loopback-tunnel')).body)
+    expect(before).toMatchObject({ supported: true, enabled: false, listenPort: 3443, restartRequired: false })
+    // A stringified boolean must not be accepted; the persisted flag decides a security boundary.
+    const invalid = await invoke(managed.route, 'POST', '/api/mobile-access/lan/loopback-tunnel', JSON.stringify({ enabled: 'true' }))
+    expect(invalid.status).toBe(400)
+    const saved = await invoke(managed.route, 'POST', '/api/mobile-access/lan/loopback-tunnel', JSON.stringify({ enabled: true }))
+    expect(saved.status).toBe(200)
+    expect(JSON.parse(saved.body)).toMatchObject({ supported: true, enabled: true, restartRequired: true })
+    const after = JSON.parse((await invoke(managed.route, 'GET', '/api/mobile-access/lan/loopback-tunnel')).body)
+    expect(after).toMatchObject({ enabled: true, restartRequired: true })
+  })
+
+  it('rejects the loopback tunnel route once the plugin generation closes', async () => {
+    const mounted = await mount()
+    await mounted.context.fiber.dispose()
+    const read = await invoke(mounted.route, 'GET', '/api/mobile-access/lan/loopback-tunnel')
+    expect(read.status).toBe(503)
+  })
+
   it('continues ordered teardown after failures and aggregates them', async () => {
     const completed: string[] = []
     let failure: unknown

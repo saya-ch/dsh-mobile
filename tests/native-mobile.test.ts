@@ -58,6 +58,20 @@ describe('native mobile presentation', () => {
     expect(overlay).not.toContain('[data-shell-overlay] > * { pointer-events:auto')
   })
 
+  it('leaves message runtime labels inline so a plugin cannot collapse the user bubble', () => {
+    // DSH renders the user message's own clock (data-clock="start") as a DIRECT child of
+    // the message actions row, while the assistant's label sits inside _endInfo. A rule
+    // matching "_actions:has(> _timeStart)" therefore widened the USER row; with a plugin
+    // that turns that row into a reversed flex line the user bubble collapsed to a sliver
+    // (#441). The assistant half never matched anything. DSH's own row keeps both labels on
+    // one line down to 320px, so the plugin contributes no rule for them at all.
+    // Assert on selectors, not on prose: the explanatory comment names these classes.
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_timeStart"]')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_timeEnd"]')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_runTimeDot"]')
+    expect(NATIVE_MOBILE_STYLES).not.toContain('[class*="_actions"]:has(')
+  })
+
   it('styles the injected attachment actions on every viewport, not only the narrow overlay', () => {
     const shared = NATIVE_MOBILE_STYLES.slice(0, NATIVE_MOBILE_STYLES.indexOf('@media'))
     expect(shared).toContain('.dsh-mobile-media-action { box-sizing:border-box; display:flex;')

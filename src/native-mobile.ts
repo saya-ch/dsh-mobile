@@ -250,16 +250,14 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] [data-composer-stats] [class*="_pill"] svg { display:inline-block !important; vertical-align:-2px !important; margin-right:6px !important; }
   [data-dsh-mobile-center] [data-composer-stats]:has(span[class*="_pill"]) { flex-wrap:wrap !important; overflow:visible !important; }
   [data-dsh-mobile-center] [data-composer-stats] span[class*="_pill"] { flex:0 1 auto !important; max-width:100% !important; white-space:normal !important; overflow:visible !important; overflow-wrap:anywhere !important; text-overflow:clip !important; }
-  /* Message runtime details are inline on desktop. Give the clock/runtime
-     label its own wrapping row on narrow screens so TTFT and throughput do
-     not push the action buttons or clip at the viewport edge. */
-  [data-dsh-mobile-center] [class*="_actions"]:has(> [class*="_timeStart"]),
-  [data-dsh-mobile-center] [class*="_actions"]:has(> [class*="_timeEnd"]) { box-sizing:border-box !important; width:100% !important; flex-wrap:wrap !important; justify-content:flex-end !important; height:auto !important; min-height:28px !important; row-gap:2px !important; }
-  [data-dsh-mobile-center] [class*="_timeStart"],
-  [data-dsh-mobile-center] [class*="_timeEnd"] { box-sizing:border-box !important; flex:1 1 100% !important; order:2 !important; min-width:0 !important; max-width:100% !important; padding:0 !important; line-height:20px !important; text-align:center !important; white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-center] [class*="_timeStart"] { box-sizing:border-box !important; flex:1 1 100% !important; order:2 !important; min-width:0 !important; max-width:100% !important; padding:0 !important; line-height:20px !important; text-align:center !important; white-space:normal !important; overflow-wrap:anywhere !important; }
-  [data-dsh-mobile-center] [class*="_timeStart"] [class*="_runTimeDot"],
-  [data-dsh-mobile-center] [class*="_timeEnd"] [class*="_runTimeDot"] { margin:0 6px !important; }
+  /* Message runtime labels stay inline, as DSH renders them. The earlier rule here
+     widened any actions row holding a _timeStart/_timeEnd child; DSH renders the
+     user message's clock (data-clock="start") as a direct child of that row, so the
+     rule widened the USER row, and a plugin that turns the row into a reversed flex
+     line collapsed the user bubble to a sliver (#441). The assistant's label is not
+     a direct child either (it sits in _endInfo), so that half never matched. DSH's
+     own actions row already keeps both labels on one line at 320-393px, so no
+     replacement rule is needed. */
   /* Keep the context meter's legend rows as readable label/value pairs.
      Generic mobile flex rules can otherwise place the rows side by side and
      break Chinese labels in the middle of a word. */

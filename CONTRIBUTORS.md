@@ -4,9 +4,9 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
-## 下一版本贡献 / Contributions for the next release
+## 0.8.10 贡献 / Contributions in 0.8.10
 
-本节随下一个版本更新 / Updated with the next release.
+本版改动由维护者完成，原始作者提交均保留；报告见下方各版本的贡献表。 / Maintainer-only changes; original author commits are preserved and reporter credits stay with the sections below.
 
 ## 0.8.9 贡献 / Contributions in 0.8.9
 

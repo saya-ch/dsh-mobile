@@ -4,14 +4,14 @@
 
 DeepSeek Harness is the display name of this community-maintained Android WebView app. It opens the plugin's authenticated HTTPS page rather than bundling another DSH frontend. The app and mobile browsers receive the same DSH features and computer-side mobile customizations.
 
-The current stable app is **0.7.5**. The plugin and the app update separately, and **a plugin update usually does not require reinstalling the app**. See the [0.7.5 changes](#075-update).
+The current stable app is **0.8.2** (build 95). The plugin and the app update separately, and **a plugin update usually does not require reinstalling the app**. See the [0.8.2 changes](#082-update).
 
 This APK supports Android 10 or later. iPhone and iPad use the [Safari Home Screen web app and optional Web Push](../../docs/WEB_PUSH.en.md), not this Android package; no native iOS app is distributed.
 
 ## Install and pair
 
 1. Install and enable the plugin using the [project quick start](../../README.en.md#quick-start). Complete LAN setup from the command line or the computer's **Mobile Access** panel.
-2. Install from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5). **The compatibility build is fine for normal use**; you only need the full `-iroh.apk` when the computer side has the experimental iroh channel enabled. Either build installs over the old one and keeps your pairings — **do not uninstall the old app or clear its data**, that loses them.
+2. Install from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.2). **The compatibility build is fine for normal use**; you only need the full `-iroh.apk` when the computer side has the experimental iroh channel enabled. Either build installs over the old one and keeps your pairings — **do not uninstall the old app or clear its data**, that loses them.
 3. On the computer, generate a pairing key/link under **Mobile Access → Local network**, or configure a remote provider and generate its remote pairing QR code. In the app, choose the matching connection mode and scan or paste the link.
 4. Name the computer. The app stores each LAN or remote pairing as its own record. The phone does not need a cpolar, Cloudflare or Tailscale app.
 
@@ -24,7 +24,8 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 | Location | Setting or action |
 | --- | --- |
 | Device list → Settings → Startup behavior | **Open DSH directly** (default) selects the last-used eligible pairing, even when several computers are saved. **Show device list** asks you to choose at each launch. |
-| Device list → Settings → App icon | Choose the mascot or one of six whale-mark colors without changing package identity or paired data. |
+| Device list → Settings → Appearance | **Follow system** (default), **Light** or **Dark**. The screen repaints immediately and returns to the settings page; an explicit choice keeps the same palette when the system switches at night. |
+| Device list → Settings → App icon | The default is the DSH whale-girl mascot holding a phone; the classic, cheer and quiet poses plus six whale-mark colors are also selectable. Switching only changes the launcher entry — package identity and paired data stay untouched. |
 | Device list → Settings → Automatic same-computer connection | App 0.6.7+ with plugin 0.6.16+: keep **Manual** (default), choose **Detect and ask**, or enable **Automatic switch and notify**. Pair LAN and remote independently; [switching rules](#automatic-same-computer-connection) explain draft handling. |
 | DSH page → Settings → General → Switch computer | Return to the paired-computer list. Holding the top-left drawer toggle provides another entry. These actions belong inside the app's webpage, not the device-list settings. |
 | <a id="062-update"></a>DSH page → Settings → General → Page zoom | App 0.6.2+ with plugin 0.6.3+: 80–125%, reset to 100%. Saved app-wide without reloading the conversation. |
@@ -35,6 +36,31 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in Simplified Chinese, English or Italian; webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
+
+## 0.8.2 update
+
+- The floating window now shows a small copy of the whole page. 0.8.1 refitted the layout into the window, so a widget with a fixed size, like a status overlay plugin, kept its pixel size and filled it. The full-screen layout width is kept and the page is scaled down instead.
+
+## 0.8.1 update
+
+- Add **Settings → Picture-in-picture**: leaving the app keeps the current DSH page in a floating window, so status plugins stay visible. Only a live DSH page floats; the device list and the setup screens never do. Turning it off restores the previous behaviour of a plain background switch.
+
+## 0.8.0 update
+
+- Rebuild the App's own screens on one visual system: a diagonal colour wash over a faint drifting grid, glass cards, tonal primary actions with their own pressed state, one bottom-sheet family for every menu and prompt, and page transitions that follow the screen depth. Light and dark palettes are tuned together, and the light wash stays under 8% so body text keeps its contrast.
+- Add **Settings → Appearance**: follow the system (default), light or dark. The choice is resolved before the first view is painted and returns to the settings page after the rebuild.
+- Fix the pairing and connection defects the review found: an exhausted one-time key returns to the page it came from with its guidance shown inline (the Iroh page included), the post-pairing name sheet survives a background round trip, a returning page keeps its back direction, and the drifting backdrop no longer keeps a left page alive.
+- Restore the clear-data entry on its own settings card, and repair the light-mode separators, the night wash, the icon tiles and the icon summary captions.
+
+Both APKs keep the same package identity and the established signer.
+
+## 0.7.6 update
+
+A new default app icon: the DSH whale-girl mascot holding a phone. **Device list → Settings → App icon** also offers the classic, cheer and quiet poses next to the six whale-mark colors; switching only changes the launcher alias, so the package identity, paired data and background service stay untouched, and a launcher may take a moment to redraw.
+
+The Tailscale pairing failure now names the same-tailnet case: when a `.ts.net` address stays unreachable, the message explains that a phone on the same tailnet cannot pair through the Funnel entry (closed to tailnet-internal traffic by design) and points at turning Tailscale off, using mobile data, or pairing over the LAN address; a phone outside the tailnet keeps the existing VPN/proxy/DNS guidance.
+
+Both APKs keep the established signer and upgrade in place with existing pairings preserved.
 
 ## 0.7.5 update
 
@@ -202,10 +228,14 @@ Native builds also include the JVM TLS verifier matching `native/Cargo.lock`, fr
 
 Current-source Debug builds use package `io.github.sayach.dshmobile.debug` with a `-debug` version suffix. They install beside the official App with separate storage and pairings. They do not upgrade or migrate an older unsuffixed Debug installation; preserve that app and its data rather than uninstalling or clearing it to switch packages. Release builds keep `io.github.sayach.dshmobile` and the established signer.
 
-The verified stable release is [Android 0.7.5](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5), build 90. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
+The verified stable release is [Android 0.8.2](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.2), build 95. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
 
 ## Acceptance and known limits
 
+- Both public App 0.8.2 APKs were downloaded and re-verified after publication: compatibility 1,975,765 B with no native libraries, full 30,105,416 B carrying only the arm64-v8a/x86_64 iroh transport, both signed by `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` at `versionCode 95` / `versionName 0.8.2` with matching `.sha256` assets. The picture-in-picture scaling was measured in Chromium with mobile viewport emulation at the 324 px width the device reports before release: a fixed-size widget's share of the window falls from 0.37 to 0.11, which is a page scaled by 0.3. The upgrade was not repeated on a device for this build.
+- Both public App 0.8.1 APKs were downloaded and re-verified after publication: compatibility 1,975,321 B with no native libraries, full 30,104,972 B carrying only the arm64-v8a/x86_64 iroh transport, both signed by `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` at `versionCode 94` / `versionName 0.8.1` with matching `.sha256` assets. The compatibility APK was then installed over App 0.8.0 on a PJW110 running Android 16 without uninstalling: the four stored pairings survived, **Settings → Picture-in-picture** appeared and persisted, and leaving the app entered picture-in-picture, where the task reported `mode=pinned` and the floating window rendered the live DSH page. The background-notification opt-in was off on that device, so the package-replacement path for it was not exercised there; it rests on the unit tests and CI.
+- Both public App 0.8.0 APKs were downloaded and re-verified after publication: compatibility 1,970,961 B with no native libraries, full 30,103,008 B carrying only the arm64-v8a/x86_64 iroh transport, both signed by `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` at `versionCode 93`/`versionName 0.8.0` with matching `.sha256` assets. The tagged tree passed `npm run verify`, `lintDebug` (0 errors) and 575 Android unit tests. Device acceptance covered the light/dark switch, the settings page, the add-computer sheet and the multi-line iroh descriptor field; the pairing-failure, name-sheet-pause, cancellation and TalkBack paths remain source-test evidence only.
+- Both public App 0.7.6 APKs passed checksum, manifest, established-signer and size checks; the compatibility APK contains no native libraries and the full APK carries only the two iroh transport ABIs. This version adds no device regression: the launcher rendering of the new icons and the Tailscale message are covered only by Android unit tests and the CI release build.
 - Both public App 0.7.5 APKs passed checksum, manifest, established-signer and size checks; the compatibility APK contains no native libraries and the full APK carries only the two iroh transport ABIs. The final CI-built APK was not reinstalled on a phone because the device disconnected during the release; the same 0.7.5/90 code had already been accepted from a local release-signed build earlier that day (in-place upgrade, three pairings retained, native Check for updates exercised).
 
 - Both public App 0.7.4 APKs passed checksum, manifest, established-signer and size checks; the compatibility APK contains no native libraries and the full APK carries only the two iroh transport ABIs. There is no new physical-device or public-network run for 0.7.4: the device cache, background-reminder status and in-place notification tap paths are covered by the Android unit tests and CI release builds only, and the Debug-device evidence below belongs to 0.7.3.

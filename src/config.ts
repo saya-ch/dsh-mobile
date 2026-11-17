@@ -56,6 +56,13 @@ export interface PluginConfig {
   listenPort?: number
   upstreamOrigin?: string
   publicAuthorities?: string[]
+  /**
+   * Extra exact authorities that reach the same listener, declared by the setup
+   * materializer (a loopback tunnel the administrator runs themselves). They add
+   * permitted names only: every one still has to match the listener port, and the
+   * Origin/CSRF/CIDR checks are unchanged.
+   */
+  additionalAuthorities?: string[]
   allowedCidrs?: string[]
   /** Extra direct management peers; every non-loopback request still requires DSH authentication. */
   adminAllowedCidrs?: string[]
@@ -122,6 +129,8 @@ export interface ResolvedGatewayConfig {
   readonly listenPort: number
   readonly upstreamOrigin: URL
   readonly authorities: readonly AuthoritySpec[]
+  /** Extra exact authorities declared by the setup materializer (a loopback tunnel). */
+  readonly additionalAuthorities: readonly AuthoritySpec[]
   readonly allowedCidrs: readonly ParsedCidr[]
   readonly adminAllowedCidrs: readonly ParsedCidr[]
   readonly stateFile: string
@@ -178,6 +187,7 @@ export const Config: z<PluginConfig> = z.object({
   listenPort: z.natural().max(65535),
   upstreamOrigin: z.string(),
   publicAuthorities: z.array(String).default(undefined as unknown as string[]),
+  additionalAuthorities: z.array(String).default(undefined as unknown as string[]),
   allowedCidrs: z.array(String).default(undefined as unknown as string[]),
   adminAllowedCidrs: z.array(String).default([]),
   stateFile: String,
@@ -377,6 +387,31 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     }
     authorities = authoritySources.map(parseAuthority)
   }
+  // An empty list is the normal "off" value the setup materializer always emits, so it
+  // must stay valid; a non-array must not slip through as one, which is what a plain
+  // `?? []` would allow. stringArray alone rejects [] as well as non-arrays.
+  const additionalInput = value.additionalAuthorities
+  if (additionalInput !== undefined && !Array.isArray(additionalInput)) {
+    throw new Error('additionalAuthorities must be an array')
+  }
+  const additionalAuthorities = additionalInput === undefined || additionalInput.length === 0
+    ? []
+    : stringArray(additionalInput, 'additionalAuthorities').map(parseAuthority)
+  // The field exists to accept a tunnel the administrator runs on their own loopback.
+  // Enforcing that here keeps a future caller from widening it into arbitrary names.
+  for (const authority of additionalAuthorities) {
+    const host = authority.hostname.replace(/^\[|\]$/gu, '')
+    if (!isLoopbackAddress(host)) {
+      throw new Error('additionalAuthorities may only name a loopback address')
+    }
+  }
+  if (additionalAuthorities.length > 0) {
+    if (publicOrigin === undefined && (value.publicAuthorities === undefined || value.publicAuthorities.length === 0)
+      && isLoopbackAddress(listenHost)) {
+      throw new Error('additionalAuthorities requires a declared public authority')
+    }
+    authorities = [...authorities, ...additionalAuthorities]
+  }
   for (const authority of authorities) {
     if (listenPort === 0 && authority.port !== undefined) {
       throw new Error('explicit public authority ports require a non-zero listenPort')
@@ -414,6 +449,7 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     listenPort,
     upstreamOrigin,
     authorities: Object.freeze(authorities),
+    additionalAuthorities: Object.freeze(additionalAuthorities),
     allowedCidrs: Object.freeze(allowedCidrs),
     adminAllowedCidrs: Object.freeze(adminAllowedCidrs),
     stateFile: absoluteFile(value.stateFile, 'stateFile'),

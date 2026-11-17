@@ -32,16 +32,18 @@
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，让手机接着用电脑上的 DSH。原生 App 目前只支持 Android；使用 iPhone 或 iPad？用 Safari 打开即可，也可以[添加到主屏幕当 Web App 用](<#iphone-与-ipad主屏幕-web-apppwa>)，不需要装任何 App。
+> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；仓库另含一个**尚未发布**的[便携 Windows 客户端](apps/windows/README.md)（源码已合入 main，但未随任何版本发布，也未完成真实 Windows 验收，因此不作为已支持平台）。
 >
-> **当前版本**：插件 0.8.9，Android App 0.7.5。两者各自更新，**插件升级一般不用重装 App**；需要重装时会在更新的那一行写明。先装插件，再装 App：[插件下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [App 下载](#下载-android-app) · [这次更新了什么](CHANGELOG.md)。
+> **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> Windows 电脑想当客户端用？便携版还在做，**现在没有安装包，暂时不用点**[（源码与自行编译说明）](apps/windows/README.md)。
+> **当前正式版本：0.8.12**。与第三方插件同用时，用户消息气泡不再被运行耗时规则挤成竖排；新增可选的**回环隧道接入**，让你用自己的 frp stcp 等本地隧道访问网关而不必暴露公网端口（#444）。插件与 Android App 独立更新；Android App 0.8.2 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12) · [完整更新记录](CHANGELOG.md)。
+>
+> **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><strong>下载 Android App 0.7.5（兼容版）</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5">版本说明与校验文件</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>下载 Android App 0.8.2（兼容版）</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -54,7 +56,7 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 
 - **在手机上继续电脑端的工作**：同一份会话、工作区、消息和工具，实时同步。
 - **用对话定制手机端**：在 DSH 对话里提出布局、交互或功能需求；文件修改完成后，自定义资源通常会自动更新。
-- **专属触屏布局**：会话抽屉、工具详情、设置、提问卡片和输入栏都按手机重新组织；侧栏列表在本页内记住位置，切换会话再打开不会总跳回顶部。App 跟随系统语言（简/英/意），插件界面跟随 DSH 语言。
+- **专属触屏布局**：会话抽屉、工具详情、设置、提问卡片和输入栏都按手机重新组织；侧栏列表在本页内记住位置，切换会话再打开不会总跳回顶部。App 跟随系统语言（简/英/意），插件界面跟随 DSH 语言。平板等宽屏上侧栏作为常驻栏，主区仍有足够空间时会话列保持约 720px 并居中，输入栏与列同轴；竖屏平板等主区较窄时保持整宽。
 - **点按路径即可复制**：触屏设备上，点按文件预览顶部的路径条，就把该元素显示的路径复制到剪贴板，并在底部短暂提示所复制的值（过长时屏幕上省略显示，剪贴板中始终是完整文本）。点按会覆盖剪贴板当前内容；交付文件卡片仍仅用于打开预览（不复制）；改动审查页顶部的文件切换箭头不受影响；桌面端鼠标点击不会复制。
 - **多种远程通道**：Tailscale、cpolar、cloudflared 快速/命名隧道、自建 FRP、自有反向代理，以及无需域名和公网端口的实验性 iroh；Windows/Linux x64 还可由插件托管 Caddy HTTPS 与证书。
 - **配对与多设备**：扫码、链接或密钥配对一次；同一 Origin 下自动续期，地址、证书或监听变化后需按「更换网络」重新配对（局域网运行时）或下次开启生效；App 在一个列表中显示局域网和远程配对的电脑，定期检测可达状态，并支持切换、重新配对或删除本地记录。
@@ -193,6 +195,8 @@ dsh plugin --profile web add dshmarket
 | 自有反向代理 | 已有公开 HTTPS 代理 | 插件只提供私有认证后端；[配置指南](docs/SELF_HOSTED_ORIGIN.md) | 可沿用自己的代理设施，稳定性取决于代理、线路与运维 |
 | 托管 Caddy | 腾讯云 DNSPod 管理的域名与公网入站 | 插件管理 HTTPS 与证书；Windows/Linux x64；[配置指南](docs/CADDY_MANAGED.md) | 不提供内网穿透，需自行确认入站端口和映射；已有 Cloudflared 用户不必迁移 |
 
+如果你已经有自己的 frps，也可以用 frp 的 **stcp** 让手机经本地回环接入、完全不发布公网端口：电脑端跑 `type = stcp` 的 frpc，手机端（Termux）配 stcp visitor，只把网关的 HTTPS 端口经 frps 转到手机自己的 `127.0.0.1`。这需要用插件下一版本的「回环隧道接入」开关，且**手机端端口必须等于电脑端网关监听端口**（默认 3443）。与上表中由插件管理的通道不同，这条链路的 frpc 要你自己运行；配置步骤、必须一致的端口和残余风险见 [回环隧道接入](docs/LOOPBACK_TUNNEL.md)。
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/remote-access.png" width="82%" alt="DSH Mobile 远程访问与通道选择">
 </p>
@@ -236,11 +240,7 @@ Funnel 的运行组件把公开监听生命周期绑定到父进程和受限控�
 
 ### 实验中的 iroh 连接
 
-不想配域名、也不想自己搭服务器，可以让手机和电脑加密直连——这就是 iroh。它不保证一定连得上：中间需要中继，VPN、代理和两边的网络都可能影响。
-
-需要电脑端插件（已装就能用）和 Android **完整版** App。开好后在电脑的**移动访问**里选 **iroh（实验性）**，等它显示就绪，再生成专属二维码给手机扫。
-
-连不上、速度慢、或者想知道哪些平台支持，看[iroh 使用说明](docs/IROH.md)。
+从插件 0.7.0 起，[dsh-mobile-iroh](https://github.com/saya-ch/dsh-mobile-iroh) 的实验性传输已整合进本仓库，电脑端组件、Android 原生传输和完整版 APK 随本项目维护。独立仓库保留方案与原型记录；日常安装使用本仓库的插件和 App 即可，不必再维护两套 App。连接步骤、平台限制与排障以 [iroh 使用说明](docs/IROH.md) 为准。
 
 ## 扩展与自定义
 
@@ -285,6 +285,8 @@ Funnel 的运行组件把公开监听生命周期绑定到父进程和受限控�
 
 Android App 在“已配对设备”中统一显示电脑及其局域网／远程连接记录。两种方式的授权彼此独立，同一台电脑可能有两条记录。升级会迁移旧凭据，无需重新配对；重新验证变化的地址后，相同身份的记录会合并并保留名称。自签 FRP 使用独立 CA 指纹，可能另成一条记录。Token 和固定的 CA 由 Android Keystore 加密；配对二维码含短期配对信息，不含长期设备 Token 或 CA 私钥。
 
+「已配对设备」右上角设置里的**应用图标**可以更换：默认是拿着手机的 DSH 鲸鱼娘，另可选经典、欢呼、安静三种姿态和六种鲸鱼标志配色。切换只更换桌面入口，不改变包名、配对数据或后台服务。
+
 未手动指定标识时，公开证书远程入口的新配对使用电脑保存的随机标识，避免相同安装路径让两台电脑的记录互相覆盖。已有连接无需为此重新配对，也不需要更新 Android App；局域网和自签 FRP 仍按各自的 CA 区分。更新后正常退出并重启 DSH，降级前请先阅读[状态备份注意事项](SECURITY.md#installation-identity-and-device-state-upgrades)。
 
 每条记录显示自定义名称、连接方式、Origin、定期更新的可达状态和最近连接时间。绿色状态点表示“可达”，灰色状态点表示“检测中”“暂不可达”“配对已过期”或“电脑端已移除”；可达性检查直接验证 DSH Gateway，不依赖 ICMP，也不会把暂时断网误判成电脑端撤销。
@@ -302,12 +304,12 @@ App 0.6.7 配合插件 0.6.16，可在列表 **设置 → 同电脑自动连接*
 <table>
   <tr>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/device-management.jpg" width="44%" alt="Android App 已配对设备列表"><br>
-      <sub>设备管理列表：查看已配对电脑、连接方式和可达状态</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg?v=067b814bfc51" width="44%" alt="Android App 已配对设备列表：远程与局域网电脑及其可达状态"><br>
+      <sub>已配对设备：每台电脑的名称、连接方式、可达状态与最近连接时间，底部可添加新电脑</sub>
     </td>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Android App 启动行为设置"><br>
-      <sub>启动行为设置：选择直接进入 DSH 或显示设备列表</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg?v=b6fe814aa2ed" width="44%" alt="Android App 设置页：启动行为、外观、应用图标、同电脑自动连接与检查更新"><br>
+      <sub>设置页：启动行为（直接进入 DSH 或显示设备列表）、外观、应用图标、同电脑自动连接与检查更新</sub>
     </td>
   </tr>
 </table>
@@ -353,19 +355,6 @@ excludedClientModules:
 
 </details>
 
-<table>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/third-party-plugin-adaptation.png" width="96%" alt="Android App 宽屏布局与社区侧边栏插件适配"><br>
-      <sub>Android App 下社区侧边栏插件的兼容</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/websocket-diagnostics.png" width="96%" alt="Android App 第三方 WebSocket 路径诊断"><br>
-      <sub>连接诊断：检查第三方 WebSocket 路径并按需放行</sub>
-    </td>
-  </tr>
-</table>
-
 ## App 与手机浏览器
 
 | 方式 | 适合场景 | 说明 |
@@ -398,13 +387,9 @@ flowchart LR
   DSH -->|"同一工作区、会话和事件流"| Phone
 ```
 
-### 它是怎么工作的
+插件包含三层：Host face 负责发现、配对、HTTPS、回环代理和扩展注册表；Client face 提供独立的移动布局与扩展 SDK；Android App 提供受限的原生 Bridge。Bridge 使用 `androidx.webkit` WebMessage，每条消息都校验精确顶层 Origin 和主 Frame，并限制消息大小；不使用 `addJavascriptInterface`。插件不改写 DeepSeek Harness 安装目录中的源码或网页文件；移动网关按请求提供启动兼容层与专用布局，安装和卸载通过插件机制完成。DSH Web 上游端口默认为 3080，可通过 `dsh web --port` 修改。阅读模式（可选，默认关闭）：向下滚动阅读长会话时收起输入栏的编辑区，输入框卡片与发送/停止按钮保留；点按卡片、聚焦输入框、打开软键盘或向上回滚约 80px 即恢复。有草稿、提交中或回复生成中时不会收起。可在「设置 → 通用」中开启。
 
-一句话：**手机不直接连你的电脑，而是先连上电脑里 DSH Mobile 开的一个加密入口，再由这个入口转给 DSH 本身**。所以手机上看到的还是同一份会话、工作区、消息和工具，不需要另装一套 DSH。
-
-插件不改 DeepSeek Harness 的任何源码或网页文件，装和卸都走插件机制，随时可以关掉。想了解各配置专题和实现细节，见[使用指南目录](docs/README.md)。
-
-会话切换后会重建连接。如果你经常在几个会话之间来回切，可以在「设置 → 通用」里打开「预取刚离开的会话」，切回去更快；默认关闭，觉得占资源或出问题随时关掉即可。
+会话切换后会重建客户端 Session 与实时流。插件提供默认关闭的会话预取（对应 [#291](https://github.com/saya-ch/dsh-mobile/issues/291)）：切换稳定后，仅对刚离开的会话发起一次有界、只读的 `session/projections` 预热，让切回命中 DSH session-query 的已准备缓存，避免重新解析整个会话日志。该行为受每会话冷却与超时约束，失败静默，且绝不打扰正常请求或实时流；在「设置 → 通用」中的「预取刚离开的会话」开关显式开启后才生效（默认关闭，选择会持久化）。
 
 ## 安全
 
@@ -426,10 +411,10 @@ flowchart LR
 - **配对成功后仍反复提示重新配对或续期 `401`**：同一域名上的其他服务或旧 Cookie 可能干扰认证。更新至最新插件及 App，再从当前移动访问入口重试；浏览器重新扫描当前二维码可更新本插件的认证 Cookie，无需清除所有网站数据。若仍失败，查看失败请求与脱敏日志，其他认证或代理错误也可能返回 `401`。
 - **内测声明无法确认或设置无法保存**：先在电脑端直接打开 DSH 的本机地址，查看终端日志或浏览器 Network 中失败的设置请求。连接诊断不检查设置写入；保留现有配置及 `settings.yaml.imported`，按具体错误排查。相同界面提示可能有不同原因，见 [DSH #860](https://github.com/deepseek-ai/deepseek-harness/discussions/860)。
 - **设置请求返回 HTTP `403`**：先检查 DSH 的 Host/Origin 信任校验及代理响应。检查 iframe、代理和浏览器扩展是否改变请求来源，使用本机直接访问验证；保持信任检查启用。
-- **错误包含 `profile reload requires the root Include entry`**：DSH 加载配置时读到了重复的一份启动模块。先确认你只装了一份 DSH（`where dsh`／`which dsh` 只应有一个结果），重启 DSH 再试；仍失败时按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)修复依赖。需要求助时把这段英文错误和 DSH 版本一起附上即可。
+- **错误包含 `profile reload requires the root Include entry`**：该错误发生在 DSH 重载 profile 时。[Issue #132](https://github.com/saya-ch/dsh-mobile/issues/132) 报告过加载两份 `dsh-app-boot` 导致此错误，但单凭提示不能确认原因。核对实际运行的 DSH 命令与当前 profile 的版本和安装路径，保留配置并按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)修复依赖；仍失败时将版本、模块路径及脱敏后的完整错误提交上游。
 - **设置错误包含 `EACCES`、`EPERM` 或锁文件操作失败**：检查报错文件的权限及启动环境注入的文件操作工具。锁清理失败也可能发生在写入之后，先核对实际保存结果。
 - **手机出现另一插件的“输入配对码”页面**：`dsh-remote-web-ui` 与 DSH Mobile 各有独立的远程通道和配对码，不能交叉使用。若电脑端连接诊断提示“第三方远程插件”，先关闭该插件的远程访问并刷新，再扫描 DSH Mobile 当前二维码。仅安装该插件而未启用它的远程接管，不会触发这条诊断。
-- **Windows 初始化停在权限处理或失败**：这时卡在给插件自己的目录设置权限。**不要**关闭权限检查，也不要把这些文件改成所有人可读。先重试一次；仍失败就在电脑端打开**移动访问 → 连接诊断**，把生成的脱敏报告发出来，比手动翻日志快得多。
+- **Windows 初始化停在权限处理或失败**：日志中的 `sid-query` 表示查询当前账户 SID，`acl-apply` 表示应用私有文件权限，错误同时记录该阶段的完整等待耗时。不要关闭权限检查或把敏感文件改为所有人可读；提供脱敏后的阶段、耗时、错误码和 DSH 版本以继续定位。分阶段诊断不代表 [#128](https://github.com/saya-ch/dsh-mobile/issues/128) 的启动争抢问题已经解决。
 - **远程诊断显示“电脑经代理可访问”**：诊断先直连，失败后才尝试 DSH 进程环境变量中的 HTTP 代理；`NO_PROXY` 可排除目标。此结果只说明电脑经代理完成 HTTPS 探测，不代表手机或实际隧道可用。请用手机流量实际连接；若直连和代理都失败，报告仍为不可达，不会把离线误报为就绪。
 - **切换网络后局域网访问不可用**：如果日志提示 `saved LAN interface "XXX" is not connected`，表示保存的网卡当前未连接。DSH 会继续运行，移动访问暂时休眠，原网卡恢复后会自动重试；若已改用新网卡，请重新完成局域网配置或重跑 `setup`。暂时不用移动访问时，可以在 `cordis.patch.yml` 中禁用 `mobile-access`。
 

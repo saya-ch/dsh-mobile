@@ -32,16 +32,18 @@
   <a href="README.md">简体中文</a>
 </p>
 
-> DSH Mobile is a DeepSeek Harness community plugin that lets your phone pick up the DSH work running on your computer. The native app currently ships for Android only; on an iPhone or iPad, just open it in Safari, or [add DSH Mobile to your Home Screen as a web app](<#iphone-and-ipad-home-screen-web-app-pwa>) — no app to install.
+> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; the repository also contains an **unpublished** [portable Windows client](apps/windows/README.md) (merged into main, not part of any release yet and not accepted on real Windows, so it is not a supported platform).
 >
-> **Current versions**: plugin 0.8.9, Android app 0.7.5. They ship separately, and **a plugin update usually does not require reinstalling the app**; when it does, the release line says so. Install the plugin first, then the app: [plugin download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [app download](#download-the-android-app) · [what changed](CHANGELOG.md).
+> **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> Want the Windows client on a Windows PC? It is still in progress: **there is no installer yet, so nothing to click for now** ([source and build notes](apps/windows/README.md)).
+> **Current stable release: 0.8.12**. A user message bubble is no longer squeezed into a vertical sliver by the runtime-label rule when a third-party plugin reverses that row, and an optional **loopback tunnel** lets you reach the gateway through a local tunnel of your own, such as frp stcp, without exposing a public port (#444). The plugin and the Android app update independently; Android app 0.8.2 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12) · [Full changelog](CHANGELOG.md).
+>
+> **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><strong>Download Android app 0.7.5 (compatibility)</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.7.5">Release notes and checksums</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>Download Android app 0.8.2 (compatibility)</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0">Release notes and checksums</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -54,7 +56,7 @@ It also lets you customize the phone from a DSH conversation: `/mobile <what you
 
 - **Continue DSH work from a phone**: the same sessions, Workspaces, messages, and tools, in real time.
 - **Customize the phone UI by talking to DSH**: request layout, interaction, or feature changes in a conversation; changed customization resources are usually picked up automatically.
-- **A dedicated touch layout**: session drawer, tool details, settings, question cards, and composer reorganized for phones. The sidebar remembers its list position within the page instead of jumping to the top after a session switch. The app follows the system locale (Chinese/English/Italian), plugin UI follows DSH's locale.
+- **A dedicated touch layout**: session drawer, tool details, settings, question cards, and composer reorganized for phones. The sidebar remembers its list position within the page instead of jumping to the top after a session switch. The app follows the system locale (Chinese/English/Italian), plugin UI follows DSH's locale. On a wide window such as a tablet the sidebar stays docked, and while the main area still has room the conversation column keeps ~720px and is centred with the composer on the same axis; a narrower main area, such as a portrait tablet, keeps the full-width column.
 - **Tap a path to copy it**: on touch devices, tapping the path bar atop a file preview copies the path that element shows to the clipboard, with a brief bottom toast of the copied value (long values shorten on screen; the clipboard keeps the full text). Tapping replaces the current clipboard; delivered-file cards remain a pure open action (no copy); the changes-review file switcher is unaffected; desktop mouse clicks never copy.
 - **Several remote options**: Tailscale, cpolar, cloudflared quick/named tunnels, self-hosted FRP, your own reverse proxy, and experimental iroh without a domain or public port; Windows/Linux x64 can also let the plugin manage Caddy HTTPS and certificates.
 - **Pairing and multi-device**: pair once via QR code, link, or key; the same Origin renews automatically, while an address, certificate or listener change requires pairing again through **Change network** (while LAN access runs) or takes effect the next time you enable it; the app lists LAN and remote paired computers together, checks their reachability periodically, and lets you switch, re-pair, or delete a local record.
@@ -193,6 +195,8 @@ The usage notes below reflect the maintainer's long-term experience on a persona
 | Own reverse proxy | Existing public HTTPS proxy | The plugin provides only its private authenticated backend; [guide](docs/SELF_HOSTED_ORIGIN.en.md) | Reuses your proxy infrastructure; stability depends on the proxy, network route and maintenance |
 | Managed Caddy | Tencent Cloud DNSPod-managed domain and reachable public ingress | Plugin-managed HTTPS and certificates on Windows/Linux x64; [guide](docs/CADDY_MANAGED.en.md) | Does not traverse NAT; check inbound ports and forwarding. Existing Cloudflared users do not need to migrate |
 
+If you already run your own frps, frp's **stcp** mode also lets the phone connect through a local loopback address without publishing any public port: run a `type = stcp` frpc on the computer and an stcp visitor frpc on the phone (Termux), forwarding the gateway's HTTPS port through frps to the phone's own `127.0.0.1`. This needs the **Loopback tunnel** switch in the next plugin version, and the **phone port must equal the computer's gateway listener port** (3443 by default). Unlike the plugin-managed channels above, you run these frpc instances yourself; see [loopback tunnel access](docs/LOOPBACK_TUNNEL.en.md) for the configuration steps, the port constraint and the residual risks.
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/remote-access-en.png" width="82%" alt="DSH Mobile remote access and provider selection">
 </p>
@@ -236,13 +240,7 @@ See [Compatibility](#compatibility) for the supported components and platforms. 
 
 ### Experimental iroh connection
 
-### Experimental iroh connection
-
-If you do not want to set up a domain or run your own server, iroh lets your phone and computer connect directly with encryption. It is not guaranteed to work: the path may need a relay, and VPNs, proxies and both networks can interfere.
-
-You need the plugin on the computer (already included) and the Android **full** app. Turn it on under **Mobile access** on the computer, choose **iroh (experimental)**, wait until it reports ready, then generate the dedicated pairing code for your phone.
-
-For connection failures, slow transfers, or which platforms are supported, see the [iroh guide](docs/IROH.en.md).
+Since plugin 0.7.0, the experimental transport from [dsh-mobile-iroh](https://github.com/saya-ch/dsh-mobile-iroh) is integrated into this repository. Its computer component, native Android transport and full APK are maintained here. The standalone repository retains the design and prototype records; normal installation uses this project's plugin and App, without maintaining two Apps. See the [iroh guide](docs/IROH.en.md) for setup, platform limits and troubleshooting.
 
 ## Extend and customize
 
@@ -287,6 +285,8 @@ The examples above, applied:
 
 The Android app lists computers and their LAN/remote records under **Paired computers**. The two authorization types remain separate, so one computer can have two rows. Upgrades migrate old credentials without re-pairing; after a changed address is verified, matching identities merge and keep their names. Self-signed FRP uses a separate CA fingerprint and may create another row. Android Keystore encrypts tokens and pinned CAs. A pairing QR code contains temporary pairing information, never a long-lived device token or CA private key.
 
+The **App icon** entry in that settings menu switches the launcher artwork: the default is the DSH whale-girl mascot holding a phone, with classic, cheer and quiet poses plus six whale-mark colors to choose from. Switching only changes the launcher entry — package identity, paired data and the background service stay untouched.
+
 Unless an identifier is configured manually, new pairings through a public-certificate remote entry use a random identifier saved on the computer, preventing identical installation paths from overwriting another computer's row. Working connections need no re-pairing or Android App update; LAN and self-signed FRP still use their respective CAs. Quit DSH normally and restart after updating; read the [state-backup precautions](SECURITY.md#installation-identity-and-device-state-upgrades) before downgrading.
 
 Each row shows its custom name, transport, Origin, periodically refreshed reachability, and last connection time. A green dot means **Reachable**; a gray dot means **Checking**, **Temporarily unreachable**, **Pairing expired**, or **Removed on computer**. The check validates the DSH Gateway over HTTPS instead of using ICMP, so a temporary network outage is not mistaken for computer-side revocation.
@@ -304,12 +304,12 @@ Revoking a device permanently deletes its durable record and token digest instea
 <table>
   <tr>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/device-management.jpg" width="44%" alt="Paired computer list in the Android app"><br>
-      <sub>Device management: paired computers, transport, and reachability</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/device-management.jpg?v=067b814bfc51" width="44%" alt="Paired computer list in the Android app: remote and LAN computers with reachability"><br>
+      <sub>Paired computers: each computer's name, transport, reachability and last connection time, with an add-computer action</sub>
     </td>
     <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/startup-behavior.jpg" width="44%" alt="Startup behavior settings in the Android app"><br>
-      <sub>Startup behavior: open DSH directly or show the device list</sub>
+      <img src="https://cdn.jsdelivr.net/gh/saya-ch/dsh-mobile@main/assets/screenshots/startup-behavior.jpg?v=b6fe814aa2ed" width="44%" alt="Android app settings: startup behavior, appearance, app icon, same-computer auto-connect and update check"><br>
+      <sub>Settings: startup behavior (open DSH directly or show the device list), appearance, app icon, same-computer auto-connect and update check</sub>
     </td>
   </tr>
 </table>
@@ -355,19 +355,6 @@ Selection priority is device choice → computer defaults → plugin configurati
 
 </details>
 
-<table>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/third-party-plugin-adaptation.png" width="96%" alt="Android app wide layout with a community sidebar plugin adapted"><br>
-      <sub>Community sidebar plugin compatibility in the Android app</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/websocket-diagnostics.png" width="96%" alt="Third-party WebSocket path diagnostics in the Android app"><br>
-      <sub>Connection diagnostics: review and allow third-party WebSocket paths</sub>
-    </td>
-  </tr>
-</table>
-
 ## App or mobile browser
 
 | Client | Best for | Notes |
@@ -400,13 +387,9 @@ flowchart LR
   DSH -->|"same workspace, sessions and event stream"| Phone
 ```
 
-### How it works
+Three layers: the Host face for discovery, pairing, HTTPS, loopback proxying, and extension registration; the Client face for the dedicated mobile layout and extension SDK; and the Android app for a narrow native bridge. The bridge uses `androidx.webkit` WebMessage, which verifies the exact top-level origin and main frame on every bounded message, and never uses `addJavascriptInterface`. The plugin does not rewrite source or webpage files in the DeepSeek Harness installation. Its mobile gateway serves the startup compatibility layer and dedicated layout per request; installation and removal use the plugin mechanism. The upstream DSH Web port defaults to 3080 and is configurable through `dsh web --port`. Reading mode (opt-in, off by default) collapses the composer editor while scrolling down a long conversation: the card and its Send/Stop row stay, and tapping the card, focusing the composer, opening the software keyboard, or scrolling back up about 80px restores it. It never collapses while a draft exists, a submission is in flight, or a reply is streaming. Enable it from Settings → General.
 
-In one sentence: **your phone does not connect to your computer directly. It connects to an encrypted entry point that DSH Mobile runs inside your computer, and that entry point forwards to DSH itself.** So the phone shows the same sessions, workspaces, messages and tools — you are not running a second copy of DSH.
-
-The plugin does not modify any DeepSeek Harness source or webpage file, and installing or removing it goes through the plugin mechanism, so you can turn it off at any time. For configuration topics and implementation details, see the [documentation index](docs/README.en.md).
-
-Switching sessions rebuilds the connection. If you move between sessions a lot, turn on "Prefetch the session you just left" in Settings → General so switching back is quicker; it is off by default, and you can turn it off any time if it costs too much or misbehaves.
+Switching sessions tears down the client Session instance and its live stream. The dedicated layout ships an opt-in, off-by-default session prefetch ([#291](https://github.com/saya-ch/dsh-mobile/issues/291)): after a switch settles, it issues one bounded, read-only `session/projections` request for the session the user just left, so a follow-back hits DSH session-query's prepared cache instead of re-parsing the whole log. Guarded by a per-session cooldown and a bounded timeout, failures are silent and never disturb normal requests or live streams; the behavior stays disabled until the "Prefetch the session you just left" switch in Settings → General is turned on (off by default; the choice is persisted).
 
 ## Security
 
@@ -428,10 +411,10 @@ See [SECURITY.md](SECURITY.md).
 - **Pairing succeeds but renewal returns `401` or repeatedly asks to pair again**: other services on the same hostname or stale Cookies may interfere with authentication. Update to the latest plugin and app, then retry through the current Mobile Access entry. In a browser, scanning the current QR code again refreshes this plugin's authentication Cookies without clearing all website data. If it still fails, inspect the failed request and sanitized logs; other authentication or proxy errors can also return `401`.
 - **The testing notice cannot be confirmed or settings cannot be saved**: open DSH directly at its local address on the computer, then inspect the terminal log or the failed settings request in the browser's Network panel. Connection diagnostics do not test settings writes. Keep the existing configuration and `settings.yaml.imported`, and investigate the specific error; the same UI message can have different causes. See [DSH #860](https://github.com/deepseek-ai/deepseek-harness/discussions/860).
 - **A settings request returns HTTP `403`**: first inspect DSH's Host/Origin trust checks and any proxy response. Check whether an iframe, proxy, or browser extension changes the request's origin, and verify direct local access. Keep the trust checks enabled.
-- **The error contains `profile reload requires the root Include entry`**: DSH read a duplicate copy of a startup module while loading its configuration. First confirm you have only one DSH installed (`where dsh` / `which dsh` should return a single result), restart DSH, and retry; if it still fails, follow the [official DSH documentation](https://deepseek-harness.github.io/deepseek-harness/) to repair the dependencies. When asking for help, include this error line and your DSH version.
+- **The error contains `profile reload requires the root Include entry`**: this error occurs while DSH reloads the profile. [Issue #132](https://github.com/saya-ch/dsh-mobile/issues/132) reports it after two copies of `dsh-app-boot` were loaded, but the message alone does not establish that cause. Compare the versions and installation paths used by the running DSH command and the active profile; keep the configuration and follow the [official DSH documentation](https://deepseek-harness.github.io/deepseek-harness/) to repair the dependencies. If it still fails, report the versions, module paths, and full sanitized error upstream.
 - **The settings error contains `EACCES`, `EPERM`, or a lock-file failure**: inspect the reported file's permissions and any file-operation tools injected into the launch environment. Lock cleanup can fail after a write, so check what was actually saved.
 - **The phone shows another plugin’s pairing-code page**: `dsh-remote-web-ui` and DSH Mobile have separate remote channels and pairing codes; they cannot be mixed. If DSH Mobile diagnostics warn about a competing remote plugin, turn off that plugin’s remote access on the computer, refresh, and scan the current DSH Mobile QR code. Merely installing the other plugin without enabling its remote channel does not trigger this warning.
-- **Windows initialization waits on permissions or fails**: it is stuck setting permissions on the plugin's own directory. Do **not** disable the permission check or make these files readable by everyone. Retry once; if it still fails, open **Mobile access → Connection diagnostics** on the computer and share the redacted report it produces — that is faster than digging through logs.
+- **Windows initialization waits on permissions or fails**: `sid-query` identifies the current-account SID lookup and `acl-apply` identifies private-file permission setup; failures also report the full wait duration for that stage. Do not disable permission checks or make sensitive files readable by everyone. Share the redacted stage, duration, error code and DSH version for diagnosis. These diagnostics do not establish a fix for the startup-contention problem in [#128](https://github.com/saya-ch/dsh-mobile/issues/128).
 - **Remote diagnostics say “reachable through the computer's proxy”**: the check tries a direct request first, then an HTTP proxy from the DSH process environment only if direct access fails; `NO_PROXY` may exclude the target. This proves only that the computer completed an HTTPS probe through the proxy, not that the phone or actual tunnel can connect. Test from the phone's mobile network. If both paths fail, diagnostics continue to report the endpoint unreachable instead of treating an offline route as ready.
 - **LAN access stops after switching networks**: if the log reports `saved LAN interface "XXX" is not connected`, the saved adapter is unavailable. DSH keeps running while Mobile Access stays dormant and retries when the adapter returns. If you have moved to a different adapter, configure LAN again or re-run `setup`. If mobile access is not needed, disable `mobile-access` in `cordis.patch.yml`.
 

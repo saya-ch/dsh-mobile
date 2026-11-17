@@ -10,7 +10,7 @@ class ConnectionCancellationWiringTest {
     @Test fun cancellationIsVisibleImmediatelyAndSystemBackUsesTheSameOwner() {
         val source = activitySource()
         val start = method(source, "startConnectionAttempt")
-        assertTrue(start.contains("addSetupArtwork(waiting)"))
+        assertTrue(start.contains("background = screenBackground()"))
         assertTrue(start.contains("ProgressBar(this@MainActivity)"))
         assertTrue(Regex("secondaryButton\\(\\s*if \\(preserveBrowser == null\\) R\\.string\\.connection_cancel else R\\.string\\.connection_stop_reconnecting,\\s*48,").containsMatchIn(start))
         assertTrue(start.contains("{ connectionAttempts.cancel(attempt) }"))
@@ -20,7 +20,7 @@ class ConnectionCancellationWiringTest {
         val withdrawal = start.indexOf("withdrawConnectionAttempt()")
         assertTrue(withdrawal >= 0)
         assertTrue("A new attempt first clears the previous presentation stage", withdrawal < start.indexOf("val waiting ="))
-        assertFalse("Connection waiting uses the existing full-screen artwork, not another modal", start.contains("AlertDialog"))
+        assertFalse("Connection waiting uses the shared wash, not another modal", start.contains("AlertDialog"))
         assertFalse(source.contains("connectionProgressDialog"))
         assertFalse(start.contains("postDelayed"))
         assertFalse(source.contains("RESTORE_ESCAPE_DELAY_MS"))
@@ -37,9 +37,14 @@ class ConnectionCancellationWiringTest {
         assertTrue(detach >= 0)
         assertTrue(content > detach)
         assertTrue(attach > content)
-        for (name in listOf("showRestoringTrust", "createSetupCard", "showBrowser")) {
-            assertTrue("$name must preserve the waiting presentation across its new root", method(source, name).contains("setPageContent(root)"))
-        }
+        assertTrue(
+            "showRestoringTrust must preserve the waiting presentation across its new root",
+            method(source, "showRestoringTrust").contains("createSetupScreen("),
+        )
+        assertTrue(
+            "showBrowser must preserve the waiting presentation across its new root",
+            method(source, "showBrowser").contains("setPageContent(root"),
+        )
         val presentation = replace + method(source, "detachConnectionWaitingView")
         for (operation in listOf("dismissConnectionProgress()", "pendingConnection =", "loadingConnectionAttempt =", "loadingDocumentGeneration =", "pageReadyCheck =", "connectionAttempts.")) {
             assertFalse("Changing the real root must not withdraw its connection or readiness owner: $operation", presentation.contains(operation))
@@ -319,8 +324,12 @@ class ConnectionCancellationWiringTest {
         }
     }
 
-    private fun method(source: String, name: String): String =
-        source.substringAfter("private fun $name(").substringBefore("\n    private fun ")
+    private fun method(source: String, name: String): String {
+        val start = source.indexOf("private fun $name(")
+        assertTrue("$name not found", start >= 0)
+        val next = Regex("\\n    (?:private|internal|protected|override|public) ").find(source, start + 1)
+        return source.substring(start, next?.range?.first ?: source.length)
+    }
 
     private fun activitySource(): String = mainSource("java/io/github/sayach/dshmobile/MainActivity.kt")
 

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -24,6 +25,10 @@ import (
 )
 
 const protocolVersion = 1
+
+// errCertificate marks a missing or unissuable public certificate, which is not an
+// authorization problem and needs its own product message.
+var errCertificate = errors.New("funnel certificate unavailable")
 
 var (
 	hostnamePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,62}$`)
@@ -158,6 +163,61 @@ func classifyFunnelFailure(err error) (code, setupURL string) {
 	default:
 		return "funnel_start_failed", ""
 	}
+}
+
+// The one certificate fetch made before reporting serving must tolerate a cold ACME
+// issuance, which measured about 39 seconds on a slow public route. The default keeps
+// generous headroom; an operator can widen it through the environment without a rebuild.
+const (
+	defaultCertificateTimeout = 180 * time.Second
+	minCertificateTimeout     = 30 * time.Second
+	maxCertificateTimeout     = 900 * time.Second
+)
+
+// resolveCertificateTimeout reads the operator override in seconds and clamps it, so a
+// malformed or hostile value cannot disable the bound or make shutdown hang for hours.
+func resolveCertificateTimeout(raw string) time.Duration {
+	seconds, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || seconds <= 0 {
+		return defaultCertificateTimeout
+	}
+	limit := time.Duration(seconds) * time.Second
+	if limit < minCertificateTimeout {
+		return minCertificateTimeout
+	}
+	if limit > maxCertificateTimeout {
+		return maxCertificateTimeout
+	}
+	return limit
+}
+
+// verifyCertificate fetches the public certificate before the listener is reported as
+// serving. tsnet resolves it lazily on the first TLS handshake, so a hostname whose
+// certificate was never issued still produces a bound listener: the panel would show a
+// ready remote address while every public connection failed during the handshake.
+func verifyCertificate(ctx context.Context, server *tsnet.Server, origin string, timeout time.Duration) error {
+	host := strings.TrimPrefix(origin, "https://")
+	if host == "" || host == origin || strings.ContainsAny(host, "/:") {
+		return errors.New("invalid certificate host")
+	}
+	client, err := server.LocalClient()
+	if err != nil {
+		return err
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, _, err = client.CertPair(fetchCtx, host)
+	return certificateError(ctx, err)
+}
+
+// certificateError reports a fetch result without blaming the certificate for a stop the
+// caller requested: the budget expiring under a live parent is a certificate failure, while
+// a stopped parent is the clean stop serveFunnel already knows how to unwind.
+func certificateError(ctx context.Context, fetchErr error) error {
+	if fetchErr != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return fetchErr
 }
 
 func officialSetupURL(raw string) string {
@@ -304,6 +364,17 @@ func serveFunnel(ctx context.Context, server *tsnet.Server, target *url.URL, ori
 		http.Error(response, "gateway unavailable", http.StatusBadGateway)
 	}
 
+	if err := verifyCertificate(ctx, server, origin,
+		resolveCertificateTimeout(os.Getenv("DSH_FUNNEL_CERTIFICATE_TIMEOUT_SECONDS"))); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return fmt.Errorf("%w: %v", errCertificate, err)
+	}
+	if ctx.Err() != nil {
+		// Stopped while the certificate was arriving: announce serving only for a live parent.
+		return nil
+	}
 	output.emit(map[string]any{"type": "serving", "origin": origin})
 	return serveHTTP(ctx, listener, proxy)
 }
@@ -368,6 +439,13 @@ func run(arguments []string, input io.Reader, output io.Writer) int {
 			return 0
 		}
 		code, setupURL := classifyFunnelFailure(serveErr)
+		if errors.Is(serveErr, errCertificate) {
+			code, setupURL = "funnel_certificate_failed", ""
+			// The control plane names HTTPS provisioning in the fetch error.
+			if strings.Contains(serveErr.Error(), "https://tailscale.com/s/https") {
+				code, setupURL = "funnel_https_required", "https://tailscale.com/s/https"
+			}
+		}
 		if code == "funnel_permission_required" || code == "funnel_https_required" {
 			if interactiveURL := queryFunnelSetupURL(ctx, server); interactiveURL != "" {
 				setupURL = interactiveURL

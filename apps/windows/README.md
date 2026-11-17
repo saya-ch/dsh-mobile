@@ -22,7 +22,7 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
   - `局域网` / `远程`：粘贴 `https://…/mobile-access/pair#…` 配对链接，直连网关。
 - **免扫码重连**：配对一次后，以后直接点「连接」即可，不用再粘贴。
 - **设备管理**：多设备卡片、重命名、删除；每张卡片显示连接方式和凭据有效期。
-- **安全**：配对时自动固定这台电脑的证书，对不上就拒绝连接，不会让你往系统里装证书。凭据用 Windows 账户加密保存在本目录，换台电脑或换个用户就要重新配对。
+- **安全**：配对时自动固定这台电脑的证书，对不上就拒绝连接，不会让你往系统里装证书。凭据用 Windows 账户加密保存在本目录，换台电脑或换个用户就要重新配对。WebView2 路径下过期或已吊销的证书一律拒绝；这些固定通道使用的自定义 CA 通道不查吊销，因为配对 CA 自签、没有吊销信息。
 - **顶栏与标题栏**：原生标题栏下方的窗口级顶栏行（设备列表 / 连接状态 / 断开），颜色与 DWM 标题栏一致；页面 DOM 零注入、零改动。
 - **深浅色**：语义颜色 token（`design-system/dsh-mobile/MASTER.md`），跟随系统深浅色；环境变量 `DSH_MOBILE_THEME=light|dark` 可覆盖。
 
@@ -79,5 +79,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 - 日志：`data\client.log`。
 
 ## 给维护者
+
+iroh 组件的 pin 存在三处，彼此之间没有机器校验：`src/iroh-component.ts` 里的 `IROH_COMPONENT_RELEASES['win32-x64']` 是权威值，`apps/windows/DshMobile.Win/SidecarProvisioner.cs` 硬编码同值，`apps/windows/DshMobile.Win/sidecar/manifest.json` 只是镜像；升级 pin 时三处必须一起改。
 
 本目录是新增端，不修改插件与 Android 既有代码；仓库约定见根目录 `AGENTS.md`（上游 DSH 源码只读，改动仅留在本仓库）。功能改动集中在 `apps/windows/`；唯一的仓库级例外是 `.github/workflows/windows-client.yml`（Windows 客户端的 CI job），其余上游文件不应出现在 diff 中。

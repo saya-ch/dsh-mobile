@@ -23,6 +23,7 @@ Use [CONTRIBUTING.md](../../../CONTRIBUTING.md) for commands and [package.json](
 | Mobile layout, reconnection, remote providers, Android or ADB | [Runtime, UI and Android](references/runtime-ui-android.md) |
 | Test isolation, asynchronous races, fixture teardown or flaky checks | [Test and fixture reliability](references/testing-and-fixtures.md) |
 | PR/issue integration, documentation, versioning or publication | [Collaboration and releases](references/collaboration-and-releases.md) |
+| Deleting stale worktrees or other on-disk cleanup | [Local workspace hygiene](references/local-workspace.md) |
 
 Read multiple references only when the change crosses those systems. Prefer existing repository scripts and test fixtures to rebuilding an alternative maintenance toolchain.
 

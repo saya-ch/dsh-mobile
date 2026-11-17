@@ -39,6 +39,7 @@
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden"
             android:exported="true"
             android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
             android:windowSoftInputMode="adjustResize" />
         <!-- MainActivity stays exported for existing explicit launcher shortcuts and
              notification intents. New launcher entries use the selectable aliases. -->
@@ -51,6 +52,45 @@
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
             android:roundIcon="@mipmap/ic_launcher"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherMascotClassic"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mascot_classic"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_mascot_classic"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherMascotCheer"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mascot_cheer"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_mascot_cheer"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherMascotQuiet"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mascot_quiet"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_mascot_quiet"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

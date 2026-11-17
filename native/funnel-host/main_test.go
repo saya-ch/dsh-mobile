@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -284,5 +285,80 @@ func TestOfficialSetupURL(t *testing.T) {
 		if got := officialSetupURL(invalid); got != "" {
 			t.Fatalf("officialSetupURL(%q) = %q, want empty", invalid, got)
 		}
+	}
+}
+
+func TestVerifyCertificateRejectsAnOriginThatCannotNameACertificate(t *testing.T) {
+	// The public origin is the only place a certificate name may come from; anything
+	// else would let the sidecar ask the control plane for an unrelated certificate.
+	for _, origin := range []string{"", "https://", "http://example.ts.net", "example.ts.net", "https://example.ts.net/path", "https://example.ts.net:443"} {
+		if err := verifyCertificate(context.Background(), nil, origin, defaultCertificateTimeout); err == nil {
+			t.Fatalf("verifyCertificate(%q) accepted an invalid origin", origin)
+		}
+	}
+}
+
+func TestCertificateTimeoutDefaultsGenerouslyAndIsOverridable(t *testing.T) {
+	// A cold ACME issuance measured ~39s on a slow public route; the default must clear
+	// that comfortably, and an operator must be able to widen it without a rebuild.
+	if defaultCertificateTimeout < 90*time.Second {
+		t.Fatalf("default certificate timeout %v is below the measured issuance time", defaultCertificateTimeout)
+	}
+	cases := []struct {
+		raw  string
+		want time.Duration
+	}{
+		{"", defaultCertificateTimeout},
+		{"   ", defaultCertificateTimeout},
+		{"abc", defaultCertificateTimeout},
+		{"-5", defaultCertificateTimeout},
+		{"0", defaultCertificateTimeout},
+		{"39", 39 * time.Second},
+		{"600", 600 * time.Second},
+		{"5", minCertificateTimeout},
+		{"100000", maxCertificateTimeout},
+	}
+	for _, c := range cases {
+		if got := resolveCertificateTimeout(c.raw); got != c.want {
+			t.Fatalf("resolveCertificateTimeout(%q) = %v, want %v", c.raw, got, c.want)
+		}
+	}
+}
+
+func TestCertificateFailureIsReportedInsteadOfServing(t *testing.T) {
+	// tsnet resolves the certificate lazily, so a bound listener alone must not be
+	// announced: the panel would show a ready address while every handshake failed.
+	cause := fmt.Errorf("%w: acme: no certificate for dsh-example.ts.net", errCertificate)
+	if !errors.Is(cause, errCertificate) {
+		t.Fatal("wrapped certificate failure lost its sentinel")
+	}
+	code, setupURL := classifyFunnelFailure(cause)
+	if code != "funnel_start_failed" || setupURL != "" {
+		t.Fatalf("classifyFunnelFailure() = (%q, %q), want the generic start failure", code, setupURL)
+	}
+}
+
+func TestCertificateErrorDistinguishesAStopFromAnExpiredBudget(t *testing.T) {
+	// With the fetch bound to its parent, these two outcomes arrive through the same
+	// error value, so the rule that separates them is what keeps a user-requested stop
+	// from surfacing as funnel_certificate_failed.
+	failing := errors.New("acme: no certificate")
+
+	stopped, cancelStopped := context.WithCancel(context.Background())
+	cancelStopped()
+	if err := certificateError(stopped, context.DeadlineExceeded); !errors.Is(err, context.Canceled) {
+		t.Fatalf("a stopped parent yielded %v, want context.Canceled", err)
+	}
+	if err := certificateError(stopped, failing); !errors.Is(err, context.Canceled) {
+		t.Fatalf("a stopped parent yielded %v, want context.Canceled", err)
+	}
+
+	// A live parent keeps the fetch error, so a genuinely unavailable certificate is still
+	// reported as one.
+	if err := certificateError(context.Background(), failing); !errors.Is(err, failing) {
+		t.Fatalf("a live parent lost the fetch error: %v", err)
+	}
+	if err := certificateError(context.Background(), nil); err != nil {
+		t.Fatalf("a successful fetch yielded %v, want nil", err)
 	}
 }
