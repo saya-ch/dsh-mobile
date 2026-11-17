@@ -10,9 +10,9 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 
 ## 状态与支持范围
 
-- **源码预览，尚未发布**：本目录已合入 `main`，但**尚未随任何 Release 发布**，没有官方下载包，也不在 npm 包的 `files` 中；需要按下方命令自行编译。
-- **尚未完成维护者验收**：维护者尚未在真实 Windows 机器上完成 iroh / 局域网 / 远程 / WebView2 五类策略的验收矩阵；本文与 `ARCHITECTURE.md` 描述的是设计与已入库的检查，**不承诺可用性**。
-- **支持范围**：Windows 10 1809+ / Windows 11，**x64**。不支持 Windows ARM64，也不支持在 Linux/macOS 上构建（WPF `net8.0-windows` + `RuntimeIdentifiers=win-x64`）。
+- **暂时没有安装包**：这个客户端还在开发中，没有官方下载包，也不在 npm 包里；想试用需要按下方命令自己编译。
+- **可能连不上**：还没有在任何一台 Windows 机器上完成 iroh / 局域网 / 远程的完整验收，本文与 `ARCHITECTURE.md` 描述的是设计与已入库的检查。遇到问题属预期内，请附 `data\client.log` 反馈。
+- **能用在哪**：Windows 10 1809+ / Windows 11 的 **x64** 电脑。不支持 Windows ARM64；也不能在 Linux/macOS 上编译这个客户端。
 - **前置**：.NET 8 SDK（x64）、WebView2 Evergreen Runtime（Windows 11 自带；Windows 10 需安装，见 https://developer.microsoft.com/microsoft-edge/webview2 ）；首次 iroh 连接需要联网下载并校验官方 sidecar（约 14.8 MB / 14,865,920 字节）。
 
 ## 功能
