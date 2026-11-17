@@ -236,7 +236,13 @@ See [Compatibility](#compatibility) for the supported components and platforms. 
 
 ### Experimental iroh connection
 
-Since plugin 0.7.0, the experimental transport from [dsh-mobile-iroh](https://github.com/saya-ch/dsh-mobile-iroh) is integrated into this repository. Its computer component, native Android transport and full APK are maintained here. The standalone repository retains the design and prototype records; normal installation uses this project's plugin and App, without maintaining two Apps. See the [iroh guide](docs/IROH.en.md) for setup, platform limits and troubleshooting.
+### Experimental iroh connection
+
+If you do not want to set up a domain or run your own server, iroh lets your phone and computer connect directly with encryption. It is not guaranteed to work: the path may need a relay, and VPNs, proxies and both networks can interfere.
+
+You need the plugin on the computer (already included) and the Android **full** app. Turn it on under **Mobile access** on the computer, choose **iroh (experimental)**, wait until it reports ready, then generate the dedicated pairing code for your phone.
+
+For connection failures, slow transfers, or which platforms are supported, see the [iroh guide](docs/IROH.en.md).
 
 ## Extend and customize
 
