@@ -78,6 +78,6 @@ dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 - 已配对设备记录在 `data\devices.json`，其中 deviceToken 经 DPAPI(CurrentUser) 加密，不随文件夹跨机迁移；
 - 日志：`data\client.log`。
 
-## 与上游仓库的关系
+## 给维护者
 
 本目录是新增端，不修改插件与 Android 既有代码；仓库约定见根目录 `AGENTS.md`（上游 DSH 源码只读，改动仅留在本仓库）。功能改动集中在 `apps/windows/`；唯一的仓库级例外是 `.github/workflows/windows-client.yml`（Windows 客户端的 CI job），其余上游文件不应出现在 diff 中。
