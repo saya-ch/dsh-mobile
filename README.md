@@ -426,7 +426,7 @@ flowchart LR
 - **配对成功后仍反复提示重新配对或续期 `401`**：同一域名上的其他服务或旧 Cookie 可能干扰认证。更新至最新插件及 App，再从当前移动访问入口重试；浏览器重新扫描当前二维码可更新本插件的认证 Cookie，无需清除所有网站数据。若仍失败，查看失败请求与脱敏日志，其他认证或代理错误也可能返回 `401`。
 - **内测声明无法确认或设置无法保存**：先在电脑端直接打开 DSH 的本机地址，查看终端日志或浏览器 Network 中失败的设置请求。连接诊断不检查设置写入；保留现有配置及 `settings.yaml.imported`，按具体错误排查。相同界面提示可能有不同原因，见 [DSH #860](https://github.com/deepseek-ai/deepseek-harness/discussions/860)。
 - **设置请求返回 HTTP `403`**：先检查 DSH 的 Host/Origin 信任校验及代理响应。检查 iframe、代理和浏览器扩展是否改变请求来源，使用本机直接访问验证；保持信任检查启用。
-- **错误包含 `profile reload requires the root Include entry`**：该错误发生在 DSH 重载 profile 时。[Issue #132](https://github.com/saya-ch/dsh-mobile/issues/132) 报告过加载两份 `dsh-app-boot` 导致此错误，但单凭提示不能确认原因。核对实际运行的 DSH 命令与当前 profile 的版本和安装路径，保留配置并按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)修复依赖；仍失败时将版本、模块路径及脱敏后的完整错误提交上游。
+- **错误包含 `profile reload requires the root Include entry`**：DSH 加载配置时读到了重复的一份启动模块。先确认你只装了一份 DSH（`where dsh`／`which dsh` 只应有一个结果），重启 DSH 再试；仍失败时按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)修复依赖。需要求助时把这段英文错误和 DSH 版本一起附上即可。
 - **设置错误包含 `EACCES`、`EPERM` 或锁文件操作失败**：检查报错文件的权限及启动环境注入的文件操作工具。锁清理失败也可能发生在写入之后，先核对实际保存结果。
 - **手机出现另一插件的“输入配对码”页面**：`dsh-remote-web-ui` 与 DSH Mobile 各有独立的远程通道和配对码，不能交叉使用。若电脑端连接诊断提示“第三方远程插件”，先关闭该插件的远程访问并刷新，再扫描 DSH Mobile 当前二维码。仅安装该插件而未启用它的远程接管，不会触发这条诊断。
 - **Windows 初始化停在权限处理或失败**：日志中的 `sid-query` 表示查询当前账户 SID，`acl-apply` 表示应用私有文件权限，错误同时记录该阶段的完整等待耗时。不要关闭权限检查或把敏感文件改为所有人可读；提供脱敏后的阶段、耗时、错误码和 DSH 版本以继续定位。分阶段诊断不代表 [#128](https://github.com/saya-ch/dsh-mobile/issues/128) 的启动争抢问题已经解决。
