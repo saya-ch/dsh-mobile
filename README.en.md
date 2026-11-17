@@ -32,9 +32,7 @@
   <a href="README.md">简体中文</a>
 </p>
 
-> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; the repository also contains an **unpublished** [portable Windows client](apps/windows/README.md) (merged into main, not part of any release yet and not accepted on real Windows, so it is not a supported platform).
->
-> **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
+> DSH Mobile is a DeepSeek Harness community plugin that lets your phone pick up the DSH work running on your computer. The native app currently ships for Android only; on an iPhone or iPad, just open it in Safari, or [add DSH Mobile to your Home Screen as a web app](<#iphone-and-ipad-home-screen-web-app-pwa>) — no app to install.
 >
 > **Current stable release: 0.8.9**. Tap the preview path bar on touch devices to copy the full path; the gateway answers an untrusted source network with its own error; the drawer no longer clips stock fixed-position panels (#413); the repository adds the source of the unpublished portable Windows client. Plugin and Android App releases remain independent; Android App 0.7.5 is the current app release. [Plugin release notes and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [Full changelog](CHANGELOG.md).
 >
