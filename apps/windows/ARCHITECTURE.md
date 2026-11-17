@@ -59,7 +59,7 @@
 
 - 发现（`LanDiscovery`）：UDP 广播 `DSH_MOBILE_DISCOVER_V1` 并收集网关公告，超时后按本机各 IPv4 的 /24 逐个探测 `GET /mobile-access/discovery`；也接受手输 `IP/host/host:port/https://…` 单点探测。公告五字段必须自洽且 origin 须为应答地址（伪造公告直接丢弃）；发现不是信任决策，配对仍按 instanceId 指纹固定 CA。
 - 配对时若链接 origin 与已选发现结果不一致，提示确认，防止贴错另一台电脑的链接。
-- 跟随（`SavedDevice.AdoptNewOrigin`）：已保存的 lan/remote 电脑失联或凭据过期时，可粘贴同一台电脑的当前链接更新地址；要求 instanceId 一致，保留用户名称，丢弃旧 CA pin 与设备令牌，更新后走一次全新 `native-pair`。
+- 跟随（`SavedDevice.AdoptNewOrigin`）：已保存的 lan/remote 电脑失联或凭据过期时，可粘贴同一台电脑的当前链接更新地址；要求 instanceId 一致，保留用户名称，丢弃旧 CA pin 与设备令牌，更新后走一次全新 `native-pair`。已要求固定 CA 的记录不接受不要求固定 CA 的链接，跟随地址因此不会把它降级到平台信任；只允许从未固定到固定的方向。
 
 ## 信任模型
 

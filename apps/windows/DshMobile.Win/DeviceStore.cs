@@ -97,6 +97,13 @@ internal sealed class SavedDevice
     {
         if (link.InstanceId != InstanceId)
             throw new FormatException("新链接不是同一台电脑（instanceId 不一致）");
+        // A record that requires the pairing CA must never adopt a link that drops that
+        // requirement: the pin is the trust anchor for everything else about this computer,
+        // and following a dsh1/legacy link would move it onto platform trust. Refusing here
+        // also keeps the record out of the RequiresCa + PlatformTrust combination that
+        // Validate() rejects, so the user sees this message instead of a failing connection.
+        if (RequiresCa && !link.RequiresCa)
+            throw new FormatException("新链接不要求固定 CA，已固定 CA 的电脑不能降级；请改用该电脑当前的 dsh2 配对链接");
         return new SavedDevice
         {
             Channel = link.Mode.ToString().ToLowerInvariant(),
@@ -108,7 +115,7 @@ internal sealed class SavedDevice
             InstanceId = link.InstanceId,
             CaDerBase64 = string.Empty, // re-bootstrap from the new origin
             PlatformTrust = false,
-            RequiresCa = link.RequiresCa,
+            RequiresCa = RequiresCa || link.RequiresCa,
             PairedAt = PairedAt,
         };
     }

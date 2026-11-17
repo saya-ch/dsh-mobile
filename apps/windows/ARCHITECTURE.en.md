@@ -58,7 +58,7 @@ client ──TCP──▶ https origin ──GET /mobile-access/ca.cer(TOFU)─�
 
 - Discovery (`LanDiscovery`): broadcasts `DSH_MOBILE_DISCOVER_V1` over UDP and collects gateway announcements, then probes each local IPv4 /24 for `GET /mobile-access/discovery`; a manually entered address can also be probed directly. All five announcement fields must agree and the origin must be the answering address (spoofed announcements are dropped); discovery is never a trust decision — pairing still pins the CA to the instanceId fingerprint.
 - When a pasted link's origin disagrees with the selected discovery result, pairing asks for confirmation so another computer's link cannot be pasted silently.
-- Follow-up (`SavedDevice.AdoptNewOrigin`): when a saved lan/remote computer stops resolving or its credential expires, its current link from the same computer updates the address; the instanceId must match, the user-visible name is kept, and the old CA pin and device token are dropped so the adopted record completes a fresh `native-pair`.
+- Follow-up (`SavedDevice.AdoptNewOrigin`): when a saved lan/remote computer stops resolving or its credential expires, its current link from the same computer updates the address; the instanceId must match, the user-visible name is kept, and the old CA pin and device token are dropped so the adopted record completes a fresh `native-pair`. A record that requires the pinned CA refuses a link that does not require one, so following an address cannot drop it onto platform trust; only the unpinned-to-pinned direction is allowed.
 
 ## Trust model
 
