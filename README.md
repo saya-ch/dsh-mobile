@@ -32,9 +32,7 @@
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；仓库另含一个**尚未发布**的[便携 Windows 客户端](apps/windows/README.md)（源码已合入 main，但未随任何版本发布，也未完成真实 Windows 验收，因此不作为已支持平台）。
->
-> **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
+> DSH Mobile 是 DeepSeek Harness 社区插件，让手机接着用电脑上的 DSH。原生 App 目前只支持 Android；使用 iPhone 或 iPad？用 Safari 打开即可，也可以[添加到主屏幕当 Web App 用](<#iphone-与-ipad主屏幕-web-apppwa>)，不需要装任何 App。
 >
 > **当前正式版本：0.8.9**。移动页支持点按预览路径条复制完整路径；网关对不受信任的来源网段返回可区分的错误码；抽屉不再裁剪上游固定定位面板（#413）；仓库加入尚未发布的便携 Windows 客户端源码。插件与 Android App 独立更新；Android App 0.7.5 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [完整更新记录](CHANGELOG.md)。
 >
