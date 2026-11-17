@@ -159,6 +159,20 @@ internal object TestCertificates {
         "mUcyzgYBAoGBAMIty+Kc9lsD6cyQUhkRxNLmn1skxjj0d1QA22gcso97E3IqnLkiASn/nk5CkykNzNEZuEm5b7bsLY4ieqOQ" +
         "A7OczWz/1TSpEB9JKX0oMh90paYQ7kPwmN3RiwhA7OtBfujjH1QBJqRIdzU9sTRgR8NoEyGz1IqRu18v1+zLlhST"
 
+    /**
+     * Self-signed CA for a public IPv6 LAN entry, plus a leaf it issued.
+     *
+     * The operational fixtures keep their CA private key out of the repository, so this pair
+     * is generated the way the plugin generates LAN material (EC P-256, SAN type 7 IP) and
+     * only needs to agree with itself.
+     */
+    private const val IPV6_CA_BASE64 =
+        "MIIBXzCCAQSgAwIBAgIJCwrq6K/bhNFfMAoGCCqGSM49BAMCMCIxIDAeBgNVBAMTF0RTSCBNb2JpbGUgSVB2NiB0ZXN0IENBMB4XDTI2MTExNzE4MTUyN1oXDTM2MTExNzE4MTYyN1owIjEgMB4GA1UEAxMXRFNIIE1vYmlsZSBJUHY2IHRlc3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARDI5VSpWAJDUtZEl1UJKgHog0d3mXI9Rv3Lr+VtGRxw89+8d5ELX7ofzvxv8+ST60wHdWXVAQ48s8F/XM+rZ45oyMwITAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBhjAKBggqhkjOPQQDAgNJADBGAiEA9vMmWNTwZPCQnYW8TZjgu/8+AYr3qMTMhjE0AFJ2kH8CIQCXenaW5IEW1p+2MwsMfOsQbO7zMWQrUQDs8nLfFdyBOA=="
+
+    /** Leaf issued by [IPV6_CA_BASE64] with SAN `IP:240c:ca04:2401:283f:c15:dfff:fe88:549`. */
+    private const val LEAF_IPV6_BASE64 =
+        "MIIBgzCCASigAwIBAgIJT3kCJ4RG6RLKMAoGCCqGSM49BAMCMCIxIDAeBgNVBAMTF0RTSCBNb2JpbGUgSVB2NiB0ZXN0IENBMB4XDTI2MTExNzE4MTUyN1oXDTM2MTExNzE4MTYyN1owFzEVMBMGA1UEAxMMZHNoIGlwdjYgbGFuMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEebLTbZaDaB/Fmusf9r+zMwUasAxA7iBZ8DADyqUoMSc4+zlXmt7DB/bmA80hkqbeVEDrxybru8ol/yAVd8oPMqNSMFAwDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwGwYDVR0RBBQwEocQJAzKBCQBKD8MFd///ogFSTAKBggqhkjOPQQDAgNJADBGAiEAozJbuqq1OsWPPoMA6eAZ6NBQk6ne3/K1hjWe8wTZsggCIQCsp8t37O+XYNBq5f9JFhgNIP+jg+bi3EUHlnsoQjHl0A=="
+
     /** Ingress CA of the self-signed passthrough entry under test. */
     val ingressCa: ByteArray by lazy { decode(INGRESS_CA_BASE64) }
 
@@ -182,6 +196,12 @@ internal object TestCertificates {
 
     /** PKCS#8 private key of [leafLoopback]; test material for the local TLS test server. */
     val leafLoopbackKey: ByteArray by lazy { decode(LEAF_LOOPBACK_KEY_BASE64) }
+
+    /** Self-signed CA that issued [leafIpv6]. */
+    val ipv6Ca: ByteArray by lazy { decode(IPV6_CA_BASE64) }
+
+    /** Entry leaf whose SAN is the public IPv6 LAN address `240c:ca04:2401:283f:c15:dfff:fe88:549`. */
+    val leafIpv6: ByteArray by lazy { decode(LEAF_IPV6_BASE64) }
 
     /** The SHA-256 fingerprint a pairing key must carry for [der]. */
     fun instanceIdOf(der: ByteArray): String = PairingTrust.fingerprint(certificate(der))

@@ -111,6 +111,28 @@ class SecureWebViewClientTest {
     }
 
     @Test
+    fun pinnedIpv6LanCaAcceptsOnlyTheAddressInItsSan() {
+        val origin = GatewayOrigin.parse("https://[240c:ca04:2401:283f:c15:dfff:fe88:549]:3443")!!
+
+        assertTrue(PinnedTls.acceptsWebViewLeaf(origin, TestCertificates.ipv6Ca, leaf(TestCertificates.leafIpv6)))
+        assertFalse(
+            PinnedTls.acceptsWebViewLeaf(
+                GatewayOrigin.parse("https://[240c:ca04:2401:283f:aaaa:bbbb:cccc:dddd]:3443")!!,
+                TestCertificates.ipv6Ca,
+                leaf(TestCertificates.leafIpv6),
+            ),
+        )
+        // An IPv4 literal never matches an IPv6 SAN, and the DNS comparison must not fall through.
+        assertFalse(
+            PinnedTls.acceptsWebViewLeaf(
+                GatewayOrigin.parse("https://65.49.214.186:3443")!!,
+                TestCertificates.ipv6Ca,
+                leaf(TestCertificates.leafIpv6),
+            ),
+        )
+    }
+
+    @Test
     fun theSslErrorUrlLegKeepsTheExactPinnedOrigin() {
         val origin = GatewayOrigin.parse("https://65.49.214.186:33080")!!
 
