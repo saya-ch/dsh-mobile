@@ -32,9 +32,9 @@ To reclaim component storage, turn off iroh remote access, expand the component 
 
 ## Troubleshooting
 
-Store the iroh identity and certificates in a directory tree writable only by the current user or trusted system accounts. DSH's default state under the Windows user profile usually qualifies; custom locations also need private ancestors, and even the default location is rejected when an ancestor grants write or replacement rights to another account (some AppData, shared or redirected profiles). Do not loosen ACLs, delete real identities or move state into untrusted storage to bypass that refusal. Back up and preserve existing identity files.
+Store the iroh identity and certificates in a directory tree writable only by the current user or trusted system accounts. DSH's default state under the Windows user profile usually qualifies; custom locations also need private ancestors, and even the default location is rejected when an ancestor grants write or replacement rights to another account (some AppData, shared or redirected profiles). If access is refused, check the directory permissions first: do not loosen ACLs, delete real identities or move state into untrusted storage to get past the check. Back up and preserve existing identity files.
 
-Before a component release, verify first use with the exact catalog-pinned executable, not only a locally compiled host or a directory initialized by hand. The controller invokes `tls-prepare` because `id` only reads existing identity state. On Windows, `DSH_IROH_PINNED_FIRST_USE=<verified executable> npx vitest run tests/iroh-pinned-first-use.test.ts` checks initialization, reuse and corruption refusal in owned private storage. A failure blocks component acceptance; do not loosen directory ACL checks or replace real identities to make it pass.
+> Maintainer note: the first-use verification a component release must pass is covered by `tests/iroh-pinned-first-use.test.ts`.
 
 | Symptom | Meaning |
 | --- | --- |
