@@ -2,13 +2,14 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { preferredLanInterfaceNames, selectLanNetwork } from './managed-setup.js'
+import { availableLanNetworks, preferredLanInterfaceNames, selectLanNetwork, type LanNetwork } from './managed-setup.js'
 import { prepareManagedLanSetup, removeWindowsFirewall } from './lan-setup.js'
 import { assertExtensionId } from './extensions.js'
 import { restrictPrivateFile } from './private-file.js'
 
 interface SetupOptions {
   readonly address?: string
+  readonly family?: 4 | 6
   readonly port: number
   readonly dshPort: number
   readonly configureFirewall: boolean
@@ -16,6 +17,7 @@ interface SetupOptions {
 
 function parseOptions(args: readonly string[]): SetupOptions {
   let address: string | undefined
+  let family: 4 | 6 | undefined
   let port = 3443
   let dshPort = 3080
   let configureFirewall = true
@@ -24,6 +26,12 @@ function parseOptions(args: readonly string[]): SetupOptions {
     const value = args[index + 1]
     if (name === '--address' && value !== undefined) {
       address = value
+      index += 1
+      continue
+    }
+    if (name === '--family' && value !== undefined) {
+      if (value !== 'ipv4' && value !== 'ipv6') throw new Error('--family must be ipv4 or ipv6')
+      family = value === 'ipv6' ? 6 : 4
       index += 1
       continue
     }
@@ -43,19 +51,41 @@ function parseOptions(args: readonly string[]): SetupOptions {
     }
     throw new Error(`unknown setup option: ${name ?? ''}`)
   }
+  if (address !== undefined && family !== undefined) throw new Error('--address and --family cannot be combined')
   if (!Number.isSafeInteger(port) || port < 1024 || port > 65535) throw new Error('--port must be from 1024 through 65535')
   if (!Number.isSafeInteger(dshPort) || dshPort < 1024 || dshPort > 65535) throw new Error('--dsh-port must be from 1024 through 65535')
-  return { ...(address === undefined ? {} : { address }), port, dshPort, configureFirewall }
+  return { ...(address === undefined ? {} : { address }), ...(family === undefined ? {} : { family }), port, dshPort, configureFirewall }
 }
 
 function dshHome(): string {
   return resolve(process.env.DSH_HOME ?? join(homedir(), '.dsh'))
 }
 
+/**
+ * Pick the interface's address in the requested family.
+ *
+ * IPv4 stays the default so an existing `setup` invocation keeps its meaning; `--family
+ * ipv6` is the explicit opt-in for a listener that has no NAT in front of it.
+ */
+function selectLanNetworkByFamily(family: 4 | 6, preferredInterface: string): LanNetwork {
+  const candidates = availableLanNetworks()
+  const onInterface = candidates.filter(candidate => candidate.name === preferredInterface && candidate.family === family)
+  if (onInterface.length === 1) return onInterface[0]!
+  const familyCandidates = candidates.filter(candidate => candidate.family === family)
+  if (familyCandidates.length === 1) return familyCandidates[0]!
+  if (familyCandidates.length === 0) {
+    throw new Error(`no active ${family === 6 ? 'IPv6' : 'IPv4'} LAN address was found`)
+  }
+  throw new Error(`more than one ${family === 6 ? 'IPv6' : 'IPv4'} LAN address is active; use --address with one of: ${familyCandidates.map(entry => `${entry.name}=${entry.address}`).join(', ')}`)
+}
+
 async function setup(args: readonly string[]): Promise<void> {
   const options = parseOptions(args)
   const preferredInterfaces = options.address === undefined ? await preferredLanInterfaceNames() : []
-  const network = selectLanNetwork(options.address, undefined, undefined, preferredInterfaces)
+  const selected = selectLanNetwork(options.address, undefined, undefined, preferredInterfaces)
+  const network = options.family === undefined || options.family === selected.family
+    ? selected
+    : selectLanNetworkByFamily(options.family, selected.name)
   const home = dshHome()
   const directory = join(home, 'mobile-access')
   await mkdir(directory, { recursive: true, mode: 0o700 })
@@ -162,7 +192,7 @@ async function purge(args: readonly string[]): Promise<void> {
 
 function help(): void {
   console.log([
-    'dsh-mobile setup [--address 192.168.x.x] [--port 3443] [--dsh-port 3080] [--no-firewall]',
+    'dsh-mobile setup [--address 192.168.x.x | --family ipv6] [--port 3443] [--dsh-port 3080] [--no-firewall]',
     'dsh-mobile extension create <id> [--name <name>]',
     'dsh-mobile purge --yes',
     '',

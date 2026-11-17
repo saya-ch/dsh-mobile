@@ -125,7 +125,7 @@ import {
   selectLanNetwork,
   type ManagedSetup,
 } from './managed-setup.js'
-import { configureWindowsFirewall, prepareManagedLanSetup, type ManagedLanSetupResult } from './lan-setup.js'
+import { prepareManagedLanSetup, type ManagedLanSetupResult } from './lan-setup.js'
 
 /** Stable Cordis plugin name. */
 export const name = 'dsh-mobile'
@@ -1425,23 +1425,8 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           try { values = parseAdditionalTrustedNetworks(body.extraAllowedCidrs) }
           catch { throw new HttpError(400, 'lan_trusted_networks_invalid') }
           await mutateLan(async () => {
-            const saved = await saveManagedTrustedNetworks(loaded.setupFile, values)
+            await saveManagedTrustedNetworks(loaded.setupFile, values)
             trustedNetworksRestartRequired = true
-            // A public or ULA IPv6 listener usually sits behind a different /64 from the
-            // phone's, so the default LocalSubnet rule cannot admit it. Fold the saved
-            // trusted prefixes into the Windows rules when the listener is IPv6; IPv4
-            // keeps the historical "firewall is your own setting" behaviour.
-            if (process.platform === 'win32') {
-              try {
-                const network = resolveSavedLanNetwork(saved)
-                if (network.family === 6) {
-                  await configureWindowsFirewall(saved.listenPort, [network.cidr, ...(saved.extraAllowedCidrs ?? [])])
-                }
-              } catch (error) {
-                logger.warn('could not widen the Windows firewall for the saved IPv6 networks: %s',
-                  error instanceof Error ? error.message : String(error))
-              }
-            }
           })
           sendJson(response, 200, await trustedNetworksPayload(), false)
           return

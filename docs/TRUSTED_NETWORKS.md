@@ -21,7 +21,7 @@ CIDR 按直接 TCP 来源地址匹配，不依赖 `X-Forwarded-For`。允许一�
 
 ## Windows 防火墙是另一项设置
 
-DSH Mobile 的默认 Windows HTTPS / Discovery 入站规则只允许 `LocalSubnet`。保存额外 CIDR 不会修改或扩大这些规则；需要由你或系统管理员在 Windows 防火墙中单独允许受控来源访问实际 Mobile HTTPS 端口。选择 IPv6 局域网地址后，保存 IPv6 额外网段会尝试把该前缀同步进插件自己的两条规则（需要管理员授权），IPv4 行为不变。
+DSH Mobile 的默认 Windows HTTPS / Discovery 入站规则只允许 `LocalSubnet`。保存额外 CIDR **不会修改或扩大这些规则**；需要由你或系统管理员在 Windows 防火墙中单独允许受控来源访问实际 Mobile HTTPS 端口。IPv6 局域网同样如此：手机若在另一个 /64，必须由你在防火墙中放行该前缀。
 
 路由网络不一定支持局域网广播发现。发现列表没有电脑时，可使用电脑显示的配对链接或二维码，但路由、防火墙和 HTTPS 入口仍须可达。IPv6 监听需要在**局域网**配置里选择一个 IPv6 地址；只填写 IPv6 CIDR 不会新增 IPv6 监听。
 
