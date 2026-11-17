@@ -36,13 +36,13 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.12**. A user message bubble is no longer squeezed into a vertical sliver by the runtime-label rule when a third-party plugin reverses that row, and an optional **loopback tunnel** lets you reach the gateway through a local tunnel of your own, such as frp stcp, without exposing a public port (#444). The plugin and the Android app update independently; Android app 0.8.1 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.12**. A user message bubble is no longer squeezed into a vertical sliver by the runtime-label rule when a third-party plugin reverses that row, and an optional **loopback tunnel** lets you reach the gateway through a local tunnel of your own, such as frp stcp, without exposing a public port (#444). The plugin and the Android app update independently; Android app 0.8.2 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.1/dsh-mobile-android-v0.8.1.apk"><strong>Download Android app 0.8.1 (compatibility)</strong></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>Download Android app 0.8.2 (compatibility)</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0">Release notes and checksums</a></sub>
 </p>
 
