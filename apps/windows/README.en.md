@@ -18,11 +18,11 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 ## Features
 
 - **Three connection channels**
-  - `iroh`: paste the iroh pairing JSON descriptor; the official sidecar (`phone-sim`) builds a QUIC tunnel plus a loopback TLS carrier. The sidecar is not distributed in the repository: it is fetched from a pinned URL and verified by SHA-256, and re-verified before every process start.
-  - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link (legacy `instance/token` or a `dsh1`/`dsh2` key); the pairing CA is bootstrapped from `/mobile-access/ca.cer` (TOFU plus the instanceId fingerprint) before connecting directly to the gateway.
-- **Reconnect without scanning**: the first pairing stores the device credential (deviceToken encrypted with DPAPI); later launches reconnect with a single click — `Hello` over iroh, `native-renew` for direct channels.
-- **Device management**: multiple device cards, rename and delete; each card shows the channel type and credential expiry.
-- **Security**: the pairing CA is the only trust anchor for pinned channels. A leaf certificate is accepted only after `Issuer` → CA/leaf validity → not a CA → `EKU(serverAuth)` → chain to the pinned CA → `SAN` (exact DNS or one-level wildcard; IP SANs compared byte by byte for LAN gateways) all pass. On the WebView2 error path `Expired`/`Revoked` are always rejected; the custom-CA native TLS channel does not check revocation (`X509RevocationMode.NoCheck` — the self-signed pairing CA has no revocation data).
+  - `iroh`: paste the iroh pairing content; the official component builds the encrypted tunnel.
+  - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link and connect directly to the gateway.
+- **Reconnect without scanning**: pair once, then click Connect; nothing to paste again.
+- **Device management**: multiple device cards, rename and delete; each card shows the connection type and credential expiry.
+- **Security**: pairing pins that computer's certificate, and a mismatch refuses the connection instead of asking you to install a certificate. Credentials are encrypted with your Windows account inside this folder, so another PC or another user must pair again.
 - **Top bar and title bar**: a window-level bar under the native title bar (device list / connection status / disconnect), colored like the DWM caption; the page DOM is not injected or modified.
 - **Light and dark**: semantic color tokens (`design-system/dsh-mobile/MASTER.md`) follow the system theme; `DSH_MOBILE_THEME=light|dark` overrides it.
 
