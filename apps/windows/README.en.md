@@ -10,9 +10,9 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 
 ## Status and support
 
-- **Source preview, not released**: this directory is merged into `main`, but it is **not shipped in any Release** — there is no official download, and it is not part of the npm package (`files`). Build it yourself with the commands below.
-- **Not yet accepted by a maintainer**: the maintainer has not completed the acceptance matrix on a real Windows machine (iroh, LAN, remote, and the five WebView2 policies). This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository, **not a promise of usability**.
-- **Support**: Windows 10 1809+ / Windows 11, **x64**. Windows ARM64 is unsupported, as are builds on Linux/macOS (WPF `net8.0-windows` + `RuntimeIdentifiers=win-x64`).
+- **No installer yet**: this client is still in development. There is no official download and it is not part of the npm package; to try it, build it yourself with the commands below.
+- **It may not connect**: the iroh / LAN / remote acceptance matrix has not been completed on a real Windows machine. This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository. Failures are expected at this stage; attach `data\client.log` when reporting one.
+- **Where it runs**: a Windows 10 1809+ / Windows 11 **x64** PC. Windows ARM64 is unsupported, and this client cannot be built on Linux/macOS.
 - **Prerequisites**: .NET 8 SDK (x64) and the WebView2 Evergreen Runtime (included in Windows 11; install it on Windows 10 — see https://developer.microsoft.com/microsoft-edge/webview2 ). The first iroh connection downloads and verifies the official sidecar (about 14.8 MB / 14,865,920 bytes).
 
 ## Features
