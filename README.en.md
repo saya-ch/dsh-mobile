@@ -400,7 +400,11 @@ flowchart LR
   DSH -->|"same workspace, sessions and event stream"| Phone
 ```
 
-Three layers: the Host face for discovery, pairing, HTTPS, loopback proxying, and extension registration; the Client face for the dedicated mobile layout and extension SDK; and the Android app for a narrow native bridge. The bridge uses `androidx.webkit` WebMessage, which verifies the exact top-level origin and main frame on every bounded message, and never uses `addJavascriptInterface`. The plugin does not rewrite source or webpage files in the DeepSeek Harness installation. Its mobile gateway serves the startup compatibility layer and dedicated layout per request; installation and removal use the plugin mechanism. The upstream DSH Web port defaults to 3080 and is configurable through `dsh web --port`. Reading mode (opt-in, off by default) collapses the composer editor while scrolling down a long conversation: the card and its Send/Stop row stay, and tapping the card, focusing the composer, opening the software keyboard, or scrolling back up about 80px restores it. It never collapses while a draft exists, a submission is in flight, or a reply is streaming. Enable it from Settings → General.
+### How it works
+
+In one sentence: **your phone does not connect to your computer directly. It connects to an encrypted entry point that DSH Mobile runs inside your computer, and that entry point forwards to DSH itself.** So the phone shows the same sessions, workspaces, messages and tools — you are not running a second copy of DSH.
+
+The plugin does not modify any DeepSeek Harness source or webpage file, and installing or removing it goes through the plugin mechanism, so you can turn it off at any time. For configuration topics and implementation details, see the [documentation index](docs/README.en.md).
 
 Switching sessions tears down the client Session instance and its live stream. The dedicated layout ships an opt-in, off-by-default session prefetch ([#291](https://github.com/saya-ch/dsh-mobile/issues/291)): after a switch settles, it issues one bounded, read-only `session/projections` request for the session the user just left, so a follow-back hits DSH session-query's prepared cache instead of re-parsing the whole log. Guarded by a per-session cooldown and a bounded timeout, failures are silent and never disturb normal requests or live streams; the behavior stays disabled until the "Prefetch the session you just left" switch in Settings → General is turned on (off by default; the choice is persisted).
 
