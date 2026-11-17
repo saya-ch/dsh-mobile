@@ -18,9 +18,14 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 ## Features
 
 - **Three connection channels**
+- **Three connection channels**
   - `iroh`: paste the iroh pairing content; the official component builds the encrypted tunnel.
   - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link and connect directly to the gateway.
+- **LAN discovery**: scan the network or type an address to find the computer, then paste that computer's pairing link; a link whose address disagrees with the discovery result asks for confirmation.
+- **Address follow-up**: when a remote address changes (for example a rotated tunnel address) or the credential expires, paste the same computer's current link to update the address and keep the name. A computer with a pinned certificate only accepts a link that also requires the certificate, so it cannot be downgraded to an unchecked connection.
 - **Reconnect without scanning**: pair once, then click Connect; nothing to paste again.
+- **Task completion notices**: while connected, a finished task raises a desktop notification that returns to the page when clicked; revoking the device on the computer says so and stops the notices.
+- **Downloads and voice**: same-origin downloads from the paired gateway go through a save dialog, off-gateway addresses stay blocked, and a paired page may use the microphone for the computer's voice path while the camera and other permissions stay denied.
 - **Device management**: multiple device cards, rename and delete; each card shows the connection type and credential expiry.
 - **Security**: pairing pins that computer's certificate, and a mismatch refuses the connection instead of asking you to install a certificate. Credentials are encrypted with your Windows account inside this folder, so another PC or another user must pair again. A certificate that has expired or been revoked is always refused on the WebView2 path; the custom-CA channel used for these pins does not check revocation, because the pairing CA is self-signed and has no revocation data.
 - **Top bar and title bar**: a window-level bar under the native title bar (device list / connection status / disconnect), colored like the DWM caption; the page DOM is not injected or modified.
@@ -80,6 +85,6 @@ The publish directory root holds `DshMobile.Win.exe` and the .NET dependencies; 
 
 ## For maintainers
 
-The iroh component pin is stored three times with no machine check between the copies: `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts` is authoritative, `apps/windows/DshMobile.Win/SidecarProvisioner.cs` hardcodes the same values, and `apps/windows/DshMobile.Win/sidecar/manifest.json` mirrors them. No check compares the three, so move them together when the pin changes.
+The iroh component pin is stored three times, and `scripts/check-windows-sidecar-pin.mjs` asserts the three agree in the Windows client CI job: `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts` is authoritative, `apps/windows/DshMobile.Win/SidecarProvisioner.cs` hardcodes the same values, and `apps/windows/DshMobile.Win/sidecar/manifest.json` mirrors them. Move all three together when the pin changes; the check fails when one drifts.
 
 This directory is an additional client; it does not modify the plugin or the existing Android code. Repository conventions are in `AGENTS.md` at the repository root (upstream DSH sources are read-only; changes stay in this repository). Functional changes stay under `apps/windows/`; the only repository-level exception is `.github/workflows/windows-client.yml` (the Windows client CI job). No other upstream file should appear in the diff.

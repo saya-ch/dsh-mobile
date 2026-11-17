@@ -106,6 +106,25 @@
                             <Button x:Name="PairButton" Width="140" HorizontalAlignment="Left"
                                     Style="{StaticResource PrimaryButton}"
                                     Content="配对并连接" Click="Pair_Click" />
+                            <TextBlock Margin="0,20,0,0" FontSize="13"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       Text="没有配对链接？先在局域网里找到电脑，再粘贴它的配对链接" />
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <TextBox x:Name="AddressBox" Width="280" Height="30"
+                                         VerticalContentAlignment="Center"
+                                         FontFamily="Consolas" FontSize="13"
+                                         ToolTip="输入电脑的局域网地址，如 192.168.1.18 或 https://host:port" />
+                                <Button x:Name="ProbeButton" Margin="8,0,0,0" Width="80"
+                                        Content="查找" Click="ProbeButton_Click"
+                                        ToolTip="探测该地址是否为 DSH Mobile 网关" />
+                                <Button x:Name="ScanButton" Margin="8,0,0,0" Width="110"
+                                        Content="扫描局域网" Click="ScanButton_Click"
+                                        ToolTip="广播查询并逐个探测本机所在网段" />
+                            </StackPanel>
+                            <TextBlock x:Name="DiscoveryHint" Margin="0,10,0,0" FontSize="13"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       TextWrapping="Wrap" Visibility="Collapsed" />
+                            <StackPanel x:Name="FoundList" Margin="0,8,0,0" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

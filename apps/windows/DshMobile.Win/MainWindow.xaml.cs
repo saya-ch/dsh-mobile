@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -39,12 +40,18 @@ public partial class MainWindow : Window
 
     private IrohCarrier? _carrier;
     private SavedDevice? _current;
+    private BackgroundEventWatcher? _watcher;
+    private System.Windows.Forms.NotifyIcon? _trayIcon;
     private CoreWebView2? _core;
     private bool _certificateHandlerAttached;
     private CancellationTokenSource? _connectCts;
     private string _irohDiagnostics = string.Empty;
     private bool _busy;
     private bool _userCancelled;
+    private bool _scanning;
+    private DiscoveredGateway? _selectedDiscovery;
+    private CancellationTokenSource? _scanCts;
+    private SavedDevice? _pendingAdopt;
 
     public MainWindow()
     {
@@ -59,7 +66,12 @@ public partial class MainWindow : Window
             ApplyCaptionColor();
             await InitializeWebViewAsync();
         };
-        Closed += (_, _) => DisconnectCore();
+        Closed += (_, _) =>
+        {
+            DisconnectCore();
+            _trayIcon?.Dispose();
+            _trayIcon = null;
+        };
     }
 
     [DllImport("dwmapi.dll")]
@@ -132,7 +144,7 @@ public partial class MainWindow : Window
             {
                 var warning = new TextBlock
                 {
-                    Text = "凭据已过期或不可读，需要重新扫码配对",
+                    Text = "凭据已过期或不可读，粘贴该电脑当前链接即可更新",
                     FontSize = 12,
                     Margin = new Thickness(0, 4, 0, 0),
                 };
@@ -220,9 +232,37 @@ public partial class MainWindow : Window
             try
             {
                 var link = UrlPairing.Parse(input);
-                device = SavedDevice.FromUrlPairing(link);
-                gatewayToken = link.Token;
-                Log($"url pairing link: channel={link.Mode} requiresCa={link.RequiresCa}");
+                if (_pendingAdopt is not null)
+                {
+                    // Address follow: the new link must come from the same
+                    // computer; the name is kept, the token is re-paired.
+                    if (link.InstanceId != _pendingAdopt.InstanceId)
+                    {
+                        MessageBox.Show(this,
+                            "新链接不是同一台电脑（instanceId 不一致），已保留原记录。",
+                            "无法更新地址", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    device = _pendingAdopt.AdoptNewOrigin(link);
+                    _pendingAdopt = null;
+                    gatewayToken = link.Token;
+                    Log($"adopting moved gateway: channel={link.Mode} requiresCa={link.RequiresCa}");
+                }
+                else
+                {
+                    if (_selectedDiscovery is not null && link.Origin != _selectedDiscovery.Origin)
+                    {
+                        var confirm = MessageBox.Show(this,
+                            $"配对链接指向 {link.Origin}，与已选中的发现结果 {_selectedDiscovery.Origin} 不一致。\n\n" +
+                            "可能是贴错了另一台电脑的链接。继续配对吗？",
+                            "地址不一致", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                        if (confirm != MessageBoxResult.Yes) return;
+                    }
+                    _selectedDiscovery = null;
+                    device = SavedDevice.FromUrlPairing(link);
+                    gatewayToken = link.Token;
+                    Log($"url pairing link: channel={link.Mode} requiresCa={link.RequiresCa}");
+                }
             }
             catch (Exception urlError)
             {
@@ -238,6 +278,181 @@ public partial class MainWindow : Window
         await ConnectToAsync(device, irohCode, gatewayToken);
     }
 
+    /// <summary>
+    /// UDP announcements first, then a bounded /24 probe per local IPv4, the
+    /// same order Android uses. Picking a result only records which computer
+    /// the pasted link must point at; pairing still needs its one-time link.
+    /// </summary>
+    private async void ScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanning || _busy) return;
+        _scanning = true;
+        SetScanButtons(false);
+        FoundList.Children.Clear();
+        _selectedDiscovery = null;
+        DiscoveryHint.Visibility = Visibility.Collapsed;
+        _scanCts = new CancellationTokenSource();
+        _scanCts.CancelAfter(TimeSpan.FromSeconds(20));
+        var token = _scanCts.Token;
+        var found = new Dictionary<string, DiscoveredGateway>(StringComparer.Ordinal);
+        try
+        {
+            await foreach (var gateway in LanDiscovery.QueryAsync(
+                LanDiscovery.DefaultPort, TimeSpan.FromSeconds(4), Log, token))
+            {
+                if (found.TryAdd(gateway.InstanceId, gateway)) AddFoundCard(gateway);
+            }
+            if (found.Count == 0)
+            {
+                ShowDiscoveryHint("广播没有回应，正在逐个探测本机所在网段…");
+                foreach (var local in LocalIPv4s())
+                {
+                    await foreach (var gateway in LanDiscovery.ScanSubnetAsync(
+                        local, LanDiscovery.DefaultPort, TimeSpan.FromSeconds(2), Log, token))
+                    {
+                        if (found.TryAdd(gateway.InstanceId, gateway)) AddFoundCard(gateway);
+                    }
+                    if (found.Count > 0) break;
+                }
+            }
+            if (found.Count == 0)
+                ShowDiscoveryHint("没有发现电脑：请确认电脑端网关正在运行且与本机在同一网络，或在上方手动输入地址查找。");
+            else
+                Log($"discovery found {found.Count} computer(s)");
+        }
+        catch (OperationCanceledException)
+        {
+            if (found.Count == 0) ShowDiscoveryHint("扫描超时，仍可手动输入地址查找。");
+        }
+        catch (Exception error)
+        {
+            Log("discovery scan failed: " + error.Message);
+            ShowDiscoveryHint("扫描失败：" + error.Message);
+        }
+        finally
+        {
+            _scanning = false;
+            SetScanButtons(true);
+        }
+    }
+
+    private async void ProbeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scanning || _busy) return;
+        string host;
+        int port;
+        try
+        {
+            (host, port) = LanDiscovery.NormalizeManualInput(AddressBox.Text);
+        }
+        catch (FormatException error)
+        {
+            MessageBox.Show(this, "地址无效：" + error.Message, "查找电脑",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        _scanning = true;
+        SetScanButtons(false);
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var gateway = await LanDiscovery.ProbeAsync(host, port, cts.Token);
+            FoundList.Children.Clear();
+            AddFoundCard(gateway);
+            SelectDiscovery(gateway);
+            Log($"probed gateway: {gateway.DeviceName} {gateway.Origin}");
+        }
+        catch (Exception error)
+        {
+            Log("probe failed: " + error.Message);
+            MessageBox.Show(this, "找不到网关：" + error.Message + "\n\n请确认电脑端网关正在运行、地址正确且网络可达。",
+                "查找电脑", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _scanning = false;
+            SetScanButtons(true);
+        }
+    }
+
+    private void SelectDiscovery_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is DiscoveredGateway gateway)
+            SelectDiscovery(gateway);
+    }
+
+    private void SelectDiscovery(DiscoveredGateway gateway)
+    {
+        _selectedDiscovery = gateway;
+        ShowDiscoveryHint($"已选中「{gateway.DeviceName}」（{gateway.Origin}）。" +
+            "请在上方粘贴这台电脑的配对链接后配对；链接地址不一致时会提醒确认。");
+    }
+
+    private void AddFoundCard(DiscoveredGateway gateway)
+    {
+        var info = new TextBlock
+        {
+            Text = $"{gateway.DeviceName}\n{gateway.Origin}",
+            FontSize = 13,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        info.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryTextBrush");
+        var select = new Button
+        {
+            Content = "选用", Width = 80,
+            Margin = new Thickness(12, 0, 0, 0), Tag = gateway,
+            ToolTip = "记住这台电脑，粘贴配对链接时校验地址是否一致",
+        };
+        select.Click += SelectDiscovery_Click;
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(info);
+        grid.Children.Add(select);
+        Grid.SetColumn(select, 1);
+        var card = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 0, 0, 8),
+            Child = grid,
+        };
+        card.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+        card.SetResourceReference(Border.BorderBrushProperty, "OutlineBrush");
+        FoundList.Children.Add(card);
+    }
+
+    private void ShowDiscoveryHint(string text)
+    {
+        DiscoveryHint.Text = text;
+        DiscoveryHint.Visibility = Visibility.Visible;
+    }
+
+    private void SetScanButtons(bool enabled)
+    {
+        ScanButton.IsEnabled = enabled;
+        ProbeButton.IsEnabled = enabled;
+        ScanButton.Content = enabled ? "扫描局域网" : "扫描中…";
+    }
+
+    private static IEnumerable<string> LocalIPv4s()
+    {
+        try
+        {
+            return Dns.GetHostAddresses(Dns.GetHostName())
+                .Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                            !IPAddress.IsLoopback(a))
+                .Select(a => a.ToString())
+                .Distinct()
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     private async void ConnectSaved_Click(object sender, RoutedEventArgs e)
     {
         if (_busy) return;
@@ -246,7 +461,9 @@ public partial class MainWindow : Window
         {
             ShowAddPanel(true);
             DescriptorBox.Focus();
-            MessageBox.Show(this, "这台电脑的设备凭据已过期或无法读取，请重新扫码配对。",
+            _pendingAdopt = device;
+            MessageBox.Show(this, "这台电脑的设备凭据已过期或无法读取。" +
+                "请粘贴这台电脑当前的配对链接，地址与名称会自动更新。",
                 "需要重新配对", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -257,7 +474,7 @@ public partial class MainWindow : Window
     {
         if (_busy) return;
         var device = (SavedDevice)((Button)sender).Tag;
-        if (MessageBox.Show(this, $"删除已配对电脑「{device.Name}」？下次连接需要重新扫码。",
+        if (MessageBox.Show(this, $"删除已配对电脑「{device.Name}」？下次连接需要重新粘贴配对链接。",
                 "删除设备", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         _store.Remove(device.EndpointId, Log);
         RefreshDeviceList();
@@ -360,6 +577,7 @@ public partial class MainWindow : Window
             ShowBrowserPage(device);
             _core!.Navigate(device.Origin);
             Log("connected: " + device.Origin);
+            StartTaskWatcher(device, session);
         }
         catch (Exception error)
         {
@@ -377,6 +595,23 @@ public partial class MainWindow : Window
             ShowConnectPage();
             if (repair) { ShowAddPanel(true); DescriptorBox.Focus(); }
             SetProgress(string.Empty);
+            if (repair && IsAdoptableFailure(error, device))
+            {
+                // The gateway may have moved (rotated tunnel address) or the
+                // credential expired: offer to paste the computer's current
+                // link and keep the saved name.
+                var update = MessageBox.Show(this,
+                    hint + "\n\n是否用这台电脑当前的配对链接更新地址？（需同一台电脑，保留名称）",
+                    "连接失败", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (update == MessageBoxResult.Yes)
+                {
+                    _pendingAdopt = device;
+                    ShowAddPanel(true);
+                    DescriptorBox.Focus();
+                    return;
+                }
+                return;
+            }
             MessageBox.Show(this, hint, "连接失败", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
@@ -402,7 +637,7 @@ public partial class MainWindow : Window
             return session;
         }
         var token = device.GetDeviceToken()
-            ?? throw new InvalidOperationException("设备凭据不可用，请重新扫码配对");
+            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
         var renewed = await GatewayAuth.RenewAsync(device, token, _connectCts!.Token);
         Log("session renewed without a QR code");
         return renewed;
@@ -451,6 +686,27 @@ public partial class MainWindow : Window
                     "常见原因：电脑端通道刚重启、发现记录尚未传播，或代理/VPN 拦了 UDP。\n" +
                     "请确认通道就绪后重试；详细诊断见 data\\client.log。", false);
         return (message, false);
+    }
+
+    /// <summary>
+    /// Direct (lan/remote) failures worth offering an address update for:
+    /// the gateway moved or the credential expired/revoked. iroh records
+    /// carry their own endpoint identity and reconnect via Hello instead.
+    /// </summary>
+    private static bool IsAdoptableFailure(Exception error, SavedDevice device)
+    {
+        if (device.Channel is not ("lan" or "remote")) return false;
+        var message = error.Message;
+        if (message.Contains("设备凭据", StringComparison.Ordinal) ||
+            message.Contains("device_expired", StringComparison.Ordinal) ||
+            message.Contains("device credential", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("401", StringComparison.Ordinal))
+            return true;
+        return message.Contains("无法解析主机", StringComparison.Ordinal) ||
+            error is SocketException ||
+            message.Contains("refused", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("无法连接", StringComparison.Ordinal);
     }
 
     private void SetProgress(string status)
@@ -624,8 +880,9 @@ public partial class MainWindow : Window
     /// navigation, external links, downloads and permissions (SecureWebViewClient,
     /// GatewayUrlPolicy, MainActivity); without these handlers every one of those
     /// behaviors is undefined on Windows. Only the exact paired gateway origin may
-    /// navigate, pop-ups/downloads/permissions are denied, and a renderer crash is
-    /// reported and recovered with a reload.
+    /// navigate; pop-ups stay blocked, downloads are saved through a same-origin
+    /// file dialog, and only the microphone is granted (camera and the rest are
+    /// denied). A renderer crash is reported and recovered with a reload.
     /// </summary>
     private void AttachWebViewPolicyHandlers()
     {
@@ -640,14 +897,23 @@ public partial class MainWindow : Window
     private bool IsAllowedGatewayNavigation(string raw)
     {
         if (raw == "about:blank") return true; // used when disconnecting
-        if (!Uri.TryCreate(raw, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
-        if (_current is null || !Uri.TryCreate(_current.Origin, UriKind.Absolute, out var expected)) return false;
-        return string.Equals(uri.GetLeftPart(UriPartial.Authority),
-            expected.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
+        return _current is not null && WebViewPolicy.IsSameGatewayOrigin(raw, _current.Origin);
     }
 
     private static bool IsExternalHttps(string raw) =>
         Uri.TryCreate(raw, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static string SuggestedDownloadName(string raw)
+    {
+        try
+        {
+            var name = Path.GetFileName(new Uri(raw, UriKind.Absolute).LocalPath.TrimEnd('/'));
+            if (!string.IsNullOrWhiteSpace(name) && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
+                return name;
+        }
+        catch { /* fall through to the default */ }
+        return "download";
+    }
 
     private void OpenInSystemBrowser(string url)
     {
@@ -678,18 +944,44 @@ public partial class MainWindow : Window
 
     private void OnDownloadStarting(object? sender, CoreWebView2DownloadStartingEventArgs e)
     {
+        // Android allows foreground downloads from the exact paired origin;
+        // anything else stays cancelled.
+        if (_current is not null && WebViewPolicy.IsSameGatewayOrigin(e.DownloadOperation.Uri, _current.Origin))
+        {
+            var suggested = SuggestedDownloadName(e.DownloadOperation.Uri);
+            var dialog = new Microsoft.Win32.SaveFileDialog { FileName = suggested };
+            if (dialog.ShowDialog(this) == true)
+            {
+                e.ResultFilePath = dialog.FileName;
+                e.Handled = true;
+                Log("download allowed to a chosen path from the paired gateway");
+                return;
+            }
+            e.Cancel = true;
+            e.Handled = true;
+            Log("download cancelled by the user");
+            return;
+        }
         e.Cancel = true;
         e.Handled = true;
-        Log("blocked download: " + e.DownloadOperation.Uri);
-        NotifyPolicyOnce("download", "Windows 客户端暂不支持下载，已阻止该请求。");
+        Log("blocked off-origin download: " + e.DownloadOperation.Uri);
+        NotifyPolicyOnce("download", "已阻止非网关地址的下载。");
     }
 
     private void OnPermissionRequested(object? sender, CoreWebView2PermissionRequestedEventArgs e)
     {
+        // DSH records audio through getUserMedia and the computer's own voice
+        // provider; like Android, the paired origin may use the microphone.
+        // Camera and everything else stay denied.
+        if (e.PermissionKind == CoreWebView2PermissionKind.Microphone &&
+            _current is not null && WebViewPolicy.IsSameGatewayOrigin(e.Uri, _current.Origin))
+        {
+            e.State = CoreWebView2PermissionState.Allow;
+            Log("allowed microphone for the paired gateway");
+            return;
+        }
         e.State = CoreWebView2PermissionState.Deny;
         Log("denied permission: " + e.PermissionKind);
-        if (e.PermissionKind == CoreWebView2PermissionKind.Microphone)
-            NotifyPolicyOnce("microphone", "Windows 客户端暂不支持语音输入（麦克风权限已拒绝）。");
     }
 
     private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
@@ -784,9 +1076,91 @@ public partial class MainWindow : Window
         _connectCts?.Cancel();
         _connectCts?.Dispose();
         _connectCts = null;
+        StopTaskWatcher();
         _carrier?.Dispose();
         _carrier = null;
         _current = null;
+    }
+
+    /// <summary>
+    /// Follows the same background-events stream the Android dataSync service
+    /// consumes, so task completions surface as desktop balloons while the
+    /// window is minimized. Closing the app still stops notifications: the
+    /// tray icon is only visible while the watcher runs.
+    /// </summary>
+    private void StartTaskWatcher(SavedDevice device, NativeSession session)
+    {
+        StopTaskWatcher();
+        var watcher = new BackgroundEventWatcher(device, RenewForWatcherAsync, Log);
+        watcher.TaskNotified += (title, body) => Dispatcher.BeginInvoke(new Action(() =>
+            ShowTrayBalloon(
+                ClipNotifyText(title, "任务完成", 60),
+                ClipNotifyText(body, "电脑端任务有更新，点击查看。", 240),
+                System.Windows.Forms.ToolTipIcon.Info)));
+        watcher.Revoked += reason => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            StopTaskWatcher();
+            ShowTrayBalloon("设备已失效", reason + "。请粘贴该电脑当前的配对链接更新。",
+                System.Windows.Forms.ToolTipIcon.Warning);
+        }));
+        _watcher = watcher;
+        EnsureTrayIcon();
+        _trayIcon!.Visible = true;
+        _trayIcon.Text = "DeepSeek Harness — 正在监听任务完成";
+        watcher.Start(session.SessionToken);
+    }
+
+    private void StopTaskWatcher()
+    {
+        _watcher?.Dispose();
+        _watcher = null;
+        if (_trayIcon is not null) _trayIcon.Visible = false;
+    }
+
+    private async Task<NativeSession> RenewForWatcherAsync(CancellationToken ct)
+    {
+        var current = _current
+            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+        var token = current.GetDeviceToken()
+            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+        var renewed = await GatewayAuth.RenewAsync(current, token, ct);
+        Dispatcher.Invoke(() =>
+        {
+            if (_core is not null) InstallCookies(renewed);
+        });
+        return renewed;
+    }
+
+    private void EnsureTrayIcon()
+    {
+        if (_trayIcon is not null) return;
+        _trayIcon = new System.Windows.Forms.NotifyIcon
+        {
+            Icon = System.Drawing.SystemIcons.Application,
+            Text = "DeepSeek Harness",
+            Visible = false,
+        };
+        _trayIcon.BalloonTipClicked += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (_current is not null) ShowBrowserPage(_current);
+            Activate();
+        }));
+    }
+
+    private void ShowTrayBalloon(string title, string body, System.Windows.Forms.ToolTipIcon icon)
+    {
+        if (_trayIcon is null) return;
+        _trayIcon.BalloonTipTitle = title;
+        _trayIcon.BalloonTipText = body;
+        _trayIcon.BalloonTipIcon = icon;
+        _trayIcon.ShowBalloonTip(15000);
+    }
+
+    private static string ClipNotifyText(string? value, string fallback, int maxRunes)
+    {
+        var text = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        var clipped = string.Concat(text.EnumerateRunes().Take(maxRunes));
+        return clipped.Length < text.Length ? clipped + "…" : clipped;
     }
 
     private void Log(string message)

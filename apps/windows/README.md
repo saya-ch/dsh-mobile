@@ -18,9 +18,14 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 ## 功能
 
 - **三种连接通道**
+- **三种连接通道**
   - `iroh`：粘贴 iroh 配对内容，由官方组件建立加密隧道；
   - `局域网` / `远程`：粘贴 `https://…/mobile-access/pair#…` 配对链接，直连网关。
+- **局域网发现**：扫描局域网或手动输入地址查找电脑，选中后再粘贴该电脑的配对链接；链接地址与发现结果不一致会提醒确认。
+- **地址跟随**：远程地址变化（如 cpolar 临时地址）或凭据过期时，可粘贴同一台电脑的当前链接更新地址并保留名称。已固定证书的电脑只接受同样要求固定证书的链接，不会被降级成不校验证书。
 - **免扫码重连**：配对一次后，以后直接点「连接」即可，不用再粘贴。
+- **任务完成提醒**：连接期间任务完成会弹出桌面通知，点击回到页面；电脑端撤销设备会提示并停止提醒。
+- **下载与语音**：配对网关同源的下载经保存对话框落盘，非网关地址仍阻止；配对网关的页面可用麦克风（走电脑端语音），摄像头与其他权限仍拒绝。
 - **设备管理**：多设备卡片、重命名、删除；每张卡片显示连接方式和凭据有效期。
 - **安全**：配对时自动固定这台电脑的证书，对不上就拒绝连接，不会让你往系统里装证书。凭据用 Windows 账户加密保存在本目录，换台电脑或换个用户就要重新配对。WebView2 路径下过期或已吊销的证书一律拒绝；这些固定通道使用的自定义 CA 通道不查吊销，因为配对 CA 自签、没有吊销信息。
 - **顶栏与标题栏**：原生标题栏下方的窗口级顶栏行（设备列表 / 连接状态 / 断开），颜色与 DWM 标题栏一致；页面 DOM 零注入、零改动。
@@ -80,6 +85,6 @@ dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 
 ## 给维护者
 
-iroh 组件的 pin 存在三处，彼此之间没有机器校验：`src/iroh-component.ts` 里的 `IROH_COMPONENT_RELEASES['win32-x64']` 是权威值，`apps/windows/DshMobile.Win/SidecarProvisioner.cs` 硬编码同值，`apps/windows/DshMobile.Win/sidecar/manifest.json` 只是镜像；升级 pin 时三处必须一起改。
+iroh 组件的 pin 存在三处，`scripts/check-windows-sidecar-pin.mjs` 会在 Windows 客户端 CI 里断言三处一致：`src/iroh-component.ts` 里的 `IROH_COMPONENT_RELEASES['win32-x64']` 是权威值，`apps/windows/DshMobile.Win/SidecarProvisioner.cs` 硬编码同值，`apps/windows/DshMobile.Win/sidecar/manifest.json` 只是镜像；升级 pin 时三处必须一起改，否则该检查会失败。
 
 本目录是新增端，不修改插件与 Android 既有代码；仓库约定见根目录 `AGENTS.md`（上游 DSH 源码只读，改动仅留在本仓库）。功能改动集中在 `apps/windows/`；唯一的仓库级例外是 `.github/workflows/windows-client.yml`（Windows 客户端的 CI job），其余上游文件不应出现在 diff 中。
