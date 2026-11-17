@@ -34,9 +34,9 @@
 
 > DSH Mobile 是 DeepSeek Harness 社区插件，让手机接着用电脑上的 DSH。原生 App 目前只支持 Android；使用 iPhone 或 iPad？用 Safari 打开即可，也可以[添加到主屏幕当 Web App 用](<#iphone-与-ipad主屏幕-web-apppwa>)，不需要装任何 App。
 >
-> **当前正式版本：0.8.9**。移动页支持点按预览路径条复制完整路径；网关对不受信任的来源网段返回可区分的错误码；抽屉不再裁剪上游固定定位面板（#413）；仓库加入尚未发布的便携 Windows 客户端源码。插件与 Android App 独立更新；Android App 0.7.5 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [完整更新记录](CHANGELOG.md)。
+> **当前版本**：插件 0.8.9，Android App 0.7.5。两者各自更新，**插件升级一般不用重装 App**；需要重装时会在更新的那一行写明。先装插件，再装 App：[插件下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.9) · [App 下载](#下载-android-app) · [这次更新了什么](CHANGELOG.md)。
 >
-> **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。[兼容说明](#兼容性)。
+> Windows 电脑想当客户端用？便携版还在做，**现在没有安装包，暂时不用点**[（源码与自行编译说明）](apps/windows/README.md)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.7.5/dsh-mobile-android-v0.7.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
