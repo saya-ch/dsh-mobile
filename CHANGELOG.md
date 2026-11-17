@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Android 0.8.2 - 2026-11-17
+
+- Picture-in-picture now shows a shrunken copy of the page instead of refitting the layout into the small window. 0.8.1 kept the page's own pixel sizes, so a widget with a fixed size, such as a status overlay plugin, kept its corner-worth of pixels and filled the floating window. The full-screen layout width is kept and the whole page is scaled down to the window.
+
 ## Android 0.8.1 - 2026-11-17
 
 - Keep the background task notification opt-in across a package replacement: every service stop wrote `enabled=false`, including the temporary ones. A package replacement kills the process, the system's sticky restart lands while the app is in the background, Android 12+ refuses to start a foreground service from there, and the refusal erased the stored choice — so each App upgrade silently turned the switch off and the user had to turn it back on. Only an unrecoverable stop (device missing or revoked or expired, pairing expired, an iroh device) withdraws the opt-in now; a rejected start, a spent foreground budget and a reconnect keep it, `lastError` carries the reason, and the App retries on resume instead of waiting for the next launch. [#442](https://github.com/saya-ch/dsh-mobile/issues/442)

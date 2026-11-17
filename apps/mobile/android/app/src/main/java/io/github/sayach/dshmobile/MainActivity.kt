@@ -209,6 +209,7 @@ class MainActivity : Activity() {
     private val deviceStatusHandler = Handler(Looper.getMainLooper())
     private val backUiHandler = Handler(Looper.getMainLooper())
     private var webView: WebView? = null
+    private var displayScale: NativeDisplayScale? = null
     private var secureWebViewClient: SecureWebViewClient? = null
     private var nativeBridge: NativeBridge? = null
     private var restoredNativeBridgeState: Bundle? = null
@@ -460,6 +461,9 @@ class MainActivity : Activity() {
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        // The floating window is a small copy of the page: keep the full-screen layout and scale
+        // it down, so a fixed-size widget holds its corner instead of filling the window.
+        displayScale?.setFloating(isInPictureInPictureMode)
         if (isInPictureInPictureMode) return
         // Returning to full screen: restore the page the paused window left behind.
         pictureInPictureRequested = false
@@ -4794,6 +4798,8 @@ class MainActivity : Activity() {
         }
         val displayScale = NativeDisplayScale(browser, origin,
             preferences.getInt("web_page_scale_percent", NativeDisplayScalePolicy.DEFAULT_PERCENT))
+        // Held so the picture-in-picture callback can shrink the page instead of refitting it.
+        this.displayScale = displayScale
         browser.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
             if (right - left != oldRight - oldLeft) displayScale.apply()
         }
@@ -5303,6 +5309,7 @@ class MainActivity : Activity() {
     }
 
     private fun destroyWebView(changingConfigurations: Boolean = false, rendererGone: Boolean = false) {
+        displayScale = null
         stopIrohStatusMonitor()
         cancelPageSessionRenewal()
         invalidateWebFileChooser()
