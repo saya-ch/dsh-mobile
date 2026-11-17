@@ -10,23 +10,24 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 
 ## Status and support
 
-- **Source preview, not released**: this directory is merged into `main`, but it is **not shipped in any Release** — there is no official download, and it is not part of the npm package (`files`). Build it yourself with the commands below.
-- **Not yet accepted by a maintainer**: the maintainer has not completed the acceptance matrix on a real Windows machine (iroh, LAN, remote, and the five WebView2 policies). This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository, **not a promise of usability**.
-- **Support**: Windows 10 1809+ / Windows 11, **x64**. Windows ARM64 is unsupported, as are builds on Linux/macOS (WPF `net8.0-windows` + `RuntimeIdentifiers=win-x64`).
+- **No installer yet**: this client is still in development. There is no official download and it is not part of the npm package; to try it, build it yourself with the commands below.
+- **It may not connect**: the iroh / LAN / remote acceptance matrix has not been completed on a real Windows machine. This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository. Failures are expected at this stage; attach `data\client.log` when reporting one.
+- **Where it runs**: a Windows 10 1809+ / Windows 11 **x64** PC. Windows ARM64 is unsupported, and this client cannot be built on Linux/macOS.
 - **Prerequisites**: .NET 8 SDK (x64) and the WebView2 Evergreen Runtime (included in Windows 11; install it on Windows 10 — see https://developer.microsoft.com/microsoft-edge/webview2 ). The first iroh connection downloads and verifies the official sidecar (about 14.8 MB / 14,865,920 bytes).
 
 ## Features
 
 - **Three connection channels**
-  - `iroh`: paste the iroh pairing JSON descriptor; the official sidecar (`phone-sim`) builds a QUIC tunnel plus a loopback TLS carrier. The sidecar is not distributed in the repository: it is fetched from a pinned URL and verified by SHA-256, and re-verified before every process start.
-  - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link (legacy `instance/token` or a `dsh1`/`dsh2` key); the pairing CA is bootstrapped from `/mobile-access/ca.cer` (TOFU plus the instanceId fingerprint) before connecting directly to the gateway.
-- **Reconnect without scanning**: the first pairing stores the device credential (deviceToken encrypted with DPAPI); later launches reconnect with a single click — `Hello` over iroh, `native-renew` for direct channels.
-- **LAN discovery**: scan the LAN (UDP announcements plus a scan of the local subnet) or probe a manually entered address; after picking a found computer, paste its pairing link. A link whose origin disagrees with the pick asks for confirmation.
-- **Address follow-up**: when a remote address changes (e.g. a rotated tunnel address) or the credential expires, paste the same computer's current link to update the address while keeping the name (the instanceId must match).
-- **Task completion notices**: while connected, the client subscribes to the computer's background event stream and shows a desktop balloon when a task completes; clicking returns to the page. A computer-side revocation notifies and stops the listener. Closing the client still ends notices.
-- **Downloads and voice**: same-origin downloads from the paired gateway go through a save dialog; off-gateway addresses stay blocked. Pages on the paired gateway may use the microphone (the computer's own voice path); the camera and all other permissions stay denied.
-- **Device management**: multiple device cards, rename and delete; each card shows the channel type and credential expiry.
-- **Security**: the pairing CA is the only trust anchor for pinned channels. A leaf certificate is accepted only after `Issuer` → CA/leaf validity → not a CA → `EKU(serverAuth)` → chain to the pinned CA → `SAN` (exact DNS or one-level wildcard; IP SANs compared byte by byte for LAN gateways) all pass. On the WebView2 error path `Expired`/`Revoked` are always rejected; the custom-CA native TLS channel does not check revocation (`X509RevocationMode.NoCheck` — the self-signed pairing CA has no revocation data).
+- **Three connection channels**
+  - `iroh`: paste the iroh pairing content; the official component builds the encrypted tunnel.
+  - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link and connect directly to the gateway.
+- **LAN discovery**: scan the network or type an address to find the computer, then paste that computer's pairing link; a link whose address disagrees with the discovery result asks for confirmation.
+- **Address follow-up**: when a remote address changes (for example a rotated tunnel address) or the credential expires, paste the same computer's current link to update the address and keep the name. A computer with a pinned certificate only accepts a link that also requires the certificate, so it cannot be downgraded to an unchecked connection.
+- **Reconnect without scanning**: pair once, then click Connect; nothing to paste again.
+- **Task completion notices**: while connected, a finished task raises a desktop notification that returns to the page when clicked; revoking the device on the computer says so and stops the notices.
+- **Downloads and voice**: same-origin downloads from the paired gateway go through a save dialog, off-gateway addresses stay blocked, and a paired page may use the microphone for the computer's voice path while the camera and other permissions stay denied.
+- **Device management**: multiple device cards, rename and delete; each card shows the connection type and credential expiry.
+- **Security**: pairing pins that computer's certificate, and a mismatch refuses the connection instead of asking you to install a certificate. Credentials are encrypted with your Windows account inside this folder, so another PC or another user must pair again. A certificate that has expired or been revoked is always refused on the WebView2 path; the custom-CA channel used for these pins does not check revocation, because the pairing CA is self-signed and has no revocation data.
 - **Top bar and title bar**: a window-level bar under the native title bar (device list / connection status / disconnect), colored like the DWM caption; the page DOM is not injected or modified.
 - **Light and dark**: semantic color tokens (`design-system/dsh-mobile/MASTER.md`) follow the system theme; `DSH_MOBILE_THEME=light|dark` overrides it.
 
@@ -69,7 +70,7 @@ dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
 dotnet publish -c Release -r win-x64 --self-contained true -o <target-directory>
 ```
 
-No Rust/Android toolchain is needed: the iroh transport reuses the official sidecar, and **the binary is not stored in this repository**. The authoritative pin is `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts`; `SidecarProvisioner` hardcodes the same values and `sidecar/manifest.json` mirrors them, with no machine check across the three copies (update all three when the upstream pin moves). The first iroh connection downloads from the pinned URL and verifies byte count plus SHA-256; if the DSH Mobile plugin already installed and verified the same copy under the default `~/.dsh/mobile-access/components/iroh/<version>/`, it is reused (custom DSH homes are not reused and fall back to a download). The binary is re-verified before every sidecar process start, and a hash mismatch refuses to launch.
+No Rust/Android toolchain is needed: the iroh transport reuses the official component, and **the component itself is not stored in this repository**. The first iroh connection downloads it from a fixed address and verifies size plus SHA-256; if the plugin already installed and verified the same copy on this computer, that copy is reused. The component is re-verified before every start, and a mismatch refuses to launch.
 
 `.github/workflows/windows-client.yml` runs on `windows-latest`: it restores the test project, then builds the main project with `--no-restore` and runs the tests (equivalent to the restore/build/test above). It covers source build and pure-logic tests only; it does not produce a release package and does not exercise WebView2 or real hardware. Whether that job is a required check is configured by the maintainer in GitHub branch protection, not in the repository. Dependencies come from the default NuGet feed (nuget.org). For slow networks add a mirror at the **user** level rather than changing repository configuration: `dotnet nuget add source <mirror-url> -n <name>`.
 
@@ -82,6 +83,8 @@ The publish directory root holds `DshMobile.Win.exe` and the .NET dependencies; 
 - Paired devices are stored in `data\devices.json`; deviceToken is encrypted with DPAPI (CurrentUser) and does not migrate across machines.
 - Log: `data\client.log`.
 
-## Relationship to the upstream repository
+## For maintainers
+
+The iroh component pin is stored three times, and `scripts/check-windows-sidecar-pin.mjs` asserts the three agree in the Windows client CI job: `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts` is authoritative, `apps/windows/DshMobile.Win/SidecarProvisioner.cs` hardcodes the same values, and `apps/windows/DshMobile.Win/sidecar/manifest.json` mirrors them. Move all three together when the pin changes; the check fails when one drifts.
 
 This directory is an additional client; it does not modify the plugin or the existing Android code. Repository conventions are in `AGENTS.md` at the repository root (upstream DSH sources are read-only; changes stay in this repository). Functional changes stay under `apps/windows/`; the only repository-level exception is `.github/workflows/windows-client.yml` (the Windows client CI job). No other upstream file should appear in the diff.
