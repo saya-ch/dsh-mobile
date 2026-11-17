@@ -2,6 +2,11 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Complete the portable Windows client's user-facing behaviour: it finds computers on the local network and follows a changed remote address, while a computer with a pinned certificate accepts only a link that also requires certificate pinning, so an address update cannot downgrade it to platform trust. A completed task raises a desktop notification, a same-origin download is saved through a file dialog while other origins stay blocked, and the paired page may use the microphone while the camera and every other permission stay denied. A new `scripts/check-windows-sidecar-pin.mjs` gate keeps the pinned iroh sidecar identical in the plugin source, the client and its manifest. The client is still merged into main with **no published package and no complete acceptance on real Windows**, so it must not be presented as a shipped platform. Thanks @qzyqmzn for [#443](https://github.com/saya-ch/dsh-mobile/pull/443).
+- Rewrite the user-facing documentation: the App manuals, [apps/windows/README.md](apps/windows/README.md) and the docs guides are rewritten to read as user guidance for the current behaviour, with the root READMEs left unchanged. Thanks @qzyqmzn for [#445](https://github.com/saya-ch/dsh-mobile/pull/445).
+
 ## Android 0.8.2 - 2026-11-17
 
 - Picture-in-picture now shows a shrunken copy of the page instead of refitting the layout into the small window. 0.8.1 kept the page's own pixel sizes, so a widget with a fixed size, such as a status overlay plugin, kept its corner-worth of pixels and filled the floating window. The full-screen layout width is kept and the whole page is scaled down to the window.

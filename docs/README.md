@@ -39,7 +39,7 @@
 | 核对移动字号、字体与 App 页面缩放 | [显示大小](MOBILE_COMPOSER_TOOLBAR.md#显示大小与可用空间) | [Display size](MOBILE_COMPOSER_TOOLBAR.en.md#display-size-and-available-space) | 字体按主题能力显示；App 缩放与网页字号独立 |
 | 为移动页面选择加载模块 | [模块设置](CLIENT_MODULES.md) | [Module settings](CLIENT_MODULES.en.md) | 电脑默认与设备覆盖分别保存，不自动刷新会话 |
 | 允许受控路由网络访问 LAN Gateway | [额外可信网段](TRUSTED_NETWORKS.md) | [Trusted networks](TRUSTED_NETWORKS.en.md) | 不建立 VPN，不自动扩大防火墙规则 |
-| 让自己的 frp stcp 隧道经手机回环入口接入（下一版本） | [回环隧道接入](LOOPBACK_TUNNEL.md) | [Loopback tunnel](LOOPBACK_TUNNEL.en.md) | 默认关闭；只多允许回环名字，不放宽 Origin/CSRF/网段/凭据 |
+| 让自己的 frp stcp 隧道经手机回环入口接入（0.8.12 起） | [回环隧道接入](LOOPBACK_TUNNEL.md) | [Loopback tunnel](LOOPBACK_TUNNEL.en.md) | 默认关闭；只多允许回环名字，不放宽 Origin/CSRF/网段/凭据 |
 
 ## 插件移动适配 / Plugin mobile adaptation
 

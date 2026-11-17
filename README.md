@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -41,9 +41,9 @@
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>下载 Android App 0.8.2（兼容版）</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0">版本说明与校验文件</a></sub>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.2">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -441,6 +441,9 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.8.12` | 新增可选的**回环隧道接入**，让自己运行的本地隧道（如 frp stcp）不必暴露公网端口即可访问网关（#444）；与第三方插件同用时，用户消息气泡不再被运行耗时规则挤成竖排（#441）。Android App 为 0.8.0 |
+| `0.8.11` | 把 Funnel 取证书的等待预算按实际签发耗时放宽到 180 秒，并可用环境变量覆盖（#348）。Android App 为 0.8.0 |
+| `0.8.10` | Tailscale Funnel 不再在证书未签发时谎报就绪；宽屏平板的会话列定宽居中、composer 与列同轴（#347）；文件预览读取链路有端到端证据。Android App 为 0.7.6 |
 | `0.8.9` | 移动页点按预览路径条复制完整路径；网关对不受信任的来源网段返回 `source_network_untrusted`；抽屉不再裁剪上游固定定位面板（#413）；仓库加入尚未发布的便携 Windows 客户端源码。Android App 为 0.7.5 |
 | `0.8.8` | 在 `0.2.2-rc.2` 上恢复 Web 推送（AgentRegistry ownership 变更），任务完成事件携带会话标题与有界摘要并在 App 报告可投递时让出页面通知，新增默认关闭的阅读模式，推送调度不再在容量满时唤醒定时器。Android App 为 0.7.4 |
 | `0.8.7` | 在 `0.2.2-rc.1` 打包目标上加入默认关闭的会话预取、网关到期连接正常关闭与认证失败分类，并为 Android 0.7.4 准备后台提醒真实状态与通知就地打开；同时更新插件图标与 iroh 排障文档。Android App 为 0.7.4，新增设备端页面缓存与后台提醒真实状态 |

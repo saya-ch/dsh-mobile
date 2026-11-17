@@ -18,7 +18,6 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 ## Features
 
 - **Three connection channels**
-- **Three connection channels**
   - `iroh`: paste the iroh pairing content; the official component builds the encrypted tunnel.
   - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link and connect directly to the gateway.
 - **LAN discovery**: scan the network or type an address to find the computer, then paste that computer's pairing link; a link whose address disagrees with the discovery result asks for confirmation.

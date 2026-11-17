@@ -4,6 +4,12 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
+## 未发布 / Unreleased
+
+感谢 [@qzyqmzn](https://github.com/qzyqmzn) 在 [#443](https://github.com/saya-ch/dsh-mobile/pull/443) 补齐便携 Windows 客户端（局域网发现、地址跟随、任务完成提醒、同源下载与麦克风），并在 [#445](https://github.com/saya-ch/dsh-mobile/pull/445) 改写面向用户的文档（App 手册、Windows README 与 docs 指南）。两者已合入 main，尚未随任何版本发布。
+
+Thanks [@qzyqmzn](https://github.com/qzyqmzn) for completing the portable Windows client in [#443](https://github.com/saya-ch/dsh-mobile/pull/443) (LAN discovery, address following, task-completion notifications, same-origin downloads and the microphone) and for the user-facing documentation rewrite in [#445](https://github.com/saya-ch/dsh-mobile/pull/445) (App manuals, Windows README and docs guides). Both are merged into main and are not part of any published release yet.
+
 ## 0.8.10 贡献 / Contributions in 0.8.10
 
 本版改动由维护者完成，原始作者提交均保留；报告见下方各版本的贡献表。 / Maintainer-only changes; original author commits are preserved and reporter credits stay with the sections below.

@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.8">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -41,9 +41,9 @@
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>Download Android app 0.8.2 (compatibility)</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0">Release notes and checksums</a></sub>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.2">Release notes and checksums</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -441,6 +441,9 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.12` | Add an opt-in **loopback tunnel** so a local tunnel you run yourself (for example frp stcp) reaches the gateway without exposing a public port (#444); a user message bubble is no longer squeezed into a vertical sliver by the runtime-label rule when a third-party plugin is installed (#441). Android app 0.8.0 |
+| `0.8.11` | Give the Funnel certificate fetch a budget based on real issuance time, up to 180 seconds and overridable by environment variable (#348). Android app 0.8.0 |
+| `0.8.10` | Tailscale Funnel no longer reports a ready listener before its certificate exists; the conversation column is centred with a fixed width on wide tablets and the composer shares its axis (#347); the file-preview read path has end-to-end evidence. Android app 0.7.6 |
 | `0.8.9` | Tap the preview path bar on touch devices to copy the full path; the gateway answers an untrusted source network with `source_network_untrusted`; the drawer no longer clips stock fixed-position panels (#413); the repository adds the source of the unpublished portable Windows client. The Android App is 0.7.5 |
 | `0.8.8` | On the `0.2.2-rc.2` target, restore Web Push after the AgentRegistry ownership change, carry the Session title and a bounded summary with task-completion events and yield page notifications only when the App reports it can post, add an opt-in reading mode, and stop arming push wake timers while the send queue is at capacity. The Android App is 0.7.4 |
 | `0.8.7` | On the `0.2.2-rc.1` packed target, add an opt-in session prefetch, close an expiring Gateway WebSocket normally with clearer authentication-failure categories, and prepare the background-reminder status and in-place notification open for Android 0.7.4; also update the plugin icon and iroh troubleshooting notes. The Android App is 0.7.4, with the device-side page cache and real background-reminder status |

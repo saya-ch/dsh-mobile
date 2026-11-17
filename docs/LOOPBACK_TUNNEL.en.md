@@ -2,7 +2,7 @@
 
 [中文](LOOPBACK_TUNNEL.md) · [Back to remote access](../README.en.md#remote-access)
 
-> The next plugin version (not yet released) adds a **Loopback tunnel · Advanced** switch under **Mobile Access → Local network**. It is off by default, adds no remote channel, installs and manages no frp component, and requires no Android app update. With the switch off, behaviour is unchanged.
+> Plugin 0.8.12 adds a **Loopback tunnel · Advanced** switch under **Mobile Access → Local network**. It is off by default, adds no remote channel, installs and manages no frp component, and requires no Android app update. With the switch off, behaviour is unchanged.
 
 If you already run your own frps and want to reach the DSH mobile gateway through frp's **stcp (secret tcp)** proxy, turn this switch on: the gateway accepts `127.0.0.1` and `::1` as additional address names and includes them in its server certificate. The phone actually opens **its own** `127.0.0.1:<listener port>`, and the frpc visitor on the phone forwards the connection through frps back to the gateway on the computer.
 
@@ -143,7 +143,7 @@ bind_port = 3443
 
 ## Computer: turn on the switch and get a loopback pairing link
 
-1. Open **Mobile Access → Local network**, expand **Loopback tunnel · Advanced**, and select the toggle that reads **Disabled** so it reads **Enabled** (provided by the next plugin version; available only with managed LAN setup).
+1. Open **Mobile Access → Local network**, expand **Loopback tunnel · Advanced**, and select the toggle that reads **Disabled** so it reads **Enabled** (provided since plugin 0.8.12; available only with managed LAN setup).
 2. Saving leaves the panel reporting that a restart is pending: stop and start local network access again, or restart DSH. Rebinding the LAN re-issues the server certificate, so its SANs contain the original LAN address, `127.0.0.1` and `::1`; the LAN address stays first.
 3. Select **Generate pairing QR code** or **Copy pairing link** again. While the switch is on, a successful pairing operation reveals a **Copy loopback pairing link** button that copies the loopback address link, such as `https://127.0.0.1:3443/mobile-access/pair#instance=…&token=…`. It shares the one-time pairing code with the LAN link, and the QR code still encodes the LAN address. The button only appears when the gateway really returned a loopback link; if it is missing, the switch has not taken effect yet.
 4. In the Android app's **Local network** flow, paste that loopback link. The panel does not produce a loopback QR code — the QR code encodes the LAN address only and is useless here, because the phone is not on that LAN. The phone is not on this computer's LAN, so automatic discovery will not list it either; just use the link. The app treats the loopback address as a local-network entry. You can also open that link directly in the phone's browser.
