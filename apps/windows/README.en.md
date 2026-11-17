@@ -78,6 +78,6 @@ The publish directory root holds `DshMobile.Win.exe` and the .NET dependencies; 
 - Paired devices are stored in `data\devices.json`; deviceToken is encrypted with DPAPI (CurrentUser) and does not migrate across machines.
 - Log: `data\client.log`.
 
-## Relationship to the upstream repository
+## For maintainers
 
 This directory is an additional client; it does not modify the plugin or the existing Android code. Repository conventions are in `AGENTS.md` at the repository root (upstream DSH sources are read-only; changes stay in this repository). Functional changes stay under `apps/windows/`; the only repository-level exception is `.github/workflows/windows-client.yml` (the Windows client CI job). No other upstream file should appear in the diff.
