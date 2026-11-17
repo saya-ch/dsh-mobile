@@ -36,13 +36,13 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.12**。与第三方插件同用时，用户消息气泡不再被运行耗时规则挤成竖排；新增可选的**回环隧道接入**，让你用自己的 frp stcp 等本地隧道访问网关而不必暴露公网端口（#444）。插件与 Android App 独立更新；Android App 0.8.0 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.12**。与第三方插件同用时，用户消息气泡不再被运行耗时规则挤成竖排；新增可选的**回环隧道接入**，让你用自己的 frp stcp 等本地隧道访问网关而不必暴露公网端口（#444）。插件与 Android App 独立更新；Android App 0.8.1 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.12) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0.apk"><strong>下载 Android App 0.8.0（兼容版）</strong></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.1/dsh-mobile-android-v0.8.1.apk"><strong>下载 Android App 0.8.1（兼容版）</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.0/dsh-mobile-android-v0.8.0-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0">版本说明与校验文件</a></sub>
 </p>
 

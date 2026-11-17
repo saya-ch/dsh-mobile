@@ -4,7 +4,7 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.8.0**；构建号为 93。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.8.0 更新](#080-更新)。
+当前正式 App 为 **0.8.1**；构建号为 94。npm 插件与 Android App 独立编号、独立更新；插件升级不代表需要重新安装 APK。此次改进见 [0.8.0 更新](#080-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
@@ -37,7 +37,7 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 
 删除本机记录会移除保存的设备令牌和固定 CA，不等于撤销电脑授权或清除所有 WebView 短期 Cookie。需要立即终止访问时，请在电脑的 **移动访问** 中撤销设备。Android“清除应用数据”会删除全部配对和网页数据，不是普通重连的处理步骤。
 
-## 0.8.1 候选更新
+## 0.8.1 更新
 
 - 新增 **设置 → 画中画**：离开 App 时把当前 DSH 页面保留在小窗口中，状态类插件因此持续可见。只有真正展示 DSH 页面的界面会浮窗，设备列表与各种设置/配对页不会。关闭后恢复原来直接退到后台的行为。
 
@@ -224,10 +224,11 @@ Set-Location apps/mobile/android
 
 当前源码的 Debug 构建使用包名 `io.github.sayach.dshmobile.debug` 与 `-debug` 版本后缀，可与正式 App 并存，存储和配对彼此独立。它不会升级或迁移旧版无后缀 Debug 应用；切换包名时应保留旧应用和数据，不要为此卸载或清除。Release 构建继续使用 `io.github.sayach.dshmobile` 与既定正式签名。
 
-已核验的正式版本为 [Android 0.8.0](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.0)，构建 93。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
+已核验的正式版本为 [Android 0.8.1](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.1)，构建 94。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
 
 ## 验收与已知限制
 
+- App 0.8.1 的两份公开 APK 在发布后重新下载核验：兼容版 1,975,321 B 且不含原生库，完整版 30,104,972 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，两者均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 94` / `versionName 0.8.1`，`.sha256` 资产一致。兼容版随后在 PJW110（Android 16）上覆盖安装 0.8.0 而未卸载：四条已存配对全部保留，**设置 → 画中画** 正常出现并持久化，离开 App 后确实进入画中画，任务报告 `mode=pinned` 且浮窗内渲染的是真实 DSH 页面。该设备上后台任务提醒处于关闭状态，因此包替换那条路径没有在真机上走到，它依据的是单元测试与 CI。
 - App 0.8.0 的两份公开 APK 在发布后重新下载核验：兼容版 1,970,961 B 且不含原生库，完整版 30,103,008 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库；两者均为 `versionCode 93`/`versionName 0.8.0`，签名指纹 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87`，并附对应 `.sha256`。打 tag 的代码树通过 `npm run verify`、`lintDebug`（0 errors）与 575 个 Android 单元测试。真机验收覆盖浅/深色切换、设置页、添加电脑 sheet 与 iroh 多行配对信息；配对失败、命名 sheet 后台往返、取消与 TalkBack 路径仍只有源码测试证据。
 - App 0.7.6 的两份公开 APK 均通过校验值、Manifest、既定正式签名与体积检查；兼容版不含原生库，完整版只携带两个 iroh 传输 ABI。本版未新增真机回归：新图标的启动器显示与 Tailscale 提示仅由 Android 单元测试与 CI 发布构建覆盖。
 - App 0.7.5 的两份公开 APK 均通过校验值、Manifest、既定正式签名与体积检查；兼容版不含原生库，完整版只携带两个 iroh 传输 ABI。发布验收时设备断开，最终 CI 产物未在手机上重装；同一份 0.7.5/90 代码已在当天早些时候以本地正式签名构建完成原位升级、保留 3 条配对并验收了原生「检查更新」。
