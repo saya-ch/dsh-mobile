@@ -406,7 +406,7 @@ In one sentence: **your phone does not connect to your computer directly. It con
 
 The plugin does not modify any DeepSeek Harness source or webpage file, and installing or removing it goes through the plugin mechanism, so you can turn it off at any time. For configuration topics and implementation details, see the [documentation index](docs/README.en.md).
 
-Switching sessions tears down the client Session instance and its live stream. The dedicated layout ships an opt-in, off-by-default session prefetch ([#291](https://github.com/saya-ch/dsh-mobile/issues/291)): after a switch settles, it issues one bounded, read-only `session/projections` request for the session the user just left, so a follow-back hits DSH session-query's prepared cache instead of re-parsing the whole log. Guarded by a per-session cooldown and a bounded timeout, failures are silent and never disturb normal requests or live streams; the behavior stays disabled until the "Prefetch the session you just left" switch in Settings → General is turned on (off by default; the choice is persisted).
+Switching sessions rebuilds the connection. If you move between sessions a lot, turn on "Prefetch the session you just left" in Settings → General so switching back is quicker; it is off by default, and you can turn it off any time if it costs too much or misbehaves.
 
 ## Security
 
