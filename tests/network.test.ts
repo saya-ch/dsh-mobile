@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { isGloballyRoutableIpv4 } from '../src/network.js'
+import { formatIpv6, isGloballyRoutableIpv4, networkCidrFor } from '../src/network.js'
+
+describe('IPv6 formatting and interface CIDR normalization', () => {
+  it.each([
+    ['240c:ca04:2401:283f:c15:dfff:fe88:549', '240c:ca04:2401:283f:c15:dfff:fe88:549'],
+    ['240c:ca04:2401:283f:0:0:0:1', '240c:ca04:2401:283f::1'],
+    ['240c:ca04:2401:0:0:0:0:1', '240c:ca04:2401::1'],
+    ['240c:0:0:1:0:0:0:1', '240c:0:0:1::1'],
+    ['0:0:0:0:0:0:0:0', '::'],
+    ['0:0:0:0:0:0:0:1', '::1'],
+    ['fd12:3456:789a:0:1:0:0:1', 'fd12:3456:789a:0:1::1'],
+  ])('formats %s as %s', (input, expected) => {
+    const groups = input.split(':').map(group => BigInt(parseInt(group, 16)))
+    const value = groups.reduce((total, group) => (total << 16n) | group, 0n)
+    expect(formatIpv6(value)).toBe(expected)
+  })
+
+  it('masks host bits for both families', () => {
+    expect(networkCidrFor('240c:ca04:2401:283f:c15:dfff:fe88:549', 64)).toBe('240c:ca04:2401:283f::/64')
+    expect(networkCidrFor('240c:ca04:2401:283f:c15:dfff:fe88:549', 48)).toBe('240c:ca04:2401::/48')
+    expect(networkCidrFor('172.24.224.105', 16)).toBe('172.24.0.0/16')
+    expect(() => networkCidrFor('172.24.224.105', 33)).toThrow(/invalid prefix/)
+  })
+})
 
 describe('globally routable IPv4', () => {
   it.each([

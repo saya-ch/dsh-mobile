@@ -108,7 +108,7 @@ import {
   type RemoteProviderController,
   type RemoteProviderStatus,
 } from './remote.js'
-import { isLoopbackAddress, parseAuthority, parseCidr, probeTcpReachable } from './network.js'
+import { formatHostname, isLoopbackAddress, parseAuthority, parseCidr, probeTcpReachable } from './network.js'
 import {
   availableLanNetworks,
   isNetworkSelectionError,
@@ -121,10 +121,11 @@ import {
   saveManagedLoopbackTunnel,
   saveManagedTrustedNetworks,
   preferredLanInterfaceNames,
+  resolveSavedLanNetwork,
   selectLanNetwork,
   type ManagedSetup,
 } from './managed-setup.js'
-import { prepareManagedLanSetup, type ManagedLanSetupResult } from './lan-setup.js'
+import { configureWindowsFirewall, prepareManagedLanSetup, type ManagedLanSetupResult } from './lan-setup.js'
 
 /** Stable Cordis plugin name. */
 export const name = 'dsh-mobile'
@@ -1239,6 +1240,8 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         name: network.name,
         address: network.address,
         cidr: network.cidr,
+        family: network.family,
+        ...(network.publicAddress === undefined ? {} : { publicAddress: network.publicAddress }),
         recommended: network.address === recommendedAddress,
       })),
       listenPort: 3443,
@@ -1286,7 +1289,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     let interfaceName: string | undefined
     let networkError: string | undefined
     if (loaded.kind === 'managed') {
-      try { interfaceName = selectLanNetwork(undefined, loaded.setup.networkInterface).name }
+      try { interfaceName = resolveSavedLanNetwork(loaded.setup).name }
       catch { networkError = 'network_interface_unavailable' }
     }
     const remote = remoteController().status()
@@ -1422,8 +1425,23 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           try { values = parseAdditionalTrustedNetworks(body.extraAllowedCidrs) }
           catch { throw new HttpError(400, 'lan_trusted_networks_invalid') }
           await mutateLan(async () => {
-            await saveManagedTrustedNetworks(loaded.setupFile, values)
+            const saved = await saveManagedTrustedNetworks(loaded.setupFile, values)
             trustedNetworksRestartRequired = true
+            // A public or ULA IPv6 listener usually sits behind a different /64 from the
+            // phone's, so the default LocalSubnet rule cannot admit it. Fold the saved
+            // trusted prefixes into the Windows rules when the listener is IPv6; IPv4
+            // keeps the historical "firewall is your own setting" behaviour.
+            if (process.platform === 'win32') {
+              try {
+                const network = resolveSavedLanNetwork(saved)
+                if (network.family === 6) {
+                  await configureWindowsFirewall(saved.listenPort, [network.cidr, ...(saved.extraAllowedCidrs ?? [])])
+                }
+              } catch (error) {
+                logger.warn('could not widen the Windows firewall for the saved IPv6 networks: %s',
+                  error instanceof Error ? error.message : String(error))
+              }
+            }
           })
           sendJson(response, 200, await trustedNetworksPayload(), false)
           return
@@ -1502,6 +1520,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
               listenPort: 3443,
               dshPort: ctx.webServer.port,
               configureFirewall: body.configureFirewall !== false,
+              firewallRemoteAddresses: [network.cidr],
             })
           } catch (error) {
             logger.error('managed LAN setup failed: %s', error instanceof Error ? error.stack ?? error.message : String(error))
@@ -1526,7 +1545,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
               name: network.name,
               address: network.address,
               cidr: network.cidr,
-              current: network.name === currentInterface,
+              family: network.family,
+              ...(network.publicAddress === undefined ? {} : { publicAddress: network.publicAddress }),
+              current: network.name === currentInterface && (loaded.kind !== 'managed'
+                || loaded.setup.networkAddress === undefined
+                || loaded.setup.networkAddress === network.address),
               recommended: network.address === recommendedAddress,
             })),
           }, false)
@@ -1536,13 +1559,20 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           if (loaded.kind !== 'managed') throw new HttpError(409, 'lan_rebind_unsupported')
           const body = await readJsonObject(request, 4096)
           const networkInterface = typeof body.networkInterface === 'string' ? body.networkInterface : ''
-          if (networkInterface === '' || Object.keys(body).some(key => key !== 'networkInterface')) throw new HttpError(400, 'bad_request')
+          const requestedAddress = typeof body.address === 'string' ? body.address : undefined
+          if (networkInterface === '' || Object.keys(body).some(key => key !== 'networkInterface' && key !== 'address')) throw new HttpError(400, 'bad_request')
           const payload = await mutateLan(async () => {
             let network
-            try { network = selectLanNetwork(undefined, networkInterface) }
-            catch { throw new HttpError(409, 'lan_rebind_network_unavailable') }
+            try {
+              network = requestedAddress === undefined
+                ? selectLanNetwork(undefined, networkInterface)
+                : selectLanNetwork(requestedAddress)
+            } catch { throw new HttpError(409, 'lan_rebind_network_unavailable') }
             const current = managedSetupOverride ?? loaded.setup
-            if (!lanRebindRecoveryRequired && current.networkInterface === networkInterface) throw new HttpError(409, 'lan_rebind_unchanged')
+            if (!lanRebindRecoveryRequired && current.networkInterface === networkInterface
+              && (requestedAddress === undefined || current.networkAddress === requestedAddress)) {
+              throw new HttpError(409, 'lan_rebind_unchanged')
+            }
             const previousOrigin = lanGateway?.address().origin
             try {
               const result = await rebindManagedLan({
@@ -1552,7 +1582,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
               trustedNetworksRestartRequired = false
               loopbackTunnelRestartRequired = false
               lanRebindRecoveryRequired = false
-              return { origin: lanGateway?.address().origin ?? `https://${network.address}:${String(result.setup.listenPort)}`,
+              return { origin: lanGateway?.address().origin ?? `https://${formatHostname(network.address)}:${String(result.setup.listenPort)}`,
                 previousOrigin, restartRequired: false, disconnected: result.running, ready: lanGateway !== undefined }
             } catch (error) {
               if (error instanceof ManagedLanConfigurationError) throw new HttpError(409, 'lan_rebind_configuration_invalid')

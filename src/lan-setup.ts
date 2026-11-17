@@ -8,6 +8,7 @@ import {
   type LanNetwork,
   type ManagedSetup,
 } from './managed-setup.js'
+import { formatHostname, parseCidr } from './network.js'
 import { restrictPrivateFile } from './private-file.js'
 
 const FIREWALL_TCP_RULE = 'DSH Mobile HTTPS'
@@ -31,6 +32,8 @@ export interface ManagedLanSetupOptions {
   readonly listenPort: number
   readonly dshPort: number
   readonly configureFirewall: boolean
+  /** Extra source scopes to add to the Windows rules; the listener's own subnet is implied. */
+  readonly firewallRemoteAddresses?: readonly string[]
 }
 
 function assertManagedPort(port: number, name: string): void {
@@ -141,39 +144,53 @@ async function runElevatedPowerShell(script: string): Promise<void> {
   }
 }
 
-function firewallRuleScript(name: string, protocol: 'TCP' | 'UDP', port: number): readonly string[] {
+function firewallRuleScript(name: string, protocol: 'TCP' | 'UDP', port: number, remoteAddresses: readonly string[]): readonly string[] {
+  // LocalSubnet covers the listener's own subnet in both address families. Additional
+  // explicitly trusted prefixes are appended verbatim so a routed or cross-prefix IPv6
+  // network can reach the listener without opening it to every source.
+  const scope = remoteAddresses.length === 0 ? 'LocalSubnet' : `LocalSubnet,${remoteAddresses.join(',')}`
+  const scopeList = scope.split(',').map(entry => `'${entry}'`).join(',')
   return [
     `$rules = @(Get-NetFirewallRule -DisplayName '${name}' -ErrorAction SilentlyContinue)`,
     'if ($rules.Count -eq 0) {',
-    `  New-NetFirewallRule -DisplayName '${name}' -Direction Inbound -Action Allow -Protocol ${protocol} -LocalPort ${String(port)} -RemoteAddress LocalSubnet -Profile Any | Out-Null`,
+    `  New-NetFirewallRule -DisplayName '${name}' -Direction Inbound -Action Allow -Protocol ${protocol} -LocalPort ${String(port)} -RemoteAddress ${scope} -Profile Any | Out-Null`,
     '} else {',
     '  foreach ($rule in $rules) {',
     '    $rule | Set-NetFirewallRule -Enabled True -Direction Inbound -Action Allow -Profile Any',
     `    $rule | Get-NetFirewallPortFilter | Set-NetFirewallPortFilter -Protocol ${protocol} -LocalPort ${String(port)}`,
-    '    $rule | Get-NetFirewallAddressFilter | Set-NetFirewallAddressFilter -RemoteAddress LocalSubnet',
+    `    $rule | Get-NetFirewallAddressFilter | Set-NetFirewallAddressFilter -RemoteAddress ${scope}`,
     '  }',
     '}',
     `$verified = @(Get-NetFirewallRule -DisplayName '${name}' -ErrorAction Stop | Where-Object { $_.Enabled -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' -and $_.Profile -eq 'Any' })`,
     `$matchingPort = @($verified | Get-NetFirewallPortFilter | Where-Object { $_.Protocol -eq '${protocol}' -and $_.LocalPort -contains '${String(port)}' })`,
-    `$matchingAddress = @($verified | Get-NetFirewallAddressFilter | Where-Object { $_.RemoteAddress -contains 'LocalSubnet' })`,
+    `$expectedScope = @(${scopeList})`,
+    `$matchingAddress = @($verified | Get-NetFirewallAddressFilter | Where-Object { $actual = @($_.RemoteAddress); ($expectedScope | Where-Object { $actual -notcontains $_ }).Count -eq 0 })`,
     `if ($verified.Count -eq 0 -or $matchingPort.Count -eq 0 -or $matchingAddress.Count -eq 0) { throw "DSH Mobile firewall rule '${name}' is not active with the expected scope" }`,
   ]
 }
 
+/** Validate one additional firewall source scope before it reaches an elevated script. */
+function firewallRemoteAddress(value: string): string {
+  if (value === 'LocalSubnet') return value
+  const parsed = parseCidr(value)
+  return parsed.source.trim()
+}
+
 /** Build the elevated Windows firewall script without removing a working rule first. */
-export function windowsFirewallSetupScript(port: number): string {
+export function windowsFirewallSetupScript(port: number, extraRemoteAddresses: readonly string[] = []): string {
   assertManagedPort(port, 'Windows firewall port')
+  const remoteAddresses = [...new Set(extraRemoteAddresses.map(firewallRemoteAddress))]
   return [
     "$ErrorActionPreference = 'Stop'",
-    ...firewallRuleScript(FIREWALL_TCP_RULE, 'TCP', port),
-    ...firewallRuleScript(FIREWALL_UDP_RULE, 'UDP', port),
+    ...firewallRuleScript(FIREWALL_TCP_RULE, 'TCP', port, remoteAddresses),
+    ...firewallRuleScript(FIREWALL_UDP_RULE, 'UDP', port, remoteAddresses),
   ].join('\n')
 }
 
 /** Install or update the two Windows inbound rules used by the managed LAN listener. */
-export async function configureWindowsFirewall(port: number): Promise<void> {
+export async function configureWindowsFirewall(port: number, extraRemoteAddresses: readonly string[] = []): Promise<void> {
   if (process.platform !== 'win32') return
-  await runElevatedPowerShell(windowsFirewallSetupScript(port))
+  await runElevatedPowerShell(windowsFirewallSetupScript(port, extraRemoteAddresses))
 }
 
 /** Remove only the two Windows firewall rules owned by DSH Mobile. */
@@ -210,6 +227,7 @@ export async function prepareManagedLanSetup(options: ManagedLanSetupOptions): P
   const setup: ManagedSetup = {
     version: 2,
     networkInterface: options.network.name,
+    networkAddress: options.network.address,
     listenPort: options.listenPort,
     upstreamOrigin: `http://127.0.0.1:${String(options.dshPort)}`,
     tls: managedTls,
@@ -221,7 +239,9 @@ export async function prepareManagedLanSetup(options: ManagedLanSetupOptions): P
     ...Object.values(managedTls).filter(value => value !== 'managed').map(file => restrictPrivateFile(file)),
     restrictPrivateFile(androidCertificate),
   ])
-  if (options.configureFirewall) await configureWindowsFirewall(options.listenPort)
+  if (options.configureFirewall) {
+    await configureWindowsFirewall(options.listenPort, options.firewallRemoteAddresses ?? [])
+  }
   await Promise.all([
     writeFile(options.setupFile, `${JSON.stringify({
       ...setup,
@@ -234,7 +254,7 @@ export async function prepareManagedLanSetup(options: ManagedLanSetupOptions): P
   return Object.freeze({
     setup: Object.freeze(setup),
     network: Object.freeze({ ...options.network }),
-    origin: `https://${options.network.address}:${String(options.listenPort)}`,
+    origin: `https://${formatHostname(options.network.address)}:${String(options.listenPort)}`,
     androidCertificate,
   })
 }

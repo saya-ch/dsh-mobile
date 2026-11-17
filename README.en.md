@@ -160,7 +160,9 @@ Port note: `dsh web --port` changes the DSH Web upstream port (3080 by default),
 
 Headless Linux hosts, and browsers that open DSH Web through a LAN IP or reverse proxy, can use the same **Mobile access** control in the lower-left corner. The admin API still requires a loopback TCP peer (for example a local `socat` or reverse proxy to `127.0.0.1`) so the plugin itself is not LAN-exposed. The browser Host may be `localhost`, RFC1918, or an IPv4 link-local address; public IPs and arbitrary DNS names still return 403. The reverse proxy must be limited to trusted local or LAN callers and must not publicly forward `/api/mobile-access`. The dedicated Mobile HTTPS listener (3443 by default) remains the phone surface and does not become the desktop admin panel.
 
-For a routed network such as WireGuard, 0.6.0 offers [additional trusted networks](docs/TRUSTED_NETWORKS.en.md). It adds explicit source CIDRs only, without creating a VPN or routes or changing Windows firewall rules.
+LAN setup can also use **IPv6**: choose the address tagged `IPv6` in the **Local network** panel. The plugin signs a leaf for that address, listens on it alone, and saves the exact address so a restart stays stable when the interface carries several IPv6 addresses. Only one address family listens at a time; going back to IPv4 means choosing an address again under **Change network**. Public IPv6 has no NAT in front of it, so the option is tagged "public IPv6 · no NAT in front"; select it only when the source network is under your control. Certificates, pairing tokens, exact Host/Origin and source CIDRs still apply.
+
+IPv6 discovery covers the local link only. Across prefixes, enter `https://[address]:port` manually under the app's **Local network access → Gateway address**. When the phone and the computer are not in the same /64, add the phone's prefix to [additional trusted networks](docs/TRUSTED_NETWORKS.en.md) and allow the same prefix in Windows Firewall; saving IPv6 extra networks makes the plugin try to fold the prefix into its own two `DSH Mobile` rules (administrator approval required).
 
 </details>
 

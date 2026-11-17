@@ -9,20 +9,38 @@ import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { networkInterfaces, type NetworkInterfaceInfo } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { generate } from 'selfsigned'
+import { isIP } from './ip.js'
 import { restrictPrivateFile } from './private-file.js'
-import { formatHostname, parseCidr } from './network.js'
+import { formatHostname, networkCidrFor, parseCidr } from './network.js'
 
-/** One active private IPv4 address tied to a stable operating-system interface name. */
+/**
+ * One active private IPv4 or reachable IPv6 address tied to a stable operating-system
+ * interface name. IPv6 is opt-in: `family: 6` entries are only offered when the
+ * administrator can reach them, and the listener binds exactly one address family.
+ */
 export interface LanNetwork {
   readonly name: string
   readonly address: string
   readonly cidr: string
+  readonly family: 4 | 6
+  /**
+   * Whether the address is globally routable rather than ULA/private. Public IPv6 has
+   * no NAT in front of it, so the setup panel warns before the administrator selects it.
+   */
+  readonly publicAddress?: boolean
 }
 
 /** Versioned setup that survives DHCP address changes on the selected interface. */
 export interface ManagedSetup {
   readonly version: 2
   readonly networkInterface: string
+  /**
+   * The exact address last chosen on that interface. IPv4 changes are followed
+   * automatically; an interface carrying several IPv6 addresses (a temporary address
+   * plus a stable one, for example) needs this to stay deterministic across restarts.
+   * Absent means "follow the interface", which is the pre-IPv6 behaviour.
+   */
+  readonly networkAddress?: string
   readonly listenPort: number
   /** Legacy setup snapshot retained for file compatibility; the active WebServer port wins at runtime. */
   readonly upstreamOrigin: string
@@ -67,8 +85,11 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
   }
   const record = value as Record<string, unknown>
   if (record.version !== 2 || Reflect.ownKeys(record)
-    .some(key => typeof key !== 'string' || !['version', 'networkInterface', 'listenPort', 'upstreamOrigin', 'tls', 'extraAllowedCidrs', 'loopbackTunnel'].includes(key))) {
+    .some(key => typeof key !== 'string' || !['version', 'networkInterface', 'listenPort', 'upstreamOrigin', 'tls', 'extraAllowedCidrs', 'loopbackTunnel', 'networkAddress'].includes(key))) {
     throw new Error('mobile setup file has an unsupported format')
+  }
+  if (record.networkAddress !== undefined && (typeof record.networkAddress !== 'string' || isIP(record.networkAddress) === 0)) {
+    throw new Error('mobile setup networkAddress must be an IP literal')
   }
   if (!Number.isSafeInteger(record.listenPort) || (record.listenPort as number) < 1024
     || (record.listenPort as number) > 65535) {
@@ -85,6 +106,7 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
   return Object.freeze({
     version: 2,
     networkInterface: requiredString(record.networkInterface, 'mobile setup networkInterface'),
+    ...(record.networkAddress === undefined ? {} : { networkAddress: requiredString(record.networkAddress, 'mobile setup networkAddress') }),
     listenPort: record.listenPort as number,
     upstreamOrigin: requiredString(record.upstreamOrigin, 'mobile setup upstreamOrigin'),
     ...(record.loopbackTunnel === undefined ? {} : { loopbackTunnel: parseLoopbackTunnel(record.loopbackTunnel) }),
@@ -239,18 +261,66 @@ function privateIpv4(value: string): boolean {
 }
 
 function networkCidr(address: string, cidr: string): string {
-  const prefix = Number(cidr.slice(cidr.lastIndexOf('/') + 1))
-  const value = address.split('.').reduce((total, part) => ((total << 8) | Number(part)) >>> 0, 0)
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
-  const network = (value & mask) >>> 0
-  return `${[24, 16, 8, 0].map(shift => (network >>> shift) & 255).join('.')}/${String(prefix)}`
+  return networkCidrFor(address, Number(cidr.slice(cidr.lastIndexOf('/') + 1)))
 }
 
-/** List current private IPv4 candidates with their interface identity. */
+/** IPv6 link-local needs a zone id to be dialable, so it never becomes a listener. */
+function isIpv6LinkLocal(address: string): boolean {
+  return /^fe[89ab][0-9a-f]:/iu.test(address)
+}
+
+/**
+ * Teredo (2001::/32) and 6to4 (2002::/16) are transition tunnels, not the interface's
+ * own LAN address; advertising one would sign a leaf for a relay we do not control.
+ */
+function isIpv6TransitionTunnel(address: string): boolean {
+  return /^2001:0:/iu.test(address) || /^2002:/iu.test(address)
+}
+
+function ipv6PrefixLength(cidr: string): number {
+  return Number(cidr.slice(cidr.lastIndexOf('/') + 1))
+}
+
+/** Unique local addresses (fc00::/7) are the IPv6 equivalent of RFC 1918 space. */
+function isIpv6UniqueLocal(address: string): boolean {
+  return /^f[cd][0-9a-f]{2}:/iu.test(address)
+}
+
+/**
+ * Prefer a stable interface identifier over a temporary/privacy address. Linux, Android
+ * and Windows publish EUI-64 addresses with an `ff:fe` marker; RFC 4941 temporary
+ * addresses are random and rotate, which would invalidate the pinned leaf.
+ */
+function ipv6StabilityRank(address: string): number {
+  return address.toLowerCase().includes('ff:fe') ? 1 : 0
+}
+
+/**
+ * List current LAN candidates: private IPv4 first (the historical default), then every
+ * non-link-local IPv6 address on a non-virtual interface. IPv6 entries never outrank
+ * IPv4 implicitly; the administrator selects one explicitly in the setup panel.
+ */
 export function availableLanNetworks(table: InterfaceTable = networkInterfaces()): LanNetwork[] {
-  const candidates = Object.entries(table).flatMap(([name, entries]) => (entries ?? [])
+  const ipv4 = Object.entries(table).flatMap(([name, entries]) => (entries ?? [])
     .filter(entry => entry.family === 'IPv4' && !entry.internal && privateIpv4(entry.address) && entry.cidr !== null)
-    .map(entry => ({ name, address: entry.address, cidr: networkCidr(entry.address, entry.cidr!) })))
+    .map(entry => ({ name, address: entry.address, cidr: networkCidr(entry.address, entry.cidr!), family: 4 as const })))
+  const ipv6 = Object.entries(table).flatMap(([name, entries]) => (entries ?? [])
+    .filter(entry => entry.family === 'IPv6' && !entry.internal && entry.cidr !== null
+      && entry.address !== '::1' && !isIpv6LinkLocal(entry.address)
+      && !isIpv6TransitionTunnel(entry.address)
+      && ipv6PrefixLength(entry.cidr) !== 128
+      && !likelyVirtualInterface(name))
+    .map(entry => ({
+      name,
+      address: entry.address,
+      cidr: networkCidr(entry.address, entry.cidr!),
+      family: 6 as const,
+      publicAddress: !isIpv6UniqueLocal(entry.address),
+    })))
+    .sort((left, right) => Number(right.publicAddress) - Number(left.publicAddress)
+      || ipv6StabilityRank(right.address) - ipv6StabilityRank(left.address)
+      || left.address.localeCompare(right.address))
+  const candidates = [...ipv4, ...ipv6]
   return [...new Map(candidates.map(entry => [`${entry.name}\0${entry.address}`, entry])).values()]
 }
 
@@ -321,7 +391,7 @@ export function selectLanNetwork(
   const candidates = availableLanNetworks(table)
   if (requestedAddress !== undefined) {
     const match = candidates.find(candidate => candidate.address === requestedAddress)
-    if (match === undefined) throw new Error(`--address ${requestedAddress} is not an active private LAN address`)
+    if (match === undefined) throw new Error(`--address ${requestedAddress} is not an active LAN address`)
     return match
   }
   if (requestedInterface !== undefined) {
@@ -330,17 +400,45 @@ export function selectLanNetwork(
     if (matches.length === 0) {
       throw new Error(`saved LAN interface ${JSON.stringify(requestedInterface)} is not connected`)
     }
-    throw new Error(`saved LAN interface ${JSON.stringify(requestedInterface)} has more than one private IPv4 address`)
+    // A dual-stack interface normally carries one IPv4 address plus several IPv6
+    // addresses (stable, temporary). Keep the historical IPv4 choice; an IPv6 choice
+    // must come from the saved address so restarts stay deterministic.
+    const ipv4Matches = matches.filter(candidate => candidate.family === 4)
+    if (ipv4Matches.length === 1) return ipv4Matches[0]!
+    throw new Error(`saved LAN interface ${JSON.stringify(requestedInterface)} has more than one LAN address; choose one by address`)
   }
   if (candidates.length === 1) return candidates[0]!
   if (candidates.length === 0) throw new Error('no active private LAN address was found; connect to Wi-Fi or Ethernet')
   for (const name of preferredInterfaces) {
     const matches = candidates.filter(candidate => candidate.name === name)
     if (matches.length === 1) return matches[0]!
+    const ipv4Matches = matches.filter(candidate => candidate.family === 4)
+    if (ipv4Matches.length === 1) return ipv4Matches[0]!
   }
   const physicalCandidates = candidates.filter(candidate => !likelyVirtualInterface(candidate.name))
+  const physicalIpv4 = physicalCandidates.filter(candidate => candidate.family === 4)
+  if (physicalIpv4.length === 1) return physicalIpv4[0]!
   if (physicalCandidates.length === 1) return physicalCandidates[0]!
   throw new Error(`more than one LAN address is active; rerun with --address and one of: ${candidates.map(entry => `${entry.name}=${entry.address}`).join(', ')}`)
+}
+
+/**
+ * Resolve the address a saved setup should listen on and sign for.
+ *
+ * The exact saved address wins while it is still active; otherwise the interface is
+ * followed as before (DHCP renewal). Falling back is deliberate: an IPv6 privacy
+ * suffix rotates, and a stale saved address must not take the listener down.
+ */
+export function resolveSavedLanNetwork(setup: ManagedSetup, table?: InterfaceTable): LanNetwork {
+  if (setup.networkAddress !== undefined) {
+    try {
+      const saved = selectLanNetwork(setup.networkAddress, undefined, table)
+      if (saved.name === setup.networkInterface) return saved
+    } catch {
+      // The saved address is gone; follow the interface below.
+    }
+  }
+  return selectLanNetwork(undefined, setup.networkInterface, table)
 }
 
 /**
@@ -355,7 +453,9 @@ export function isNetworkSelectionError(error: unknown): boolean {
     || message.includes('no active private LAN address was found')
     || message.includes('more than one LAN address is active')
     || message.includes('has more than one private IPv4 address')
+    || message.includes('has more than one LAN address')
     || message.includes('is not an active private LAN address')
+    || message.includes('is not an active LAN address')
 }
 
 function assertMatchingCa(certPem: string, keyPem: string): X509Certificate {
@@ -596,11 +696,13 @@ export async function materializeManagedSetup(
   setup: ManagedSetup,
   table?: InterfaceTable,
 ): Promise<Record<string, unknown>> {
-  const network = selectLanNetwork(undefined, setup.networkInterface, table)
+  const network = resolveSavedLanNetwork(setup, table)
   await refreshManagedServerCertificate(setup, network.address)
   const ca = new X509Certificate(await readFile(setup.tls.caCertFile, 'utf8'))
   return {
-    publicOrigin: `https://${network.address}:${String(setup.listenPort)}`,
+    // IPv6 literals need brackets in the authority; formatHostname is the one place
+    // that decision lives, so a dual-stack address never produces an unparseable origin.
+    publicOrigin: `https://${formatHostname(network.address)}:${String(setup.listenPort)}`,
     listenHost: network.address,
     allowedCidrs: parseAdditionalTrustedNetworks([network.cidr, ...(setup.extraAllowedCidrs ?? [])]),
     instanceId: ca.fingerprint256.replaceAll(':', '').toLowerCase(),

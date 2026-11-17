@@ -21,9 +21,9 @@ When the phone and the computer are on different subnets, the source-address che
 
 ## Windows firewall is separate
 
-DSH Mobile's default Windows HTTPS / Discovery inbound rules allow only `LocalSubnet`. Saving extra CIDRs **does not update or broaden those rules**. You or your administrator must separately allow the controlled sources to reach the actual Mobile HTTPS port in Windows firewall settings.
+DSH Mobile's default Windows HTTPS / Discovery inbound rules allow only `LocalSubnet`. Saving extra CIDRs does not update or broaden those rules for IPv4. After a managed IPv6 LAN address is selected, saving IPv6 extra networks makes the plugin try to fold that prefix into its own two rules (administrator approval required).
 
-A routed network may not support LAN broadcast discovery. If the computer is not discovered, use its displayed pairing link or QR code; routing, firewall access, and the HTTPS entry must still work. Adding an IPv6 CIDR does not create an IPv6 listener.
+A routed network may not support LAN broadcast discovery. If the computer is not discovered, use its displayed pairing link or QR code; routing, firewall access, and the HTTPS entry must still work. An IPv6 listener requires choosing an IPv6 address in **Local network** setup; adding an IPv6 CIDR alone does not create one.
 
 This setting controls source access to the LAN Gateway, not source CIDRs for an external reverse proxy. Configure that separately with the [own HTTPS reverse proxy guide](SELF_HOSTED_ORIGIN.en.md). Do not expose the LAN Gateway or private HTTP backend directly to the public internet.
 

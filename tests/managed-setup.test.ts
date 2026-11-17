@@ -11,6 +11,7 @@ import {
   parseManagedSetup,
   parseAdditionalTrustedNetworks,
   refreshManagedUpstreamOrigin,
+  resolveSavedLanNetwork,
   saveManagedTrustedNetworks,
   preferredLanInterfaceNames,
   selectLanNetwork,
@@ -108,6 +109,7 @@ describe('managed DHCP setup', () => {
       name: 'WLAN',
       address: '192.168.50.23',
       cidr: '192.168.50.0/24',
+      family: 4,
     })
   })
 
@@ -145,6 +147,7 @@ describe('managed DHCP setup', () => {
       name: 'WLAN',
       address: '192.168.50.23',
       cidr: '192.168.50.0/24',
+      family: 4,
     })
   })
 
@@ -173,6 +176,7 @@ describe('managed DHCP setup', () => {
       name: 'Ethernet',
       address: '100.64.0.77',
       cidr: '100.64.0.0/10',
+      family: 4,
     }])
     for (const address of ['100.64.0.0', '100.127.255.255']) {
       expect(availableLanNetworks({ Ethernet: [interfaceEntry(address)] })).toHaveLength(1)
@@ -254,6 +258,100 @@ describe('managed DHCP setup', () => {
       },
       unexpected: true,
     })).toThrow('unsupported format')
+  })
+})
+
+function ipv6Entry(address: string, prefix = 64, internal = false) {
+  return {
+    address,
+    netmask: 'ffff:ffff:ffff:ffff::',
+    family: 'IPv6' as const,
+    mac: '00:00:00:00:00:00',
+    internal,
+    cidr: `${address}/${String(prefix)}`,
+    scopeid: 0,
+  }
+}
+
+describe('managed IPv6 LAN setup', () => {
+  const STABLE_V6 = '240c:ca04:2401:283f:c15:dfff:fe88:549'
+  const TEMPORARY_V6 = '240c:ca04:2401:283f:1234:5678:9abc:def0'
+  const ULA_V6 = 'fd12:3456:789a::5'
+
+  it('offers IPv6 after IPv4 and skips link-local, loopback and missing prefixes', () => {
+    const networks = availableLanNetworks({
+      WLAN: [
+        interfaceEntry('172.24.224.105', 16),
+        ipv6Entry(STABLE_V6),
+        ipv6Entry(TEMPORARY_V6),
+        ipv6Entry('fe80::c15:dfff:fe88:549'),
+        ipv6Entry('::1', 128, true),
+        ipv6Entry(ULA_V6),
+      ],
+    })
+    expect(networks.map(entry => entry.address)).toEqual([
+      '172.24.224.105',
+      STABLE_V6,
+      TEMPORARY_V6,
+      ULA_V6,
+    ])
+    expect(networks[1]).toMatchObject({
+      family: 6,
+      cidr: '240c:ca04:2401:283f::/64',
+      publicAddress: true,
+    })
+    expect(networks[3]).toMatchObject({ family: 6, cidr: 'fd12:3456:789a::/64', publicAddress: false })
+  })
+
+  it('excludes transition tunnels, virtual adapters and /128 privacy suffixes', () => {
+    const networks = availableLanNetworks({
+      WLAN: [ipv6Entry(STABLE_V6), ipv6Entry('240c:ca04:2401:283f:edcd:4422:b56:973a', 128)],
+      'Teredo Tunneling Pseudo-Interface': [ipv6Entry('2001:0:14c9:d502:3c66:167e:39ed:fffe')],
+      'Radmin VPN': [ipv6Entry('fdfd::1ad0:dcc')],
+      '6to4 Adapter': [ipv6Entry('2002:c0a8:0101::1', 48)],
+    })
+    expect(networks.map(entry => entry.address)).toEqual([STABLE_V6])
+  })
+
+  it('keeps IPv4 as the dual-stack default and selects IPv6 only by exact address', () => {
+    const table = {
+      WLAN: [interfaceEntry('172.24.224.105', 16), ipv6Entry(STABLE_V6)],
+    }
+    expect(selectLanNetwork(undefined, 'WLAN', table)).toMatchObject({ address: '172.24.224.105', family: 4 })
+    expect(selectLanNetwork(STABLE_V6, undefined, table)).toMatchObject({ address: STABLE_V6, family: 6 })
+  })
+
+  it('follows the saved IPv6 address and falls back to the interface when it rotates', async () => {
+    const setup = { ...await fixture(), networkInterface: 'WLAN', networkAddress: STABLE_V6 }
+    expect(resolveSavedLanNetwork(setup, {
+      WLAN: [interfaceEntry('172.24.224.105', 16), ipv6Entry(STABLE_V6), ipv6Entry(TEMPORARY_V6)],
+    }).address).toBe(STABLE_V6)
+    // The privacy suffix rotated away: follow the interface instead of failing closed.
+    expect(resolveSavedLanNetwork(setup, {
+      WLAN: [interfaceEntry('172.24.224.105', 16), ipv6Entry(TEMPORARY_V6)],
+    }).address).toBe('172.24.224.105')
+  })
+
+  it('materializes a bracketed IPv6 origin and signs a leaf for it', async () => {
+    const setup = { ...await fixture(), networkInterface: 'WLAN', networkAddress: STABLE_V6 }
+    await ensureManagedCa(setup.tls)
+    const config = await materializeManagedSetup(setup, {
+      WLAN: [interfaceEntry('172.24.224.105', 16), ipv6Entry(STABLE_V6)],
+    })
+    expect(config).toMatchObject({
+      publicOrigin: `https://[${STABLE_V6}]:3443`,
+      listenHost: STABLE_V6,
+      allowedCidrs: ['240c:ca04:2401:283f::/64'],
+    })
+    const leaf = new X509Certificate(await readFile(setup.tls.certFile, 'utf8'))
+    expect(leaf.checkIP(STABLE_V6)).toBe(STABLE_V6)
+  })
+
+  it('persists a valid networkAddress and rejects a non-literal one', async () => {
+    const setup = await fixture()
+    expect(parseManagedSetup({ ...setup, networkAddress: STABLE_V6 }).networkAddress).toBe(STABLE_V6)
+    expect(() => parseManagedSetup({ ...setup, networkAddress: 'wlan0' })).toThrow('IP literal')
+    expect(() => parseManagedSetup({ ...setup, networkAddress: '' })).toThrow('IP literal')
   })
 })
 

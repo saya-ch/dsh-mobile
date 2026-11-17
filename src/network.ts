@@ -69,6 +69,45 @@ function parseIp(address: string): { bits: 32 | 128; value: bigint } {
   throw new Error(`invalid IP address ${JSON.stringify(address)}`)
 }
 
+/** Canonical lowercase IPv6 text: the longest zero run of two or more groups becomes `::`. */
+export function formatIpv6(value: bigint): string {
+  const groups = Array.from({ length: 8 }, (_, index) => Number((value >> BigInt((7 - index) * 16)) & 0xffffn))
+  let bestStart = -1
+  let bestLength = 0
+  for (let index = 0; index < groups.length;) {
+    if (groups[index] !== 0) { index += 1; continue }
+    let end = index
+    while (end < groups.length && groups[end] === 0) end += 1
+    if (end - index > bestLength) { bestStart = index; bestLength = end - index }
+    index = end
+  }
+  const text = (from: number, to: number): string => groups.slice(from, to).map(group => group.toString(16)).join(':')
+  if (bestLength < 2) return text(0, 8)
+  return `${bestStart === 0 ? '' : text(0, bestStart)}::${bestStart + bestLength === 8 ? '' : text(bestStart + bestLength, 8)}`
+}
+
+/**
+ * Normalize an interface address plus its prefix length into a canonical network CIDR.
+ *
+ * Operating systems report the address (host bits set) rather than the network, so a
+ * CIDR parser that rejects host bits cannot be used directly. Both address families
+ * go through the same masking path; the family is taken from the address itself.
+ */
+export function networkCidrFor(address: string, prefix: number): string {
+  const parsed = parseIp(address)
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > parsed.bits) {
+    throw new Error(`invalid prefix ${String(prefix)} for ${JSON.stringify(address)}`)
+  }
+  const hostBits = BigInt(parsed.bits - prefix)
+  const mask = hostBits === BigInt(parsed.bits) ? 0n : ((1n << BigInt(parsed.bits)) - 1n) ^ ((1n << hostBits) - 1n)
+  const network = parsed.value & mask
+  return `${parsed.bits === 32 ? formatIpv4(network) : formatIpv6(network)}/${String(prefix)}`
+}
+
+function formatIpv4(value: bigint): string {
+  return [24n, 16n, 8n, 0n].map(shift => Number((value >> shift) & 0xffn)).join('.')
+}
+
 /** Parse and canonicalize one IPv4 or IPv6 CIDR. */
 export function parseCidr(source: string): ParsedCidr {
   const slash = source.lastIndexOf('/')

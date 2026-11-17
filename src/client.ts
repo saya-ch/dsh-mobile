@@ -2319,7 +2319,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     for (const network of networks) {
       if (typeof network.address !== 'string' || typeof network.name !== 'string') continue
       const option = element('option'); option.value = network.address
-      option.textContent = `${network.name} · ${network.address}${network.recommended === true ? ` · ${t('lanSetupRecommended')}` : ''}`
+      const family = network.family === 6 ? 'IPv6' : ''
+      const exposure = network.publicAddress === true ? t('lanSetupPublicIpv6') : ''
+      const tags = [family, exposure, network.recommended === true ? t('lanSetupRecommended') : ''].filter(Boolean)
+      option.textContent = `${network.name} · ${network.address}${tags.length === 0 ? '' : ` · ${tags.join(' · ')}`}`
       option.selected = network.recommended === true || (!hasRecommended && networks.length === 1)
       lanSetupSelect.append(option)
     }
@@ -2370,8 +2373,12 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       const address = typeof network.address === 'string' ? network.address : ''
       if (name === '') continue
       const option = element('option')
-      option.value = name
-      option.textContent = `${name} · ${address}${network.current === true ? ` · ${t('lanChangeCurrent')}` : ''}`
+      option.value = address
+      option.dataset.interfaceName = name
+      const family = network.family === 6 ? 'IPv6' : ''
+      const exposure = network.publicAddress === true ? t('lanSetupPublicIpv6') : ''
+      const tags = [family, exposure, network.current === true ? t('lanChangeCurrent') : ''].filter(Boolean)
+      option.textContent = `${name} · ${address}${tags.length === 0 ? '' : ` · ${tags.join(' · ')}`}`
       if (network.current === true) option.selected = true
       lanChangeSelect.append(option)
     }
@@ -2401,7 +2408,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     lanChangeStatus.textContent = t('lanChangeBusy')
     void controlRequestJson('/api/mobile-access/lan/rebind', {
       method: 'POST',
-      body: JSON.stringify({ networkInterface: lanChangeSelect.value }),
+      body: JSON.stringify({
+        networkInterface: lanChangeSelect.selectedOptions[0]?.dataset.interfaceName ?? '',
+        address: lanChangeSelect.value,
+      }),
     }, LONG_CONTROL_REQUEST_TIMEOUT_MS).then(async data => {
       if (lifecycle.signal.aborted) return
       lanChangeStatus.textContent = data.disconnected === true && data.ready === true ? t('lanChangeOkDisconnected') : t('lanChangeOk')

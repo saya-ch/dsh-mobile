@@ -503,8 +503,8 @@ async function managedSetupFile(upstreamOrigin: string): Promise<string> {
 describe('managed LAN rebind HTTP route', () => {
   it('blocks enabling an uncertain configuration until an explicit successful rebind', async () => {
     const networks = [
-      { name: 'unused-while-disabled', address: '10.0.0.5', cidr: '10.0.0.0/24' },
-      { name: 'Ethernet', address: '10.1.0.5', cidr: '10.1.0.0/24' },
+      { name: 'unused-while-disabled', address: '10.0.0.5', cidr: '10.0.0.0/24', family: 4 as const },
+      { name: 'Ethernet', address: '10.1.0.5', cidr: '10.1.0.0/24', family: 4 as const },
     ]
     vi.spyOn(managedSetup, 'availableLanNetworks').mockReturnValue(networks)
     vi.spyOn(managedSetup, 'selectLanNetwork').mockImplementation((_address, name) => {
@@ -532,8 +532,8 @@ describe('managed LAN rebind HTTP route', () => {
 
   it('preserves stopped state and trusted networks through repeated changes and returns the current interface', async () => {
     const networks = [
-      { name: 'unused-while-disabled', address: '10.0.0.5', cidr: '10.0.0.0/24' },
-      { name: 'Ethernet', address: '10.1.0.5', cidr: '10.1.0.0/24' },
+      { name: 'unused-while-disabled', address: '10.0.0.5', cidr: '10.0.0.0/24', family: 4 as const },
+      { name: 'Ethernet', address: '10.1.0.5', cidr: '10.1.0.0/24', family: 4 as const },
     ]
     vi.spyOn(managedSetup, 'availableLanNetworks').mockReturnValue(networks)
     vi.spyOn(managedSetup, 'preferredLanInterfaceNames').mockResolvedValue([])

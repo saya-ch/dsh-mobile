@@ -31,6 +31,35 @@ describe('managed LAN setup', () => {
     expect(() => windowsFirewallSetupScript(443)).toThrow(/Windows firewall port/)
   })
 
+  it('adds explicitly trusted IPv6 prefixes to the same rule scope', () => {
+    const script = windowsFirewallSetupScript(3443, ['240c:ca04:2401::/48'])
+    expect(script).toContain('-RemoteAddress LocalSubnet,240c:ca04:2401::/48')
+    expect(script).toContain("$expectedScope = @('LocalSubnet','240c:ca04:2401::/48')")
+    expect(() => windowsFirewallSetupScript(3443, ['not-a-cidr'])).toThrow(/invalid CIDR/)
+  })
+
+  it('prepares an IPv6 listener with a bracketed origin and its saved address', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-lan-setup-v6-'))
+    directories.push(directory)
+    const setupFile = join(directory, 'setup.json')
+    const address = '240c:ca04:2401:283f:c15:dfff:fe88:549'
+    const result = await prepareManagedLanSetup({
+      setupFile,
+      controlFile: join(directory, 'control.json'),
+      network: { name: 'WLAN', address, cidr: '240c:ca04:2401:283f::/64', family: 6, publicAddress: true },
+      listenPort: 3443,
+      dshPort: 43120,
+      configureFirewall: false,
+    })
+    expect(result.origin).toBe(`https://[${address}]:3443`)
+    expect(parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))).toMatchObject({
+      networkInterface: 'WLAN',
+      networkAddress: address,
+    })
+    const server = new X509Certificate(await readFile(result.setup.tls.certFile, 'utf8'))
+    expect(server.checkIP(address)).toBe(address)
+  })
+
   it('creates private TLS material and an enabled restart state after explicit confirmation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-lan-setup-'))
     directories.push(directory)
@@ -39,7 +68,7 @@ describe('managed LAN setup', () => {
     const result = await prepareManagedLanSetup({
       setupFile,
       controlFile,
-      network: { name: 'Wi-Fi', address: '192.168.50.8', cidr: '192.168.50.0/24' },
+      network: { name: 'Wi-Fi', address: '192.168.50.8', cidr: '192.168.50.0/24', family: 4 },
       listenPort: 3443,
       dshPort: 43120,
       configureFirewall: false,
@@ -70,7 +99,7 @@ describe('managed LAN setup', () => {
     await expect(prepareManagedLanSetup({
       setupFile: 'setup.json',
       controlFile: 'control.json',
-      network: { name: 'Wi-Fi', address: '192.168.50.8', cidr: '192.168.50.0/24' },
+      network: { name: 'Wi-Fi', address: '192.168.50.8', cidr: '192.168.50.0/24', family: 4 },
       listenPort: 443,
       dshPort: 3080,
       configureFirewall: false,
@@ -81,7 +110,7 @@ describe('managed LAN setup', () => {
     await expect(prepareManagedLanSetup({
       setupFile: join(directory, 'setup.json'),
       controlFile: join(directory, 'control.json'),
-      network: { name: 'Wi-Fi', address: '192.168.50.8', cidr: '192.168.50.0/24' },
+      network: { name: 'Wi-Fi', address: '192.168.50.8', cidr: '192.168.50.0/24', family: 4 },
       listenPort: 443,
       dshPort: 3080,
       configureFirewall: false,

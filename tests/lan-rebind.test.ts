@@ -17,7 +17,7 @@ describe('managed LAN rebind', () => {
     const setupFile = join(directory, 'setup.json')
     const controlFile = join(directory, 'control.json')
     const first = await prepareManagedLanSetup({ setupFile, controlFile,
-      network: { name: 'old', address: '10.0.0.5', cidr: '10.0.0.0/24' }, listenPort: 3443, dshPort: 3080, configureFirewall: false })
+      network: { name: 'old', address: '10.0.0.5', cidr: '10.0.0.0/24', family: 4 }, listenPort: 3443, dshPort: 3080, configureFirewall: false })
     let stops = 0
     const controller = new MobileAccessGatewayController(new JsonMobileAccessControlStore(controlFile, true), async () => ({ close: async () => { stops++ } }))
     await controller.initialize()
@@ -25,7 +25,7 @@ describe('managed LAN rebind', () => {
     await writeFile(first.setup.tls.caKeyFile, 'unreadable-key')
     try {
       await expect(rebindManagedLan({ setupFile, controller,
-        network: { name: 'new', address: '10.1.0.5', cidr: '10.1.0.0/24' }, publish: () => { throw new Error('Unexpected publication') } }))
+        network: { name: 'new', address: '10.1.0.5', cidr: '10.1.0.0/24', family: 4 }, publish: () => { throw new Error('Unexpected publication') } }))
         .rejects.toMatchObject({ name: 'ManagedLanConfigurationError' })
       expect(stops).toBe(0)
       expect(controller.isRunning()).toBe(true)
@@ -44,7 +44,7 @@ describe('managed LAN rebind', () => {
     const first = await prepareManagedLanSetup({
       setupFile,
       controlFile,
-      network: { name: 'Wi-Fi', address: '10.0.0.5', cidr: '10.0.0.0/24' },
+      network: { name: 'Wi-Fi', address: '10.0.0.5', cidr: '10.0.0.0/24', family: 4 },
       listenPort: 3443,
       dshPort: 3080,
       configureFirewall: false,
@@ -61,7 +61,7 @@ describe('managed LAN rebind', () => {
     const second = await rebindManagedLan({
       setupFile,
       controller,
-      network: { name: 'Ethernet', address: '10.0.0.9', cidr: '10.0.0.0/24' },
+      network: { name: 'Ethernet', address: '10.0.0.9', cidr: '10.0.0.0/24', family: 4 },
       publish: () => {},
     })
     await controller.close()
