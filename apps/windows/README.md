@@ -65,7 +65,7 @@ dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
 dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 ```
 
-无需 Rust/Android 工具链：iroh 传输复用官方发布的 sidecar，**二进制不进仓库**。pin 的权威值在 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`；`SidecarProvisioner` 硬编码同值，`sidecar/manifest.json` 只是镜像，三处没有机器校验（升级上游 pin 时需同步）。首次 iroh 连接时按固定 URL 下载并按字节数 + SHA-256 校验；若本机插件把同一副本装在默认 `~/.dsh/mobile-access/components/iroh/<version>/`，则直接复用（自定义 DSH home 不复用，回退为联网下载）。每次启动 sidecar 进程前都会重新校验，哈希不符拒绝启动。
+无需 Rust/Android 工具链：iroh 传输复用官方发布的组件，**组件本身不进仓库**。首次 iroh 连接时按固定地址下载并校验大小和 SHA-256；如果电脑上已有插件装好的同一份副本，会直接复用。每次启动组件前都会重新校验，对不上就拒绝启动。
 
 `.github/workflows/windows-client.yml` 在 `windows-latest` 上先 restore 测试项目，再以 `--no-restore` 构建主项目并运行测试（效果等价于上面的 restore/build/test），只覆盖源码构建与纯逻辑单测；不产出发布包，也不做 WebView2/真机验收。该 job 是否被设为 required check 由维护者在 GitHub 分支保护中配置，仓库内无法体现。依赖取自 NuGet 默认源（nuget.org）。若所处网络访问较慢，请在**用户级**加镜像而不是改仓库配置：`dotnet nuget add source <镜像地址> -n <名称>`。
 
