@@ -66,7 +66,7 @@ internal static class GatewayAuth
         using var ssl = await ConnectAsync(device, bootstrap: true, token);
         await ssl.WriteAsync(Encoding.ASCII.GetBytes(head), token);
         await ssl.FlushAsync(token);
-        var raw = await ReadResponseAsync(ssl, token, MaxCaBytes * 4);
+        var raw = await ReadHttpResponseAsync(ssl, token, MaxCaBytes * 4);
         var headerEnd = HeaderEnd(raw);
         if (headerEnd < 0) throw new InvalidOperationException("invalid ca.cer HTTP response");
         var headers = Encoding.ASCII.GetString(raw, 0, headerEnd);
@@ -180,7 +180,7 @@ internal static class GatewayAuth
         await ssl.WriteAsync(body, token);
         await ssl.FlushAsync(token);
 
-        var raw = await ReadResponseAsync(ssl, token, MaxResponseBytes);
+        var raw = await ReadHttpResponseAsync(ssl, token, MaxResponseBytes);
         return ParseHttpResponse(raw, device.InstanceId, requireDeviceCredential);
     }
 
@@ -211,7 +211,64 @@ internal static class GatewayAuth
         }
     }
 
-    private static async Task<byte[]> ReadResponseAsync(Stream stream, CancellationToken token, int maxBytes)
+    /// Opens GET /mobile-access/background-events and returns the TLS stream
+    /// positioned at the SSE body. The caller reads the stream until the
+    /// server closes it or the token cancels. Throws with the gateway error
+    /// code when the session is rejected (revoked/expired must stop the
+    /// watcher; anything else may back off and retry).
+    internal static async Task<SslStream> OpenEventStreamAsync(
+        SavedDevice device, string sessionToken, CancellationToken ct)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        var token = deadline.Token;
+
+        var ssl = device.Channel == "iroh"
+            ? await ConnectLoopbackAsync(device, token)
+            : await ConnectAsync(device, bootstrap: false, token);
+        try
+        {
+            var cookie = $"dsh_ma_session={sessionToken}; __Host-dsh_ma_session={sessionToken}";
+            var head = "GET /mobile-access/background-events HTTP/1.1\r\n" +
+                       $"Host: {UrlPairing.HostHeader(device.Hostname, device.LocalPort)}\r\n" +
+                       "Accept: text/event-stream\r\n" +
+                       $"Cookie: {cookie}\r\n" +
+                       "Connection: close\r\n\r\n";
+            await ssl.WriteAsync(Encoding.ASCII.GetBytes(head), token);
+            await ssl.FlushAsync(token);
+            var rawHead = await ReadHttpHeadAsync(ssl, token, MaxCaBytes);
+            var statusLine = Encoding.ASCII.GetString(rawHead).Split("\r\n")[0];
+            var parts = statusLine.Split(' ');
+            if (parts.Length < 2 || !int.TryParse(parts[1], out var status) || status != 200)
+                throw new InvalidOperationException($"background events rejected: {statusLine.Trim()}");
+            return ssl;
+        }
+        catch
+        {
+            ssl.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>Reads an HTTP response head (up to the blank line).</summary>
+    internal static async Task<byte[]> ReadHttpHeadAsync(Stream stream, CancellationToken token, int maxBytes)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[1024];
+        while (buffer.Length < maxBytes)
+        {
+            var read = await stream.ReadAsync(chunk, token);
+            if (read == 0) break;
+            buffer.Write(chunk, 0, read);
+            if (HeaderEnd(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)) >= 0) break;
+        }
+        var raw = buffer.ToArray();
+        if (HeaderEnd(raw) < 0) throw new InvalidOperationException("invalid HTTP response head");
+        return raw;
+    }
+
+    /// <summary>Raw HTTP response bytes; shared with LanDiscovery probes.</summary>
+    internal static async Task<byte[]> ReadHttpResponseAsync(Stream stream, CancellationToken token, int maxBytes)
     {
         using var buffer = new MemoryStream();
         var chunk = new byte[4096];

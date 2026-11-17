@@ -14,6 +14,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check iroh sidecar pin across plugin, client and manifest
+        run: node scripts/check-windows-sidecar-pin.mjs
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x

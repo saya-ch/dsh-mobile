@@ -88,4 +88,74 @@ public class DeviceStoreTests
         var device = Direct(der, "not-a-hex-id", requiresCa: true);
         Assert.Throws<FormatException>(() => device.Validate());
     }
+
+    [Fact]
+    public void AdoptNewOrigin_KeepsName_ReplacesNetworkFields()
+    {
+        const string instance = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var old = SavedDevice.FromUrlPairing(UrlPairing.Parse(
+            $"https://old.example:3443/mobile-access/pair#instance={instance}&token={new string('A', 43)}"));
+        old.Name = "我的电脑";
+        old.SetDeviceToken("old-token");
+        old.CaDerBase64 = "AA==";
+
+        var adopted = old.AdoptNewOrigin(UrlPairing.Parse(
+            $"https://new.example:8443/mobile-access/pair#instance={instance}&token={new string('B', 43)}"));
+
+        Assert.Equal("我的电脑", adopted.Name);
+        Assert.Equal("new.example", adopted.Hostname);
+        Assert.Equal("https://new.example:8443", adopted.Origin);
+        Assert.Equal(8443, adopted.LocalPort);
+        Assert.Equal(instance, adopted.InstanceId);
+        // The old pin and token must not survive the move.
+        Assert.Equal(string.Empty, adopted.CaDerBase64);
+        Assert.Equal(string.Empty, adopted.ProtectedDeviceToken);
+        Assert.Equal(instance, adopted.EndpointId);
+        Assert.Equal(old.PairedAt, adopted.PairedAt);
+    }
+
+    [Fact]
+    public void AdoptNewOrigin_RefusesToDropThePinnedCaRequirement()
+    {
+        // Following a dsh1/legacy link must not move a pinned computer onto platform trust:
+        // the pin is the trust anchor for the whole record.
+        const string instance = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var pinned = SavedDevice.FromUrlPairing(UrlPairing.Parse(
+            $"https://old.example:3443/mobile-access/pair#instance={instance}&token={new string('A', 43)}"));
+        pinned.RequiresCa = true;
+        pinned.CaDerBase64 = "AA==";
+
+        var legacyLink = UrlPairing.Parse(
+            $"https://new.example:8443/mobile-access/pair#instance={instance}&token={new string('B', 43)}");
+        Assert.False(legacyLink.RequiresCa);
+        Assert.Throws<FormatException>(() => pinned.AdoptNewOrigin(legacyLink));
+    }
+
+    [Fact]
+    public void AdoptNewOrigin_KeepsTheCaRequirementWhenTheNewLinkAsksForOne()
+    {
+        const string instance = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var unpinned = SavedDevice.FromUrlPairing(UrlPairing.Parse(
+            $"https://old.example:3443/mobile-access/pair#instance={instance}&token={new string('A', 43)}"));
+        Assert.False(unpinned.RequiresCa);
+
+        var dsh2 = UrlPairing.Parse(
+            $"https://new.example:8443/mobile-access/pair#key=dsh2.{instance}.{new string('B', 43)}");
+        Assert.True(dsh2.RequiresCa);
+
+        var adopted = unpinned.AdoptNewOrigin(dsh2);
+        Assert.True(adopted.RequiresCa);
+        Assert.False(adopted.PlatformTrust);
+    }
+
+    [Fact]
+    public void AdoptNewOrigin_RejectsDifferentComputer()
+    {
+        const string instance = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var old = SavedDevice.FromUrlPairing(UrlPairing.Parse(
+            $"https://old.example:3443/mobile-access/pair#instance={instance}&token={new string('A', 43)}"));
+        var other = UrlPairing.Parse(
+            $"https://new.example:8443/mobile-access/pair#instance={new string('b', 64)}&token={new string('B', 43)}");
+        Assert.Throws<FormatException>(() => old.AdoptNewOrigin(other));
+    }
 }
