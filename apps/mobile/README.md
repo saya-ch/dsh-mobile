@@ -61,6 +61,8 @@ A new default app icon: the DSH whale-girl mascot holding a phone. **Device list
 
 The Tailscale pairing failure now names the same-tailnet case: when a `.ts.net` address stays unreachable, the message explains that a phone on the same tailnet cannot pair through the Funnel entry (closed to tailnet-internal traffic by design) and points at turning Tailscale off, using mobile data, or pairing over the LAN address; a phone outside the tailnet keeps the existing VPN/proxy/DNS guidance.
 
+**Check for updates** can now finish the upgrade inside the App: tapping Update downloads the matching build (full and compatibility builds never cross lanes) and hands it to the system installer only after the SHA-256 check passes. On Android 8 and later the one-time “install unknown apps” grant is requested first; coming back from Settings resumes the download automatically. A failed verification deletes the file and offers a retry, and the browser download page stays as a fallback.
+
 Both APKs keep the established signer and upgrade in place with existing pairings preserved.
 
 ## 0.7.5 update

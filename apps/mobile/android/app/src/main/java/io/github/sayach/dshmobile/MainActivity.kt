@@ -432,6 +432,15 @@ class MainActivity : Activity() {
         window.decorView.requestApplyInsets()
         if (deviceListVisible && showingSetup) refreshDeviceStatuses(pairedDeviceStore.load())
         startIrohStatusMonitor()
+        // Back from the unknown-sources Settings screen: if the grant is now in place,
+        // resume the pending in-app download instead of making the user tap through again.
+        // A denial simply clears the pending update; the next manual check starts over.
+        pendingUpdateAfterSettings?.let { pending ->
+            pendingUpdateAfterSettings = null
+            if (AppUpdateInstaller.canInstallUnknownApps(this)) {
+                startInAppUpdate(pending)
+            }
+        }
         // An opt-in kept through a temporary stop (a package replacement, a background-start
         // restriction, a spent foreground budget) is retried when the user is back in the app,
         // so the feature recovers without another package launch and without toggling it (#442).
@@ -2163,18 +2172,160 @@ class MainActivity : Activity() {
                         .setPositiveButton(R.string.retry) { _, _ -> checkForAppUpdate() }
                         .setNegativeButton(R.string.cancel, null)
                         .show()
-                    AppUpdatePolicy.isNewer(published, BuildConfig.VERSION_CODE) -> AlertDialog.Builder(this)
-                        .setTitle(R.string.update_available_title)
-                        .setMessage(getString(R.string.update_available_message, published.version, BuildConfig.VERSION_NAME))
-                        .setPositiveButton(R.string.update_now) { _, _ ->
-                            openExternal(Uri.parse(AppUpdatePolicy.releasePageUrl(published.releaseTag)))
-                        }
-                        .setNegativeButton(R.string.cancel, null)
-                        .show()
+                    AppUpdatePolicy.isNewer(published, BuildConfig.VERSION_CODE) -> showUpdateAvailable(published)
                     else -> Toast.makeText(this, R.string.update_up_to_date, Toast.LENGTH_SHORT).show()
                 }
             }
         }.start()
+    }
+
+    private var updateDownloadInFlight = false
+    private var updateDownloadCancel = AtomicBoolean(false)
+    private var updateProgressDialog: AlertDialog? = null
+    private var pendingUpdateAfterSettings: AppUpdateInfo? = null
+
+    /**
+     * Offers the in-app path first (download the verified APK and hand it to the
+     * package installer) and keeps the browser download page as an explicit fallback.
+     */
+    private fun showUpdateAvailable(published: AppUpdateInfo) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.update_available_title)
+            .setMessage(getString(R.string.update_available_message, published.version, BuildConfig.VERSION_NAME))
+            .setPositiveButton(R.string.update_now) { _, _ -> startInAppUpdate(published) }
+            .setNeutralButton(R.string.update_open_page) { _, _ ->
+                openExternal(Uri.parse(AppUpdatePolicy.releasePageUrl(published.releaseTag)))
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Downloads the exact release asset for this build lane and installs it after a
+     * SHA-256 check against the published sidecar. Android 8+ needs the unknown-sources
+     * grant first: the check sends the user to Settings and resumes automatically.
+     */
+    private fun startInAppUpdate(published: AppUpdateInfo) {
+        if (updateDownloadInFlight) return
+        if (!AppUpdateInstaller.canInstallUnknownApps(this)) {
+            pendingUpdateAfterSettings = published
+            AlertDialog.Builder(this)
+                .setTitle(R.string.update_install_blocked)
+                .setMessage(R.string.update_install_blocked_message)
+                .setPositiveButton(R.string.update_open_settings) { _, _ ->
+                    try {
+                        startActivity(AppUpdateInstaller.unknownSourcesIntent(this))
+                    } catch (_: Exception) {
+                        pendingUpdateAfterSettings = null
+                        Toast.makeText(this, R.string.update_check_failed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton(R.string.cancel) { _, _ -> pendingUpdateAfterSettings = null }
+                .setOnCancelListener { pendingUpdateAfterSettings = null }
+                .show()
+            return
+        }
+        pendingUpdateAfterSettings = null
+        // Stay on the same build lane: a full (iroh) install must not update into the
+        // compatibility APK and vice versa, or an ABI the device needs could disappear.
+        val irohFull = runCatching { IrohNative.loadIfAvailable() }.getOrDefault(false)
+        val asset = AppUpdateInstaller.apkAssetName(published.version, irohFull)
+        val apkUrl = AppUpdateInstaller.apkUrl(published.releaseTag, asset)
+        updateDownloadInFlight = true
+        updateDownloadCancel.set(false)
+        val bar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            isIndeterminate = true
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val margin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20f, resources.displayMetrics).toInt()
+            setPadding(margin, margin / 2, margin, 0)
+            addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        updateProgressDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.update_downloading_title)
+            .setView(container)
+            .setNegativeButton(R.string.cancel) { _, _ -> updateDownloadCancel.set(true) }
+            .setOnCancelListener { updateDownloadCancel.set(true) }
+            .show()
+        Thread {
+            try {
+                val expectedSha = AppUpdateInstaller.fetchExpectedSha256(apkUrl, asset)
+                val downloaded = AppUpdateInstaller.download(
+                    apkUrl = apkUrl,
+                    expectedSha256 = expectedSha,
+                    version = published.version,
+                    targetDir = File(cacheDir, AppUpdateInstaller.UPDATE_SUBDIR),
+                    onProgress = { read, total ->
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            if (total > 0) {
+                                bar.isIndeterminate = false
+                                bar.progress = ((read * 100L) / total).toInt().coerceIn(0, 100)
+                            }
+                        }
+                    },
+                    cancelled = updateDownloadCancel,
+                )
+                runOnUiThread {
+                    updateDownloadInFlight = false
+                    updateProgressDialog?.dismiss()
+                    updateProgressDialog = null
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    Toast.makeText(this, R.string.update_installing, Toast.LENGTH_LONG).show()
+                    try {
+                        startActivity(AppUpdateInstaller.installIntent(this, downloaded.apkFile))
+                    } catch (_: Exception) {
+                        showUpdateDownloadFailed(getString(R.string.update_reason_network), published)
+                    }
+                }
+            } catch (error: UpdateDownloadError.Cancelled) {
+                runOnUiThread { finishUpdateDownload() }
+            } catch (error: UpdateDownloadError.HashMismatch) {
+                runOnUiThread {
+                    finishUpdateDownload()
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    AlertDialog.Builder(this)
+                        .setTitle(R.string.update_download_failed)
+                        .setMessage(R.string.update_hash_mismatch_message)
+                        .setPositiveButton(R.string.retry) { _, _ -> startInAppUpdate(published) }
+                        .setNeutralButton(R.string.update_open_page) { _, _ ->
+                            openExternal(Uri.parse(AppUpdatePolicy.releasePageUrl(published.releaseTag)))
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .show()
+                }
+            } catch (error: UpdateDownloadError) {
+                val reason = when (error) {
+                    is UpdateDownloadError.TooLarge -> getString(R.string.update_reason_large)
+                    else -> getString(R.string.update_reason_network)
+                }
+                runOnUiThread {
+                    finishUpdateDownload()
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    showUpdateDownloadFailed(reason, published)
+                }
+            }
+        }.start()
+    }
+
+    private fun finishUpdateDownload() {
+        updateDownloadInFlight = false
+        updateProgressDialog?.dismiss()
+        updateProgressDialog = null
+    }
+
+    private fun showUpdateDownloadFailed(reason: String, published: AppUpdateInfo) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.update_download_failed)
+            .setMessage(getString(R.string.update_download_failed_message, reason))
+            .setPositiveButton(R.string.retry) { _, _ -> startInAppUpdate(published) }
+            .setNeutralButton(R.string.update_open_page) { _, _ ->
+                openExternal(Uri.parse(AppUpdatePolicy.releasePageUrl(published.releaseTag)))
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun showLaunchSettings() {

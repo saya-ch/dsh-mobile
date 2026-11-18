@@ -12,6 +12,10 @@
          at install, while RECORD_AUDIO still controls microphone access. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- In-app update: installing the verified APK downloaded from the release
+         page. Android 8+ asks the user once on first use; the check dialog
+         sends them to Settings and resumes the download when they return. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-feature
