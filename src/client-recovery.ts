@@ -66,6 +66,7 @@ interface RecoveryPage extends EventTarget {
  * @param onRejected - receives the rejection signal, so a caller that observes a
  * 401 can ask this same owner for one renewal instead of starting its own.
  * @param onRenewed - refresh read-only customization after confirmed Cookie installation.
+ * @param onReconnected - revalidate customization after a visible transport recovery.
  * @returns An awaited disposer, or nothing when no public connection is present.
  */
 export function installMobileConnectionRecovery(
@@ -74,6 +75,7 @@ export function installMobileConnectionRecovery(
   document: Document,
   onRejected?: (rejected: (status: number) => void, retry: () => boolean) => void,
   onRenewed?: () => void,
+  onReconnected?: () => void,
 ): (() => Promise<void>) | undefined {
   const connection = getConnection()
   const state = connection?.state
@@ -82,6 +84,7 @@ export function installMobileConnectionRecovery(
   let disposed = false
   let generation = 0
   let currentState = state.getSnapshot()
+  let hasConnected = currentState === 'connected'
   let downSince = isDisconnected(currentState) ? Date.now() : undefined
   let attempted = false
   let credentialsRejected = false
@@ -101,6 +104,11 @@ export function installMobileConnectionRecovery(
   }
   const updateState = (): void => {
     const next = state.getSnapshot()
+    // A released Connection loop can report undefined before its replacement
+    // connects. Revalidate after that gap without treating it as an auth outage.
+    const reconnected = next === 'connected' && currentState !== 'connected'
+      && (hasConnected || isDisconnected(currentState))
+    if (next === 'connected') hasConnected = true
     if (!isDisconnected(next)) {
       downSince = undefined
       // A transport that *became* connected again clears the rejection evidence,
@@ -119,6 +127,7 @@ export function installMobileConnectionRecovery(
       attempted = false
     }
     currentState = next
+    if (reconnected && document.visibilityState === 'visible' && current()) onReconnected?.()
   }
   const updateBridge = (): void => {
     const next = page.__DSH_MOBILE_NATIVE__

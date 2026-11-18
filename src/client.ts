@@ -4850,11 +4850,13 @@ export function startExtensionChangeStream(
   onTaskEvent?: (payload: unknown) => void,
   onDeviceRevoked?: () => void,
   initiallyEnabled = true,
+  onReopened?: () => void,
 ): (() => void) & { setEnabled(enabled: boolean): void } {
   let source: ReturnType<ExtensionEventRuntime['create']> | undefined
   let timer: number | undefined
   let disposed = false
   let enabled = initiallyEnabled
+  let interrupted = false
   let retryMs = 1_000
   const clearTimer = (): void => {
     if (timer === undefined) return
@@ -4867,7 +4869,13 @@ export function startExtensionChangeStream(
     const next = runtime.create('/mobile-access/extensions/events')
     source = next
     const current = (): boolean => !disposed && enabled && source === next
-    next.onopen = () => { if (current()) retryMs = 1_000 }
+    next.onopen = () => {
+      if (!current()) return
+      retryMs = 1_000
+      if (!interrupted) return
+      interrupted = false
+      onReopened?.()
+    }
     next.addEventListener('extensions-changed', () => { if (current()) changed() })
     if (onTaskEvent !== undefined) {
       next.addEventListener('task-notify', (message: Event) => {
@@ -4884,7 +4892,8 @@ export function startExtensionChangeStream(
       })
     }
     next.onerror = () => {
-      if (source !== next) return
+      if (!current()) return
+      interrupted = true
       next.close()
       source = undefined
       if (disposed || !enabled) return
@@ -4913,7 +4922,7 @@ export function startExtensionChangeStream(
     if (disposed || value === enabled) return
     enabled = value
     if (value) connect()
-    else { clearTimer(); source?.close(); source = undefined }
+    else { interrupted = false; clearTimer(); source?.close(); source = undefined }
   } })
 }
 
@@ -5534,6 +5543,11 @@ export function installCustomAssets(recovery?: {
     },
     () => { fireDeviceRevoked() },
     false,
+    () => {
+      // A ready DSH connection does not prove the customization HTTP lane is
+      // ready. Revalidate when its own stream recovers; no frames are replayed.
+      if (document.visibilityState === 'visible') stopRefresh.refresh()
+    },
   )
   events = stopEvents
 return () => { disposed = true; unregisterRefresh?.(); removeNotice(); reporter.dispose(); stopNativeBack(); stopEvents(); stopRefresh(); started = false; legacyDispose?.(); legacyDispose = undefined; legacyRoot?.remove(); legacyRoot = undefined; legacyStyle.remove(); activations.dispose(); for (const node of styleNodes.values()) node.remove(); styleNodes.clear(); const layer = document.querySelector('[data-dsh-mobile-extension-layer]'); layer?.remove(); for (const host of document.querySelectorAll('[data-dsh-mobile-surface-host]')) host.remove(); if (previous === undefined) delete window.dshMobile; else window.dshMobile = previous }
@@ -5913,6 +5927,8 @@ export function apply(ctx: ClientContext): void {
     const recovery = installMobileConnectionRecovery(
       () => ctx.get('connection'), window, document,
       (rejected, retry) => { ownedRejection = rejected; gatewayRejectionSink = rejected; retryRecovery = retry },
+      () => { refreshCustomization?.() },
+      // Visibility can start a refresh before the live transport has reconnected.
       () => { refreshCustomization?.() },
     )
     if (recovery === undefined) { gatewayRejectionSink = undefined; retryRecovery = undefined; return }

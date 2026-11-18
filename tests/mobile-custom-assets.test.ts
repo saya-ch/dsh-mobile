@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installCustomAssets, startExtensionChangeStream } from '../src/client.js'
+import { installMobileConnectionRecovery, type MobileConnectionState } from '../src/client-recovery.js'
 import { createMobileAssetLoadReporter, ownsMobileCustomization, readMobileAssetText } from '../src/mobile-custom-assets.js'
 import { ensureMobileGatewayMarker } from '../src/mobile-compat-bootstrap.js'
 import { EXTENSION_LIMITS, LEGACY_CUSTOM_ASSET_LIMIT } from '../src/extension-limits.js'
@@ -12,7 +13,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-class AssetNode {
+class AssetNode extends EventTarget {
   readonly dataset: Record<string, string> = {}
   readonly style = { cssText: '' }
   readonly children: AssetNode[] = []
@@ -20,11 +21,14 @@ class AssetNode {
   textContent = ''
   hidden = false
   parent?: AssetNode
-  constructor(readonly tagName: string, private readonly evaluate?: (source: string) => void) {}
-  append(node: AssetNode): void {
-    this.children.push(node); node.parent = this
-    if (node.tagName === 'script') this.evaluate?.(node.textContent)
+  constructor(readonly tagName: string, private readonly evaluate?: (source: string) => void) { super() }
+  append(...nodes: AssetNode[]): void {
+    for (const node of nodes) {
+      this.children.push(node); node.parent = this
+      if (node.tagName === 'script') this.evaluate?.(node.textContent)
+    }
   }
+  setAttribute(name: string, value: string): void { this.attributes.set(name, value) }
   remove(): void {
     const at = this.parent?.children.indexOf(this) ?? -1
     if (at >= 0) this.parent?.children.splice(at, 1)
@@ -87,6 +91,33 @@ function manifest(revision = 'one'): Response {
   return Response.json({ protocol: 1, extensions: [], legacy: { scriptRevision: revision, styleRevision: revision } }, { headers: { etag: `"${revision}"` } })
 }
 
+function installAssetsWithConnection(view: AssetView, page: AssetPage, initial: MobileConnectionState) {
+  let snapshot = initial
+  const changes = new EventTarget()
+  const connection = {
+    reconnect: vi.fn(),
+    state: {
+      getSnapshot: () => snapshot,
+      subscribe: (listener: () => void) => {
+        changes.addEventListener('change', listener)
+        return () => { changes.removeEventListener('change', listener) }
+      },
+    },
+  }
+  const recoveryPage = Object.assign(view, { document: page, location: { origin: 'https://fixture.invalid' } })
+  let refresh: (() => void) | undefined
+  const recovery = installMobileConnectionRecovery(
+    () => connection, recoveryPage as unknown as Parameters<typeof installMobileConnectionRecovery>[1], page as unknown as Document,
+    undefined, undefined, () => { refresh?.() },
+  )
+  cleanups.push(() => { void recovery?.() })
+  cleanups.push(installCustomAssets({ rejected: vi.fn(), retry: () => false, registerRefresh: fn => {
+    refresh = fn
+    return () => { refresh = undefined }
+  } }))
+  return (next: MobileConnectionState): void => { snapshot = next; changes.dispatchEvent(new Event('change')) }
+}
+
 describe('mobile customization ownership and safe diagnostics', () => {
   it.each(['request', 'body'] as const)('identifies manifest %s failure without reflecting transport details', async phase => {
     vi.useFakeTimers()
@@ -146,6 +177,120 @@ describe('mobile customization ownership and safe diagnostics', () => {
     expect(manifestFetch.mock.calls[3]?.[0].headers).toEqual(attempt?.headers)
     expect(fetch).toHaveBeenCalledTimes(6)
     expect(warn).not.toHaveBeenCalled()
+  })
+
+  it.each(['connecting', undefined] as const)('revalidates customization after a minute away and recovery from %s', async unavailableState => {
+    vi.useFakeTimers()
+    const { view, page, warn, info } = environment()
+    let snapshot: MobileConnectionState = 'connected'
+    const requests = vi.fn(async (path: string, init: RequestInit): Promise<Response> => {
+      if (!path.endsWith('/manifest')) return new Response('')
+      if (snapshot !== 'connected') return new Response(null, { status: 400 })
+      return new Headers(init.headers).has('if-none-match') ? new Response(null, { status: 304 }) : manifest()
+    })
+    const manifestRequests = (): number => requests.mock.calls.filter(([path]) => path.endsWith('/manifest')).length
+    vi.stubGlobal('fetch', requests)
+    const publish = installAssetsWithConnection(view, page, snapshot)
+    const setState = (next: MobileConnectionState): void => { snapshot = next; publish(next) }
+    const notice = page.body.children.find(node => node.attributes.has('data-dsh-mobile-customization-notice'))
+    expect(notice?.hidden).toBe(true)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests()).toBe(1)
+    page.visibilityState = 'hidden'
+    page.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(60_000)
+    setState('disconnected')
+    setState('connected')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests()).toBe(1)
+    setState(unavailableState)
+
+    page.visibilityState = 'visible'
+    page.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(manifestRequests()).toBe(2)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('extension manifest is unavailable'))
+    expect(notice?.hidden).toBe(false)
+    expect(info).not.toHaveBeenCalled()
+
+    setState('connected')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests()).toBe(3)
+    expect(notice?.hidden).toBe(true)
+    expect(info).toHaveBeenCalledWith(expect.stringContaining('customization is available again'))
+    setState('connected')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests()).toBe(3)
+  })
+
+  it('revalidates once when the extension stream reopens after an earlier DSH reconnect', async () => {
+    vi.useFakeTimers()
+    const { view, page, warn, info } = environment()
+    let httpReady = true
+    let manifestRequests = 0
+    vi.stubGlobal('fetch', async (path: string, init: RequestInit): Promise<Response> => {
+      if (!path.endsWith('/manifest')) return new Response(path.endsWith('.css') ? ':root { --extension-retained: 1; }' : '')
+      manifestRequests++
+      if (!httpReady) return new Response(null, { status: 503 })
+      return new Headers(init.headers).has('if-none-match') ? new Response(null, { status: 304 }) : manifest()
+    })
+    const setState = installAssetsWithConnection(view, page, undefined)
+    const notice = page.body.children.find(node => node.attributes.has('data-dsh-mobile-customization-notice'))
+    await vi.advanceTimersByTimeAsync(0)
+    const oldStream = AssetEvents.instances[0]
+    expect(oldStream).toBeDefined()
+    oldStream?.onopen?.()
+    setState('connected')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests).toBe(1)
+
+    page.visibilityState = 'hidden'
+    page.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(60_000)
+    setState('connecting')
+    httpReady = false
+    page.visibilityState = 'visible'
+    page.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(3_000)
+    expect(manifestRequests).toBe(4)
+    expect(notice?.hidden).toBe(false)
+
+    // DSH's live connection becomes ready before the customization HTTP lane.
+    setState('connected')
+    await vi.advanceTimersByTimeAsync(3_000)
+    expect(manifestRequests).toBe(7)
+    expect(notice?.hidden).toBe(false)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(info).not.toHaveBeenCalled()
+    const style = page.head.children.find(node => node.dataset.plugin === 'dsh-mobile-custom')
+    expect(style?.textContent).toContain('--extension-retained: 1')
+
+    oldStream?.onerror?.()
+    await vi.advanceTimersByTimeAsync(1_000)
+    const newStream = AssetEvents.instances[1]
+    expect(newStream).toBeDefined()
+    oldStream?.onopen?.()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests).toBe(7)
+    expect(notice?.hidden).toBe(false)
+
+    httpReady = true
+    newStream?.onopen?.()
+    newStream?.onopen?.()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests).toBe(8)
+    expect(notice?.hidden).toBe(true)
+    expect(info).toHaveBeenCalledTimes(1)
+    expect(style?.textContent).toContain('--extension-retained: 1')
+
+    page.visibilityState = 'hidden'
+    page.dispatchEvent(new Event('visibilitychange'))
+    newStream?.onerror?.()
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(AssetEvents.instances).toHaveLength(3)
+    AssetEvents.instances[2]?.onopen?.()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(manifestRequests).toBe(8)
   })
 
   it.each([400, 401, 403])('reports terminal manifest status %i without retrying', async status => {
@@ -481,18 +626,25 @@ describe('customization response and stream lifetimes', () => {
     const view = new AssetView()
     const close = vi.fn()
     const changed = vi.fn()
+    const reopened = vi.fn()
     const listeners: Array<Map<string, EventListener>> = []
+    const sources: AssetEvents[] = []
     const create = vi.fn(() => {
       const own = new Map<string, EventListener>(); listeners.push(own)
       const addEventListener: EventSource['addEventListener'] = (name: string, listener: EventListenerOrEventListenerObject | ((event: MessageEvent) => void) | null) => { own.set(name, listener as EventListener) }
-      return { close, onopen: null, onerror: null, addEventListener }
+      const source = Object.assign(new AssetEvents(), { close, addEventListener })
+      sources.push(source)
+      return source
     })
-    const events = startExtensionChangeStream(changed, { window: view, create }, undefined, undefined, false)
+    const events = startExtensionChangeStream(changed, { window: view, create }, undefined, undefined, false, reopened)
     cleanups.push(events)
     expect(create).not.toHaveBeenCalled()
     events.setEnabled(true); events.setEnabled(true)
     expect(create).toHaveBeenCalledTimes(1)
+    sources[0]?.onopen?.()
+    sources[0]?.onerror?.()
     events.setEnabled(false)
+    sources[0]?.onopen?.()
     listeners[0]?.get('extensions-changed')?.(new Event('extensions-changed'))
     expect(changed).not.toHaveBeenCalled()
     view.dispatchEvent(new Event('online'))
@@ -501,6 +653,8 @@ describe('customization response and stream lifetimes', () => {
     expect(close).toHaveBeenCalledTimes(1)
     events.setEnabled(true)
     expect(create).toHaveBeenCalledTimes(2)
+    sources[1]?.onopen?.()
+    expect(reopened).not.toHaveBeenCalled()
     listeners[0]?.get('extensions-changed')?.(new Event('extensions-changed'))
     expect(changed).not.toHaveBeenCalled()
     listeners[1]?.get('extensions-changed')?.(new Event('extensions-changed'))
