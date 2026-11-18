@@ -132,6 +132,25 @@ public class DeviceStoreTests
     }
 
     [Fact]
+    public void AdoptNewOrigin_RefusesToDropAPinnedCaThatDidNotSetTheRequirementFlag()
+    {
+        // A LAN record paired from a legacy fragment is RequiresCa=false but its CA is pinned
+        // once the bootstrap stores the fetched CA. Checking the flag alone would let this
+        // record follow a dsh1 link and land on platform trust with the pin gone.
+        const string instance = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        var pinned = SavedDevice.FromUrlPairing(UrlPairing.Parse(
+            $"https://old.example:3443/mobile-access/pair#instance={instance}&token={new string('A', 43)}"));
+        pinned.RequiresCa = false;
+        pinned.CaDerBase64 = "AA==";
+        Assert.True(pinned.HasPinnedCa);
+
+        var legacyLink = UrlPairing.Parse(
+            $"https://new.example:8443/mobile-access/pair#instance={instance}&token={new string('B', 43)}");
+        Assert.False(legacyLink.RequiresCa);
+        Assert.Throws<FormatException>(() => pinned.AdoptNewOrigin(legacyLink));
+    }
+
+    [Fact]
     public void AdoptNewOrigin_KeepsTheCaRequirementWhenTheNewLinkAsksForOne()
     {
         const string instance = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";

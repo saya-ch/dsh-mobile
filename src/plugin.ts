@@ -1441,10 +1441,15 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
           if (loaded.kind !== 'managed') throw new HttpError(409, 'lan_loopback_tunnel_unavailable')
           const body = await readJsonObject(request, 4096)
           let enabled: boolean
-          try { enabled = parseLoopbackTunnel(body.enabled) }
-          catch { throw new HttpError(400, 'lan_loopback_tunnel_invalid') }
+          let port: number | undefined
+          try {
+            enabled = parseLoopbackTunnel(body.enabled)
+            // An omitted port keeps whatever the record already holds, so an older panel
+            // that does not send the field cannot clear a saved tunnel port.
+            port = body.port === undefined ? undefined : parseLoopbackTunnelPort(body.port)
+          } catch { throw new HttpError(400, 'lan_loopback_tunnel_invalid') }
           await mutateLan(async () => {
-            await saveManagedLoopbackTunnel(loaded.setupFile, enabled)
+            await saveManagedLoopbackTunnel(loaded.setupFile, enabled, port)
             loopbackTunnelRestartRequired = true
           })
           sendJson(response, 200, await loopbackTunnelPayload(), false)

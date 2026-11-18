@@ -8,11 +8,12 @@ import {
   ensureManagedCa,
   parseAdditionalTrustedNetworks,
   parseLoopbackTunnel,
+  materializeManagedSetup,
   parseLoopbackTunnelPort,
+  saveManagedLoopbackTunnel,
   parseManagedSetup,
   readManagedSetupForStart,
   refreshManagedServerCertificate,
-  saveManagedLoopbackTunnel,
 } from '../src/managed-setup.js'
 import { parseGatewayConfig } from '../src/config.js'
 
@@ -176,6 +177,46 @@ describe('loopback tunnel sanity', () => {
     // Absent port means the listener port, which is what the guide documents.
     const implied = parseGatewayConfig({ ...base, additionalAuthorities: ['127.0.0.1', '[::1]'] } as never)
     expect(implied.additionalAuthorities.map(entry => entry.port)).toEqual([undefined, undefined])
+  })
+
+  it('keeps a saved tunnel port when the caller omits it, and replaces it when given', async () => {
+    // Regression: omitting the port used to delete a port the administrator had saved, so
+    // flipping the switch silently moved the tunnel back to the listener port.
+    const dir = await tempDir()
+    const file = join(dir, 'setup.json')
+    await writeFile(file, JSON.stringify({ ...base, loopbackTunnel: true, loopbackTunnelPort: 6000 }))
+
+    const kept = await saveManagedLoopbackTunnel(file, false)
+    expect(kept.loopbackTunnel).toBe(false)
+    expect(kept.loopbackTunnelPort).toBe(6000)
+
+    const replaced = await saveManagedLoopbackTunnel(file, true, 7000)
+    expect(replaced.loopbackTunnelPort).toBe(7000)
+  })
+
+  it('materializes the loopback authority at the saved tunnel port', async () => {
+    // Real CA material, because materialize re-issues the leaf as part of the same call.
+    const dir = await tempDir()
+    const tls = {
+      mode: 'managed' as const,
+      caCertFile: join(dir, 'ca.pem'),
+      caKeyFile: join(dir, 'ca-key.pem'),
+      certFile: join(dir, 'cert.pem'),
+      keyFile: join(dir, 'key.pem'),
+    }
+    await ensureManagedCa(tls)
+    const setup = parseManagedSetup({
+      ...base,
+      tls,
+      loopbackTunnel: true,
+      loopbackTunnelPort: 6000,
+    })
+    const materialized = await materializeManagedSetup(setup, {
+      WLAN: [{ address: '192.168.50.23', netmask: '255.255.255.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: false, cidr: '192.168.50.23/24' }],
+    } as never)
+    expect(materialized.additionalAuthorities).toEqual(['127.0.0.1:6000', '[::1]:6000'])
+    // The listener itself is unchanged: only the accepted loopback authority moves.
+    expect(materialized.publicOrigin).toBe('https://192.168.50.23:3443')
   })
 
   it('validates the tunnel port as an explicit integer in range', () => {

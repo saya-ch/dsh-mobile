@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
+## 0.8.13 - Unreleased
 
 - Let the loopback tunnel use its own port. The mobile-access panel gains a **Tunnel port** field, so a tunnel visitor bound to a port other than the gateway listener port is accepted: the gateway takes the declared loopback authority at that port while its own listener stays unchanged. Only loopback names may differ; a public authority still has to use the listener port. [#444](https://github.com/saya-ch/dsh-mobile/issues/444)
 - Complete the portable Windows client's user-facing behaviour: it finds computers on the local network and follows a changed remote address, while a computer with a pinned certificate accepts only a link that also requires certificate pinning, so an address update cannot downgrade it to platform trust. A completed task raises a desktop notification, a same-origin download is saved through a file dialog while other origins stay blocked, and the paired page may use the microphone while the camera and every other permission stay denied. A new `scripts/check-windows-sidecar-pin.mjs` gate keeps the pinned iroh sidecar identical in the plugin source, the client and its manifest. The client is still merged into main with **no published package and no complete acceptance on real Windows**, so it must not be presented as a shipped platform. Thanks @qzyqmzn for [#443](https://github.com/saya-ch/dsh-mobile/pull/443).

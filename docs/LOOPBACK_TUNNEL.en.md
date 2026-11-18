@@ -46,11 +46,11 @@ Phone app / phone browser
 
 What the plugin changes: the gateway server certificate gains `127.0.0.1` and `::1` SANs, and the gateway also accepts the exact origins `https://127.0.0.1:<listener port>` and `https://[::1]:<listener port>`. Nothing else changes.
 
-## Required: the phone port must equal the computer's listener port
+## Required: both ends must agree on the port
 
 > **Which port to use**: by default the visitor's `bindPort` on the phone is the **DSH Mobile gateway listener port on the computer** (default `3443`), and the computer-side frpc `localPort` uses the same port. If you want the visitor on a different port, such as `6000`, put that port in the panel's **Tunnel port** field: the gateway then accepts the loopback origin at that port without changing its own listener. Both ends always agree on `bindPort` and `localPort`.
 >
-> The gateway only accepts an authority whose port equals its own listener port: the request's `Host` and `Origin` must be `127.0.0.1:3443` or `[::1]:3443`. With a different port the tunnel may report itself as connected, but the gateway answers 403. This restriction is deliberate, so that the gateway never becomes a wildcard listener for arbitrary ports.
+> The gateway accepts an **exact** `Host`/`Origin`: by default `127.0.0.1:<listener port>` and `[::1]:<listener port>`, or the tunnel port once one is set. So both ends' `bindPort` and `localPort` must match each other and the panel setting; when they disagree the tunnel may report itself established while the gateway answers 403. This is deliberate: only the one loopback port you declared is accepted, never any port.
 
 ## Prerequisites
 
@@ -189,12 +189,12 @@ openssl s_client -connect 127.0.0.1:3443 </dev/null 2>/dev/null | openssl x509 -
 
 | Symptom | Cause and fix |
 | --- | --- |
-| The tunnel is up but pages return 403 `forbidden` | The phone's `bindPort` differs from the gateway listener port, so Host/Origin is rejected. Set `bindPort` to the gateway port (default 3443) |
+| The tunnel is up but pages return 403 `forbidden` | The phone's `bindPort`, the computer-side `localPort` and the panel's **Tunnel port** disagree, so the `Host` is not the declared loopback authority. Make all three the same value. |
 | 403 `source_network_untrusted` | The computer-side `localIP` points outside the allowed network (for example `127.0.0.1`). Use the LAN address the gateway listens on |
 | A certificate error when opening `https://127.0.0.1:3443` | The switch has not been applied by a rebind, or the certificate has not been re-issued. Rebind the LAN and try again; never disable certificate validation in the browser or app |
 | `curl` cannot connect to `127.0.0.1:3443` | frpc is not running on the phone, `serverName`/`sk`/token mismatch, or the frps control port is unreachable |
 | The computer is missing from the app's LAN discovery list | This route does not use LAN broadcast discovery. Pair with the link from **Copy loopback pairing link**. The QR code encodes the LAN address only and does not apply here |
-| The phone reports port 3443 is in use | Another program on the phone holds the port. `bindPort` cannot be changed arbitrarily (it must equal the gateway port), so free 3443 first |
+| The phone reports port 3443 is in use | Another program on the phone holds the port. Pick a free port in the panel's **Tunnel port** field and set both frpc ends (`bindPort` / `localPort`) to the same value; releasing the original port is not required. |
 
 ## Relation to other channels
 

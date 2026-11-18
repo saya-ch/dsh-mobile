@@ -38,6 +38,12 @@ Page zoom changes the whole page and is separate from per-address text preferenc
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
 
+## 0.8.3 candidate changes (unreleased)
+
+**Check for updates** will be able to finish the upgrade inside the App: tapping Update downloads the matching build (full and compatibility builds are picked from what is installed, so they cannot be crossed), and only a build that passes verification is handed to the system installer. Android 8+ asks once for "install unknown apps"; the dialog sends you to Settings and the download resumes when you return. A failed verification deletes the file and offers a retry; a failed download reports why (network / too large / cancelled) and can be retried or replaced by the browser download.
+
+This is merged in source but **not shipped in any App release**; the published 0.8.2 still only opens the download page.
+
 ## 0.8.2 update
 
 - The floating window now shows a small copy of the whole page. 0.8.1 refitted the layout into the window, so a widget with a fixed size, like a status overlay plugin, kept its pixel size and filled it. The full-screen layout width is kept and the page is scaled down instead.
@@ -60,8 +66,6 @@ Both APKs keep the same package identity and the established signer.
 A new default app icon: the DSH whale-girl mascot holding a phone. **Device list → Settings → App icon** also offers the classic, cheer and quiet poses next to the six whale-mark colors; switching only changes the launcher alias, so the package identity, paired data and background service stay untouched, and a launcher may take a moment to redraw.
 
 The Tailscale pairing failure now names the same-tailnet case: when a `.ts.net` address stays unreachable, the message explains that a phone on the same tailnet cannot pair through the Funnel entry (closed to tailnet-internal traffic by design) and points at turning Tailscale off, using mobile data, or pairing over the LAN address; a phone outside the tailnet keeps the existing VPN/proxy/DNS guidance.
-
-**Check for updates** can now finish the upgrade inside the App: tapping Update downloads the matching build (full and compatibility builds never cross lanes) and hands it to the system installer only after the SHA-256 check passes. On Android 8 and later the one-time “install unknown apps” grant is requested first; coming back from Settings resumes the download automatically. A failed verification deletes the file and offers a retry, and the browser download page stays as a fallback.
 
 Both APKs keep the established signer and upgrade in place with existing pairings preserved.
 

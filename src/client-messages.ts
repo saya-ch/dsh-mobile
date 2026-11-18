@@ -118,7 +118,7 @@ Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
 Object.assign(MOBILE_CONTROL_MESSAGES.en, {
   loopbackPairCopy: 'Copy loopback pairing link',
   loopbackTunnelTitle: 'Loopback tunnel · Advanced',
-  loopbackTunnelHelp: 'Accept the gateway through a local tunnel you run yourself, such as an frp stcp visitor on the phone, without exposing a public port. The certificate also covers 127.0.0.1 and ::1 and only those two exact origins are added; Origin, CSRF, network and credential checks are unchanged. The tunnel must bind the same port number as the gateway.',
+  loopbackTunnelHelp: 'Accept the gateway through a local tunnel you run yourself, such as an frp stcp visitor on the phone, without exposing a public port. The certificate also covers 127.0.0.1 and ::1 and only those two exact origins are added; Origin, CSRF, network and credential checks are unchanged. By default the tunnel binds the gateway port; if your visitor uses another port, set it below.',
   loopbackTunnelLabel: 'Accept a loopback tunnel',
   loopbackTunnelPortLabel: 'Tunnel port',
   loopbackTunnelPortHint: 'The port your tunnel visitor is bound to. Keep the gateway port unless your visitor uses a different one.',
@@ -147,7 +147,7 @@ Object.assign(MOBILE_CONTROL_MESSAGES.en, {
 Object.assign(MOBILE_CONTROL_MESSAGES.it, {
   loopbackPairCopy: 'Copia il link di associazione loopback',
   loopbackTunnelTitle: 'Tunnel di loopback · Avanzate',
-  loopbackTunnelHelp: "Accetta il gateway tramite un tunnel locale che gestisci tu, per esempio un visitatore frp stcp sul telefono, senza esporre una porta pubblica. Il certificato copre anche 127.0.0.1 e ::1 e vengono aggiunte solo queste due origini esatte; i controlli di Origin, CSRF, rete e credenziali restano invariati. Il tunnel deve usare lo stesso numero di porta del gateway.",
+  loopbackTunnelHelp: "Accetta il gateway tramite un tunnel locale che gestisci tu, per esempio un visitatore frp stcp sul telefono, senza esporre una porta pubblica. Il certificato copre anche 127.0.0.1 e ::1 e vengono aggiunte solo queste due origini esatte; i controlli di Origin, CSRF, rete e credenziali restano invariati. Per impostazione predefinita il tunnel usa la porta del gateway; se il visitatore ne usa un'altra, indicala qui sotto.",
   loopbackTunnelLabel: 'Accetta un tunnel di loopback',
   loopbackTunnelPortLabel: 'Porta del tunnel',
   loopbackTunnelPortHint: 'La porta su cui è in ascolto il tuo visitatore del tunnel. Mantieni la porta del gateway se il visitatore non ne usa un’altra.',
@@ -178,7 +178,7 @@ Object.assign(MOBILE_CONTROL_MESSAGES.zh, {
   caddyUnavailable: '当前系统或架构暂不支持托管 Caddy。请使用已有反向代理或其他远程方式；不会执行未经校验的下载。', caddyVerified: '托管 HTTPS 入口已验证为这台电脑。', caddyInstalled: 'Caddy 组件已安装，远程连接尚未验证。', caddyConnectionFailed: '托管 HTTPS 连接未建立，请检查域名、公网入站、端口映射和 DNS 凭据。', caddyModeChangeConfirm: '切换此自有代理模式会关闭它当前的连接，是否继续？', caddyInstallConfirm: '从固定来源下载并校验 Caddy 到 DSH Mobile 私有目录？不会安装系统服务、写入 PATH 或设置开机启动。', caddyInstallFailed: 'Caddy 没有安装成功，请检查固定组件是否可用并通过校验，不要跳过校验。', caddyPurgeFailed: '尚未完成清理，请停止受管连接后重试。',
   loopbackPairCopy: '复制回环配对链接',
   loopbackTunnelTitle: '回环隧道接入 · 高级',
-  loopbackTunnelHelp: '允许经你自己运行的本地隧道接入网关，例如手机上的 frp stcp visitor，不需要暴露公网端口。证书会额外覆盖 127.0.0.1 与 ::1，并且只追加这两个精确 Origin；Origin、CSRF、网段与凭据校验都不变。隧道必须绑定与网关相同的端口号。',
+  loopbackTunnelHelp: '允许经你自己运行的本地隧道接入网关，例如手机上的 frp stcp visitor，不需要暴露公网端口。证书会额外覆盖 127.0.0.1 与 ::1，并且只追加这两个精确 Origin；Origin、CSRF、网段与凭据校验都不变。默认与网关端口相同；若你的隧道客户端用别的端口，在下方填写。',
   loopbackTunnelLabel: '接受回环隧道接入',
   loopbackTunnelPortLabel: '隧道端口',
   loopbackTunnelPortHint: '你运行的隧道客户端绑定的端口。除非隧道用的是别的端口，否则保持网关端口即可。',

@@ -215,14 +215,15 @@ export async function saveManagedLoopbackTunnel(
 ): Promise<ManagedSetup> {
   const loopbackTunnel = parseLoopbackTunnel(enabled)
   const setup = parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))
-  // The key is written only when the tunnel really uses a port of its own, so an ordinary
-  // save keeps the record byte-identical apart from the switch it was asked to change.
+  // Omitting the port keeps the one already saved, so a caller that only flips the switch
+  // cannot silently drop a tunnel port the administrator configured earlier.
   const requestedPort = port === undefined ? undefined : parseLoopbackTunnelPort(port)
+  const nextPort = requestedPort ?? setup.loopbackTunnelPort
   const { loopbackTunnelPort: _storedPort, ...rest } = setup
   const next = Object.freeze({
     ...rest,
     loopbackTunnel,
-    ...(requestedPort === undefined ? {} : { loopbackTunnelPort: requestedPort }),
+    ...(nextPort === undefined ? {} : { loopbackTunnelPort: nextPort }),
   })
   await atomicWrite(setupFile, `${JSON.stringify(next, null, 2)}\n`)
   await restrictPrivateFile(setupFile)
@@ -639,7 +640,6 @@ export async function materializeManagedSetup(
     allowedCidrs: parseAdditionalTrustedNetworks([network.cidr, ...(setup.extraAllowedCidrs ?? [])]),
     instanceId: ca.fingerprint256.replaceAll(':', '').toLowerCase(),
     pairingCaFile: setup.tls.caCertFile,
-    // A loopback visitor binds the same port number on the phone, so the declared
     // The authority is exact, and its port is always written out: the tunnel visitor may be
     // bound to a port other than the listener port, so it is taken from the saved value and
     // never left to be inferred. Always emitted, empty when off, so a managed start cannot
