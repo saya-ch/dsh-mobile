@@ -18,6 +18,12 @@ Android JVM gate tests and source-wiring checks do not execute an Activity or ph
 
 Distinguish the webpage's WebSocket recovery from native session renewal. A provisional navigation aborted in CDP need not trigger WebView's native failure callback; require an observed native-renew request before claiming a native-recovery test. A failed main document may already have replaced the live page, so also compare the actual document/editor/draft before claiming retention. First-run notices and credential setup can block interaction with an otherwise mounted shell; settle the owned fixture's onboarding rather than substituting another editor or treating a failed input attempt as lost draft state.
 
+## Confirm the guard actually guards
+
+A passing suite is not evidence that a new test covers the defect it was written for. After adding a regression test, remove or invert the implementation it is meant to catch, watch it fail, then restore and confirm `git status` shows only the intended files. A candidate once shipped a panel field that never reached the persisted record: the route test posted only the switch, so deleting the route's field handling left every suite green, and three independent reviews passed it on the strength of that green. Assert what the consumer reads — the stored record and the reported value — on each half of the path, so that removing either half is observable rather than silent. See the [route test](../../../../tests/plugin.test.ts) and [config and setup tests](../../../../tests/loopback-tunnel.test.ts).
+
+The same failure mode applies to the edit itself. A script that collects substitutions in memory and writes the file once at the end discards all of them when a later substitution raises, while its per-step output has already reported the earlier ones as applied; an import left unused by the aborted edit is not a TypeScript error. Confirm an edit by reading the file or the diff, not by the script's output.
+
 ## Isolate acquired resources
 
 - For ordinary network fixtures, bind loopback with `listen(0)` and read the port after the listening event; do not find a free port and claim it later. When a particular port or binding collision is the test subject, retain that input and explicitly own the competing listeners rather than using a user's running service. Literal addresses used only as parser inputs are not listeners.

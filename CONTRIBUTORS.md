@@ -8,7 +8,11 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 感谢 [@qzyqmzn](https://github.com/qzyqmzn) 在 [#443](https://github.com/saya-ch/dsh-mobile/pull/443) 补齐便携 Windows 客户端（局域网发现、地址跟随、任务完成提醒、同源下载与麦克风），并在 [#445](https://github.com/saya-ch/dsh-mobile/pull/445) 改写面向用户的文档（App 手册、Windows README 与 docs 指南）。两者已合入 main，尚未随任何版本发布。
 
+感谢 [@Astute9108](https://github.com/Astute9108) 在 [#444](https://github.com/saya-ch/dsh-mobile/issues/444) 报告回环隧道接入的问题，并用 curl 日志定位到真正的原因（端口有监听但转发目标不对），据此补齐了自定义隧道端口。
+
 感谢 [@NekogamiJam](https://github.com/NekogamiJam) 在 [#449](https://github.com/saya-ch/dsh-mobile/pull/449) 让移动定制在重连后恢复（重试瞬时失败的清单请求，并在可见页面的连接恢复后重新校验）。
+
+Thanks [@Astute9108](https://github.com/Astute9108) for reporting the loopback tunnel problem in [#444](https://github.com/saya-ch/dsh-mobile/issues/444) and pinning the real cause with curl logs — a listener on the port forwarding to the wrong target — which led to the custom tunnel port.
 
 Thanks [@NekogamiJam](https://github.com/NekogamiJam) for recovering mobile customization after a reconnect in [#449](https://github.com/saya-ch/dsh-mobile/pull/449).
 
