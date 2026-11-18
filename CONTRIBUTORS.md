@@ -240,7 +240,6 @@ Thanks [@xhwxt](https://github.com/xhwxt) for the document-picker proposal in [#
 | [@helan-1997](https://github.com/helan-1997) | [#168](https://github.com/saya-ch/dsh-mobile/issues/168) |
 | [@hpsks416](https://github.com/hpsks416) | [#132](https://github.com/saya-ch/dsh-mobile/issues/132) |
 | [@idoall](https://github.com/idoall) | [#42](https://github.com/saya-ch/dsh-mobile/issues/42), [#45](https://github.com/saya-ch/dsh-mobile/issues/45), [#46](https://github.com/saya-ch/dsh-mobile/issues/46), [#47](https://github.com/saya-ch/dsh-mobile/issues/47), [#62](https://github.com/saya-ch/dsh-mobile/issues/62), [#64](https://github.com/saya-ch/dsh-mobile/issues/64) |
-| [@IvyC-zz](https://github.com/IvyC-zz) | [#58](https://github.com/saya-ch/dsh-mobile/issues/58), [#78](https://github.com/saya-ch/dsh-mobile/issues/78) |
 | [@jackfocus15-spec](https://github.com/jackfocus15-spec) | [#285](https://github.com/saya-ch/dsh-mobile/issues/285) |
 | [@jillkayat](https://github.com/jillkayat) | [#10](https://github.com/saya-ch/dsh-mobile/issues/10) |
 | [@jonaskilli](https://github.com/jonaskilli) | [#198](https://github.com/saya-ch/dsh-mobile/issues/198) |
