@@ -33,7 +33,7 @@ import {
 import { EXTENSION_RECOVERY_STYLES, installExtensionRecoveryControl } from './extension-recovery-ui.js'
 import { invokeBoundNativeCapability } from './native-capability.js'
 import { pickBrowserFiles } from './browser-file-picker.js'
-import { createMobileAssetLoadReporter, ownsMobileCustomization, readMobileAssetText, type MobileAssetLoadFailure } from './mobile-custom-assets.js'
+import { createMobileAssetLoadReporter, fetchMobileExtensionManifest, ownsMobileCustomization, readMobileAssetText, type MobileAssetLoadFailure } from './mobile-custom-assets.js'
 import { installCustomizationNotice } from './mobile-customization-notice.js'
 import { EXTENSION_LIMITS, LEGACY_CUSTOM_ASSET_LIMIT } from './extension-limits.js'
 import { installMobileConnectionRecovery, type MobileConnectionState } from './client-recovery.js'
@@ -5332,7 +5332,7 @@ export function installCustomAssets(recovery?: {
     try {
       const headers: Record<string, string> = {}
       if (manifestEtag !== '') headers['if-none-match'] = manifestEtag
-      const response = await fetch('/mobile-access/extensions/manifest', { credentials: 'same-origin', cache: 'no-store', headers, signal })
+      const response = await fetchMobileExtensionManifest(headers, signal)
       if (disposed || signal.aborted) {
         void response.body?.cancel().catch((error: unknown) => {
           // A withdrawn refresh must not apply a response or replace its cancellation with cleanup failure.

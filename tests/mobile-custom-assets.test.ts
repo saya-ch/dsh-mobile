@@ -89,15 +89,91 @@ function manifest(revision = 'one'): Response {
 
 describe('mobile customization ownership and safe diagnostics', () => {
   it.each(['request', 'body'] as const)('identifies manifest %s failure without reflecting transport details', async phase => {
+    vi.useFakeTimers()
     const { warn } = environment()
-    vi.stubGlobal('fetch', vi.fn(async () => {
+    const fetch = vi.fn(async () => {
       if (phase === 'request') throw new Error('private transport address and token')
       return new Response(new ReadableStream({ start(controller) { controller.error(new Error('private response bytes')) } }))
-    }))
+    })
+    vi.stubGlobal('fetch', fetch)
     cleanups.push(installCustomAssets())
-    await vi.waitFor(() => { expect(warn).toHaveBeenCalled() })
+    if (phase === 'request') {
+      await vi.advanceTimersByTimeAsync(2_999)
+      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(warn).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+    } else await vi.advanceTimersByTimeAsync(0)
+    expect(fetch).toHaveBeenCalledTimes(phase === 'request' ? 3 : 1)
+    expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0]?.[0]).toContain('extension manifest is unavailable')
     expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private|token|refreshed/u)
+  })
+
+  it('silently retries a resumed manifest with the same validator, then accepts 304', async () => {
+    vi.useFakeTimers()
+    const { page, warn } = environment()
+    const cancel = vi.fn()
+    const manifestFetch = vi.fn(async (_init: RequestInit) => manifest())
+    manifestFetch.mockResolvedValueOnce(manifest())
+      .mockRejectedValueOnce(new TypeError('temporary disconnect'))
+      .mockResolvedValueOnce(new Response(new ReadableStream({ cancel }), { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+    const fetch = vi.fn((path: string, init: RequestInit) => path.endsWith('/manifest')
+      ? manifestFetch(init) : Promise.resolve(new Response('')))
+    vi.stubGlobal('fetch', fetch)
+    cleanups.push(installCustomAssets())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetch).toHaveBeenCalledTimes(3)
+
+    page.visibilityState = 'hidden'
+    page.dispatchEvent(new Event('visibilitychange'))
+    page.visibilityState = 'visible'
+    page.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(999)
+    expect(manifestFetch).toHaveBeenCalledTimes(2)
+    expect(warn).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(manifestFetch).toHaveBeenCalledTimes(3)
+    expect(cancel).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(manifestFetch).toHaveBeenCalledTimes(3)
+    expect(warn).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(manifestFetch).toHaveBeenCalledTimes(4)
+    const attempt = manifestFetch.mock.calls[1]?.[0]
+    expect(attempt).toMatchObject({ credentials: 'same-origin', cache: 'no-store', headers: { 'if-none-match': '"one"' } })
+    expect(manifestFetch.mock.calls[2]?.[0].signal).toBe(attempt?.signal)
+    expect(manifestFetch.mock.calls[3]?.[0].headers).toEqual(attempt?.headers)
+    expect(fetch).toHaveBeenCalledTimes(6)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it.each([400, 401, 403])('reports terminal manifest status %i without retrying', async status => {
+    vi.useFakeTimers()
+    const { warn } = environment()
+    const fetch = vi.fn(async () => new Response(null, { status }))
+    vi.stubGlobal('fetch', fetch)
+    cleanups.push(installCustomAssets())
+    await vi.advanceTimersByTimeAsync(0)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining(status === 400 ? 'extension manifest is unavailable' : 'authentication is unavailable'))
+    await vi.advanceTimersByTimeAsync(3_000)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels manifest retry backoff when customization is disposed', async () => {
+    vi.useFakeTimers()
+    const { warn } = environment()
+    const fetch = vi.fn(async () => new Response(null, { status: 504 }))
+    vi.stubGlobal('fetch', fetch)
+    const stop = installCustomAssets()
+    cleanups.push(stop)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    stop()
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(3_000)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(warn).not.toHaveBeenCalled()
   })
 
   it('distinguishes extension resource failure from a successfully read manifest', async () => {
