@@ -105,6 +105,45 @@ export function createMobileAssetLoadReporter(
   }
 }
 
+const MANIFEST_RETRY_DELAYS_MS = [1_000, 2_000] as const
+const RETRYABLE_MANIFEST_STATUSES = new Set([408, 502, 503, 504])
+
+function manifestRetryDelay(delayMs: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(signal.reason); return }
+    const abort = (): void => {
+      clearTimeout(timer)
+      signal.removeEventListener('abort', abort)
+      reject(signal.reason)
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abort)
+      resolve()
+    }, delayMs)
+    signal.addEventListener('abort', abort, { once: true })
+  })
+}
+
+/** Give the transport time to recover before reporting a transient manifest GET failure. */
+export async function fetchMobileExtensionManifest(headers: Record<string, string>, signal: AbortSignal): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    if (signal.aborted) throw signal.reason
+    const delay = MANIFEST_RETRY_DELAYS_MS[attempt]
+    let response: Response | undefined
+    try {
+      response = await fetch('/mobile-access/extensions/manifest', { credentials: 'same-origin', cache: 'no-store', headers, signal })
+    } catch (error) {
+      if (signal.aborted || delay === undefined) throw error
+    }
+    if (response !== undefined) {
+      // Let the caller discard a late response or handle terminal status codes as before.
+      if (signal.aborted || delay === undefined || !RETRYABLE_MANIFEST_STATUSES.has(response.status)) return response
+      void response.body?.cancel().catch(() => {})
+    }
+    if (delay !== undefined) await manifestRetryDelay(delay, signal)
+  }
+}
+
 /** Read customization text within its file budget; the aggregate manifest has no existing byte cap. */
 export async function readMobileAssetText(response: Response, signal: AbortSignal, maxBytes: number | undefined): Promise<string> {
   const assertActive = (): void => { if (signal.aborted) throw signal.reason ?? new DOMException('mobile customization cancelled', 'AbortError') }
