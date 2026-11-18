@@ -48,7 +48,7 @@ What the plugin changes: the gateway server certificate gains `127.0.0.1` and `:
 
 ## Required: both ends must agree on the port
 
-> **Which port to use**: by default the visitor's `bindPort` on the phone is the **DSH Mobile gateway listener port on the computer** (default `3443`), and the computer-side frpc `localPort` uses the same port. If you want the visitor on a different port, such as `6000`, put that port in the panel's **Tunnel port** field: the gateway then accepts the loopback origin at that port without changing its own listener. Both ends always agree on `bindPort` and `localPort`.
+> **Which port to use**: by default the visitor's `bindPort` on the phone is the **DSH Mobile gateway listener port on the computer** (default `3443`), and the computer-side frpc `localPort` uses the same port. If you want the visitor on a different port, such as `6000`, put that port in the panel's **Tunnel port** field and press **Apply port**: the gateway then accepts the loopback origin at that port without changing its own listener, and without cycling the switch. Both ends always agree on `bindPort` and `localPort`.
 >
 > The gateway accepts an **exact** `Host`/`Origin`: by default `127.0.0.1:<listener port>` and `[::1]:<listener port>`, or the tunnel port once one is set. So both ends' `bindPort` and `localPort` must match each other and the panel setting; when they disagree the tunnel may report itself established while the gateway answers 403. This is deliberate: only the one loopback port you declared is accepted, never any port.
 

@@ -1283,7 +1283,12 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   loopbackTunnelPortInput.step = '1'
   loopbackTunnelPortInput.inputMode = 'numeric'
   const loopbackTunnelPortHint = element('p', 'dsh-mobile-control__component-note'); loopbackTunnelPortHint.textContent = t('loopbackTunnelPortHint')
-  loopbackTunnelPortRow.append(loopbackTunnelPortLabel, loopbackTunnelPortInput)
+  // Changing the port used to mean toggling the switch off and on, because the switch is the
+  // only thing that posts. This applies the field while leaving the switch alone.
+  const loopbackTunnelPortApply = element('button', 'dsh-mobile-control__secondary')
+  loopbackTunnelPortApply.type = 'button'
+  loopbackTunnelPortApply.textContent = t('loopbackTunnelPortApply')
+  loopbackTunnelPortRow.append(loopbackTunnelPortLabel, loopbackTunnelPortInput, loopbackTunnelPortApply)
   const loopbackTunnelToggle = element('button', 'dsh-mobile-control__secondary'); loopbackTunnelToggle.type = 'button'
   const loopbackTunnelStatus = element('p', 'dsh-mobile-control__status'); loopbackTunnelStatus.setAttribute('role', 'status'); loopbackTunnelStatus.setAttribute('aria-live', 'polite')
   loopbackTunnel.append(loopbackTunnelSummary, loopbackTunnelHelp, loopbackTunnelRisk, loopbackTunnelPortRow, loopbackTunnelPortHint, loopbackTunnelToggle, loopbackTunnelStatus)
@@ -1303,6 +1308,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     loopbackTunnelPortRow.hidden = loopbackTunnelLoaded && !loopbackTunnelSupported
     loopbackTunnelPortHint.hidden = loopbackTunnelPortRow.hidden
     loopbackTunnelPortInput.disabled = !ready
+    loopbackTunnelPortApply.disabled = !ready
     if (document.activeElement !== loopbackTunnelPortInput) loopbackTunnelPortInput.value = String(loopbackTunnelPort)
     loopbackTunnel.setAttribute('aria-busy', String(loopbackTunnelLoading || loopbackTunnelBusy))
   }
@@ -1331,10 +1337,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       loopbackTunnelStatus.textContent = t('loopbackTunnelFailed')
     }).finally(() => { loopbackTunnelLoading = false; syncLoopbackTunnelControls() })
   })
-  loopbackTunnelToggle.addEventListener('click', () => {
+  // Both the switch and the apply button post the same payload, so the port is validated in
+  // one place and a malformed value is reported rather than silently replaced.
+  const submitLoopbackTunnel = (enabled: boolean): void => {
     if (loopbackTunnelBusy || !loopbackTunnelLoaded || !loopbackTunnelSupported) return
-    // Read the field at click time: the visitor port decides which Host the gateway accepts,
-    // so a malformed value must be reported rather than silently replaced.
     const requested = Number(loopbackTunnelPortInput.value)
     if (!Number.isInteger(requested) || requested < 1 || requested > 65535) {
       loopbackTunnelStatus.textContent = t('loopbackTunnelPortInvalid')
@@ -1342,11 +1348,16 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     }
     loopbackTunnelBusy = true; syncLoopbackTunnelControls()
     void controlRequestJson('/api/mobile-access/lan/loopback-tunnel', {
-      method: 'POST', body: JSON.stringify({ enabled: !loopbackTunnelEnabled, port: requested }),
+      method: 'POST', body: JSON.stringify({ enabled, port: requested }),
     }).then(renderLoopbackTunnel, () => {
       loopbackTunnelStatus.textContent = t('loopbackTunnelInvalid')
     }).finally(() => { loopbackTunnelBusy = false; syncLoopbackTunnelControls() })
+  }
+  loopbackTunnelToggle.addEventListener('click', () => {
+    submitLoopbackTunnel(!loopbackTunnelEnabled)
   })
+  // Applying the port keeps the switch as it is, so a port change is one action instead of off/on.
+  loopbackTunnelPortApply.addEventListener('click', () => { submitLoopbackTunnel(loopbackTunnelEnabled) })
   lanSetupLabel.append(lanSetupSelect); lanSetupActions.append(lanSetupRefresh, lanSetupConfigure); lanSetupForm.append(lanSetupLabel, lanSetupNote, lanSetupActions); lanSetup.append(lanSetupTitle, lanSetupIntro, lanSetupForm, lanSetupStatus)
   const access = element('div', 'dsh-mobile-control__access'); access.hidden = true
   const accessLabel = element('span', 'dsh-mobile-control__access-label'); accessLabel.textContent = t('browserAccess')

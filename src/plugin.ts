@@ -1449,8 +1449,15 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
             port = body.port === undefined ? undefined : parseLoopbackTunnelPort(body.port)
           } catch { throw new HttpError(400, 'lan_loopback_tunnel_invalid') }
           await mutateLan(async () => {
-            await saveManagedLoopbackTunnel(loaded.setupFile, enabled, port)
-            loopbackTunnelRestartRequired = true
+            // The listener is only stale when what it accepts actually changes: re-saving the
+            // same value must not tell the operator to restart for nothing.
+            const before = parseManagedSetup(JSON.parse(await readFile(loaded.setupFile, 'utf8')))
+            const beforePort = before.loopbackTunnelPort ?? before.listenPort
+            const saved = await saveManagedLoopbackTunnel(loaded.setupFile, enabled, port)
+            const savedPort = saved.loopbackTunnelPort ?? saved.listenPort
+            if (saved.loopbackTunnel !== (before.loopbackTunnel === true) || savedPort !== beforePort) {
+              loopbackTunnelRestartRequired = true
+            }
           })
           sendJson(response, 200, await loopbackTunnelPayload(), false)
           return

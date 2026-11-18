@@ -880,6 +880,15 @@ describe('stock DSH lifecycle', () => {
     const toggled = await invoke(managed.route, 'POST', route, JSON.stringify({ enabled: true }))
     expect(JSON.parse(toggled.body)).toMatchObject({ enabled: true, tunnelPort: 6000 })
 
+
+    // After the restart that applies those values, re-saving them must not claim the listener
+    // is stale again: the prompt is only honest when what it accepts actually changed.
+    const restarted = await mount(false, 3080, { setupFile })
+    const repeat = await invoke(restarted.route, 'POST', route, JSON.stringify({ enabled: true, port: 6000 }))
+    expect(JSON.parse(repeat.body)).toMatchObject({ enabled: true, tunnelPort: 6000, restartRequired: false })
+    // Changing only the port is a real change even though the switch stays on.
+    const moved = await invoke(restarted.route, 'POST', route, JSON.stringify({ enabled: true, port: 7000 }))
+    expect(JSON.parse(moved.body)).toMatchObject({ enabled: true, tunnelPort: 7000, restartRequired: true })
     for (const port of [0, 65536, 1.5, '6000', null]) {
       const rejected = await invoke(managed.route, 'POST', route, JSON.stringify({ enabled: true, port }))
       expect(rejected.status).toBe(400)
