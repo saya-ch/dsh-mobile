@@ -8,6 +8,10 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 感谢 [@qzyqmzn](https://github.com/qzyqmzn) 在 [#443](https://github.com/saya-ch/dsh-mobile/pull/443) 补齐便携 Windows 客户端（局域网发现、地址跟随、任务完成提醒、同源下载与麦克风），并在 [#445](https://github.com/saya-ch/dsh-mobile/pull/445) 改写面向用户的文档（App 手册、Windows README 与 docs 指南）。两者已合入 main，尚未随任何版本发布。
 
+感谢 [@NekogamiJam](https://github.com/NekogamiJam) 在 [#449](https://github.com/saya-ch/dsh-mobile/pull/449) 让移动定制在重连后恢复（重试瞬时失败的清单请求，并在可见页面的连接恢复后重新校验）。
+
+Thanks [@NekogamiJam](https://github.com/NekogamiJam) for recovering mobile customization after a reconnect in [#449](https://github.com/saya-ch/dsh-mobile/pull/449).
+
 Thanks [@qzyqmzn](https://github.com/qzyqmzn) for completing the portable Windows client in [#443](https://github.com/saya-ch/dsh-mobile/pull/443) (LAN discovery, address following, task-completion notifications, same-origin downloads and the microphone) and for the user-facing documentation rewrite in [#445](https://github.com/saya-ch/dsh-mobile/pull/445) (App manuals, Windows README and docs guides). Both are merged into main and are not part of any published release yet.
 
 ## 0.8.10 贡献 / Contributions in 0.8.10
