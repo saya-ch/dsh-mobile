@@ -375,7 +375,7 @@ describe('production recovery effect ownership', () => {
   })
 })
 
-describe('a rejected gateway request renews a Session the transport still calls connected', () => {
+describe('native renewal after disconnection or Gateway rejection', () => {
   // Issue #298: DSH keeps Sessions in memory, so a Host restart kills every phone
   // Session while the device credential survives. The live transport can keep
   // reporting `connected`, so waiting for a disconnect never fires.
@@ -419,8 +419,143 @@ describe('a rejected gateway request renews a Session the transport still calls 
       retry: () => retry?.() ?? false,
       dispose, renewed,
       setState(next: MobileConnectionState) { snapshot = next; for (const listener of listeners) listener() },
+      setVisibility(next: string) { document.visibilityState = next; document.dispatchEvent(new Event('visibilitychange')) },
+      setBridge(next: MobileRecoveryBridge) { page.__DSH_MOBILE_NATIVE__ = next; page.dispatchEvent(new Event('dsh-mobile-native-ready')) },
     }
   }
+
+  it('automatically renews once more after a transient native failure during a disconnect', async () => {
+    const first = deferred<{ renewed: boolean }>()
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue({ renewed: true })
+    const mounted = owner(native(invoke), 'connecting')
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(mounted.renewed).not.toHaveBeenCalled()
+    first.reject(Object.assign(new Error('carrier temporarily unavailable'), { code: 'transient' }))
+    await flush()
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(mounted.reconnect).toHaveBeenCalledTimes(1)
+    expect(mounted.renewed).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps each disconnect bounded and leaves explicit retry available after exhaustion', async () => {
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValue(Object.assign(new Error('temporary'), { code: 'transient' }))
+    const mounted = owner(native(invoke), 'connecting')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(mounted.renewed).not.toHaveBeenCalled()
+    expect(mounted.retry()).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(3)
+    mounted.setState('connected')
+    mounted.setState('connecting')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(5)
+  })
+
+  it('does not renew in the background and resumes the available follow-up on foreground', async () => {
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValue(Object.assign(new Error('temporary'), { code: 'transient' }))
+    const mounted = owner(native(invoke), 'connecting')
+    await vi.advanceTimersByTimeAsync(6_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    mounted.setVisibility('hidden')
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(mounted.retry()).toBe(false)
+    mounted.setVisibility('visible')
+    await flush()
+    expect(invoke).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
+  it('defers the follow-up if the page goes hidden during capability discovery', async () => {
+    const capabilities = deferred<readonly string[]>()
+    const discover = vi.fn<MobileRecoveryBridge['capabilities']>()
+      .mockReturnValueOnce(['auth.renew'])
+      .mockReturnValueOnce(capabilities.promise)
+      .mockReturnValue(['auth.renew'])
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValueOnce(Object.assign(new Error('temporary'), { code: 'transient' }))
+      .mockResolvedValue({ renewed: true })
+    const mounted = owner(native(invoke, discover), 'connecting')
+    await vi.advanceTimersByTimeAsync(8_000)
+    expect(discover).toHaveBeenCalledTimes(2)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    mounted.setVisibility('hidden')
+    capabilities.resolve(['auth.renew'])
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    mounted.setVisibility('visible')
+    await flush()
+    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(mounted.renewed).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not treat a capability discovery error as a transient renewal failure', async () => {
+    const discover = vi.fn<MobileRecoveryBridge['capabilities']>()
+      .mockRejectedValue(Object.assign(new Error('capability error'), { code: 'transient' }))
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+    owner(native(invoke, discover), 'connecting')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(discover).toHaveBeenCalledTimes(1)
+    expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it('lets an explicit retry replace the scheduled automatic follow-up', async () => {
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValue(Object.assign(new Error('temporary'), { code: 'transient' }))
+    const mounted = owner(native(invoke), 'connecting')
+    await vi.advanceTimersByTimeAsync(6_000)
+    expect(mounted.retry()).toBe(true)
+    expect(mounted.retry()).toBe(false)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['connected', 'owner gap', 'bridge replacement', 'disposal'] as const)('withdraws the pending follow-up after %s', async cause => {
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValue(Object.assign(new Error('temporary'), { code: 'transient' }))
+    const mounted = owner(native(invoke), 'connecting')
+    await vi.advanceTimersByTimeAsync(6_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    const replacement = vi.fn(async () => ({ renewed: true }))
+    if (cause === 'connected') mounted.setState('connected')
+    if (cause === 'owner gap') mounted.setState(undefined)
+    if (cause === 'bridge replacement') mounted.setBridge(native(replacement))
+    if (cause === 'disposal') await mounted.dispose?.()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(replacement).toHaveBeenCalledTimes(cause === 'bridge replacement' ? 1 : 0)
+  })
+
+  it.each(['busy', 'timeout', 'device_revoked', 'device_expired', 'authentication_failed'])('does not automatically retry %s during a disconnect', async code => {
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValue(Object.assign(new Error('native rejected'), { code }))
+    const mounted = owner(native(invoke), 'connecting')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(mounted.renewed).not.toHaveBeenCalled()
+  })
+
+  it('does not retry a transient renewal after an isolated HTTP 401 on a connected transport', async () => {
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValue(Object.assign(new Error('temporary'), { code: 'transient' }))
+    const mounted = owner(native(invoke))
+    mounted.reject(401)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(mounted.renewed).not.toHaveBeenCalled()
+  })
 
   it('allows explicit retry after a transient failure and refreshes only after confirmed renewal', async () => {
     const invoke = vi.fn<MobileRecoveryBridge['invoke']>()

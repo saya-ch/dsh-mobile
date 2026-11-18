@@ -21,7 +21,7 @@ export function shouldNudgeReconnect(visibility: string, connection: MobileConne
   return visibility === 'visible' && connection !== 'connected'
 }
 
-/** A persistent, known disconnection can request one native renewal. */
+/** A persistent, known disconnection can request native renewal. */
 export function shouldRenewSession(connection: MobileConnectionState, downForMs: number): boolean {
   return isDisconnected(connection) && downForMs >= 5000
 }
@@ -58,8 +58,11 @@ interface RecoveryPage extends EventTarget {
   readonly __DSH_MOBILE_NATIVE__?: MobileRecoveryBridge
 }
 
+const TRANSIENT_RENEWAL_BACKOFF_MS = 2_000
+
 /**
- * Own resume nudges and one native renewal per continuous disconnection.
+ * Own resume nudges and native renewal, with one follow-up after a transient
+ * native failure during a continuous disconnection.
  * @param getConnection - Resolve the current service to reject a replaced owner.
  * @param page - The document's window and advertised native adapter.
  * @param document - The mounted document; page replacement withdraws its work.
@@ -87,6 +90,7 @@ export function installMobileConnectionRecovery(
   let hasConnected = currentState === 'connected'
   let downSince = isDisconnected(currentState) ? Date.now() : undefined
   let attempted = false
+  let retryAfter: number | undefined
   let credentialsRejected = false
   // A rejected gateway request is the only signal that arrives when the live
   // transport still reports `connected` but the Session is gone (issue #298).
@@ -100,6 +104,7 @@ export function installMobileConnectionRecovery(
     && page.location.origin === origin && getConnection() === connection && connection.state === state
   const cancelPending = (): void => {
     generation += 1
+    retryAfter = undefined
     pendingAbort?.abort(new DOMException('mobile recovery owner ended', 'AbortError'))
   }
   const updateState = (): void => {
@@ -136,7 +141,7 @@ export function installMobileConnectionRecovery(
     bridge = next
     attempted = false
   }
-  const renew = (): boolean => {
+  const renew = (manual = false): boolean => {
     if (!current()) { void dispose(); return false }
     updateState()
     updateBridge()
@@ -149,9 +154,15 @@ export function installMobileConnectionRecovery(
     //
     const downLongEnough = downSince !== undefined && shouldRenewSession(currentState, now - downSince)
     const rejectionPending = rejectedSince !== undefined
-    if (document.visibilityState !== 'visible' || adapter === undefined || pending !== undefined || attempted || credentialsRejected
-      || (!downLongEnough && !rejectionPending)) return false
+    // The existing interval (or foreground event) can spend this one follow-up
+    // only while the same transport is still down, never for an auth-only failure.
+    const followUpDue = downLongEnough && retryAfter !== undefined && now >= retryAfter
+    if (document.visibilityState !== 'visible' || adapter === undefined || pending !== undefined || credentialsRejected
+      || (attempted && !manual && !followUpDue) || (!downLongEnough && !rejectionPending)) return false
+    const isFollowUp = !manual && attempted
+    const canScheduleFollowUp = !manual && !attempted && downLongEnough
     attempted = true
+    retryAfter = undefined
     const owner = generation
     const abort = new AbortController()
     pendingAbort = abort
@@ -160,11 +171,22 @@ export function installMobileConnectionRecovery(
     // precisely the one where the transport still looks connected.
     const owns = (): boolean => current() && !abort.signal.aborted && generation === owner
       && page.__DSH_MOBILE_NATIVE__ === adapter
+    let invokingRenewal = false
     const task = Promise.resolve().then(async () => {
       if (!owns()) return
       const capabilities = await adapter.capabilities()
       if (!owns() || !capabilities.includes('auth.renew')) return
+      if (isFollowUp) {
+        if (!isDisconnected(state.getSnapshot())) return
+        if (document.visibilityState !== 'visible') {
+          // Capability discovery can finish after the page went to the background.
+          retryAfter = now
+          return
+        }
+      }
+      invokingRenewal = true
       const result = await adapter.invoke('auth.renew', {}, { signal: abort.signal })
+      invokingRenewal = false
       if (!owns() || typeof result !== 'object' || result === null
         || !('renewed' in result) || result.renewed !== true) return
       rejectedSince = undefined
@@ -172,7 +194,11 @@ export function installMobileConnectionRecovery(
       if (current()) onRenewed?.()
     }).catch((error: unknown) => {
       if (!owns() || typeof error !== 'object' || error === null || !('code' in error)) return
-      credentialsRejected = error.code === 'device_revoked' || error.code === 'device_expired' || error.code === 'authentication_failed'
+      const code = error.code
+      credentialsRejected = code === 'device_revoked' || code === 'device_expired' || code === 'authentication_failed'
+      if (invokingRenewal && canScheduleFollowUp && code === 'transient' && isDisconnected(state.getSnapshot())) {
+        retryAfter = Date.now() + TRANSIENT_RENEWAL_BACKOFF_MS
+      }
     }).finally(() => {
       if (pending !== task) return
       pending = undefined
@@ -187,8 +213,7 @@ export function installMobileConnectionRecovery(
     updateBridge()
     if (!current() || pending !== undefined || credentialsRejected || bridge === undefined
       || (rejectedSince === undefined && downSince === undefined)) return false
-    attempted = false
-    return renew()
+    return renew(true)
   }
   /**
    * Record a rejected authenticated request and try the same single renewal.
