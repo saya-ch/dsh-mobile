@@ -3,4 +3,8 @@
     <cache-path
         name="native_camera"
         path="native-camera/" />
+    <!-- Verified update APKs staged here before the package installer reads them. -->
+    <cache-path
+        name="updates"
+        path="updates/" />
 </paths>
