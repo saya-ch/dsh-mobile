@@ -847,6 +847,45 @@ describe('stock DSH lifecycle', () => {
     expect(after).toMatchObject({ enabled: true, restartRequired: true })
   })
 
+  it('stores, reports and rejects the loopback tunnel port through the route', async () => {
+    // Regression for a defect that shipped green: the route parsed only `enabled`, so the
+    // port never reached the record and the payload could not report it. Asserting both the
+    // write and the read is what makes removing either half fail.
+    const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-loopback-port-'))
+    temporaryDirectories.push(directory)
+    const setupFile = join(directory, 'setup.json')
+    const tls = {
+      mode: 'managed' as const, caCertFile: join(directory, 'ca.pem'), caKeyFile: join(directory, 'ca-key.pem'),
+      certFile: join(directory, 'cert.pem'), keyFile: join(directory, 'key.pem'),
+    }
+    await writeFile(setupFile, JSON.stringify({
+      version: 2, networkInterface: 'en0', listenPort: 3443, upstreamOrigin: 'http://127.0.0.1:3080', tls,
+    }))
+    await managedSetup.ensureManagedCa(tls)
+    const managed = await mount(false, 3080, { setupFile })
+    const route = '/api/mobile-access/lan/loopback-tunnel'
+
+    const before = JSON.parse((await invoke(managed.route, 'GET', route)).body)
+    // Absent customisation reports the listener port, so the panel has a value to show.
+    expect(before).toMatchObject({ supported: true, tunnelPort: 3443 })
+
+    const saved = await invoke(managed.route, 'POST', route, JSON.stringify({ enabled: true, port: 6000 }))
+    expect(saved.status).toBe(200)
+    expect(JSON.parse(saved.body)).toMatchObject({ enabled: true, tunnelPort: 6000 })
+    // The record is the security boundary, so assert what was persisted, not only the reply.
+    const persisted = JSON.parse(await readFile(setupFile, 'utf8'))
+    expect(persisted).toMatchObject({ loopbackTunnel: true, loopbackTunnelPort: 6000 })
+
+    // Toggling without a port keeps the saved one instead of dropping back to the listener.
+    const toggled = await invoke(managed.route, 'POST', route, JSON.stringify({ enabled: true }))
+    expect(JSON.parse(toggled.body)).toMatchObject({ enabled: true, tunnelPort: 6000 })
+
+    for (const port of [0, 65536, 1.5, '6000', null]) {
+      const rejected = await invoke(managed.route, 'POST', route, JSON.stringify({ enabled: true, port }))
+      expect(rejected.status).toBe(400)
+    }
+  })
+
   it('rejects the loopback tunnel route once the plugin generation closes', async () => {
     const mounted = await mount()
     await mounted.context.fiber.dispose()
