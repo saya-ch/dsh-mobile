@@ -97,7 +97,8 @@ public class DeviceStoreTests
             $"https://old.example:3443/mobile-access/pair#instance={instance}&token={new string('A', 43)}"));
         old.Name = "我的电脑";
         old.SetDeviceToken("old-token");
-        old.CaDerBase64 = "AA==";
+        // No CA is pinned here: a record that does trust one refuses this adoption, which
+        // AdoptNewOrigin_RefusesToDropAPinnedCaThatDidNotSetTheRequirementFlag covers.
 
         var adopted = old.AdoptNewOrigin(UrlPairing.Parse(
             $"https://new.example:8443/mobile-access/pair#instance={instance}&token={new string('B', 43)}"));
@@ -107,7 +108,7 @@ public class DeviceStoreTests
         Assert.Equal("https://new.example:8443", adopted.Origin);
         Assert.Equal(8443, adopted.LocalPort);
         Assert.Equal(instance, adopted.InstanceId);
-        // The old pin and token must not survive the move.
+        // The old token must not survive the move, and no pin is carried over.
         Assert.Equal(string.Empty, adopted.CaDerBase64);
         Assert.Equal(string.Empty, adopted.ProtectedDeviceToken);
         Assert.Equal(instance, adopted.EndpointId);
