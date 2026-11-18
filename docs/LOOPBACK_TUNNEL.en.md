@@ -48,7 +48,7 @@ What the plugin changes: the gateway server certificate gains `127.0.0.1` and `:
 
 ## Required: the phone port must equal the computer's listener port
 
-> **Warning**: the visitor's `bindPort` on the phone must be the **DSH Mobile gateway listener port on the computer** (default `3443`), not an arbitrary port such as `6000`. The frpc `localPort` on the computer uses the same port.
+> **Which port to use**: by default the visitor's `bindPort` on the phone is the **DSH Mobile gateway listener port on the computer** (default `3443`), and the computer-side frpc `localPort` uses the same port. If you want the visitor on a different port, such as `6000`, put that port in the panel's **Tunnel port** field: the gateway then accepts the loopback origin at that port without changing its own listener. Both ends always agree on `bindPort` and `localPort`.
 >
 > The gateway only accepts an authority whose port equals its own listener port: the request's `Host` and `Origin` must be `127.0.0.1:3443` or `[::1]:3443`. With a different port the tunnel may report itself as connected, but the gateway answers 403. This restriction is deliberate, so that the gateway never becomes a wildcard listener for arbitrary ports.
 
@@ -120,7 +120,7 @@ bindPort = 3443
 
 - `serverName` must equal the computer-side `[[proxies]]` `name`.
 - `bindAddr = "127.0.0.1"` listens on the phone's loopback only, so other devices on the same Wi-Fi cannot reach it.
-- `bindPort` must equal the gateway listener port; see the warning above.
+- `bindPort` and the computer-side `localPort` must be the same value; the gateway listener port is the default. For another port, enter the same value in the panel's **Tunnel port** field.
 
 Start the visitor:
 

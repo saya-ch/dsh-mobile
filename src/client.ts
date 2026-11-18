@@ -1272,9 +1272,21 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   const loopbackTunnelSummary = element('summary'); loopbackTunnelSummary.textContent = t('loopbackTunnelTitle')
   const loopbackTunnelHelp = element('p', 'dsh-mobile-control__component-note'); loopbackTunnelHelp.textContent = t('loopbackTunnelHelp')
   const loopbackTunnelRisk = element('p', 'dsh-mobile-control__component-note')
+  // The visitor may be bound to its own port, so the port is an explicit field rather than a
+  // value inferred from the listener.
+  const loopbackTunnelPortRow = element('label', 'dsh-mobile-control__component-note')
+  const loopbackTunnelPortLabel = element('span'); loopbackTunnelPortLabel.textContent = t('loopbackTunnelPortLabel')
+  const loopbackTunnelPortInput = element('input', 'dsh-mobile-control__text')
+  loopbackTunnelPortInput.type = 'number'
+  loopbackTunnelPortInput.min = '1'
+  loopbackTunnelPortInput.max = '65535'
+  loopbackTunnelPortInput.step = '1'
+  loopbackTunnelPortInput.inputMode = 'numeric'
+  const loopbackTunnelPortHint = element('p', 'dsh-mobile-control__component-note'); loopbackTunnelPortHint.textContent = t('loopbackTunnelPortHint')
+  loopbackTunnelPortRow.append(loopbackTunnelPortLabel, loopbackTunnelPortInput)
   const loopbackTunnelToggle = element('button', 'dsh-mobile-control__secondary'); loopbackTunnelToggle.type = 'button'
   const loopbackTunnelStatus = element('p', 'dsh-mobile-control__status'); loopbackTunnelStatus.setAttribute('role', 'status'); loopbackTunnelStatus.setAttribute('aria-live', 'polite')
-  loopbackTunnel.append(loopbackTunnelSummary, loopbackTunnelHelp, loopbackTunnelRisk, loopbackTunnelToggle, loopbackTunnelStatus)
+  loopbackTunnel.append(loopbackTunnelSummary, loopbackTunnelHelp, loopbackTunnelRisk, loopbackTunnelPortRow, loopbackTunnelPortHint, loopbackTunnelToggle, loopbackTunnelStatus)
   let loopbackTunnelLoaded = false
   let loopbackTunnelLoading = false
   let loopbackTunnelSupported = false
@@ -1288,6 +1300,10 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     loopbackTunnelToggle.setAttribute('aria-pressed', String(loopbackTunnelEnabled))
     loopbackTunnelToggle.textContent = loopbackTunnelEnabled ? t('loopbackTunnelOn') : t('loopbackTunnelOff')
     loopbackTunnelRisk.textContent = t('loopbackTunnelRisk').replaceAll('{port}', String(loopbackTunnelPort))
+    loopbackTunnelPortRow.hidden = loopbackTunnelLoaded && !loopbackTunnelSupported
+    loopbackTunnelPortHint.hidden = loopbackTunnelPortRow.hidden
+    loopbackTunnelPortInput.disabled = !ready
+    if (document.activeElement !== loopbackTunnelPortInput) loopbackTunnelPortInput.value = String(loopbackTunnelPort)
     loopbackTunnel.setAttribute('aria-busy', String(loopbackTunnelLoading || loopbackTunnelBusy))
   }
   syncLoopbackTunnelControls()
@@ -1295,7 +1311,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     loopbackTunnelLoaded = true
     loopbackTunnelSupported = data.supported === true
     loopbackTunnelEnabled = data.enabled === true
-    if (typeof data.listenPort === 'number') loopbackTunnelPort = data.listenPort
+    if (typeof data.tunnelPort === 'number') loopbackTunnelPort = data.tunnelPort
+    else if (typeof data.listenPort === 'number') loopbackTunnelPort = data.listenPort
     syncLoopbackTunnelControls()
     loopbackTunnelStatus.textContent = !loopbackTunnelSupported
       ? t('loopbackTunnelUnavailable')
@@ -1316,9 +1333,16 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
   })
   loopbackTunnelToggle.addEventListener('click', () => {
     if (loopbackTunnelBusy || !loopbackTunnelLoaded || !loopbackTunnelSupported) return
+    // Read the field at click time: the visitor port decides which Host the gateway accepts,
+    // so a malformed value must be reported rather than silently replaced.
+    const requested = Number(loopbackTunnelPortInput.value)
+    if (!Number.isInteger(requested) || requested < 1 || requested > 65535) {
+      loopbackTunnelStatus.textContent = t('loopbackTunnelPortInvalid')
+      return
+    }
     loopbackTunnelBusy = true; syncLoopbackTunnelControls()
     void controlRequestJson('/api/mobile-access/lan/loopback-tunnel', {
-      method: 'POST', body: JSON.stringify({ enabled: !loopbackTunnelEnabled }),
+      method: 'POST', body: JSON.stringify({ enabled: !loopbackTunnelEnabled, port: requested }),
     }).then(renderLoopbackTunnel, () => {
       loopbackTunnelStatus.textContent = t('loopbackTunnelInvalid')
     }).finally(() => { loopbackTunnelBusy = false; syncLoopbackTunnelControls() })

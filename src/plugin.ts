@@ -116,6 +116,7 @@ import {
   refreshManagedUpstreamOrigin,
   parseAdditionalTrustedNetworks,
   parseLoopbackTunnel,
+  parseLoopbackTunnelPort,
   parseManagedSetup,
   readManagedSetupForStart,
   saveManagedLoopbackTunnel,
@@ -1263,6 +1264,9 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
       supported: true,
       enabled: saved.loopbackTunnel === true,
       listenPort: saved.listenPort,
+      // The port the visitor is bound to; equal to listenPort unless the administrator
+      // deliberately pointed the tunnel somewhere else.
+      tunnelPort: saved.loopbackTunnelPort ?? saved.listenPort,
       // The leaf SAN and the accepted authorities are fixed at listener start, so a
       // change needs the restart that re-issues the certificate.
       restartRequired: loopbackTunnelRestartRequired,

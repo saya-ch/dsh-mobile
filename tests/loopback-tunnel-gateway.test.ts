@@ -229,6 +229,20 @@ describe('ManagedSetup loopback tunnel: enabled', () => {
     expect(new URL(pairing.pairUrl).origin).toBe(`https://192.168.50.23:${String(port)}`)
   })
 
+  it('accepts the tunnel on a port of its own and reports it in the pairing URL', async () => {
+    // A visitor bound to 6000 forwards raw bytes to the listener; the client's Host then
+    // carries 127.0.0.1:6000, which the gateway must accept as an exact authority.
+    const gateway = await startGateway({ loopbackTunnel: true, additionalAuthorities: ['127.0.0.1:6000', '[::1]:6000'] })
+    const listenerPort = gateway.address().port
+    expect(gateway.loopbackOrigin()).toBe('https://127.0.0.1:6000')
+
+    const pairing = await openPairingThroughAdminRoute(gateway)
+    expect(new URL(pairing.loopbackPairUrl!).origin).toBe('https://127.0.0.1:6000')
+    expect(new URL(pairing.loopbackPairUrl!).hash).toBe(new URL(pairing.pairUrl).hash)
+    // The LAN authority is unaffected and still uses the listener port.
+    expect(new URL(pairing.pairUrl).origin).toBe(`https://192.168.50.23:${String(listenerPort)}`)
+  })
+
   it('keeps the loopback origin and pairing key absent when the tunnel is off', async () => {
     const gateway = await startGateway({ loopbackTunnel: false })
     expect(gateway.loopbackOrigin()).toBeUndefined()
@@ -258,9 +272,15 @@ describe('ManagedSetup loopback tunnel: rejection paths', () => {
     expect(parseLoopbackTunnel(false)).toBe(false)
   })
 
-  it('rejects an additional authority whose port differs from listenPort', () => {
-    expect(() => parseGatewayConfig(gatewayConfig({
+  it('accepts a loopback addition at the tunnel port but not at an unrelated public one', () => {
+    // The visitor may be bound to a port of its own, so a loopback name may differ from
+    // listenPort. A public name may not: that would move the listener's declared authority.
+    const accepted = parseGatewayConfig(gatewayConfig({
       additionalAuthorities: ['127.0.0.1:3444', '[::1]:3444'],
+    }))
+    expect(accepted.additionalAuthorities.map(entry => entry.port)).toEqual([3444, 3444])
+    expect(() => parseGatewayConfig(gatewayConfig({
+      additionalAuthorities: ['192.168.1.10:3444'],
     }))).toThrow()
   })
 

@@ -405,6 +405,10 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
       throw new Error('additionalAuthorities may only name a loopback address')
     }
   }
+  // The declared public authorities keep the strict rule: their port is the listener port, so
+  // an omitted port can never turn into a wildcard. Kept apart from the loopback additions,
+  // which are allowed their own port (see below).
+  const declaredAuthorities = authorities
   if (additionalAuthorities.length > 0) {
     if (publicOrigin === undefined && (value.publicAuthorities === undefined || value.publicAuthorities.length === 0)
       && isLoopbackAddress(listenHost)) {
@@ -412,7 +416,7 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     }
     authorities = [...authorities, ...additionalAuthorities]
   }
-  for (const authority of authorities) {
+  for (const authority of declaredAuthorities) {
     if (listenPort === 0 && authority.port !== undefined) {
       throw new Error('explicit public authority ports require a non-zero listenPort')
     }
@@ -420,6 +424,10 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
       throw new Error('every explicit public authority port must equal listenPort')
     }
   }
+  // A local tunnel forwards raw bytes to this listener, so the client's Host may carry the port
+  // the tunnel visitor is bound to rather than the listener port. Loopback names may therefore
+  // declare their own port, or none to mean listenPort; the name is already constrained to
+  // loopback above, so this cannot widen the accepted set to a public name or a wildcard port.
   if (new Set(authorities.map(entry => `${entry.hostname}:${String(entry.port ?? listenPort)}`)).size !== authorities.length) {
     throw new Error('publicAuthorities must not contain duplicates')
   }

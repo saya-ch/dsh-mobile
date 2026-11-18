@@ -35,6 +35,13 @@ export interface ManagedSetup {
    * CIDRs or credentials are trusted. Absent means off.
    */
   readonly loopbackTunnel?: boolean
+  /**
+   * The port the administrator's tunnel visitor is bound to, when it is not the listener
+   * port. The tunnel forwards raw bytes, so the client's `Host` carries the visitor port;
+   * this only decides which exact loopback authority is accepted. Absent means the listener
+   * port, which is what the guides document.
+   */
+  readonly loopbackTunnelPort?: number
   readonly tls: {
     readonly mode: 'managed'
     readonly caCertFile: string
@@ -67,7 +74,7 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
   }
   const record = value as Record<string, unknown>
   if (record.version !== 2 || Reflect.ownKeys(record)
-    .some(key => typeof key !== 'string' || !['version', 'networkInterface', 'listenPort', 'upstreamOrigin', 'tls', 'extraAllowedCidrs', 'loopbackTunnel'].includes(key))) {
+    .some(key => typeof key !== 'string' || !['loopbackTunnelPort', 'version', 'networkInterface', 'listenPort', 'upstreamOrigin', 'tls', 'extraAllowedCidrs', 'loopbackTunnel'].includes(key))) {
     throw new Error('mobile setup file has an unsupported format')
   }
   if (!Number.isSafeInteger(record.listenPort) || (record.listenPort as number) < 1024
@@ -88,6 +95,9 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
     listenPort: record.listenPort as number,
     upstreamOrigin: requiredString(record.upstreamOrigin, 'mobile setup upstreamOrigin'),
     ...(record.loopbackTunnel === undefined ? {} : { loopbackTunnel: parseLoopbackTunnel(record.loopbackTunnel) }),
+    ...(record.loopbackTunnelPort === undefined
+      ? {}
+      : { loopbackTunnelPort: parseLoopbackTunnelPort(record.loopbackTunnelPort) }),
     ...(record.extraAllowedCidrs === undefined ? {} : { extraAllowedCidrs: parseAdditionalTrustedNetworks(record.extraAllowedCidrs) }),
     tls: Object.freeze({
       mode: 'managed',
@@ -97,6 +107,18 @@ export function parseManagedSetup(value: unknown): ManagedSetup {
       keyFile: requiredString(tls.keyFile, 'mobile setup tls.keyFile'),
     }),
   })
+}
+
+/**
+ * Validate the tunnel visitor's port: an explicit number in range, never a range or a wildcard.
+ * @param value - Submitted setting value.
+ * @returns The validated port.
+ */
+export function parseLoopbackTunnelPort(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 65535) {
+    throw new Error('loopbackTunnelPort must be an integer between 1 and 65535')
+  }
+  return value
 }
 
 /** Validate the loopback-tunnel opt-in: an absent key means off, and only a real boolean
@@ -186,10 +208,22 @@ export async function saveManagedTrustedNetworks(setupFile: string, values: unkn
  * @param enabled - Whether a locally tunnelled loopback name is accepted.
  * @returns The saved managed setup.
  */
-export async function saveManagedLoopbackTunnel(setupFile: string, enabled: unknown): Promise<ManagedSetup> {
+export async function saveManagedLoopbackTunnel(
+  setupFile: string,
+  enabled: unknown,
+  port?: unknown,
+): Promise<ManagedSetup> {
   const loopbackTunnel = parseLoopbackTunnel(enabled)
   const setup = parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))
-  const next = Object.freeze({ ...setup, loopbackTunnel })
+  // The key is written only when the tunnel really uses a port of its own, so an ordinary
+  // save keeps the record byte-identical apart from the switch it was asked to change.
+  const requestedPort = port === undefined ? undefined : parseLoopbackTunnelPort(port)
+  const { loopbackTunnelPort: _storedPort, ...rest } = setup
+  const next = Object.freeze({
+    ...rest,
+    loopbackTunnel,
+    ...(requestedPort === undefined ? {} : { loopbackTunnelPort: requestedPort }),
+  })
   await atomicWrite(setupFile, `${JSON.stringify(next, null, 2)}\n`)
   await restrictPrivateFile(setupFile)
   return next
@@ -606,12 +640,13 @@ export async function materializeManagedSetup(
     instanceId: ca.fingerprint256.replaceAll(':', '').toLowerCase(),
     pairingCaFile: setup.tls.caCertFile,
     // A loopback visitor binds the same port number on the phone, so the declared
-    // authority is exact: config validation already rejects any authority whose port
-    // differs from the listener port, which keeps this from becoming a wildcard.
-    // Always emitted, empty when off: a managed start must never inherit a stale
-    // additionalAuthorities value from the profile it spreads over.
+    // The authority is exact, and its port is always written out: the tunnel visitor may be
+    // bound to a port other than the listener port, so it is taken from the saved value and
+    // never left to be inferred. Always emitted, empty when off, so a managed start cannot
+    // inherit a stale additionalAuthorities value from the profile it spreads over.
     additionalAuthorities: setup.loopbackTunnel === true
-      ? LOOPBACK_TUNNEL_ADDRESSES.map(address => `${formatHostname(address)}:${String(setup.listenPort)}`)
+      ? LOOPBACK_TUNNEL_ADDRESSES.map(address =>
+          `${formatHostname(address)}:${String(setup.loopbackTunnelPort ?? setup.listenPort)}`)
       : [],
     tls: {
       mode: 'provided',

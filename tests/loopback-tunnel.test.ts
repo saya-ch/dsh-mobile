@@ -8,6 +8,7 @@ import {
   ensureManagedCa,
   parseAdditionalTrustedNetworks,
   parseLoopbackTunnel,
+  parseLoopbackTunnelPort,
   parseManagedSetup,
   readManagedSetupForStart,
   refreshManagedServerCertificate,
@@ -160,7 +161,32 @@ describe('loopback tunnel sanity', () => {
     expect(withAdditional('127.0.0.1:3443')).toThrow()
   })
 
-  it('rejects a mismatched port and a wildcard-ish authority', () => {
+  it('keeps the saved tunnel port on the authority, and listenPort when it is absent', () => {
+    // The visitor can be bound anywhere; the accepted Host follows the saved port.
+    const base = {
+      publicOrigin: 'https://192.168.1.10:3443',
+      listenHost: '192.168.1.10',
+      upstreamOrigin: 'http://127.0.0.1:3080',
+      allowedCidrs: ['192.168.1.0/24'],
+      stateFile: join(tmpdir(), `loopback-${String(Date.now())}-p.json`),
+      tls: { mode: 'provided', certFile: '/tmp/c.pem', keyFile: '/tmp/k.pem' },
+    } as const
+    const custom = parseGatewayConfig({ ...base, additionalAuthorities: ['127.0.0.1:6000', '[::1]:6000'] } as never)
+    expect(custom.additionalAuthorities.map(entry => entry.port)).toEqual([6000, 6000])
+    // Absent port means the listener port, which is what the guide documents.
+    const implied = parseGatewayConfig({ ...base, additionalAuthorities: ['127.0.0.1', '[::1]'] } as never)
+    expect(implied.additionalAuthorities.map(entry => entry.port)).toEqual([undefined, undefined])
+  })
+
+  it('validates the tunnel port as an explicit integer in range', () => {
+    for (const bad of [0, -1, 65536, 1.5, '3443', null, Number.NaN]) {
+      expect(() => parseLoopbackTunnelPort(bad)).toThrow()
+    }
+    expect(parseLoopbackTunnelPort(1)).toBe(1)
+    expect(parseLoopbackTunnelPort(65535)).toBe(65535)
+  })
+
+  it('lets a loopback addition carry the tunnel port but still rejects a bad authority', () => {
     const make = (additionalAuthorities: string[]) => () => parseGatewayConfig({
       publicOrigin: 'https://192.168.1.10:3443',
       listenHost: '192.168.1.10',
@@ -170,10 +196,16 @@ describe('loopback tunnel sanity', () => {
       stateFile: join(tmpdir(), `loopback-${String(Date.now())}-c.json`),
       tls: { mode: 'provided', certFile: '/tmp/c.pem', keyFile: '/tmp/k.pem' },
     })
-    expect(make(['127.0.0.1:9999'])).toThrow()
+    // The visitor may listen on its own port, so the loopback authority keeps it.
+    const tunnelPort = make(['127.0.0.1:9999'])()
+    expect(tunnelPort.additionalAuthorities[0]!.port).toBe(9999)
+    // Everything else about an authority is still refused.
     expect(make(['127.0.0.1:3443', '127.0.0.1:3443'])).toThrow()
     expect(make(['127.0.0.1:3443/path'])).toThrow()
     expect(make(['user@127.0.0.1:3443'])).toThrow()
+    // An omitted port still means the listener port, which is the documented setup.
+  expect(make(['127.0.0.1'])()).toBeDefined()
+    expect(make(['192.168.1.11:9999'])).toThrow()
   })
 })
 
