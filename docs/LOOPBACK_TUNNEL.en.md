@@ -8,6 +8,8 @@ If you already run your own frps and want to reach the DSH mobile gateway throug
 
 Be precise about what this is: the plugin does **not** support the stcp protocol. It does not read, validate or manage your frp processes and configuration. It only allows requests that arrive through a **local loopback tunnel** and makes the certificate cover the loopback names. The channel itself — frps, both frpc instances, the `sk`, and the network route — is yours to deploy and operate.
 
+> **Do not open the loopback link on the computer to test it.** The gateway itself listens only on the LAN address and never on `127.0.0.1`; what listens on that loopback address is the **frpc visitor on the phone**. So with no tunnel running, `https://127.0.0.1:<port>` cannot connect from the computer or any other device that is not running a visitor — on Windows this usually surfaces as Schannel's `SEC_E_INVALID_TOKEN`, and `http://` fails the same way because nothing is listening there. Check the route from the **phone**.
+
 ## When to use it
 
 - You already own an frps (a public VPS) and do not want to publish the DSH HTTPS port, a domain or a public certificate.
