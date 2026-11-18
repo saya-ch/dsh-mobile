@@ -1243,7 +1243,9 @@ describe('mobile-control localization', () => {
     // available in CI, so the set the plugin may use is recorded here: adding a token is
     // then a deliberate edit rather than a silent typo.
     const allowed = new Set([
-      '--dsw-radius-panel', '--dsw-font-family',
+      // The footer seat uses the host's 12px control radius (sidebar rail controls,
+      // settings entry) so the seat and its neighbours share one corner.
+      '--dsw-radius-md', '--dsw-radius-panel', '--dsw-font-family',
       '--dsw-font-markdown-base', '--dsw-font-markdown-code-block',
       '--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-2', '--dsw-alias-bg-layer-3',
       '--dsw-alias-bg-module-platform',

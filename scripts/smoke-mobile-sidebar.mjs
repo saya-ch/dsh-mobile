@@ -352,8 +352,12 @@ async function checkDesktopFooter(page) {
         assert.equal(value.rowDirection, 'row', 'Mobile changed the shared footer orientation')
         if (mode === 'shared') {
           assert(value.amountRight <= value.rowRight + 1, `Adjacent amount clipped ${JSON.stringify(value)}`)
-          assert.equal(value.width, 44, 'Mobile did not reserve its compact shared-row target')
-          assert.equal(value.labelDisplay, 'none', 'Compact Mobile label was squeezed instead of hidden')
+          // Capacity contract v1: two seats keep their 112px labels only while the
+          // row is at least 2*112 + 4 + 16 wide, and every occupant agrees on the
+          // answer without measuring its peer's chosen form.
+          const labelled = value.rowRight - value.rowLeft >= 2 * 112 + 4 + 16
+          assert.equal(value.labelDisplay !== 'none', labelled, `Shared-row form disagreed with the capacity contract ${JSON.stringify(value)}`)
+          assert(labelled ? value.width > 100 : value.width === 36, `Shared-row seat did not resolve to its contract width ${JSON.stringify(value)}`)
           await shared.click()
           assert.equal(await page.evaluate(() => window.__sidebarFixture.clicks.at(-1)), 'shared')
         } else {
@@ -366,7 +370,7 @@ async function checkDesktopFooter(page) {
       }
     }
     await page.setViewportSize({ width: 1000, height: 800 })
-    await page.waitForFunction(() => document.querySelector('.dsh-mobile-control__trigger')?.classList.contains('is-rail'))
+    await page.waitForFunction(() => document.querySelector('.dsh-mobile-control__trigger')?.classList.contains('is-icon'))
     const rail = await trigger.evaluate(node => {
       const rect = node.getBoundingClientRect(), hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
       return { width: rect.width, height: rect.height, hit: node === hit || node.contains(hit) }

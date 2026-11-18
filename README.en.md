@@ -151,7 +151,7 @@ LAN and HTTPS remote pairing codes show their expiry time. Generate a new code a
 
 Once LAN is configured, the panel shows **Change network**: it rescans the computer's current interfaces and, after you confirm one, keeps the private CA and paired devices while re-signing only the server certificate and updating the listen address and allowed network. Switching while LAN access is running briefly disconnects connected phones and requires reconnecting with a new pairing QR code; when it is stopped, the configuration is only saved and takes effect the next time you enable LAN access.
 
-When other plugin entries share the sidebar footer, **Mobile access** becomes a phone-icon button. Hover to read its name; clicking opens the same panel. Its text label returns when the entry is alone.
+When other plugin entries share the sidebar footer, **Mobile access** follows one shared capacity rule instead of shrinking alone: the row keeps 42px label buttons while it can still hold a 112px label per occupant (so up to two occupants), and every occupant switches to the 36px icon target together when it cannot. The name stays in the tooltip and the accessible label, and clicking still opens the same panel.
 
 Port note: `dsh web --port` changes the DSH Web upstream port (3080 by default), which the plugin follows automatically. `dsh-mobile setup --port` changes the Mobile HTTPS listener (3443 by default), and the pairing QR code includes the selected port. When DSH Desktop starts with `--port 0`, the gateway follows the **actual port in use**; `upstreamOrigin` in `mobile-access/setup.json` is only the snapshot from the first setup, and the plugin refreshes it at startup — do not read it as the upstream the gateway uses.
 
