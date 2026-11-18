@@ -44,7 +44,7 @@ Phone app / phone browser
                  └─ computer LAN address:3443 (the DSH Mobile HTTPS gateway)
 ```
 
-What the plugin changes: the gateway server certificate gains `127.0.0.1` and `::1` SANs, and the gateway also accepts the exact origins `https://127.0.0.1:<listener port>` and `https://[::1]:<listener port>`. Nothing else changes.
+What the plugin changes: the gateway server certificate gains `127.0.0.1` and `::1` SANs, and the gateway also accepts the exact origins `https://127.0.0.1:<tunnel port>` and `https://[::1]:<tunnel port>`. Nothing else changes.
 
 ## Required: both ends must agree on the port
 
