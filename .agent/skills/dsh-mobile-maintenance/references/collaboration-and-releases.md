@@ -46,6 +46,8 @@ Before a real release, verify cleanly scoped changes, original contributor ances
 
 After authorized publication, independently check npm metadata and dist-tag, downloaded npm artifact/integrity, GitHub non-draft release/tag/commit/assets, package byte equality/checksum and any new APK's manifest/signer. A successful workflow dispatch, green job or skipped upload is not proof that users can download/install the intended artifact. An existing version may not be overwritten; reconcile what actually published before any retry.
 
+Compare published and candidate artifacts with a streaming hash (`Get-FileHash`, `sha256sum`, `cmp`), never by loading both into arrays and comparing element by element: a shell's array comparison builds an object per element, and doing it on a 28 MB package twice drove a machine's commit charge to 40 GB before the run was killed. Hash comparison answers the same question in constant memory.
+
 Registry metadata can briefly lag a successful upload. Use bounded read-only propagation checks against the official version URL and retain initial failures; a temporary 404 or ETARGET is not permission to republish. Accept only complete downloaded files whose size, integrity and checksum match. EOF, TLS errors and partial files are failed observations, not usable artifacts. If an authorized existing proxy is needed, keep it command-local rather than changing global settings or disabling TLS verification.
 
 Before preparing release notes, verify that the workflow-selected notes base is the previous stable plugin tag, not an App or component release; keep plugin and App notes separate, credit the actual contributions, and link the complete plugin-to-plugin changes.
