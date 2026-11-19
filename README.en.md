@@ -39,6 +39,8 @@
 > **Current stable release: 0.8.13**. The **loopback tunnel** can now use a port of its own instead of having to match the gateway listener port (#444), and mobile customization recovers by itself after a DSH reconnect instead of needing a manual retry (#338). The plugin and the Android app update independently; Android app 0.8.2 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.13) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
+>
+> **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile), synced from this repository.
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
