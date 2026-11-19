@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createElement, type ReactElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   DIAGNOSTIC_REASON_MESSAGES,
   DIAGNOSTIC_NETWORK_MESSAGES,
@@ -44,6 +44,7 @@ import { MobilePushSettings } from './mobile-push/settings.js'
 import { SESSION_PREFETCH_SETTINGS_ORDER, SessionPrefetchSettings } from './session-prefetch-settings.js'
 import { installPushNavigation } from './mobile-push/navigation.js'
 import { dismissMobileDirectoryPicker, hasUpstreamBrowsePicker, installMobileDirectoryPicker } from './mobile-directory-picker.js'
+import { footerFormFor, measureFooterSeat } from './footer-form.js'
 
 export { shouldNudgeReconnect, shouldRenewSession } from './client-recovery.js'
 export type { MobileConnectionState } from './client-recovery.js'
@@ -5616,6 +5617,140 @@ async function refreshCssLegacy(style: HTMLStyleElement, signal: AbortSignal, st
   } catch { return false }
 }
 
+/** The seat helpers below only need the control's public handle. */
+type MobileControlHandle = { remove: () => void; toggle: () => void; isOpen: () => boolean }
+
+/** Translator surface `controlTranslator` returns. */
+type ControlMessageTranslator = (key: string, values?: Readonly<Record<string, string | number>>) => string
+
+/** Teardown for an observed footer seat, keyed by the button it belongs to. */
+const footerSeatTeardown = new WeakMap<Element, () => void>()
+
+function setFooterSeatClass(button: Element, name: string, enabled: boolean): void {
+  const classes = button.classList
+  if (classes === undefined) return
+  if (classes.contains(name) === enabled) return
+  classes.toggle(name, enabled)
+}
+
+function releaseFooterSeat(button: Element): void {
+  const teardown = footerSeatTeardown.get(button)
+  if (teardown === undefined) return
+  footerSeatTeardown.delete(button)
+  teardown()
+}
+
+/**
+ * Observe the host footer row and keep this seat's form in sync with the
+ * capacity contract (`src/footer-form.ts`).
+ *
+ * The host passes only `wide`, so the occupant count and row width are measured
+ * here. Nothing in the host row is mutated: the seat only toggles its own
+ * classes, so several plugins resolving the same rule independently converge.
+ */
+function attachFooterSeat(button: HTMLButtonElement, wide: boolean): void {
+  releaseFooterSeat(button)
+  if (!wide) {
+    setFooterSeatClass(button, 'is-icon', true)
+    setFooterSeatClass(button, 'is-shared', false)
+    return
+  }
+  let observed: Element | null = null
+  let resize: ResizeObserver | undefined
+  let mutations: MutationObserver | undefined
+  let applying = false
+  const check = (): void => {
+    if (applying) return
+    applying = true
+    try {
+      const facts = measureFooterSeat(button)
+      const form = footerFormFor(facts, wide)
+      setFooterSeatClass(button, 'is-icon', form === 'icon')
+      setFooterSeatClass(button, 'is-shared', form === 'label' && facts.count > 1)
+      if (facts.row === observed) return
+      if (resize !== undefined) resize.disconnect()
+      if (mutations !== undefined) mutations.disconnect()
+      resize = undefined
+      mutations = undefined
+      observed = facts.row
+      if (observed === null) return
+      if (typeof ResizeObserver === 'function') {
+        resize = new ResizeObserver(check)
+        resize.observe(observed)
+        resize.observe(button)
+      }
+      if (typeof MutationObserver === 'function') {
+        mutations = new MutationObserver(check)
+        mutations.observe(observed, { childList: true, subtree: true, attributeFilter: ['style', 'class', 'hidden'] })
+      }
+    } finally {
+      applying = false
+    }
+  }
+  check()
+  window.addEventListener('resize', check)
+  footerSeatTeardown.set(button, () => {
+    window.removeEventListener('resize', check)
+    if (resize !== undefined) resize.disconnect()
+    if (mutations !== undefined) mutations.disconnect()
+  })
+}
+
+/**
+ * The Mobile Access seat in the sidebar footer.
+ *
+ * Geometry follows the shared footer contract (capacity contract v1): a 42px
+ * label row that matches the host settings entry, or a 36x36 icon target with
+ * the same 12px radius as the host's own rail controls. The form is decided by
+ * `footerFormFor`, not by `:only-child`, so three occupants cannot end up with
+ * one labelled button and two bare icons.
+ */
+function renderMobileFooterAction(props: {
+  wide: boolean
+  control: MobileControlHandle
+  locale: MobileControlLocale
+  t: ControlMessageTranslator
+}): ReactElement {
+  const { wide, control, locale, t } = props
+  // The ref callback is re-created on every render, so a rail/wide switch
+  // re-runs the seat probe against the new row shape instead of waiting for the
+  // next resize; React also calls it with null while detaching.
+  let seat: Element | null = null
+  const attachSeat = (node: HTMLButtonElement | null): void => {
+    if (node === null) {
+      if (seat !== null) releaseFooterSeat(seat)
+      seat = null
+      return
+    }
+    seat = node
+    attachFooterSeat(node, wide)
+  }
+  return createElement('button', {
+    ref: attachSeat,
+    'aria-expanded': control.isOpen(),
+    'aria-controls': CONTROL_PANEL_ID,
+    'aria-label': t('mobileAccess'),
+    className: `dsh-mobile-control__trigger${wide ? '' : ' is-icon'}`,
+    lang: locale,
+    title: t('mobileAccess'),
+    type: 'button',
+    onClick: control.toggle,
+  }, createElement('svg', {
+    'aria-hidden': true,
+    className: 'dsh-mobile-control__trigger-icon',
+    focusable: false,
+    width: 18,
+    height: 18,
+    viewBox: '0 0 16 16',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.5,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+  }, createElement('rect', { x: 4, y: 1, width: 8, height: 14, rx: 2 }), createElement('path', { d: 'M7 12h2' })),
+  createElement('span', { className: 'dsh-mobile-control__trigger-label' }, t('mobileAccess')))
+}
+
 /** Theme-aware desktop Mobile Access panel styles. */
 export const CONTROL_STYLES = `
 .dsh-mobile-control{position:fixed;z-index:1000;left:16px;bottom:112px;font:14px/1.45 system-ui;color:var(--dsw-alias-label-primary,#16181d)}
@@ -5669,10 +5804,12 @@ export const CONTROL_STYLES = `
 @keyframes dsh-diagnostic-spin{to{transform:rotate(360deg)}}@keyframes dsh-diagnostic-reveal{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .dsh-mobile-control__actions{display:flex;flex-wrap:nowrap;gap:6px}.dsh-mobile-control__actions[hidden],.dsh-mobile-control__manage-row[hidden]{display:none}.dsh-mobile-control__actions button{flex:1 1 0;min-width:0;min-height:44px;padding:8px 4px;border-radius:10px;font:12px/1.2 system-ui;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dsh-mobile-control__secondary{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:40px;padding:9px 14px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:transparent;color:inherit;font:600 12px/1.3 system-ui;cursor:pointer;touch-action:manipulation}.dsh-mobile-control__secondary:hover:not(:disabled){border-color:#6f96db;background:var(--dsw-alias-interactive-bg-hover-solid,var(--dsw-alias-bg-layer-1,#f8fbff))}.dsh-mobile-control__secondary:disabled{cursor:wait;opacity:.55}.dsh-mobile-control__secondary[hidden]{display:none}.dsh-mobile-control__primary{border:1px solid #2563eb;background:#2563eb;color:#fff}.dsh-mobile-control__actions button:disabled{cursor:not-allowed;opacity:.45}
 .dsh-mobile-control button:focus-visible,.dsh-mobile-control a:focus-visible,.dsh-mobile-control input:focus-visible,.dsh-mobile-control select:focus-visible,.dsh-mobile-control summary:focus-visible{outline:3px solid rgb(37 99 235 / 28%);outline-offset:2px}
-/* 42px matches the DSH sidebar footer row; it is not one of the panel target tiers. */
-/* Other footer entries share the shell's row; only our own action becomes compact. */
-.dsh-mobile-control__trigger:not(.is-rail):not(:only-child){flex:0 0 44px;width:44px;min-width:44px;padding:0;justify-content:center;gap:0}.dsh-mobile-control__trigger:not(.is-rail):not(:only-child) .dsh-mobile-control__trigger-label{display:none}
-.dsh-mobile-control__trigger{box-sizing:border-box;flex:1 1 auto;display:flex;align-items:center;gap:8px;width:100%;height:42px;margin:4px 0;padding:0 10px 0 8px;border:0;border-radius:12px;background:transparent;color:var(--dsw-alias-label-primary,#16181d);font-family:inherit;font-size:14px;line-height:22px;cursor:pointer;overflow:hidden}.dsh-mobile-control__trigger:hover{background:var(--dsw-alias-interactive-bg-hover,#f1f3f6)}.dsh-mobile-control__trigger:active,.dsh-mobile-control__trigger[aria-expanded="true"]{background:var(--dsw-alias-interactive-bg-active,#e8ebf0)}.dsh-mobile-control__trigger:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,currentColor);outline-offset:2px}.dsh-mobile-control__trigger.is-rail{flex:0 0 auto;width:36px;height:36px;margin:8px 0 10px;padding:0;justify-content:center;gap:0;border-radius:50%}.dsh-mobile-control__trigger-icon{display:block;flex:none}.dsh-mobile-control__trigger-label{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* Footer seat, capacity contract v1 (src/footer-form.ts): a 42px label row that
+   matches the DSH settings entry, or a 36x36 icon target with the same 12px
+   radius as the host's rail controls. The seat counts its peers rather than
+   relying on :only-child, and neighbours keep a symmetric 4px 2px margin because
+   the host .footerActions row provides no gap and no inline padding. */
+.dsh-mobile-control__trigger{box-sizing:border-box;flex:1 1 auto;display:flex;align-items:center;justify-content:flex-start;gap:var(--dsh-sidebar-label-gap,6px);width:100%;height:42px;margin:4px 2px;padding:0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px));border:0;border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent;background-clip:padding-box;border-radius:var(--dsw-radius-md,12px);background-color:transparent;color:var(--dsw-alias-label-primary,#16181d);font-family:inherit;font-size:14px;line-height:22px;cursor:pointer;overflow:hidden}.dsh-mobile-control__trigger.is-shared{flex:0 0 auto;width:auto;max-width:100%}.dsh-mobile-control__trigger:hover{background-color:var(--dsw-alias-interactive-bg-hover,#f1f3f6)}.dsh-mobile-control__trigger:active,.dsh-mobile-control__trigger[aria-expanded="true"]{background-color:var(--dsw-alias-interactive-bg-active,#e8ebf0)}.dsh-mobile-control .dsh-mobile-control__trigger:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,currentColor);outline-offset:-2px}.dsh-mobile-control__trigger.is-icon{flex:0 0 auto;width:36px;min-width:36px;height:36px;margin:4px 2px;padding:0;justify-content:center;gap:0;border-inline:0;border-radius:var(--dsw-radius-md,12px)}.dsh-mobile-control__trigger.is-icon>.dsh-mobile-control__trigger-label{display:none}.dsh-mobile-control__trigger-icon{display:block;flex:none;width:16px;height:16px}.dsh-mobile-control__trigger.is-icon>.dsh-mobile-control__trigger-icon{width:18px;height:18px}.dsh-mobile-control__trigger-label{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .dsh-mobile-control__manage-row{display:flex;justify-content:space-between;gap:8px;margin-top:10px}.dsh-mobile-control__manage{flex:1 1 0;min-width:0;min-height:36px;padding:6px 8px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:transparent;color:inherit;font:12px/1.3 system-ui;cursor:pointer}.dsh-mobile-control__devices{margin-top:10px;border:1px solid var(--dsw-alias-border-l2,#e1e5eb);border-radius:10px;padding:8px;max-height:220px;overflow-y:auto}.dsh-mobile-control__device-empty{color:var(--dsw-alias-label-secondary,#606873);font-size:12px;margin:0}.dsh-mobile-control__device{display:flex;align-items:center;gap:8px;padding:6px 2px}.dsh-mobile-control__device + .dsh-mobile-control__device{border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}.dsh-mobile-control__device-label{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.dsh-mobile-control__device-meta{flex:none;color:var(--dsw-alias-label-secondary,#606873);font-size:11px;white-space:nowrap}.dsh-mobile-control__device-revoke{flex:none;min-height:36px;padding:4px 8px;border:1px solid var(--dsw-alias-state-error-primary,#dc2626);border-radius:8px;background:transparent;color:var(--dsw-alias-label-primary,#dc2626);font:12px/1.2 system-ui;cursor:pointer}.dsh-mobile-control__ws-paths{margin:10px 0 0;padding:12px;border:1px solid var(--dsw-alias-border-l2,#dbe1e8);border-radius:13px;background:var(--dsw-alias-bg-layer-2,#fff)}.dsh-mobile-control__ws-paths-list{margin:0 0 8px;padding:0;list-style:none}.dsh-mobile-control__ws-paths-empty{color:var(--dsw-alias-label-secondary,#606873);font-size:12px}.dsh-mobile-control__ws-paths-item{display:flex;align-items:center;gap:8px;padding:6px 0}.dsh-mobile-control__ws-paths-item + .dsh-mobile-control__ws-paths-item{border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}.dsh-mobile-control__ws-paths-item code{flex:1 1 0;min-width:0;overflow:hidden;font:11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis;white-space:nowrap}.dsh-mobile-control__ws-paths-remove{flex:none;min-height:36px;padding:4px 8px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:8px;background:transparent;color:inherit;font:12px/1.2 system-ui;cursor:pointer}.dsh-mobile-control__trigger,.dsh-mobile-control__diagnostic-entry{position:relative}.dsh-mobile-control__ws-dot{position:absolute;top:2px;right:2px;z-index:1;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--dsw-alias-state-error-primary,#dc2626);color:#fff;font:650 11px/16px system-ui;text-align:center;cursor:pointer}.dsh-mobile-control__ws-dot::after{content:'';position:absolute;inset:-5px}.dsh-mobile-control__ws-sr-status{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.dsh-mobile-control__ws-paths-row{display:flex;gap:8px}.dsh-mobile-control__ws-paths-row .dsh-mobile-control__primary{width:auto;flex:none;padding:9px 14px;border-radius:10px}.dsh-mobile-control__ws-paths-group{padding:6px 0}.dsh-mobile-control__ws-paths-group + .dsh-mobile-control__ws-paths-group{border-top:1px solid var(--dsw-alias-border-l2,#e1e5eb)}.dsh-mobile-control__ws-paths-group-head{display:flex;align-items:center;gap:8px}.dsh-mobile-control__ws-count{flex:none;padding:1px 7px;border-radius:999px;background:var(--dsw-alias-state-business-tertiary,#e8f0ff);color:var(--dsw-alias-label-primary,#1d4ed8);font:650 11px/1.6 system-ui}.dsh-mobile-control__ws-paths-item.is-child{padding-left:12px}.dsh-mobile-control__ws-paths-group-head .dsh-mobile-control__primary,.dsh-mobile-control__ws-paths-item .dsh-mobile-control__primary{width:auto;flex:none;min-height:36px;padding:6px 12px;border-radius:10px}.dsh-mobile-control__ws-paths-row input{flex:1 1 0;min-width:0;box-sizing:border-box;min-height:44px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l3,#cfd5dd);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#fff);color:var(--dsw-alias-label-primary,#16181d);font:16px/1.4 system-ui}.dsh-mobile-control__ws-paths-row button{flex:none}.dsh-mobile-control__ws-paths-detected-title{margin:0 0 2px;font:600 12px/1.4 system-ui}.dsh-mobile-control__ws-paths-advanced{margin-top:8px}.dsh-mobile-control__ws-paths-advanced summary{cursor:pointer;color:var(--dsw-alias-label-secondary,#606873);font:12px/1.4 system-ui;user-select:none}.dsh-mobile-control__ws-paths-advanced summary:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,currentColor);outline-offset:2px;border-radius:4px}.dsh-mobile-control__ws-paths-advanced[open] summary{margin-bottom:6px}.dsh-mobile-control__ws-paths-advanced .dsh-mobile-control__status{margin:6px 0 0}
 @media (max-width:359px){.dsh-mobile-control__provider{min-height:68px}}@media (prefers-reduced-motion:reduce){.dsh-mobile-control__provider,.dsh-mobile-control__cpolar-connect{transition:none}.dsh-mobile-control__diagnostic-summary.is-running .dsh-mobile-control__diagnostic-summary-icon::before,.dsh-mobile-control__diagnostic-checks{animation:none}}
 
@@ -6065,28 +6202,10 @@ export function apply(ctx: ClientContext): void {
       const control = installControl()
       const triggerLocale = selectedMobileControlLocale()
       const t = controlTranslator(triggerLocale)
-      const disposeSlot = ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register<{ wide: boolean }>({ name: 'sidebar.footer.action', id: 'dsh-mobile' }, ({ wide }) => createElement('button', {
-        'aria-expanded': control.isOpen(),
-        'aria-controls': CONTROL_PANEL_ID,
-        'aria-label': t('mobileAccess'),
-        className: `dsh-mobile-control__trigger${wide ? '' : ' is-rail'}`,
-        lang: triggerLocale,
-        type: 'button',
-        title: t('mobileAccess'),
-        onClick: control.toggle,
-      }, createElement('svg', {
-        'aria-hidden': true,
-        className: 'dsh-mobile-control__trigger-icon',
-        focusable: false,
-        width: wide ? 16 : 18,
-        height: wide ? 16 : 18,
-        viewBox: '0 0 16 16',
-        fill: 'none',
-        stroke: 'currentColor',
-        strokeWidth: 1.5,
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-      }, createElement('rect', { x: 4, y: 1, width: 8, height: 14, rx: 2 }), createElement('path', { d: 'M7 12h2' })), wide ? createElement('span', { className: 'dsh-mobile-control__trigger-label' }, t('mobileAccess')) : undefined)))
+      const disposeSlot = ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register<{ wide: boolean }>(
+        { name: 'sidebar.footer.action', id: 'dsh-mobile', order: 40 },
+        ({ wide }) => renderMobileFooterAction({ wide, control, locale: triggerLocale, t }),
+      ))
       return () => { disposeSlot(); control.remove() }
     })
     return () => { disposeClientModuleDialogs(); removeModuleSettings(); removeControl(); removeCustom(); removeVoiceSession(); removeDraftTransfer(); style.remove() }

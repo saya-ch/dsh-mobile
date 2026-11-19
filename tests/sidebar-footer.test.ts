@@ -123,7 +123,7 @@ function installFooter(locale = 'en-US', hostname = 'localhost') {
           expect(row.props.locale).toBe(locale.split('-')[0] === 'zh' ? 'zh' : locale.split('-')[0] === 'it' ? 'it' : 'en')
           return disposeSettings
         }
-        expect(options).toMatchObject({ name: 'sidebar.footer.action', id: 'dsh-mobile' })
+        expect(options).toMatchObject({ name: 'sidebar.footer.action', id: 'dsh-mobile', order: 40 })
         renderer = wide => component({ wide } as never) as ReactElement<TriggerProps>
         return disposeSlot
       },
@@ -163,54 +163,61 @@ function declarations(selector: string): Record<string, string> {
 }
 
 describe('desktop Mobile Access footer', () => {
-  it('shares the footer row and preserves the compact rail target', () => {
+  it('shares the footer row geometry and the compact icon target', () => {
     expect(declarations('.dsh-mobile-control__trigger')).toMatchObject({
       'box-sizing': 'border-box',
       flex: '1 1 auto',
-      gap: '8px',
+      gap: 'var(--dsh-sidebar-label-gap,6px)',
       width: '100%',
       height: '42px',
-      margin: '4px 0',
-      padding: '0 10px 0 8px',
+      margin: '4px 2px',
+      padding: '0 calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px))',
       border: '0',
-      'border-radius': '12px',
+      'border-inline': 'var(--dsh-sidebar-paint-inset,3px) solid transparent',
+      'background-clip': 'padding-box',
+      'border-radius': 'var(--dsw-radius-md,12px)',
       'font-family': 'inherit',
       'font-size': '14px',
       'line-height': '22px',
       color: 'var(--dsw-alias-label-primary,#16181d)',
     })
-    expect(declarations('.dsh-mobile-control__trigger.is-rail')).toMatchObject({
+    expect(declarations('.dsh-mobile-control__trigger.is-icon')).toMatchObject({
       flex: '0 0 auto',
       width: '36px',
+      'min-width': '36px',
       height: '36px',
-      margin: '8px 0 10px',
+      margin: '4px 2px',
       padding: '0',
       gap: '0',
       'justify-content': 'center',
-      'border-radius': '50%',
+      'border-inline': '0',
+      'border-radius': 'var(--dsw-radius-md,12px)',
     })
+    expect(declarations('.dsh-mobile-control__trigger-icon')).toMatchObject({ width: '16px', height: '16px' })
+    expect(declarations('.dsh-mobile-control__trigger.is-icon>.dsh-mobile-control__trigger-icon')).toEqual({ width: '18px', height: '18px' })
   })
 
   it('uses theme tokens for hover, pressed, expanded, and visible keyboard focus', () => {
-    expect(declarations('.dsh-mobile-control__trigger:hover').background).toBe('var(--dsw-alias-interactive-bg-hover,#f1f3f6)')
-    expect(declarations('.dsh-mobile-control__trigger:active,.dsh-mobile-control__trigger[aria-expanded="true"]').background).toBe('var(--dsw-alias-interactive-bg-active,#e8ebf0)')
-    expect(declarations('.dsh-mobile-control__trigger:focus-visible')).toEqual({
+    expect(declarations('.dsh-mobile-control__trigger:hover')['background-color']).toBe('var(--dsw-alias-interactive-bg-hover,#f1f3f6)')
+    expect(declarations('.dsh-mobile-control__trigger:active,.dsh-mobile-control__trigger[aria-expanded="true"]')['background-color']).toBe('var(--dsw-alias-interactive-bg-active,#e8ebf0)')
+    // Scoped above `.dsh-mobile-control button:focus-visible`, which is more specific.
+    expect(declarations('.dsh-mobile-control .dsh-mobile-control__trigger:focus-visible')).toEqual({
       outline: '2px solid var(--dsw-alias-state-business-primary,currentColor)',
-      'outline-offset': '2px',
+      'outline-offset': '-2px',
     })
     expect(CONTROL_STYLES).not.toContain('.dsh-mobile-control__trigger-icon::after')
   })
 
-  it('reserves an icon target when another footer entry shares the row', () => {
-    expect(declarations('.dsh-mobile-control__trigger:not(.is-rail):not(:only-child)')).toEqual({
-      flex: '0 0 44px',
-      width: '44px',
-      'min-width': '44px',
-      padding: '0',
-      'justify-content': 'center',
-      gap: '0',
+  it('lets a shared row size the label form by its own text instead of a fixed 44px', () => {
+    expect(declarations('.dsh-mobile-control__trigger.is-shared')).toEqual({
+      flex: '0 0 auto',
+      width: 'auto',
+      'max-width': '100%',
     })
-    expect(declarations('.dsh-mobile-control__trigger:not(.is-rail):not(:only-child) .dsh-mobile-control__trigger-label')).toEqual({ display: 'none' })
+    // The seat counts its peers through the capacity contract; the old
+    // :only-child heuristic made one labelled button and two bare icons.
+    expect(CONTROL_STYLES).not.toContain('.dsh-mobile-control__trigger:not(.is-rail):not(:only-child)')
+    expect(CONTROL_STYLES).not.toContain('.dsh-mobile-control__trigger.is-rail')
   })
 
   it.each([
@@ -226,20 +233,21 @@ describe('desktop Mobile Access footer', () => {
       const children = Children.toArray(tree.props.children) as ReactElement<{ children?: ReactNode }>[]
       expect(tree.type).toBe('button')
       expect(tree.props).toMatchObject({ 'aria-label': label, title: label, type: 'button', 'aria-expanded': false })
-      expect(tree.props.className.includes('is-rail')).toBe(!wide)
+      expect(tree.props.className.includes('is-icon')).toBe(!wide)
       expect(children[0]?.type).toBe('svg')
       expect(children[0]?.props).toMatchObject({
         'aria-hidden': true,
         focusable: false,
-        width: wide ? 16 : 18,
-        height: wide ? 16 : 18,
+        width: 18,
+        height: 18,
         viewBox: '0 0 16 16',
         fill: 'none',
         stroke: 'currentColor',
         strokeWidth: 1.5,
       })
-      expect(children).toHaveLength(wide ? 2 : 1)
-      if (wide) expect(children[1]?.props.children).toBe(label)
+      // The label stays in the tree in both forms; CSS hides it for the icon target.
+      expect(children).toHaveLength(2)
+      expect(children[1]?.props.children).toBe(label)
     }
   })
 
