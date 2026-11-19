@@ -2,6 +2,12 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Render assistant text on Android WebViews below Chromium 120. The compatibility bundle now supplies
+  `URL.canParse` and `URL.parse`, whose absence made the conversation node slot throw so every assistant
+  reply rendered without its body. Thanks @Againstthewindtofly for [#450](https://github.com/saya-ch/dsh-mobile/issues/450), which named the missing API.
+
 ## 0.8.13 - 2026-11-18
 
 - Recover mobile customization when the page and its transports become ready at different times. A manifest request rejected by a transient status (408/502/503/504) or a transport error is retried twice while keeping the ETag, and the customization is revalidated when the connection recovers while the page is visible, including a reconnect that arrives before the customization lane is ready. Terminal errors behave as before. Thanks @NekogamiJam for [#449](https://github.com/saya-ch/dsh-mobile/pull/449).

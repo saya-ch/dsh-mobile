@@ -49,13 +49,16 @@ function legacyPage(options: { missingReason?: boolean } = {}): Context {
     if (descriptor === undefined) throw new Error(`Native AbortController.${name} was not found`)
     Object.defineProperty(controller.prototype, name, descriptor)
   }
-  const page = createContext({ AbortSignal: signal, AbortController: controller, DOMException, Event, EventTarget })
+  const page = createContext({ AbortSignal: signal, AbortController: controller, DOMException, Event, EventTarget, URL })
   runInContext('var intrinsicIterator = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())); ' +
     'for (var key of Reflect.ownKeys(intrinsicIterator)) { if (key !== Symbol.iterator) delete intrinsicIterator[key]; } ' +
     'delete globalThis.Iterator; delete Promise.withResolvers; ' +
     'delete Object.hasOwn; delete Array.prototype.at; delete String.prototype.at; ' +
     'delete Array.prototype.findLast; delete Array.prototype.findLastIndex; ' +
-    'delete Array.prototype.toSorted; delete Array.prototype.toReversed; delete globalThis.structuredClone;', page)
+    'delete Array.prototype.toSorted; delete Array.prototype.toReversed; delete globalThis.structuredClone; ' +
+    // The reported regression (#450): assistant text never rendered on an Android 12 WebView
+    // because URL.canParse was missing, so the conversation node slot threw while rendering.
+    'delete URL.canParse; delete URL.parse;', page)
   return page
 }
 
@@ -69,7 +72,14 @@ describe('early published-client collection APIs', () => {
     for (const expression of ['Object.hasOwn({}, "field")', '[1].at(-1)', '"text".at(-1)', '[1].findLast(Boolean)', '[1].findLastIndex(Boolean)', '[1].toSorted()', '[1].toReversed()', 'structuredClone({})']) {
       expect(() => runInContext(expression, page)).toThrow()
     }
+    // #450: this threw inside the conversation node slot, so assistant text never mounted.
+    expect(() => runInContext('URL.canParse("https://example.com")', page)).toThrow()
     load(page)
+    expect(runInContext('URL.canParse("https://example.com/a?b=1")', page)).toBe(true)
+    expect(runInContext('URL.canParse("not a url")', page)).toBe(false)
+    expect(runInContext('typeof URL.parse', page)).toBe("function")
+    expect(runInContext('URL.parse("https://example.com/a").pathname', page)).toBe("/a")
+    expect(runInContext('URL.parse("not a url")', page)).toBe(null)
     expect(runInContext('Object.hasOwn(Object.create({ inherited: true }), "inherited")', page)).toBe(false)
     expect(runInContext('Object.hasOwn(Object.assign(Object.create(null), { field: 1 }), "field")', page)).toBe(true)
     expect(runInContext('[[1, 2, 3].at(-1), [1].at(2), "text".at(-1), "text".at(9)]', page)).toEqual([3, undefined, 't', undefined])

@@ -9,6 +9,10 @@ import 'core-js/es/array/find-last.js'
 import 'core-js/es/array/find-last-index.js'
 import 'core-js/es/array/to-sorted.js'
 import 'core-js/es/array/to-reversed.js'
+// URL.canParse/URL.parse are Chromium 120 and 126 respectively; assistant text failed to
+// render on an Android 12 WebView below that baseline (#450).
+import 'core-js/actual/url/can-parse.js'
+import 'core-js/actual/url/parse.js'
 import 'core-js/stable/structured-clone.js'
 import { installAbortSignalCompatibility } from './mobile-abort-signal.js'
 import { installMobileBootFeedback } from './mobile-boot-feedback.js'
