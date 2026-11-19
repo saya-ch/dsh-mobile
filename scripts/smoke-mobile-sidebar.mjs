@@ -347,7 +347,12 @@ async function checkDesktopFooter(page) {
         })
         record.desktopFooter.push({ colorScheme, mode, ...value })
         await page.screenshot({ path: join(evidence, `desktop-footer-${colorScheme}-${mode}.png`) })
-        assert(value.height >= 42 && value.hit, `Desktop ${mode}: Mobile target was shrunk or covered ${JSON.stringify(value)}`)
+        // The capacity contract has two forms: a 42px label target and a 36x36 icon
+        // target. A hidden label is the icon form, so the old unconditional 42px floor
+        // would fail the moment a narrow row correctly resolved to the icon.
+        assert(value.hit, `Desktop ${mode}: Mobile target was covered ${JSON.stringify(value)}`)
+        assert(value.labelDisplay === 'none' ? value.height === 36 : value.height >= 42,
+          `Desktop ${mode}: Mobile target height disagreed with its form ${JSON.stringify(value)}`)
         assert.equal(value.name, 'Mobile access'); assert.equal(value.title, 'Mobile access')
         assert.equal(value.rowDirection, 'row', 'Mobile changed the shared footer orientation')
         if (mode === 'shared') {
