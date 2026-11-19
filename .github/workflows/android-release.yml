@@ -143,3 +143,90 @@ jobs:
       - name: Record descriptor promotion step
         run: |
           echo 'After downloading and verifying the published APK, copy dsh-mobile-android-release.json to apps/mobile/release.json in a separate reviewed commit. This workflow does not change the public App pointer.' >> "$GITHUB_STEP_SUMMARY"
+
+  atomgit-release:
+    name: Publish to AtomGit
+    needs: github-release
+    runs-on: ubuntu-latest
+    # The GitHub release stays authoritative; a broken mirror must not hide it.
+    continue-on-error: true
+    steps:
+      - name: Check the mirror token
+        id: gate
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+        run: |
+          if [ -z "${ATOMGIT_TOKEN}" ]; then
+            echo "ATOMGIT_TOKEN is not configured; skipping the AtomGit release." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.gate.outputs.run == 'true'
+        with:
+          name: android-package
+          path: release-assets
+      - name: Create the AtomGit release and attach the packages
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          api="https://api.atomgit.com/api/v5/repos/saya-ch/dsh-mobile"
+          notes="Android ${TAG#android-v}. Choose the full -iroh.apk for experimental iroh transport on arm64-v8a / x86_64, or the compatibility .apk for existing HTTPS channels (including 32-bit devices). Both use the same package and established signer; existing pairing data is retained. Install only one variant. Plugin and App versions are independent."
+
+          exists=$(curl -sS -o /dev/null -w '%{http_code}' -H "PRIVATE-TOKEN: ${ATOMGIT_TOKEN}" "${api}/releases/${TAG}")
+          if [ "${exists}" = "200" ]; then
+            echo "AtomGit already has a release for ${TAG}; refusing to replace published assets." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # The tag arrives through the mirror workflow, which runs on the same
+          # tag push and may still be cloning, so wait for it before publishing.
+          for attempt in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -H "PRIVATE-TOKEN: ${ATOMGIT_TOKEN}" "${api}/tags/${TAG}")
+            [ "${code}" = "200" ] && break
+            echo "tag ${TAG} not on AtomGit yet (HTTP ${code}); waiting (${attempt}/30)"
+            sleep 20
+          done
+          if [ "${code}" != "200" ]; then
+            echo "::error::tag ${TAG} never appeared on AtomGit; skipping the mirror release."
+            exit 1
+          fi
+
+          payload=$(jq -n --arg tag "${TAG}" --arg name "Android ${TAG#android-v}" --arg body "${notes}" \
+            '{tag_name:$tag, name:$name, body:$body, prerelease:false}')
+          status=$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST \
+            "${api}/releases?access_token=${ATOMGIT_TOKEN}" \
+            -H 'Content-Type: application/json' -d "${payload}")
+          if [ "${status}" != "200" ]; then
+            cat /tmp/create.json >&2
+            echo "::error::AtomGit release creation failed (HTTP ${status})."
+            exit 1
+          fi
+
+          for file in release-assets/*; do
+            name=$(basename "${file}")
+            upload=$(curl -sS -G -H "PRIVATE-TOKEN: ${ATOMGIT_TOKEN}" \
+              --data-urlencode "file_name=${name}" \
+              "${api}/releases/${TAG}/upload_url")
+            url=$(printf '%s' "${upload}" | jq -r '.url // empty')
+            if [ -z "${url}" ]; then
+              printf '%s\n' "${upload}" >&2
+              echo "::error::no upload URL for ${name}"
+              exit 1
+            fi
+            headers=()
+            while IFS=$'\t' read -r key value; do
+              headers+=(-H "${key}: ${value}")
+            done < <(printf '%s' "${upload}" | jq -r '.headers | to_entries[] | "\(.key)\t\(.value)"')
+            code=$(curl -sS -o /tmp/put.txt -w '%{http_code}' -X PUT "${headers[@]}" --upload-file "${file}" "${url}")
+            echo "${name}: HTTP ${code}"
+            case "${code}" in
+              200|201|204) ;;
+              *) cat /tmp/put.txt >&2; echo "::error::upload of ${name} failed (HTTP ${code})."; exit 1 ;;
+            esac
+          done
+          echo "Published ${TAG} to AtomGit with $(ls -1 release-assets | wc -l) assets." >> "$GITHUB_STEP_SUMMARY"

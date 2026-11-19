@@ -1,0 +1,50 @@
+name: AtomGit mirror
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*', 'android-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atomgit-mirror
+  cancel-in-progress: false
+
+jobs:
+  push:
+    name: Push ref to AtomGit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the mirror token
+        id: gate
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+        run: |
+          if [ -z "${ATOMGIT_TOKEN}" ]; then
+            echo "ATOMGIT_TOKEN is not configured; skipping the AtomGit mirror." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.gate.outputs.run == 'true'
+        with:
+          # A shallow clone cannot be pushed to a non-shallow remote.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Push the ref
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+        run: |
+          set -euo pipefail
+          remote="https://oauth2:${ATOMGIT_TOKEN}@atomgit.com/saya-ch/dsh-mobile.git"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            git push "${remote}" "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          else
+            git push "${remote}" "${GITHUB_SHA}:refs/heads/${GITHUB_REF_NAME}"
+          fi
+          echo "Pushed ${GITHUB_REF_NAME} (${GITHUB_SHA:0:8}) to AtomGit." >> "$GITHUB_STEP_SUMMARY"
