@@ -14,7 +14,6 @@
   <a href="#iphone-与-ipad主屏幕-web-apppwa"><img src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-PWA-111111?logo=apple&amp;logoColor=white" alt="iOS / iPadOS 主屏幕 Web App（PWA）"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0F172A" alt="Apache-2.0"></a>
   <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin"><img src="https://awesome-dsh-plugin.com/badge.svg" alt="Awesome DSH Plugin"></a>
-  <a href="https://atomgit.com/chihuan/dsh-mobile"><img src="https://atomgit.com/chihuan/dsh-mobile/star/new_badge.svg" alt="AtomGit 国内镜像"></a>
 </p>
 
 <p align="center">
