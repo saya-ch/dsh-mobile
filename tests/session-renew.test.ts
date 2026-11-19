@@ -419,6 +419,9 @@ describe('native renewal after disconnection or Gateway rejection', () => {
       retry: () => retry?.() ?? false,
       dispose, renewed,
       setState(next: MobileConnectionState) { snapshot = next; for (const listener of listeners) listener() },
+      // Move the observed store without notifying listeners, which is what a store update
+      // that lands while an awaited capability discovery is still in flight looks like.
+      setStateQuietly(next: MobileConnectionState) { snapshot = next },
       setVisibility(next: string) { document.visibilityState = next; document.dispatchEvent(new Event('visibilitychange')) },
       setBridge(next: MobileRecoveryBridge) { page.__DSH_MOBILE_NATIVE__ = next; page.dispatchEvent(new Event('dsh-mobile-native-ready')) },
     }
@@ -499,6 +502,32 @@ describe('native renewal after disconnection or Gateway rejection', () => {
     await flush()
     expect(invoke).toHaveBeenCalledTimes(2)
     expect(mounted.renewed).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops the follow-up when the transport recovers during capability discovery', async () => {
+    // The follow-up re-checks that the transport is still down after capability discovery
+    // resolves. Without that check a transport that came back mid-discovery would be renewed
+    // anyway, which is exactly the state the recovery is supposed to leave alone.
+    const capabilities = deferred<readonly string[]>()
+    const discover = vi.fn<MobileRecoveryBridge['capabilities']>()
+      .mockReturnValueOnce(['auth.renew'])
+      .mockReturnValueOnce(capabilities.promise)
+      .mockReturnValue(['auth.renew'])
+    const invoke = vi.fn<MobileRecoveryBridge['invoke']>()
+      .mockRejectedValueOnce(Object.assign(new Error('temporary'), { code: 'transient' }))
+      .mockResolvedValue({ renewed: true })
+    const mounted = owner(native(invoke, discover), 'connecting')
+    await vi.advanceTimersByTimeAsync(8_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(discover).toHaveBeenCalledTimes(2)
+    // The transport recovers while the follow-up is still discovering capabilities. The
+    // store is moved without notifying this loop, so its own listener has not cancelled the
+    // task yet and the executed-time check is the only thing that can stop it.
+    mounted.setStateQuietly('connected')
+    capabilities.resolve(['auth.renew'])
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(mounted.renewed).not.toHaveBeenCalled()
   })
 
   it('does not treat a capability discovery error as a transient renewal failure', async () => {
