@@ -1,4 +1,6 @@
 /** Browser-facing pairing and reauthentication pages with language negotiation. */
+import { MOBILE_VIEWPORT_CONTENT } from './mobile-viewport.js'
+
 export type AuthPageLocale = 'zh' | 'en' | 'it'
 
 interface AuthPageCopy {
@@ -98,7 +100,7 @@ export function renderPairPage(locale: AuthPageLocale): string {
   return `<!doctype html>
 <html lang="${copy.lang}">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}">
 <style>input,textarea{font-size:16px}</style>
 <title>${copy.pairTitle}</title>
 <main>
@@ -184,7 +186,7 @@ export function renderLoginPage(locale: AuthPageLocale): string {
   return `<!doctype html>
 <html lang="${copy.lang}">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}">
 <title>${copy.reconnectTitle}</title>
 <main>
   <h1>${copy.reconnectHeading}</h1>

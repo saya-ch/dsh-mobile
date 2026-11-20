@@ -246,6 +246,7 @@ describe('dedicated mobile layout boot', () => {
     expect(output).toContain('"url":"/conversation.js"')
     expect(output).not.toContain('"url":"/layout.js"')
     expect(output).toContain('viewport-fit=cover')
+    expect(output).toContain('interactive-widget=resizes-content')
     expect(output).not.toContain('__DSH_TRANSPORT__')
   })
 

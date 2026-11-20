@@ -4,6 +4,8 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## 0.8.14 - Unreleased
 
+- Keep the dedicated Mobile composer visible once the on-screen keyboard opens in Firefox for Android. The dedicated page and the pairing, reauthentication and module-recovery pages request a smaller layout viewport while the keyboard is open.
+
 - Seat the mobile access button in the sidebar footer under the same capacity contract as its neighbours ([#440](https://github.com/saya-ch/dsh-mobile/issues/440)): one 42px label form and one 36x36 icon form, chosen only from the occupant count and the row width, so the row can no longer show one labelled button beside bare icons or reflow as neighbours arrive. Thanks @abworks-dev for [#452](https://github.com/saya-ch/dsh-mobile/pull/452).
 - Renew the native session once more when the first automatic attempt during a disconnect returns `transient`, instead of waiting for a manual retry ([#338](https://github.com/saya-ch/dsh-mobile/issues/338)). The retry stays bounded, single-flight and foreground-only, and does not widen to revoked, expired or auth-only failures. Thanks @NekogamiJam for [#451](https://github.com/saya-ch/dsh-mobile/pull/451).
 - Render assistant text on Android WebViews below Chromium 120. The compatibility bundle now supplies
