@@ -1,3 +1,4 @@
+import type { ViewerServices } from './mobile-viewer-file-menu.js'
 import { createElement, type ReactElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   DIAGNOSTIC_REASON_MESSAGES,
@@ -80,6 +81,7 @@ interface ClientContext {
   get(name: string): unknown
   /** Public Cordis child lifecycle; optional so minimal harness contexts without the navigation feature stay valid. */
   inject?(services: readonly MobilePushNavigationService[], callback: (context: ClientNavigationContext) => (() => void) | undefined): { dispose(): unknown }
+  inject?(services: readonly ['sidebarRight', 'remote', 'remote.workspaceFiles', 'connection'], callback: (context: ViewerServices) => (() => void)): { dispose(): unknown }
   slots: {
     inject(key: string, callback: () => (() => void)): () => void
     register<Props>(options: { name: string; id: string; order?: number; priority?: number; label?: string }, component: (props: Props) => unknown): () => void
@@ -149,6 +151,12 @@ export function installMobileNativeBack(view: Window, page: Document, blocked: (
     if (!event.cancelable || event.defaultPrevented) return
     const claim = (): void => { event.preventDefault(); event.stopImmediatePropagation() }
     if (closeClientModuleDialog()) { claim(); return }
+    const viewerMenu = [...page.querySelectorAll<HTMLDialogElement>('dialog.dsh-mobile-viewer-file-menu[open]')].filter(element => visibleBackLayer(view, element)).at(-1)
+    if (viewerMenu !== undefined) {
+      claim()
+      viewerMenu.dispatchEvent(new Event('cancel', { cancelable: true }))
+      return
+    }
     const surfaces = [...page.querySelectorAll<HTMLElement>('[data-dsh-mobile-surface-placement="page"], [data-dsh-mobile-surface-placement="overlay"]')]
     const surface = surfaces.filter(element => visibleBackLayer(view, element)).at(-1)
     if (surface !== undefined) {
@@ -6173,9 +6181,16 @@ export function apply(ctx: ClientContext): void {
           removeFontSize()
         }
       })
+      let viewerServices: ViewerServices | undefined
+      const viewerFiber = window.__DSH_MOBILE_FRONTEND__ === 'dedicated' && gatewayCustomization
+        ? ctx.inject?.(['sidebarRight', 'remote', 'remote.workspaceFiles', 'connection'] as const, services => {
+          viewerServices = services
+          return () => { if (viewerServices === services) viewerServices = undefined }
+        }) : undefined
       const removeSurface = installDshLanguageBoundSurface(() => installNativeMobileSurface({
         getLayout: () => ctx.get('layout'),
         getSidebarRight: () => ctx.get('sidebarRight'),
+        getViewerServices: () => viewerServices,
       }))
       // The dedicated page owns its directory flow only when DSH's own picker
       // cannot serve a remote browser: the desktop composition keeps DSH's
@@ -6194,7 +6209,7 @@ export function apply(ctx: ClientContext): void {
         // (smoke:voice-session asserts a cancelled call must not).
         const removal = removeDirectoryPicker()
         try {
-          disposeClientModuleDialogs(); removeModuleSettings(); removeSettingsAction(); removeCustom(); removeSurface(); removeVoiceSession(); removeDraftTransfer(); localFont.dispose(); style.remove()
+          disposeClientModuleDialogs(); removeModuleSettings(); removeSettingsAction(); removeCustom(); removeSurface(); viewerFiber?.dispose(); removeVoiceSession(); removeDraftTransfer(); localFont.dispose(); style.remove()
         } finally { await removal }
       }
     }
