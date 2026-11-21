@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Keep the dedicated Mobile composer visible once the on-screen keyboard opens in Firefox for Android. The dedicated page and the pairing, reauthentication and module-recovery pages request a smaller layout viewport while the keyboard is open.
+
 ## 0.8.14 - 2026-11-21
 
 - Seat the mobile access button in the sidebar footer under the same capacity contract as its neighbours ([#440](https://github.com/saya-ch/dsh-mobile/issues/440)): one 42px label form and one 36x36 icon form, chosen only from the occupant count and the row width, so the row can no longer show one labelled button beside bare icons or reflow as neighbours arrive. This replaces the previous 44x42 compact shared-row target: a row wide enough for labels now keeps them, and only a narrower one falls back to the icon. Thanks @abworks-dev for [#452](https://github.com/saya-ch/dsh-mobile/pull/452).

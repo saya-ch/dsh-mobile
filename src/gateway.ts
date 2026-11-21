@@ -54,6 +54,7 @@ export type { UpstreamAuthEntry } from './upstream-auth-log.js'
 import { ClientModulePreferenceStore, parseExcludedClientModules, type ClientModuleEntry, type ClientModulePreferenceView } from './client-module-preferences.js'
 import { renderClientModuleRecoveryPage } from './client-module-recovery.js'
 import { ensureMobileCompatibility, ensureMobileGatewayMarker, MOBILE_COMPAT_PATH, mobileCompatibilityRevision, mobileCompatibilityRevisionPath } from './mobile-compat-bootstrap.js'
+import { ensureMobileViewport, MOBILE_VIEWPORT_CONTENT } from './mobile-viewport.js'
 import { LEGACY_CUSTOM_ASSET_LIMIT } from './extension-limits.js'
 import { matchesIfNoneMatch, weakenEntityTag } from './http-cache.js'
 import { createMobileGraphEventTransform } from './mobile-graph-events.js'
@@ -400,7 +401,7 @@ const MOBILE_GATEWAY_REACHABILITY_BOOTSTRAP = `(()=>{
 const PAIR_PAGE = `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}">
 <title>Pair DSH mobile access</title>
 <main>
   <h1>Pair this device</h1>
@@ -495,23 +496,6 @@ interface MobileBootBatchAssembly {
 }
 
 const gzipBuffer = promisify(gzip)
-
-function ensureMobileViewport(html: string): string {
-  const viewport = /<meta\b(?=[^>]*\bname\s*=\s*["']viewport["'])[^>]*>/iu
-  const match = viewport.exec(html)
-  if (match === null) {
-    const head = /<head\b[^>]*>/iu.exec(html)
-    if (head?.index === undefined) return html
-    const position = head.index + head[0].length
-    return `${html.slice(0, position)}<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">${html.slice(position)}`
-  }
-  if (/\bviewport-fit\s*=\s*cover\b/iu.test(match[0])) return html
-  const content = /\bcontent\s*=\s*(["'])(.*?)\1/iu
-  const next = content.test(match[0])
-    ? match[0].replace(content, (_whole, quote: string, value: string) => `content=${quote}${value},viewport-fit=cover${quote}`)
-    : match[0].replace(/\s*\/?>$/u, ' content="width=device-width,initial-scale=1,viewport-fit=cover">')
-  return `${html.slice(0, match.index)}${next}${html.slice(match.index + match[0].length)}`
-}
 
 function orderAuthenticatedSettings(entries: BootGraphEntry[], slotsProvider: string): boolean {
   const mobile = entries.filter(entry => entry !== null && typeof entry === 'object' && entry.id === MOBILE_CLIENT_MODULE)

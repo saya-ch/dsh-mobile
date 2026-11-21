@@ -8,6 +8,7 @@ import {
   resolveAuthPageLocale,
   type AuthPageLocale,
 } from '../src/auth-pages.js'
+import { MOBILE_VIEWPORT_CONTENT } from '../src/mobile-viewport.js'
 
 interface PairReply { readonly ok: boolean; readonly status: number }
 
@@ -91,6 +92,12 @@ describe('browser authentication page localization', () => {
     expect(script).toContain('Abbinamento…')
     expect(script).toContain('Abbinamento non riuscito')
     expect(script).toContain("/mobile-access/auth/pair")
+  })
+
+  it('resizes both browser pages with the software keyboard', () => {
+    for (const page of [renderPairPage('en'), renderLoginPage('en')]) {
+      expect(page).toContain(`<meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}">`)
+    }
   })
 
   it('keeps pairing inputs above the Safari 16px focus-zoom threshold', () => {

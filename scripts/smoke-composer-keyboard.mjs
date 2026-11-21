@@ -540,5 +540,33 @@ try {
     assert.equal(await page.evaluate(() => window.collapses), 0)
     assert.equal(await focused(page), 'composer-area')
   })
+  // A keyboard-sized layout viewport is what interactive-widget=resizes-content
+  // produces. The full-height shell must keep its bottom-docked composer inside
+  // that viewport instead of leaving it behind the IME.
+  await withPage({ width: 393, height: 844 }, async page => {
+    await page.evaluate(() => {
+      document.body.style.margin = '0'
+      document.body.innerHTML = '<main class="dshm-shell"><div class="dshm-main"><div class="dshm-mainContent"><div style="height:2000px"></div></div><section id="docked-composer" data-composer-card style="flex:none;height:140px">Draft</section></div></main>'
+    })
+    await mountStyles(page, 'shell')
+    const composer = () => page.locator('#docked-composer').boundingBox()
+    const bottom = box => box.y + box.height
+    const portrait = await composer()
+    assert(portrait !== null)
+    assert(Math.abs(bottom(portrait) - 844) <= 1, `Composer did not start at the bottom: ${JSON.stringify(portrait)}`)
+    await page.setViewportSize({ width: 393, height: 440 })
+    await page.waitForFunction(() => window.innerHeight === 440)
+    const keyboard = await composer()
+    assert(keyboard !== null)
+    assert(keyboard.y >= 0 && bottom(keyboard) <= 441, `Composer left the keyboard-sized viewport: ${JSON.stringify(keyboard)}`)
+    assert.equal(Math.round(keyboard.height), Math.round(portrait.height))
+    assert(Math.abs(bottom(keyboard) - 440) <= 1, 'Composer left the bottom edge after the viewport shrank')
+    await page.setViewportSize({ width: 393, height: 844 })
+    await page.waitForFunction(() => window.innerHeight === 844)
+    const restored = await composer()
+    assert(restored !== null)
+    assert(Math.abs(bottom(restored) - 844) <= 1, 'Composer did not follow the restored viewport')
+  })
+
   console.log(`Composer keyboard and editable-font smoke passed (${cases} browser cases).`)
 } finally { await browser.close() }

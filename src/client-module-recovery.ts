@@ -1,5 +1,6 @@
 /** Authenticated recovery document for a saved module selection that cannot boot the current DSH graph. */
 import type { AuthPageLocale } from './auth-pages.js'
+import { MOBILE_VIEWPORT_CONTENT } from './mobile-viewport.js'
 
 export const CLIENT_MODULE_RECOVERY_COPY = {
   zh: {
@@ -36,7 +37,7 @@ export function renderClientModuleRecoveryPage(locale: AuthPageLocale): string {
   const copy = CLIENT_MODULE_RECOVERY_COPY[locale]
   return `<!doctype html>
 <html lang="${locale === 'zh' ? 'zh-CN' : locale}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<head><meta charset="utf-8"><meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}">
 <meta name="color-scheme" content="light dark"><title>${copy.title}</title>
 <style>
 body{margin:0;background:Canvas;color:CanvasText;font:16px/1.5 system-ui,sans-serif}

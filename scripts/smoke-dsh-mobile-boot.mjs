@@ -447,6 +447,10 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
     if (errors.some(message => compatibilityError.test(message))) {
       throw new Error(`Mobile compatibility API failed during interaction: ${sanitized(JSON.stringify(errors))}`)
     }
+    const viewportContent = await phone.evaluate(() => document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? '')
+    if (!viewportContent.includes('interactive-widget=resizes-content')) {
+      throw new Error(`Dedicated Mobile viewport did not request content resize: ${viewportContent}`)
+    }
     console.log(`Mobile client mounted through DSH Loader and read ${String(workspace.workspaces)} Workspaces over /api/remote.mux (${String(plan.entries.length)} plugin entries, ${Date.now() - startedAt} ms)`)
   } catch (error) { recordSmokeFailure(failures, error) }
   finally {

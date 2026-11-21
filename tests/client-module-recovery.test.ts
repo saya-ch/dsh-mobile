@@ -22,6 +22,7 @@ describe('explicit client module recovery', () => {
       const page = renderClientModuleRecoveryPage(locale)
       expect(page).toContain(CLIENT_MODULE_RECOVERY_COPY[locale].action)
       expect(page).toContain('min-height:48px')
+      expect(page).toContain('interactive-widget=resizes-content')
       expect(page).toContain('role="status" aria-live="polite"')
       expect(page).not.toContain('__DSH_BOOT__')
       expect(page).not.toContain('deviceId')
