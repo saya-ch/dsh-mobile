@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.13">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.13**。**回环隧道接入**现在可以给隧道指定独立端口，不必迁就网关自身的监听端口（#444）；DSH 重连后移动定制会自动恢复，不再需要手动重试（#338）。插件与 Android App 独立更新；Android App 0.8.2 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.13) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.14**。Android WebView 低于 Chromium 120 时助手正文不再整块消失（#450）；侧边栏 footer 的入口改为与相邻插件共用的容量契约，行宽够时保留标签（#440）；断线时首次自动续期返回 `transient` 会再自动试一次，不必手动重试（#338）。插件与 Android App 独立更新；Android App 0.8.2 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
@@ -443,6 +443,7 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.8.14` | Android WebView 低于 Chromium 120 时助手正文整块消失的问题已修复（#450）；侧边栏 footer 入口改用与相邻插件共用的容量契约（#440）；断线时首次续期返回 `transient` 会自动再试一次（#338）。Android App 为 0.8.2 |
 | `0.8.13` | **回环隧道接入**可给隧道指定独立端口，不必迁就网关自身的监听端口（#444）；DSH 重连后移动定制会自动恢复，不再需要手动重试（#338）。Android App 为 0.8.2 |
 | `0.8.12` | 新增可选的**回环隧道接入**，让自己运行的本地隧道（如 frp stcp）不必暴露公网端口即可访问网关（#444）；与第三方插件同用时，用户消息气泡不再被运行耗时规则挤成竖排（#441）。Android App 为 0.8.0 |
 | `0.8.11` | 把 Funnel 取证书的等待预算按实际签发耗时放宽到 180 秒，并可用环境变量覆盖（#348）。Android App 为 0.8.0 |
