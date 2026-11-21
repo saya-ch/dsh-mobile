@@ -42,6 +42,8 @@ Deleting a local record removes its saved token and pinned CA, not the computer'
 
 **Check for updates** will be able to finish the upgrade inside the App: tapping Update downloads the matching build (full and compatibility builds are picked from what is installed, so they cannot be crossed), and only a build that passes verification is handed to the system installer. Android 8+ asks once for "install unknown apps"; the dialog sends you to Settings and the download resumes when you return. A failed verification deletes the file and offers a retry; a failed download reports why (network / too large / cancelled) and can be retried or replaced by the browser download.
 
+The `files.share` bridge capability (used by the viewer filename menu's **Share File** action) also exists in source only; the published 0.8.2 APK ([release.json](release.json)) does not advertise `files.share`, so the App has no filename menu and keeps one-tap path copy until an App release.
+
 This is merged in source but **not shipped in any App release**; the published 0.8.2 still only opens the download page.
 
 ## 0.8.2 update
@@ -191,7 +193,7 @@ Task reminders use Host completion events and pending-input cards. While the pag
 
 Android's own battery management can still stop delivery, and the persistent notification does not prove the stream is alive: it stays while the service runs, whatever the connection is doing. Settings → General reports the service's real phase — connected, not connected, or the bounded failure stage it last recorded — and a `DshMobileBg` logcat line records the same transitions for `adb logcat` diagnosis. On an OEM build that freezes a background process (for example Xiaomi HyperOS's app battery saver), no App-side change keeps the stream open: allow battery use without restriction for this App, or accept that reminders arrive when the App is next foregrounded. iOS is unaffected because it uses the Web Push path instead.
 
-The authenticated page may use the `dshMobile` bridge for `files.pick`, `camera.capture`, `share`, clipboard read/write, task notifications/settings, background reminders (`notification.background.get`/`set`), computer switching and page scaling. The separate extension `files.pick` returns one file, follows its requested MIME types and limits bridge-returned file bytes to 8 MiB. This is not the standard DSH attachment selector's limit.
+The authenticated page may use the `dshMobile` bridge for `files.pick`, `files.share`, `camera.capture`, `share`, clipboard read/write, task notifications/settings, background reminders (`notification.background.get`/`set`), computer switching and page scaling. `files.share` stages a viewer file in bounded 192 KiB chunks up to 8 MiB per file and hands it off through the Android chooser. The separate extension `files.pick` returns one file, follows its requested MIME types and limits bridge-returned file bytes to 8 MiB. This is not the standard DSH attachment selector's limit.
 
 Bridge file/camera operations are serialized with a five-minute deadline. Cancellation, document/session changes or WebView teardown reject stale results and clean up owned resources. Browser media selection waits for an actual result, explicit cancellation, abort or deadline; returning focus is not itself cancellation. Unsupported capabilities return `unsupported`.
 

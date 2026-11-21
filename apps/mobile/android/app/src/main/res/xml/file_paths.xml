@@ -7,4 +7,8 @@
     <cache-path
         name="updates"
         path="updates/" />
+    <!-- Viewer file shares: one opaque directory per transfer under filesDir/viewer-share/. -->
+    <files-path
+        name="viewer_share"
+        path="viewer-share/" />
 </paths>

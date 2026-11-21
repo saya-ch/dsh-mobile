@@ -179,6 +179,7 @@ export interface MobilePathCopyDeps {
   readonly labels: PathCopyLabels
   /** Clipboard adapter override for tests; defaults to the document's own. */
   readonly io?: CopyIo
+  readonly openMenu?: (owner: Element, copy: () => void) => boolean
 }
 
 /** Install the delegated tap-to-copy listener and its toast.
@@ -197,21 +198,36 @@ export function installMobilePathCopy(deps: MobilePathCopyDeps): () => void {
     writeText: (text: string) => source.writeText(text),
     execCopy: (value: string) => (disposed ? false : source.execCopy(value)),
   }
-  const onClick = (event: { target: unknown }): void => {
-    if (disposed || !deps.isTouchPrimary()) return
-    const owner = pathCopyOwner(event.target)
-    if (owner === null) return
-    const path = pathCopyText(owner)
-    if (path === undefined) return
-    void copyPathText(path, io).then(ok => {
-      if (disposed) return
-      toast.show(formatPathCopyMessage(ok ? deps.labels.copied : deps.labels.failed, path))
-    })
+  const activate = (target: unknown, keyboard: boolean): boolean => {
+    if (disposed || !deps.isTouchPrimary()) return false
+    const owner = pathCopyOwner(target)
+    const path = owner && pathCopyText(owner)
+    if (!owner || !path) return false
+    const copy = () => {
+      if (!disposed) void copyPathText(path, io).then(ok => {
+        if (!disposed) toast.show(formatPathCopyMessage(ok ? deps.labels.copied : deps.labels.failed, path))
+      })
+    }
+    let opened = false
+    try {
+      opened = deps.openMenu?.(owner, copy) === true
+    } catch {
+      opened = false
+    }
+    if (opened) return true
+    if (!keyboard) copy()
+    return false
+  }
+  const onClick = (event: MouseEvent) => { activate(event.target, false) }
+  const key = (event: KeyboardEvent) => {
+    if (!event.defaultPrevented && !event.repeat && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (event.key === 'Enter' || event.key === ' ') && activate(event.target, true)) event.preventDefault()
   }
   deps.document.addEventListener('click', onClick)
+  if (deps.openMenu) deps.document.addEventListener('keydown', key)
   return () => {
     disposed = true
     deps.document.removeEventListener('click', onClick)
+    if (deps.openMenu) deps.document.removeEventListener('keydown', key)
     toast.dispose()
   }
 }

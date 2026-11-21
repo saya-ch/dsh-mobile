@@ -283,6 +283,23 @@ describe('installMobilePathCopy', () => {
     return { promise, resolve, reject }
   }
 
+  it('defers copy until an available viewer menu explicitly selects it', () => {
+    const h = listenerDocument(), writeText = vi.fn(async () => {})
+    let select: (() => void) | undefined
+    const stop = installMobilePathCopy({ document: h.document, isTouchPrimary: () => true, labels,
+      io: { writeText, execCopy: () => false }, openMenu: (_owner, copy) => { select = copy; return true } })
+    h.handler({ target: tapTarget(ownerStub(' /space ')) }); expect(writeText).not.toHaveBeenCalled()
+    select?.(); expect(writeText).toHaveBeenCalledWith(' /space '); stop()
+  })
+  it('falls back to one-tap copy when openMenu throws', async () => {
+    const h = listenerDocument(), writeText = vi.fn(async () => {})
+    const stop = installMobilePathCopy({ document: h.document, isTouchPrimary: () => true, labels,
+      io: { writeText, execCopy: () => false }, openMenu: () => { throw new Error('menu boom') } })
+    expect(() => h.handler({ target: tapTarget(ownerStub('/fallback.md')) })).not.toThrow()
+    await flush()
+    expect(writeText).toHaveBeenCalledWith('/fallback.md')
+    stop()
+  })
   it('copies and toasts the resolved owner title (synthetic isTouchPrimary gate)', async () => {
     const harness = listenerDocument()
     const io: CopyIo = { writeText: () => Promise.resolve(), execCopy: () => false }

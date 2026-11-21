@@ -1,3 +1,5 @@
+import { viewerMenu, type ViewerServices } from './mobile-viewer-file-menu.js'
+import { bindViewerNativeHandoff, type ViewerNativeBridge } from './mobile-viewer-native-share.js'
 /**
  * Viewport below which the injected chrome becomes an overlay drawer: the
  * sidebar slides in as a sheet, the right panel as a drawer, and the scrim dims
@@ -16,6 +18,12 @@ export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
 /** Mobile feature and compatibility rules applied to DSH React surfaces. */
 export const NATIVE_MOBILE_STYLES = `
+.dsh-mobile-viewer-file-menu { --dsh-mobile-menu-safe-top:env(safe-area-inset-top,0px); --dsh-mobile-menu-safe-right:env(safe-area-inset-right,0px); --dsh-mobile-menu-safe-bottom:env(safe-area-inset-bottom,0px); --dsh-mobile-menu-safe-left:env(safe-area-inset-left,0px); position:fixed; inset:auto; margin:0; box-sizing:border-box; max-width:none; overflow:auto; padding:.5em; border:1px solid var(--dsw-alias-border-l2,GrayText); border-radius:12px; color:var(--dsw-alias-label-primary,CanvasText); background:var(--dsw-alias-bg-base,Canvas); }
+.dsh-mobile-viewer-file-menu::backdrop { background:transparent; }
+.dsh-mobile-viewer-file-menu > div { display:grid; grid-template-columns:minmax(0,1fr); gap:4px; overflow-wrap:anywhere; }
+.dsh-mobile-viewer-file-menu button { min-width:44px; min-height:44px; padding:.4em .8em; font:inherit; color:inherit; overflow-wrap:anywhere; }
+.dsh-mobile-viewer-file-menu [role=status]:empty { display:none; }
+
 /* The surface appends chrome to <body> on every non-loopback page load, but
    every rule that gives that chrome a box lives inside the overlay query
    below. Outside the query the scrim kept the UA button box: an empty,
@@ -942,6 +950,7 @@ export function stockMainPanelOpen(value: unknown): boolean {
 }
 
 interface NativeMobileBackServices {
+  getViewerServices?(): ViewerServices | undefined
   getLayout(): unknown
   getSidebarRight(): unknown
 }
@@ -1427,7 +1436,20 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       mediaToastTimer = 0
     }, 2200)
   }
+  // The App WebView cannot use Web Share and often injects __DSH_MOBILE_NATIVE__ after mount.
+  const nativeHandoff = bindViewerNativeHandoff(
+    () => window.__DSH_MOBILE_NATIVE__ as ViewerNativeBridge | undefined,
+    window,
+  )
+  const menu = viewerMenu(() => backServices.getViewerServices?.(), {
+    copy: label('Copia percorso', 'Copy Path', '复制路径'), share: label('Condividi file…', 'Share File…', '分享文件…'),
+    ready: label('Pronto: tocca per condividere', 'Ready to share — tap to share', '文件已就绪，轻点分享'),
+    reading: label('Preparazione del file…', 'Preparing file…', '正在准备文件…'), sharing: label('Condivisione…', 'Sharing…', '正在分享…'),
+    failed: label('Impossibile condividere il file.', 'Could not share this file.', '无法分享此文件。'),
+    size: label('Dimensione sconosciuta o superiore a 8 MiB.', 'Size unknown or larger than 8 MiB.', '文件大小未知或超过 8 MiB。'),
+  }, nativeHandoff)
   const disposePathCopy = installMobilePathCopy({
+    openMenu: menu.open,
     document,
     isTouchPrimary: () => window.matchMedia(PATH_COPY_TOUCH_QUERY).matches,
     labels: {
@@ -2065,7 +2087,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     disposed = true
     stopStockBack()
     sidebarScrollMemory.dispose()
-    disposePathCopy()
+    menu.dispose(); nativeHandoff.dispose(); disposePathCopy()
     disposeTaskWatcher()
     mediaRequestGeneration += 1
     mediaPickerAbortController.abort()

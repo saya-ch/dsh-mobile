@@ -154,6 +154,14 @@ internal object NativeBridgePolicy {
     fun isTrustedMessage(origin: GatewayOrigin, sourceOrigin: String, isMainFrame: Boolean): Boolean =
         isMainFrame && GatewayOrigin.parse(sourceOrigin) == origin
 
+    /** A viewer-share chooser launch requires the trusted main-frame document that began the transfer. */
+    fun canLaunchViewerShare(
+        available: Boolean,
+        preservingForConfiguration: Boolean,
+        beganDocumentGeneration: Int,
+        currentDocumentGeneration: Int,
+    ): Boolean = available && !preservingForConfiguration && beganDocumentGeneration == currentDocumentGeneration
+
     fun isStaleCameraOrphan(
         file: File,
         activeFile: File?,

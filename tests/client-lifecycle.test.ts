@@ -67,6 +67,7 @@ class BackNode extends EventTarget {
   parentElement: BackNode | null = null
   readonly children: BackNode[] = []
   readonly attributes = new Map<string, string>()
+  readonly classList = new Set<string>()
   readonly dataset: Record<string, string> = {}
   clicks = 0
   onClick?: () => void
@@ -127,6 +128,9 @@ class BackDocument extends EventTarget {
     if (selector.includes('dsh-mobile-composer-model-trigger')) {
       return all.filter(node => node.getAttribute('data-dsh-mobile-composer-model-trigger') !== null
         && node.getAttribute('aria-expanded') === 'true')
+    }
+    if (selector.includes('dsh-mobile-viewer-file-menu')) {
+      return all.filter(node => node.tagName === 'DIALOG' && node.classList.has('dsh-mobile-viewer-file-menu') && node.getAttribute('open') !== null)
     }
     return all.filter(node => (node.getAttribute('role') === 'dialog' && node.getAttribute('aria-modal') === 'true')
       || node.getAttribute('role') === 'menu'
@@ -598,6 +602,30 @@ describe('mobile native Back before layout navigation', () => {
       expect(blocked).not.toHaveBeenCalled()
       expect(later).not.toHaveBeenCalled()
     } finally { stop(); view.removeEventListener('dsh-mobile:native-back', later, true) }
+  })
+
+  it('routes Back to an open viewer file menu before later layout listeners', () => {
+    const view = new BackWindow()
+    const page = new BackDocument()
+    const dialog = new BackNode('DIALOG')
+    dialog.classList.add('dsh-mobile-viewer-file-menu')
+    dialog.setAttribute('open', '')
+    page.body.append(dialog)
+    const cancelled = vi.fn((event: Event) => { event.preventDefault(); dialog.remove() })
+    dialog.addEventListener('cancel', cancelled)
+    const blocked = vi.fn()
+    const stop = installMobileNativeBack(view as never, page as never, blocked)
+    const layoutBack = vi.fn()
+    view.addEventListener('dsh-mobile:native-back', layoutBack)
+    const event = backEvent()
+    try {
+      view.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(true)
+      expect(cancelled).toHaveBeenCalledOnce()
+      expect(dialog.isConnected).toBe(false)
+      expect(layoutBack).not.toHaveBeenCalled()
+      expect(blocked).not.toHaveBeenCalled()
+    } finally { stop(); view.removeEventListener('dsh-mobile:native-back', layoutBack) }
   })
 
   it('closes only visible page and overlay surfaces in visual order', () => {

@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.WebView
@@ -110,6 +111,13 @@ internal class NativeBridge(
     private var restoredOperation: RestoredOperation? = null
     private val cameraCleanupOwnership = CameraCleanupOwnership<File>()
     private val pickerGrantOwnership = TemporaryGrantOwnership<Uri>()
+    private val viewerShareStore = ViewerShareStore(
+        activity.filesDir,
+        { SystemClock.elapsedRealtime() },
+        { java.util.UUID.randomUUID().toString() },
+        { System.currentTimeMillis() },
+    )
+    private val viewerTransfers = HashMap<String, ViewerShareStore.Transfer>()
     @Volatile private var installed = false
     private val available: Boolean get() = installed && activeOwner()
     @Volatile private var documentGeneration = 0
@@ -206,6 +214,7 @@ internal class NativeBridge(
     fun onTopLevelNavigation(url: String) {
         documentGeneration += 1
         keyboardSubscriber = null
+        cancelIncompleteViewerTransfers()
         if (!GatewayUrlPolicy.isSameOrigin(origin, url)) return
     }
 
@@ -314,6 +323,7 @@ internal class NativeBridge(
         // onSaveInstanceState transfers any camera path before config teardown;
         // therefore config disposal must never let this old Activity reclaim deletion.
         preservingForConfiguration = changingConfigurations
+        cancelIncompleteViewerTransfers()
         runCatching {
             if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
                 WebViewCompat.removeWebMessageListener(webView, JS_OBJECT_NAME)
@@ -494,6 +504,10 @@ internal class NativeBridge(
                 }
                 "clipboard.read" -> startClipboardRead(requestId)
                 "clipboard.write" -> startClipboardWrite(requestId, input.optString("text", ""))
+                "files.share.begin" -> activity.runOnUiThread { beginViewerShare(requestId, input) }
+                "files.share.append" -> activity.runOnUiThread { appendViewerShare(requestId, input) }
+                "files.share.finish" -> activity.runOnUiThread { finishViewerShare(requestId, input) }
+                "files.share.cancel" -> activity.runOnUiThread { cancelViewerShare(requestId, input) }
                 "notification.notify" -> startTaskNotification(requestId, input)
                 "notification.settings" -> activity.runOnUiThread {
                     val callback = onOpenTaskNotificationSettings
@@ -684,6 +698,116 @@ internal class NativeBridge(
                 if (available && !preservingForConfiguration) runCatching { call.replyProxy.postMessage(body) }
             }
         }
+    }
+
+    // Viewer file share: staged through ViewerShareStore; only a finished transfer on the
+    // current trusted document can launch the chooser. Handed-off bytes outlive the sender.
+    private fun beginViewerShare(requestId: String, input: JSONObject) {
+        if (!available || preservingForConfiguration) {
+            finishPending(requestId, errorJson("unavailable", "viewer file sharing is unavailable", requestId))
+            return
+        }
+        when (val opened = viewerShareStore.begin(input.optString("name"), input.optString("mime"), input.optLong("bytes", -1L))) {
+            is ViewerShareStore.BeginResult.Opened -> {
+                synchronized(requestLock) { viewerTransfers[opened.transfer.id] = opened.transfer }
+                finishPending(requestId, successJson(requestId, JSONObject().put("id", opened.transfer.id)))
+            }
+            is ViewerShareStore.BeginResult.Rejected ->
+                finishPending(requestId, errorJson(viewerShareErrorCode(opened.reason), "viewer file share was refused", requestId))
+        }
+    }
+
+    private fun appendViewerShare(requestId: String, input: JSONObject) {
+        val transfer = synchronized(requestLock) { viewerTransfers[input.optString("id")] }
+        if (transfer == null) {
+            finishPending(requestId, errorJson("bad_message", "unknown viewer transfer", requestId))
+            return
+        }
+        val chunk = try {
+            Base64.getDecoder().decode(input.optString("data"))
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        if (chunk == null) {
+            transfer.cancel()
+            forgetViewerTransfer(transfer.id)
+            finishPending(requestId, errorJson("bad_message", "viewer chunk is not valid base64", requestId))
+            return
+        }
+        when (val result = transfer.append(input.optLong("offset", -1L), chunk)) {
+            is ViewerShareStore.AppendResult.Ok ->
+                finishPending(requestId, successJson(requestId, JSONObject().put("nextOffset", result.nextOffset)))
+            is ViewerShareStore.AppendResult.Rejected -> {
+                transfer.cancel()
+                forgetViewerTransfer(transfer.id)
+                finishPending(requestId, errorJson(viewerShareErrorCode(result.reason), "viewer chunk was refused", requestId))
+            }
+        }
+    }
+
+    private fun finishViewerShare(requestId: String, input: JSONObject) {
+        val expectedDocument = pending[requestId]?.documentGeneration
+        val transfer = synchronized(requestLock) { viewerTransfers[input.optString("id")] }
+        if (!NativeBridgePolicy.canLaunchViewerShare(available, preservingForConfiguration, expectedDocument ?: -1, documentGeneration) || transfer == null) {
+            transfer?.cancel()
+            if (transfer != null) forgetViewerTransfer(transfer.id)
+            finishPending(requestId, errorJson("unavailable", "the page is no longer current", requestId))
+            return
+        }
+        when (val staged = transfer.finish()) {
+            is ViewerShareStore.FinishResult.Rejected -> {
+                forgetViewerTransfer(transfer.id)
+                finishPending(requestId, errorJson(viewerShareErrorCode(staged.reason), "viewer file was incomplete", requestId))
+            }
+            is ViewerShareStore.FinishResult.Staged -> {
+                try {
+                    val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", staged.file)
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = transfer.mime
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        clipData = ClipData.newRawUri(transfer.displayName, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    activity.startActivity(Intent.createChooser(send, activity.getString(R.string.share)))
+                    transfer.markHandedOff()
+                    forgetViewerTransfer(transfer.id)
+                    finishPending(requestId, successJson(requestId, JSONObject().put("ok", true)))
+                } catch (_: Exception) {
+                    transfer.failLaunch()
+                    forgetViewerTransfer(transfer.id)
+                    finishPending(requestId, errorJson("failed", "the share sheet could not open", requestId))
+                }
+            }
+        }
+    }
+
+    private fun cancelViewerShare(requestId: String, input: JSONObject) {
+        val transfer = synchronized(requestLock) { viewerTransfers.remove(input.optString("id")) }
+        val withdrawn = transfer?.cancel() ?: true
+        finishPending(requestId, successJson(requestId, JSONObject().put("ok", true).put("withdrawn", withdrawn)))
+    }
+
+    private fun forgetViewerTransfer(id: String): Unit = synchronized(requestLock) { viewerTransfers.remove(id) }
+
+    /** Page navigation or bridge loss cancels incomplete work only. */
+    private fun cancelIncompleteViewerTransfers() {
+        val incomplete = synchronized(requestLock) {
+            val live = viewerTransfers.values.filter {
+                it.stage == ViewerShareStore.Stage.ACTIVE || it.stage == ViewerShareStore.Stage.STAGED
+            }
+            viewerTransfers.clear()
+            live
+        }
+        incomplete.forEach { it.cancel() }
+    }
+
+    private fun viewerShareErrorCode(reason: ViewerShareStore.RejectReason): String = when (reason) {
+        ViewerShareStore.RejectReason.ENTRIES_FULL,
+        ViewerShareStore.RejectReason.AGGREGATE_FULL,
+        ViewerShareStore.RejectReason.STORE_UNAVAILABLE,
+        ViewerShareStore.RejectReason.IO,
+        -> "unavailable"
+        else -> "bad_message"
     }
 
     private fun startClipboardRead(requestId: String) {
@@ -1176,7 +1300,7 @@ internal class NativeBridge(
           bridge.onmessage = handleReply;
           window.__DSH_MOBILE_NATIVE_STATE__ = { pending };
           window.__DSH_MOBILE_NATIVE__ = {
-            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','clipboard.read','clipboard.write','auth.renew','notification.notify','notification.settings','notification.background.get','notification.background.set','mobile.switch-computer','mobile.display-scale.get','mobile.display-scale.set']),
+            capabilities: () => Promise.resolve(['files.pick','camera.capture','share','files.share','clipboard.read','clipboard.write','auth.renew','notification.notify','notification.settings','notification.background.get','notification.background.set','mobile.switch-computer','mobile.display-scale.get','mobile.display-scale.set']),
             invoke: (action, input = {}, options = {}) => new Promise((resolve, reject) => {
               const signal = action === 'auth.renew' ? options.signal : undefined;
               const cancellation = () => Object.assign(new Error('session renewal was cancelled'), { name: 'AbortError', code: 'cancelled' });

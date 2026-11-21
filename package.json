@@ -178,7 +178,8 @@
     "smoke:plugin-portal-layers": "node ./scripts/smoke-plugin-portal-layers.mjs",
     "smoke:opaque-chrome": "node ./scripts/smoke-opaque-chrome.mjs",
     "smoke:rightbar-fullscreen": "node ./scripts/smoke-rightbar-fullscreen.mjs",
-    "smoke:path-copy": "node ./scripts/smoke-path-copy.mjs"
+    "smoke:path-copy": "node ./scripts/smoke-path-copy.mjs",
+    "smoke:viewer-identity": "node ./scripts/smoke-viewer-identity.mjs"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
@@ -276,6 +277,7 @@
     "playwright": "1.64.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "rolldown": "~1.2.15",
     "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"
