@@ -42,6 +42,8 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 
 「检查更新」将可以直接在 App 内完成升级：发现新版本后点「更新」，App 会从发布页下载对应版本（完整版与兼容版按当前安装自动匹配，不会串版本），校验通过才交给系统安装。Android 8 及以上首次需要打开「安装未知应用」权限，按提示去设置里打开，回来后自动继续下载。校验失败会删除文件并提示重试；下载失败可按原因（网络／过大／取消）重试或改用浏览器下载。
 
+`files.share` Bridge 能力（供预览文件名菜单的「分享文件」使用）同样仅存在于源码中；已发布的 0.8.2 APK（[release.json](release.json)）未声明 `files.share`，因此在发布新版本 App 前，App 内不会弹出该菜单，仍保持点按直接复制路径。
+
 此功能已合入源码但**尚未随任何 App 版本发布**；已发布的 0.8.2 仍然只打开下载页。
 
 ## 0.8.2 更新
@@ -191,7 +193,7 @@ DSH 通过 `getUserMedia` 录音并交给电脑已配置的语音提供方，不
 
 Android 自身的电池管理仍可能中断投递，而且常驻通知**不代表**事件流是活的：服务一在跑它就在，与连接状态无关。设置 → 通用设置会显示服务的真实阶段（已连接、未连接或最后一次记录到的有界失败阶段），并写入 `DshMobileBg` logcat 行，便于用 `adb logcat` 定位。在会冻结后台进程的厂商系统上（例如小米 HyperOS 的应用电池省电策略），App 侧无法维持这条流：请为该 App 关闭电池限制，或接受提醒在下一次回到前台时才出现。iOS 走网页推送通道，不受此限。
 
-认证页面可通过 `dshMobile` Bridge 调用 `files.pick`、`camera.capture`、分享、剪贴板读写、任务通知／设置、后台提醒（`notification.background.get`／`set`）、切换电脑及页面缩放。扩展单独调用的 `files.pick` 返回一个文件，遵循声明的 MIME 类型，通过 Bridge 返回的文件最多 8 MiB；这不是 DSH 标准附件选择器的大小限制。
+认证页面可通过 `dshMobile` Bridge 调用 `files.pick`、`files.share`、`camera.capture`、分享、剪贴板读写、任务通知／设置、后台提醒（`notification.background.get`／`set`）、切换电脑及页面缩放。`files.share` 以 192 KiB 分片暂存预览文件（单文件上限 8 MiB），完成后交由系统分享选择器移交文件。扩展单独调用的 `files.pick` 返回一个文件，遵循声明的 MIME 类型，通过 Bridge 返回的文件最多 8 MiB；这不是 DSH 标准附件选择器的大小限制。
 
 Bridge 文件／相机操作串行执行，最长等待五分钟。取消、文档／会话变化或 WebView 销毁会拒绝旧结果并清理资源。浏览器媒体选择等待实际结果、明确取消、中止或超时，恢复焦点不直接视为取消；不支持的能力返回 `unsupported`。
 

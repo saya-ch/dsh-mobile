@@ -59,7 +59,7 @@ It also lets you customize the phone from a DSH conversation: `/mobile <what you
 - **Continue DSH work from a phone**: the same sessions, Workspaces, messages, and tools, in real time.
 - **Customize the phone UI by talking to DSH**: request layout, interaction, or feature changes in a conversation; changed customization resources are usually picked up automatically.
 - **A dedicated touch layout**: session drawer, tool details, settings, question cards, and composer reorganized for phones. The sidebar remembers its list position within the page instead of jumping to the top after a session switch. The app follows the system locale (Chinese/English/Italian), plugin UI follows DSH's locale. On a wide window such as a tablet the sidebar stays docked, and while the main area still has room the conversation column keeps ~720px and is centred with the composer on the same axis; a narrower main area, such as a portrait tablet, keeps the full-width column.
-- **Tap a path to copy it**: on touch devices, tapping the path bar atop a file preview copies the path that element shows to the clipboard, with a brief bottom toast of the copied value (long values shorten on screen; the clipboard keeps the full text). Tapping replaces the current clipboard; delivered-file cards remain a pure open action (no copy); the changes-review file switcher is unaffected; desktop mouse clicks never copy.
+- **[Tap the filename to copy or share](#copy-or-share-from-the-mobile-file-viewer)**: copy the path from a file preview or share the original file on clients that support file sharing.
 - **Several remote options**: Tailscale, cpolar, cloudflared quick/named tunnels, self-hosted FRP, your own reverse proxy, and experimental iroh without a domain or public port; Windows/Linux x64 can also let the plugin manage Caddy HTTPS and certificates.
 - **Pairing and multi-device**: pair once via QR code, link, or key; the same Origin renews automatically, while an address, certificate or listener change requires pairing again through **Change network** (while LAN access runs) or takes effect the next time you enable it; the app lists LAN and remote paired computers together, checks their reachability periodically, and lets you switch, re-pair, or delete a local record.
 - **One-click diagnostics and approval**: check versions, gateway, network interface, firewall, and the remote path with a redacted report; approve blocked third-party plugin connections per exact path.
@@ -376,6 +376,17 @@ The current plugin retains the 0.6.12 compatibility layer and startup feedback, 
 > **Community client (unofficial)**: [WeChat Mini-Program client](https://github.com/StrawberryAO/dsh-mobile-minapp)
 > A native WeChat Mini-Program that reuses the Mobile Access pairing and Remote stream protocol (requires dsh-mobile ≥ 0.3.8).
 > Because WeChat release builds enforce a domain allow-list (ICP-registered HTTPS origins only), it currently works via WeChat DevTools / real-device debugging; see its README.
+
+### Copy or share from the mobile file viewer
+
+On a paired touch client that supports file sharing, tap the filename in the file preview. The two-action menu is anchored below the filename bar, or appears as a bottom sheet on small screens:
+
+- **Copy Path** copies the full, untruncated path to the clipboard without reading the file. It replaces the clipboard contents and briefly shows the copied path at the bottom (shortened on screen if long).
+- **Share File…** shares the current bytes of the original file, up to **8 MiB**, not rendered text or a converted PDF. On iPhone Safari and other capable browsers it uses Web Share (the iOS Share Sheet on iPhone). If a slow read outlasts iOS’s window for opening the share sheet from the original tap, tap **Ready to share — tap to share** within 60 seconds. The Android app stages the file via `files.share` and opens the system chooser with a read-only grant. This Android capability is in source only and is not in the published 0.8.2 APK.
+
+Files over 8 MiB, files of unknown size, and files that have changed are refused with a neutral message, never truncated. Cancelling is not an error.
+
+Without file-sharing support, one tap still copies the path directly. Desktop behaviour is unchanged: mouse clicks do not trigger either action. Delivered-file cards still only open the preview, and the changes-review file switcher is unaffected.
 
 ## How it works
 
