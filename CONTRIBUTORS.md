@@ -14,11 +14,19 @@ GitHub's Contributors graph counts commits on the default branch; issue reports 
 
 感谢 [@NekogamiJam](https://github.com/NekogamiJam) 在 [#449](https://github.com/saya-ch/dsh-mobile/pull/449) 让移动定制在重连后恢复（重试瞬时失败的清单请求，并在可见页面的连接恢复后重新校验）。
 
+感谢 [@novscorhw](https://github.com/novscorhw) 在 [#457](https://github.com/saya-ch/dsh-mobile/pull/457) 让 Android 键盘弹起时不再盖住移动端 composer（Firefox for Android 的 viewport 策略），并补齐单测与冒烟断言。
+
+感谢 [@chintoleung](https://github.com/chintoleung) 在 [#459](https://github.com/saya-ch/dsh-mobile/pull/459) 实现移动端预览文件名点按复制路径 / 分享文件（含 Android 原生桥接；桥接部分在源码中，尚未随 App 发布）。
+
 Thanks [@abworks-dev](https://github.com/abworks-dev) for seating the sidebar footer entry under the same capacity contract as its neighbours in [#452](https://github.com/saya-ch/dsh-mobile/pull/452), and for the proposal and specification work in [#440](https://github.com/saya-ch/dsh-mobile/issues/440).
 
 Thanks [@Astute9108](https://github.com/Astute9108) for reporting the loopback tunnel problem in [#444](https://github.com/saya-ch/dsh-mobile/issues/444) and pinning the real cause with curl logs — a listener on the port forwarding to the wrong target — which led to the custom tunnel port.
 
 Thanks [@NekogamiJam](https://github.com/NekogamiJam) for recovering mobile customization after a reconnect in [#449](https://github.com/saya-ch/dsh-mobile/pull/449).
+
+Thanks [@novscorhw](https://github.com/novscorhw) for keeping the Mobile composer visible above the Android keyboard in [#457](https://github.com/saya-ch/dsh-mobile/pull/457), with unit coverage and smoke assertions.
+
+Thanks [@chintoleung](https://github.com/chintoleung) for the tap-to-copy / share-file viewer menu in [#459](https://github.com/saya-ch/dsh-mobile/pull/459), including the Android native bridge (in source, not yet shipped in an App release).
 
 Thanks [@qzyqmzn](https://github.com/qzyqmzn) for completing the portable Windows client in [#443](https://github.com/saya-ch/dsh-mobile/pull/443) (LAN discovery, address following, task-completion notifications, same-origin downloads and the microphone) and for the user-facing documentation rewrite in [#445](https://github.com/saya-ch/dsh-mobile/pull/445) (App manuals, Windows README and docs guides). Both are merged into main and are not part of any published release yet.
 
