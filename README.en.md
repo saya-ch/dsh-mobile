@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.13">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.13**. The **loopback tunnel** can now use a port of its own instead of having to match the gateway listener port (#444), and mobile customization recovers by itself after a DSH reconnect instead of needing a manual retry (#338). The plugin and the Android app update independently; Android app 0.8.2 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.13) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.14**. Assistant text no longer disappears entirely on Android WebViews below Chromium 120 (#450); the sidebar footer entry follows the capacity contract shared with its neighbours and keeps its label when the row is wide enough (#440); and a first automatic session renewal that comes back `transient` during a disconnect is retried once instead of needing a manual retry (#338). The plugin and the Android app update independently; Android app 0.8.2 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
@@ -444,6 +444,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.14` | Assistant text no longer disappears on Android WebViews below Chromium 120 (#450); the sidebar footer entry shares one capacity contract with its neighbours (#440); a `transient` first renewal during a disconnect retries once (#338). Android app 0.8.2 |
 | `0.8.13` | The **loopback tunnel** can use a port of its own instead of matching the gateway listener port (#444); mobile customization recovers by itself after a DSH reconnect (#338). Android app 0.8.2 |
 | `0.8.12` | Add an opt-in **loopback tunnel** so a local tunnel you run yourself (for example frp stcp) reaches the gateway without exposing a public port (#444); a user message bubble is no longer squeezed into a vertical sliver by the runtime-label rule when a third-party plugin is installed (#441). Android app 0.8.0 |
 | `0.8.11` | Give the Funnel certificate fetch a budget based on real issuance time, up to 180 seconds and overridable by environment variable (#348). Android app 0.8.0 |
