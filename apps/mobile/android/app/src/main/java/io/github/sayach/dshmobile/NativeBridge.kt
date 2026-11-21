@@ -782,8 +782,11 @@ internal class NativeBridge(
     }
 
     private fun cancelViewerShare(requestId: String, input: JSONObject) {
+        // Unknown ids withdraw nothing: the transfer is absent (never created, already
+        // finished and forgotten, or already handed off and retained). Reporting true here
+        // would tell the caller bytes were recalled that the receiver may already hold.
         val transfer = synchronized(requestLock) { viewerTransfers.remove(input.optString("id")) }
-        val withdrawn = transfer?.cancel() ?: true
+        val withdrawn = transfer?.cancel() ?: false
         finishPending(requestId, successJson(requestId, JSONObject().put("ok", true).put("withdrawn", withdrawn)))
     }
 
