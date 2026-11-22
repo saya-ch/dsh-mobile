@@ -76,6 +76,7 @@ async function mount(): Promise<WebRoute> {
   } as never)
   context.provide('connection', {
     authenticatedUrl(baseUrl: string) { return `${baseUrl}/?token=test-launch-token` },
+    requestRejection() { return undefined },
   } as never)
   await context.plugin({ Config, inject, apply }, {
     listenPort: 0,

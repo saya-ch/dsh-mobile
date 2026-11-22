@@ -1478,7 +1478,7 @@ export class MobileAccessGateway {
     readonly config: ResolvedGatewayConfig,
     store: DeviceStore,
     private readonly extensions?: MobileAccessService,
-    private readonly upstreamAuthenticatedUrl?: string,
+    private readonly upstreamAuthenticatedUrl?: string | (() => string | undefined),
     private readonly extraWebSocketPaths?: { has(pathname: string): boolean },
     private readonly blockedUpgradeLog?: BlockedUpgradePathLog,
     private readonly onDiscoveryDegraded?: (source: 'broadcast' | 'mdns', code: string) => void,
@@ -2847,7 +2847,8 @@ export class MobileAccessGateway {
     let status: number | undefined
     let timedOut = false
     try {
-      const authenticatedUrl = this.upstreamAuthenticatedUrl
+      const source = this.upstreamAuthenticatedUrl
+      const authenticatedUrl = typeof source === 'function' ? source() : source
       if (authenticatedUrl === undefined) throw new HttpError(502, 'upstream_unavailable')
       let target: URL
       try {
