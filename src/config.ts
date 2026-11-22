@@ -75,6 +75,8 @@ export interface PluginConfig {
   customScriptFile?: string
   /** Internal dedicated mobile layout browser bundle. */
   mobileLayoutFile?: string
+  /** Internal Remote graph follower browser bundle for DSH hosts without the plugin event route. */
+  mobileGraphFollowerFile?: string
   /** Standalone browser compatibility bundle used before DSH boot. */
   mobileCompatibilityFile?: string
   /** Optional application-phase client package ids omitted only from the mobile boot graph. */
@@ -139,6 +141,7 @@ export interface ResolvedGatewayConfig {
   readonly customCssFile: string
   readonly customScriptFile: string
   readonly mobileLayoutFile: string
+  readonly mobileGraphFollowerFile: string
   readonly mobileCompatibilityFile: string
   readonly excludedClientModules: readonly string[]
   readonly websocketCompression: ResolvedWebSocketCompressionConfig
@@ -195,6 +198,7 @@ export const Config: z<PluginConfig> = z.object({
   customCssFile: z.string().hidden(),
   customScriptFile: z.string().hidden(),
   mobileLayoutFile: z.string().hidden(),
+  mobileGraphFollowerFile: z.string().hidden(),
   mobileCompatibilityFile: z.string().hidden(),
   excludedClientModules: z.array(String).default([]),
   websocketCompression: z.object({
@@ -471,6 +475,9 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     mobileLayoutFile: value.mobileLayoutFile === undefined
       ? fileURLToPath(new URL('./mobile-layout.js', import.meta.url))
       : absoluteFile(value.mobileLayoutFile, 'mobileLayoutFile'),
+    mobileGraphFollowerFile: value.mobileGraphFollowerFile === undefined
+      ? fileURLToPath(new URL('./mobile-graph-follower.js', import.meta.url))
+      : absoluteFile(value.mobileGraphFollowerFile, 'mobileGraphFollowerFile'),
     mobileCompatibilityFile: value.mobileCompatibilityFile === undefined
       ? fileURLToPath(new URL('./mobile-compat.js', import.meta.url))
       : absoluteFile(value.mobileCompatibilityFile, 'mobileCompatibilityFile'),

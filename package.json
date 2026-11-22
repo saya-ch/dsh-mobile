@@ -6,7 +6,8 @@
   "icon": "assets/brand/plugin-icon.png",
   "type": "module",
   "workspaces": [
-    "packages/question-fixes"
+    "packages/question-fixes",
+    "packages/mobile-graph-follower"
   ],
   "bin": {
     "dsh-mobile": "lib/cli.js"
@@ -30,6 +31,7 @@
     "lib/**/*.d.mts",
     "lib/client.js",
     "lib/mobile-layout.js",
+    "lib/mobile-graph-follower.js",
     "lib/mobile-compat.js",
     "lib/**/*.map",
     "bin/dsh-mobile-funnel-win32-x64.exe",

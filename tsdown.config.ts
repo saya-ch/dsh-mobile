@@ -123,4 +123,26 @@ export default defineConfig([{
     intro: 'var module = { exports: {} }; var exports = module.exports;',
     footer: 'return module.exports; } });',
   },
+}, {
+  entry: { 'mobile-graph-follower': 'packages/mobile-graph-follower/src/client.ts' },
+  outDir: 'lib',
+  format: ['cjs'],
+  platform: 'browser',
+  target: 'es2022',
+  dts: false,
+  sourcemap: true,
+  clean: false,
+  minify: true,
+  deps: {
+    // The DSH page supplies the gateway client and `zod` through its module loader;
+    // the stock client row takes both the same way, so bundling a second copy only adds weight.
+    neverBundle: ['@deepseek-ai/dsh-api-gateway/client', 'zod'],
+    alwaysBundle: [/^@deepseek-ai\/dsh-(?:client-hmr|typert-protocol|brand|error)(?:\/|$)/u],
+  },
+  outputOptions: {
+    entryFileNames: 'mobile-graph-follower.js',
+    banner: 'window.__ModuleLoader__.load({ id: "@deepseek-ai/dsh-client-hmr", factory: (require) => {',
+    intro: 'var module = { exports: {} }; var exports = module.exports;',
+    footer: 'return module.exports; } });',
+  },
 }, mobileCompatibilityBuild])

@@ -56,6 +56,7 @@ import { renderClientModuleRecoveryPage } from './client-module-recovery.js'
 import { ensureMobileCompatibility, ensureMobileGatewayMarker, MOBILE_COMPAT_PATH, mobileCompatibilityRevision, mobileCompatibilityRevisionPath } from './mobile-compat-bootstrap.js'
 import { ensureMobileViewport, MOBILE_VIEWPORT_CONTENT } from './mobile-viewport.js'
 import { LEGACY_CUSTOM_ASSET_LIMIT } from './extension-limits.js'
+import { MOBILE_CLIENT_GRAPH_PATH, MOBILE_DOCUMENT_VIEW_HEADER } from './mobile-graph-follower.js'
 import { matchesIfNoneMatch, weakenEntityTag } from './http-cache.js'
 import { createMobileGraphEventTransform } from './mobile-graph-events.js'
 import {
@@ -148,9 +149,12 @@ type OwnedStaticAsset = {
   readonly fallback?: string | undefined
   /** Content-addressed path: serve `immutable`, and only while the body still matches. */
   readonly digest?: string | undefined
+  /** Largest body this route serves; defaults to the customization asset cap. */
+  readonly limit?: number | undefined
 }
+const MOBILE_GRAPH_FOLLOWER_ID = '@deepseek-ai/dsh-client-hmr'
+const MOBILE_GRAPH_FOLLOWER_PATH = `${AUTH_PREFIX}/mobile-graph-follower.js`
 const MOBILE_BOOT_BATCH_PREFIX = `${AUTH_PREFIX}/mobile-boot/`
-const MOBILE_DOCUMENT_VIEW_HEADER = 'x-dsh-mobile-view'
 const CATALOG_CACHE_MARKER = 'x-dsh-mobile-catalog'
 /** Eligible catalog envelopes are small fixed-shape JSON; larger declared bodies keep the streaming path. */
 const CATALOG_CANDIDATE_BODY_LIMIT = 64 * 1024
@@ -232,7 +236,8 @@ function safePushFailure(error: unknown): HttpError {
   return new HttpError(500, 'internal_error')
 }
 const MAX_MOBILE_BOOT_BATCH_BYTES = 32 * 1024 * 1024
-const MAX_MOBILE_BOOT_ENTRY_BYTES = 8 * 1024 * 1024
+/** Largest single boot entry, served alone or inside a Mobile-owned batch. */
+export const MAX_MOBILE_BOOT_ENTRY_BYTES = 8 * 1024 * 1024
 /**
  * Target source-byte size for merged batches. A module larger than this target
  * remains whole, subject to the separate per-entry and assembly limits. Excess
@@ -452,6 +457,7 @@ interface RewrittenMobileIndex {
 }
 
 interface MobileBootGraphPlan {
+  readonly modernGraphFollower?: boolean
   readonly parsed: { rev: string; entries: BootGraphEntry[]; batches?: BootGraphBatch[] }
   readonly entries: BootGraphEntry[]
   readonly batches?: BootGraphBatch[]
@@ -680,6 +686,14 @@ function parseMobileBootGraph(source: string, excludedClientModules: readonly st
   if (dependencyProfile === undefined) throw new Error('upstream DSH layout module has unsupported dependencies')
   layout[0].url = MOBILE_LAYOUT_PATH
   layout[0].rev = `dsh-mobile-layout-${DSH_MOBILE_VERSION}`
+  const follower = entries.find(entry => entry?.id === MOBILE_GRAPH_FOLLOWER_ID)
+  const modernGraphFollower = Array.isArray(follower?.inject) && [
+    '@deepseek-ai/dsh-api-gateway', '@deepseek-ai/dsh-api-remote-access', '@deepseek-ai/dsh-client-modules',
+  ].every(id => follower.inject!.includes(id))
+  if (modernGraphFollower && follower !== undefined) {
+    follower.url = MOBILE_GRAPH_FOLLOWER_PATH
+    follower.rev = `dsh-mobile-graph-${DSH_MOBILE_VERSION}`
+  }
   const parsedBatches = parsed.batches
   if (parsedBatches === undefined) {
     if (excludedClientModules.length > 0) {
@@ -724,7 +738,8 @@ function parseMobileBootGraph(source: string, excludedClientModules: readonly st
   // even though no module changed. Entry ids are unique (the map above rejects
   // duplicates), so sorting them is a total order.
   const affectedBatchUrls = new Set(originalApplicationBatches
-    .filter(batch => batch.entries.some(id => excludedClientModules.includes(id)))
+    .filter(batch => batch.entries.some(id => excludedClientModules.includes(id)
+      || (modernGraphFollower && id === MOBILE_GRAPH_FOLLOWER_ID)))
     .map(batch => batch.url))
   const rewrittenBatchEntries = batches
     .filter(batch => batch === layoutBatch || (batch.phase === 'application' && affectedBatchUrls.has(batch.url)))
@@ -750,6 +765,7 @@ function parseMobileBootGraph(source: string, excludedClientModules: readonly st
     planEntries,
     originalApplicationBatches,
     rewrittenBatchEntries,
+    modernGraphFollower,
   })
 }
 
@@ -819,7 +835,7 @@ export function limitMobileBootBatches(splits: readonly SplitMobileBootBatch[]):
         return [row]
       }
       return plan.entries.map((entry): BootGraphBatch => {
-        if (upstreamPluginBundleUrl(entry.url, upstreamOrigin) === undefined) {
+        if (entry.url !== MOBILE_GRAPH_FOLLOWER_PATH && upstreamPluginBundleUrl(entry.url, upstreamOrigin) === undefined) {
           throw new Error('upstream DSH mobile boot has no valid module URL for an overflow batch')
         }
         return { phase: 'application', url: entry.url, rev: entry.rev, entries: [entry.id] }
@@ -888,7 +904,9 @@ function rewriteMobileIndexWithBatch(
   const plan = parseMobileBootPlan(html, options.excludedClientModules)
   const projected = projectMobileBootGraph(plan, options)
   const transportBootstrap = projected.graphTransport ? mobileAuthenticatedTransportBootstrap(options.viewId) : ''
-  const replacement = `${MOBILE_GATEWAY_REACHABILITY_BOOTSTRAP}${transportBootstrap}${mobileCsrfFetchBootstrap(options.csrfCookie ?? CSRF_COOKIE)}window.__DSH_MOBILE_FRONTEND__="dedicated";${plan.assignment}${JSON.stringify(plan.parsed)};`
+  const graphView = plan.modernGraphFollower === true && options.viewId !== undefined
+    ? `window.__DSH_MOBILE_GRAPH_VIEW__=${JSON.stringify(options.viewId)};` : ''
+  const replacement = `${graphView}${MOBILE_GATEWAY_REACHABILITY_BOOTSTRAP}${transportBootstrap}${mobileCsrfFetchBootstrap(options.csrfCookie ?? CSRF_COOKIE)}window.__DSH_MOBILE_FRONTEND__="dedicated";${plan.assignment}${JSON.stringify(plan.parsed)};`
   const rewritten = `${html.slice(0, plan.replaceStart)}${replacement}${html.slice(plan.replaceEnd)}`
   return Object.freeze({
     html: replaceDedicatedMobilePushLinks(ensureMobileGatewayMarker(ensureMobileViewport(ensureMobileCompatibility(rewriteMobileApplicationPreloads(rewritten, projected.preloadReplacements), options.compatPath)))),
@@ -2334,6 +2352,7 @@ export class MobileAccessGateway {
     const workspaceDirectories = (request.method === 'GET' || request.method === 'POST')
       && target.decodedPathname === `${AUTH_PREFIX}/workspace-directories`
     const clientModules = target.decodedPathname === `${AUTH_PREFIX}/client-modules`
+    const clientGraph = target.decodedPathname === MOBILE_CLIENT_GRAPH_PATH
     const backgroundEvents = target.decodedPathname === BACKGROUND_EVENT_PATH
     const mobilePushRoute = [MOBILE_PUSH_CONFIG_PATH, MOBILE_PUSH_SUBSCRIPTION_PATH, MOBILE_PUSH_PREFERENCES_PATH,
       MOBILE_PUSH_DISABLE_PATH, MOBILE_PUSH_TEST_PATH, MOBILE_PUSH_RESOLVE_PATH].includes(target.decodedPathname)
@@ -2359,6 +2378,14 @@ export class MobileAccessGateway {
                 contentType: 'text/javascript; charset=utf-8',
                 fallback: undefined,
               }
+            : target.decodedPathname === MOBILE_GRAPH_FOLLOWER_PATH
+              ? {
+                  file: this.config.mobileGraphFollowerFile,
+                  contentType: 'text/javascript; charset=utf-8',
+                  fallback: undefined,
+                  // A boot entry, not user customization: the same per-entry cap as inside a batch.
+                  limit: MAX_MOBILE_BOOT_ENTRY_BYTES,
+                }
             : target.decodedPathname === MOBILE_COMPAT_PATH
               ? {
                   file: this.config.mobileCompatibilityFile,
@@ -2374,7 +2401,7 @@ export class MobileAccessGateway {
                     digest: requestedCompatRevision,
                   }
       : undefined
-    if (customAsset === undefined && requestedMobileBootBatch === undefined && !computerImages && !computerImage && !workspaceDirectories && !clientModules && !backgroundEvents && !mobilePushRoute
+    if (customAsset === undefined && requestedMobileBootBatch === undefined && !computerImages && !computerImage && !workspaceDirectories && !clientModules && !clientGraph && !backgroundEvents && !mobilePushRoute
       && extensionTarget(target.decodedPathname) === undefined
       && (target.decodedPathname === AUTH_PREFIX || target.decodedPathname.startsWith(`${AUTH_PREFIX}/`))) {
       throw new HttpError(404, 'not_found')
@@ -2427,6 +2454,13 @@ export class MobileAccessGateway {
         throw new HttpError(request.method === 'GET' ? 400 : 405, request.method === 'GET' ? 'bad_request' : 'method_not_allowed')
       }
       this.openBackgroundEventStream(request, response, authorization)
+      return
+    }
+    if (clientGraph) {
+      if (request.method !== 'GET') throw new HttpError(405, 'method_not_allowed')
+      if (target.search !== '') throw new HttpError(400, 'bad_request')
+      if (documentView === undefined) throw new HttpError(409, 'mobile_document_view_invalid')
+      await this.serveMobileClientGraph(documentView, response, authorization)
       return
     }
     if (clientModules) {
@@ -2488,7 +2522,7 @@ export class MobileAccessGateway {
           if (customAsset.fallback === undefined) throw new HttpError(503, 'mobile_frontend_unavailable')
           body = Buffer.from(customAsset.fallback)
         }
-        if (body.byteLength > LEGACY_CUSTOM_ASSET_LIMIT) throw new HttpError(413, 'payload_too_large')
+        if (body.byteLength > (customAsset.limit ?? LEGACY_CUSTOM_ASSET_LIMIT)) throw new HttpError(413, 'payload_too_large')
         operation.signal.throwIfAborted()
         // Owned assets are the per-load scripts and styles the gateway serves itself
         // (`compat.js`, `mobile-layout.js`, custom CSS/JS). They carry `no-cache`, so a
@@ -3366,9 +3400,10 @@ export class MobileAccessGateway {
 
   private requireMobileDocumentView(id: string, authorization: SessionAuthorization, request: IncomingMessage): MobileDocumentView {
     const view = /^[a-f0-9]{32}$/u.test(id) ? this.mobileDocumentViews.get(id) : undefined
+    const pathname = parseRequestTarget(request.url).decodedPathname
     if (view === undefined || view.expiresAt <= Date.now() || view.sessionKey !== authorization.sessionKey
       || view.deviceId !== authorization.deviceId || request.method !== 'GET'
-      || parseRequestTarget(request.url).decodedPathname !== '/plugins/events'
+      || (pathname !== '/plugins/events' && pathname !== MOBILE_CLIENT_GRAPH_PATH)
       || request.headers['transfer-encoding'] !== undefined
       || (request.headers['content-length'] !== undefined && Number(request.headers['content-length']) !== 0)) {
       throw new HttpError(409, 'mobile_document_view_invalid')
@@ -3388,15 +3423,41 @@ export class MobileAccessGateway {
     if (frame.type !== 'graph' || frame.graph === null || typeof frame.graph !== 'object' || Array.isArray(frame.graph)) {
       throw new HttpError(502, 'upstream_unavailable')
     }
-    const plan = parseMobileBootGraph(JSON.stringify(frame.graph), view.excludedClientModules)
+    return { ...frame, graph: await this.projectMobileDocumentGraph(view,
+      parseMobileBootGraph(JSON.stringify(frame.graph), view.excludedClientModules), signal) }
+  }
+
+  /** Refresh only a live dedicated document, never a client-supplied graph. */
+  private async serveMobileClientGraph(view: MobileDocumentView, response: ServerResponse, authorization: SessionAuthorization): Promise<void> {
+    const operation = this.allocateRequest(authorization, response, {})
+    const abort = (): void => { operation.abort() }
+    response.once('close', abort)
+    try {
+      const { html } = await this.fetchAuthenticatedUpstreamIndex(operation.signal)
+      const plan = parseMobileBootPlan(html, view.excludedClientModules)
+      const graph = await this.projectMobileDocumentGraph(view, plan, operation.signal)
+      sendJson(response, 200, graph, this.tlsEnabled)
+    } catch (error) {
+      if (operation.signal.aborted) return
+      if (error instanceof HttpError) throw error
+      throw new HttpError(502, 'upstream_unavailable')
+    } finally {
+      response.removeListener('close', abort)
+      operation.release()
+    }
+  }
+
+  private async projectMobileDocumentGraph(view: MobileDocumentView, plan: MobileBootGraphPlan, signal: AbortSignal): Promise<unknown> {
     const options = plan.rewrittenBatchEntries === undefined ? {}
       : await this.resolveMobileBootSizes(plan.rewrittenBatchEntries.flatMap(batch => batch.entries), signal)
     const projected = projectMobileBootGraph(plan, options)
     if (!projected.graphTransport) throw new HttpError(502, 'upstream_unavailable')
     signal.throwIfAborted()
-    if (this.mobileDocumentViews.get(view.id) !== view) throw new HttpError(409, 'mobile_document_view_invalid')
+    if (this.mobileDocumentViews.get(view.id) !== view || view.expiresAt <= Date.now()) {
+      throw new HttpError(409, 'mobile_document_view_invalid')
+    }
     for (const batch of projected.batches) this.rememberMobileBootBatch(batch)
-    return { ...frame, graph: plan.parsed }
+    return plan.parsed
   }
 
   private rememberMobileBootBatch(plan: MobileBootBatchPlan): void {
@@ -3423,7 +3484,7 @@ export class MobileAccessGateway {
   ): Promise<{ sizes: Map<string, number>; passThrough: Set<string> }> {
     const sizes = new Map<string, number>()
     const passThrough = new Set<string>()
-    const candidates = planEntries.filter(entry => entry.id !== MOBILE_LAYOUT_MODULE
+    const candidates = planEntries.filter(entry => entry.id !== MOBILE_LAYOUT_MODULE && entry.url !== MOBILE_GRAPH_FOLLOWER_PATH
       && upstreamPluginBundleUrl(entry.url, this.config.upstreamOrigin) !== undefined)
     let cursor = 0
     const worker = async (): Promise<void> => {
@@ -3622,6 +3683,8 @@ export class MobileAccessGateway {
         const entry = plan.entries[index]!
         bodies[index] = entry.id === MOBILE_LAYOUT_MODULE
           ? await readFile(this.config.mobileLayoutFile, { signal })
+           : entry.url === MOBILE_GRAPH_FOLLOWER_PATH
+             ? await readFile(this.config.mobileGraphFollowerFile, { signal })
           : await this.readUpstreamClientBundleWithRetry(entry.url, signal)
         if (bodies[index]!.byteLength > MAX_MOBILE_BOOT_ENTRY_BYTES) throw new HttpError(502, 'upstream_unavailable')
       }
