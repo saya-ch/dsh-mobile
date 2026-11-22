@@ -40,7 +40,8 @@ try {
     internal,
     *entries() {
       yield {
-        options: { name: specifier }, fiber: {}, disabled: false,
+        // Newer registries read the live fiber when composing synced config.
+        options: { name: specifier }, fiber: { ctx: context }, disabled: false,
         parent: { tree: { ctx: { baseUrl } } },
       }
     },
