@@ -20,7 +20,7 @@ use dsh_mobile_iroh_core::{
     ALPN, MAX_UNPAIRED_LINE, PAIR_BAD_CODE, PAIR_EXPIRED, PAIR_NO_WINDOW, PAIR_TOO_MANY_ATTEMPTS,
 };
 use iroh::endpoint::{presets, Connection};
-use iroh::{Endpoint, EndpointAddr, EndpointId};
+use iroh::{Endpoint, EndpointAddr, EndpointId, TransportAddr};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt as _};
@@ -916,6 +916,31 @@ fn chrono_now() -> String {
     format!("unix:{seconds}")
 }
 
+/// One-line summary of what peer discovery knew when a dial failed.
+///
+/// `remote_info` is this endpoint's current view: no entry (or no addresses)
+/// means the lookup found nothing to dial, while relay vs direct entries
+/// distinguish the rendezvous path that was available. Snapshot only;
+/// discovery keeps running in the background.
+async fn describe_remote_route(endpoint: &Endpoint, peer: EndpointId) -> String {
+    let mut relays = 0u32;
+    let mut direct = 0u32;
+    let mut other = 0u32;
+    if let Some(info) = endpoint.remote_info(peer).await {
+        for entry in info.addrs() {
+            match entry.addr() {
+                TransportAddr::Relay(_) => relays += 1,
+                TransportAddr::Ip(_) => direct += 1,
+                _ => other += 1,
+            }
+        }
+    }
+    if relays == 0 && direct == 0 && other == 0 {
+        return "discovery found no addresses".to_string();
+    }
+    format!("discovery knew {relays} relay, {direct} direct, {other} other address(es)")
+}
+
 async fn phone_sim_main(
     data_dir: PathBuf,
     peer: EndpointId,
@@ -946,7 +971,19 @@ async fn phone_sim_main(
         .into_iter()
         .fold(EndpointAddr::new(peer), |addr, ip| addr.with_ip_addr(ip));
     let result = async {
-        let conn = timeout(CONNECT_BUDGET, endpoint.connect(address, ALPN)).await.context("host connection timed out")??;
+        let conn = match timeout(CONNECT_BUDGET, endpoint.connect(address, ALPN)).await {
+            Ok(Ok(conn)) => conn,
+            // Keep the established failure marker first; the route summary tells
+            // a bare "timed out" apart from "resolved but unreachable".
+            Ok(Err(error)) => {
+                let route = describe_remote_route(&endpoint, peer).await;
+                anyhow::bail!("host connection timed out ({route}): {error:#}")
+            }
+            Err(_) => {
+                let route = describe_remote_route(&endpoint, peer).await;
+                anyhow::bail!("host connection timed out ({route})")
+            }
+        };
         let _close = CloseConnection(conn.clone());
         let (mut send, mut recv) = timeout(HANDSHAKE_BUDGET, conn.open_bi()).await??;
         let first = match code { Some(code) => Wire::Pair { code, name }, None => Wire::Hello { name } };
@@ -1166,6 +1203,34 @@ mod tests {
             endpoint.close().await;
             assert!(host.state.lock().await.store.devices.is_empty());
         }
+        host.close().await;
+    }
+
+    #[tokio::test]
+    async fn dial_failure_reports_discovered_route() {
+        let host = TestHost::start(None).await;
+        // Unknown peer: nothing dialed yet, so the lookup found nothing.
+        let dialer = make_endpoint(iroh::SecretKey::generate(), true)
+            .await
+            .unwrap();
+        assert_eq!(
+            describe_remote_route(&dialer, host.endpoint.id()).await,
+            "discovery found no addresses"
+        );
+        // Explicitly dialed peer: discovery knows the direct address.
+        let _conn = timeout(
+            Duration::from_secs(10),
+            dialer.connect(host.endpoint.addr(), ALPN),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        let summary = describe_remote_route(&dialer, host.endpoint.id()).await;
+        assert!(
+            summary.contains("1 direct"),
+            "unexpected route summary: {summary}"
+        );
+        dialer.close().await;
         host.close().await;
     }
 
