@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
+## 0.8.15 - Unreleased
 
 - Keep the dedicated Mobile composer visible once the on-screen keyboard opens in Firefox for Android. The dedicated page and the pairing, reauthentication and module-recovery pages request a smaller layout viewport while the keyboard is open. Thanks @novscorhw for [#457](https://github.com/saya-ch/dsh-mobile/pull/457).
 - Offer Copy Path or Share File when tapping the preview header filename on touch clients that support file sharing (Web Share up to 8 MiB on demand; Android `files.share` bridge in source, not in the published 0.8.2 APK; unsupported clients keep one-tap copy). Thanks @chintoleung for [#459](https://github.com/saya-ch/dsh-mobile/pull/459).
