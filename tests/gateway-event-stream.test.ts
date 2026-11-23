@@ -74,6 +74,38 @@ interface Probe {
   readonly received: (marker: string) => Promise<void>
 }
 
+/**
+ * Extract the boot manifest JSON from a served dedicated document.
+ *
+ * The manifest no longer ends the inline script — the transport guard follows it
+ * and may throw — so match its own balanced braces instead of anchoring to
+ * `</script>`. Values are JSON.stringify output, so string handling is exact.
+ */
+function extractBootManifest(html: string): string | undefined {
+  const start = /window\.__DSH_BOOT__\s*=\s*/u.exec(html)
+  if (start?.index === undefined) return undefined
+  const text = html.slice(start.index + start[0].length)
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      continue
+    }
+    if (char === '"') inString = true
+    else if (char === '{') depth++
+    else if (char === '}') {
+      depth--
+      if (depth === 0) return text.slice(0, index + 1)
+    }
+  }
+  return undefined
+}
+
 async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs?: number; sessionTtlMs?: number; maxActiveRequests?: number; maxSessions?: number; excluded?: readonly string[]; modern?: boolean; directStart?: boolean; followerBytes?: number } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-sse-'))
   cleanups.push(async () => {
@@ -213,7 +245,10 @@ async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs
     await within(document.closed, 'Owned HTML did not complete')
     const html = document.text()
     const viewId = /headers\.set\("x-dsh-mobile-view","([a-f0-9]{32})"\)/u.exec(html)?.[1]
-    const source = /window\.__DSH_BOOT__=(\{[^<]+\});<\/script>/u.exec(html)?.[1]
+    // The manifest is followed by more bootstrap code (the transport guard may even
+    // throw), so scan for its own balanced closing brace instead of anchoring to
+    // the end of the script (#460).
+    const source = extractBootManifest(html)
     if (source === undefined) throw new Error('Owned HTML graph was not found')
     return { viewId, graph: JSON.parse(source) as ReturnType<typeof graph>, html }
   }
