@@ -221,3 +221,9 @@ if (!hit) throw new Error('Save target is obscured')
 本指南来自社区插件适配实践与 [#279 讨论](https://github.com/saya-ch/dsh-mobile/discussions/279)，提供可复用的实现与验收思路，不代表这里已独立验证任何第三方插件的新版本。主题细节还可参考[皮肤与移动布局](SKIN_COMPATIBILITY.md)。
 
 DSH Mobile 不按第三方私有类名维护通用覆盖表，也不保证依赖原生窗口的插件能在远程页面直接使用。适配应由拥有该组件的插件维护，并使用 DSH 的公开扩展接口；发现宿主缺失的能力时应单独报告，不修改已安装的 DSH 产物来绕过问题。
+
+## 侧栏底部入口与社区 UI 约定
+
+`sidebar.footer.action` 是宿主与多个插件共用的同一行，本插件的入口几何（42px 文字态 / 36×36 图标态 / 12px 圆角 / 容量公式）遵循 [DSH 插件 UI 约定 §20](https://github.com/abworks-dev/dsh-plugin-ui-conventions/blob/main/conventions/20-sidebar-footer.md)（社区约定，非官方）。
+
+其它也在这一行放按钮或卡片的插件，可以装同仓库的迁移 skill（`skills/dsh-ui-conventions/`）先用 `audit.mjs` 体检，再按 §20 / §25 改；改完两侧的 footer 才不会互相挤。

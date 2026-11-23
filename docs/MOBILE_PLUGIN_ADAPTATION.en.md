@@ -221,3 +221,9 @@ Browser emulation does not replace real WebView, keyboard, safe-area, momentum-s
 This guide draws on community plugin adaptation and [discussion #279](https://github.com/saya-ch/dsh-mobile/discussions/279). It offers reusable implementation and acceptance ideas, not an independent verification of a new third-party release. For theme-specific questions, see [Skins and mobile layout](SKIN_COMPATIBILITY.en.md).
 
 DSH Mobile does not maintain a universal override table keyed by third-party private class names, or guarantee that plugins requiring native windows work directly on remote pages. The plugin owning the component should maintain its adaptation through DSH's public extension points. Report missing host capabilities separately rather than modifying installed DSH artifacts to work around them.
+
+## Sidebar footer entry and the community UI conventions
+
+`sidebar.footer.action` is a single row shared by the host and several plugins. This plugin's entry geometry (42px labelled / 36×36 icon / 12px radius / capacity formula) follows [DSH plugin UI conventions §20](https://github.com/abworks-dev/dsh-plugin-ui-conventions/blob/main/conventions/20-sidebar-footer.md) (community conventions, unofficial).
+
+Plugins that also put a button or a card in that row can install the migration skill from the same repository (`skills/dsh-ui-conventions/`) and run `audit.mjs` first, then apply §20 / §25 — that keeps both sides of the footer from squeezing each other.

@@ -202,7 +202,7 @@ describe('desktop Mobile Access footer', () => {
     expect(declarations('.dsh-mobile-control__trigger:active,.dsh-mobile-control__trigger[aria-expanded="true"]')['background-color']).toBe('var(--dsw-alias-interactive-bg-active,#e8ebf0)')
     // Scoped above `.dsh-mobile-control button:focus-visible`, which is more specific.
     expect(declarations('.dsh-mobile-control .dsh-mobile-control__trigger:focus-visible')).toEqual({
-      outline: '2px solid var(--dsw-alias-state-business-primary,currentColor)',
+      outline: '2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,currentColor))',
       'outline-offset': '-2px',
     })
     expect(CONTROL_STYLES).not.toContain('.dsh-mobile-control__trigger-icon::after')

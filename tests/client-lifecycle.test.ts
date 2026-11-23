@@ -1274,6 +1274,9 @@ describe('mobile-control localization', () => {
       // The footer seat uses the host's 12px control radius (sidebar rail controls,
       // settings entry) so the seat and its neighbours share one corner.
       '--dsw-radius-md', '--dsw-radius-panel', '--dsw-font-family',
+      // Host focus ring colour chain (ui-theme/src/styles/focus.css): defined only
+      // when the input modality is not pointer; the fallback names the business colour.
+      '--dsw-focus-ring-color',
       '--dsw-font-markdown-base', '--dsw-font-markdown-code-block',
       '--dsw-alias-bg-base', '--dsw-alias-bg-layer-1', '--dsw-alias-bg-layer-2', '--dsw-alias-bg-layer-3',
       '--dsw-alias-bg-module-platform',
