@@ -1549,7 +1549,7 @@ describe('HTTP gateway', () => {
     expect(dedicated.body).toContain('window.__DSH_FILE_UPLOAD__={fetch:')
     expect(dedicated.body).toContain('window.__DSH_MOBILE_FRONTEND__="dedicated"')
     const bootstrapStart = dedicated.body.indexOf('(()=>{if(window.__DSH_TRANSPORT__')
-    const bootstrapEnd = dedicated.body.indexOf('window.__DSH_MOBILE_FRONTEND__=', bootstrapStart)
+    const bootstrapEnd = dedicated.body.indexOf('</script>', bootstrapStart)
     expect(bootstrapStart).toBeGreaterThan(-1)
     expect(bootstrapEnd).toBeGreaterThan(bootstrapStart)
     const nativeFetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {

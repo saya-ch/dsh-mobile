@@ -119,10 +119,41 @@ function remoteSettingsEntries(): BootEntry[] {
   ]
 }
 
+/**
+ * Extract the boot manifest JSON text from rewritten test HTML.
+ *
+ * The manifest is our own JSON.stringify output, so the first balanced closing
+ * brace ends it; later bootstrap code must not leak into the parsed payload.
+ * This stays valid no matter where the boot assignment sits in the script,
+ * which matters since the transport guard may throw after it (#460).
+ */
+function extractBootManifestJson(html: string): string {
+  const start = /(?:window\.__DSH_BOOT__|globalThis\["__DSH_BOOT__"\])\s*=\s*/u.exec(html)
+  if (start?.index === undefined) throw new Error('missing test boot manifest')
+  const text = html.slice(start.index + start[0].length)
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      continue
+    }
+    if (char === '"') inString = true
+    else if (char === '{') depth++
+    else if (char === '}') {
+      depth--
+      if (depth === 0) return text.slice(0, index + 1)
+    }
+  }
+  throw new Error('missing test boot manifest')
+}
+
 function bootEntries(html: string): BootEntry[] {
-  const match = /(?:window\.__DSH_BOOT__|globalThis\["__DSH_BOOT__"\])\s*=\s*(\{.*\});<\/script>/u.exec(html)
-  if (match?.[1] === undefined) throw new Error('missing test boot manifest')
-  return (JSON.parse(match[1]) as { entries: BootEntry[] }).entries
+  return (JSON.parse(extractBootManifestJson(html)) as { entries: BootEntry[] }).entries
 }
 
 interface TransportHooks {
@@ -240,7 +271,9 @@ describe('dedicated mobile layout boot', () => {
     expect(output).toContain('window.__DSH_MOBILE_FRONTEND__="dedicated"')
     expect(output).toContain('window.fetch=(input,init)=>')
     expect(output).toContain('x-dsh-mobile-csrf')
-    expect(output.indexOf('window.fetch=(input,init)=>')).toBeLessThan(output.indexOf('window.__DSH_BOOT__'))
+    // The boot manifest is assigned before the transport guard, so a conflicting
+    // transport (#460) can no longer suppress it; the CSRF wrapper follows.
+    expect(output.indexOf('window.__DSH_BOOT__')).toBeLessThan(output.indexOf('window.fetch=(input,init)=>'))
     expect(output).toContain('"url":"/mobile-access/mobile-layout.js"')
     expect(output).toContain('"inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-theme"]')
     expect(output).toContain('"url":"/conversation.js"')
@@ -385,7 +418,7 @@ describe('dedicated mobile layout boot', () => {
     expect(reverse.rows).toEqual(forward.rows)
   })
 
-  it.each([false, true])('installs authenticated HTTP transport before the alpha.2 boot manifest (reverse roster: %s)', reverse => {
+  it.each([false, true])('assigns the alpha.2 boot manifest before the authenticated HTTP transport guard (reverse roster: %s)', reverse => {
     const entries = remoteSettingsEntries()
     if (reverse) entries.reverse()
     const output = rewriteMobileIndex(currentIndex(entries))
@@ -395,7 +428,7 @@ describe('dedicated mobile layout boot', () => {
       '@deepseek-ai/dsh-typert-registry', connectionModule, 'dsh-mobile',
     ])
     expect(rewritten.find(entry => entry.id === settingsModule)?.inject).toEqual([remotesModule, 'dsh-mobile'])
-    expect(output.indexOf('window.__DSH_TRANSPORT__=')).toBeLessThan(output.indexOf('globalThis["__DSH_BOOT__"]'))
+    expect(output.indexOf('globalThis["__DSH_BOOT__"]')).toBeLessThan(output.indexOf('window.__DSH_TRANSPORT__='))
     const bootstrap = bootstrapPage(output)
     bootstrap.run()
     expect(bootstrap.page.__DSH_TRANSPORT__?.ownsHost).toBe(true)
@@ -440,8 +473,10 @@ describe('dedicated mobile layout boot', () => {
     expect(bootstrap.page.__DSH_TRANSPORT__).toBe(existing)
     expect(existing.ownsHost).toBe(false)
     expect(bootstrap.page.fetch).toBe(bootstrap.nativeFetch)
-    expect(bootstrap.page.__DSH_BOOT__).toBeUndefined()
-    expect(bootstrap.page.__DSH_MOBILE_FRONTEND__).toBeUndefined()
+    // The manifest and its markers are assigned before the guard runs, so a
+    // conflicting transport (#460) leaves a bootable page instead of a blank one.
+    expect(bootstrap.page.__DSH_BOOT__).toBeDefined()
+    expect(bootstrap.page.__DSH_MOBILE_FRONTEND__).toBe('dedicated')
   })
 
   it('keeps the gateway reachable when the OS only loses public internet', async () => {
@@ -1415,9 +1450,7 @@ function exclusionIndex(extra: BootEntry[] = [], separate: string[] = []): strin
 }
 
 function parsedBoot(html: string): { rev: string; entries: BootEntry[]; batches: { phase: string; url: string; entries: string[] }[] } {
-  const text = /globalThis\["__DSH_BOOT__"\] = (\{.*\});<\/script>/u.exec(html)?.[1]
-  if (text === undefined) throw new Error('missing boot graph')
-  return JSON.parse(text) as { rev: string; entries: BootEntry[]; batches: { phase: string; url: string; entries: string[] }[] }
+  return JSON.parse(extractBootManifestJson(html)) as { rev: string; entries: BootEntry[]; batches: { phase: string; url: string; entries: string[] }[] }
 }
 
 describe('optional mobile client module exclusion', () => {

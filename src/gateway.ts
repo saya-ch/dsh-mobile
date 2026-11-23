@@ -906,7 +906,11 @@ function rewriteMobileIndexWithBatch(
   const transportBootstrap = projected.graphTransport ? mobileAuthenticatedTransportBootstrap(options.viewId) : ''
   const graphView = plan.modernGraphFollower === true && options.viewId !== undefined
     ? `window.__DSH_MOBILE_GRAPH_VIEW__=${JSON.stringify(options.viewId)};` : ''
-  const replacement = `${graphView}${MOBILE_GATEWAY_REACHABILITY_BOOTSTRAP}${transportBootstrap}${mobileCsrfFetchBootstrap(options.csrfCookie ?? CSRF_COOKIE)}window.__DSH_MOBILE_FRONTEND__="dedicated";${plan.assignment}${JSON.stringify(plan.parsed)};`
+  // The boot manifest and its markers are pure assignments that cannot throw, so they go
+  // first: the transport bootstrap throws when another plugin already owns the transport
+  // (#460: dsh-lan-guard), and anything after a throw never runs. Previously the manifest
+  // came last, so that throw also suppressed __DSH_BOOT__ and left a blank failure page.
+  const replacement = `window.__DSH_MOBILE_FRONTEND__="dedicated";${plan.assignment}${JSON.stringify(plan.parsed)};${graphView}${MOBILE_GATEWAY_REACHABILITY_BOOTSTRAP}${transportBootstrap}${mobileCsrfFetchBootstrap(options.csrfCookie ?? CSRF_COOKIE)}`
   const rewritten = `${html.slice(0, plan.replaceStart)}${replacement}${html.slice(plan.replaceEnd)}`
   return Object.freeze({
     html: replaceDedicatedMobilePushLinks(ensureMobileGatewayMarker(ensureMobileViewport(ensureMobileCompatibility(rewriteMobileApplicationPreloads(rewritten, projected.preloadReplacements), options.compatPath)))),
