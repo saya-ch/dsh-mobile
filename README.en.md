@@ -558,4 +558,6 @@ npm run verify
 
 Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md) covers behavior-specific browser tests, isolated packed DSH acceptance, captures and release steps; the [Android manual](apps/mobile/README.md#build) covers app builds. Do not substitute real user profiles or official app data for test fixtures.
 
+If you find this project helpful, you can support its maintenance via [Afdian](https://afdian.com/a/saya-ch).
+
 Licensed under [Apache-2.0](LICENSE).
