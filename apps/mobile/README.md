@@ -38,13 +38,11 @@ Page zoom changes the whole page and is separate from per-address text preferenc
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
 
-## 0.8.3 candidate changes (unreleased)
+## 0.8.3 update
 
-**Check for updates** will be able to finish the upgrade inside the App: tapping Update downloads the matching build (full and compatibility builds are picked from what is installed, so they cannot be crossed), and only a build that passes verification is handed to the system installer. Android 8+ asks once for "install unknown apps"; the dialog sends you to Settings and the download resumes when you return. A failed verification deletes the file and offers a retry; a failed download reports why (network / too large / cancelled) and can be retried or replaced by the browser download.
+**Check for updates** can now finish the upgrade inside the App: tapping Update downloads the matching build (full and compatibility builds are picked from what is installed, so they cannot be crossed), and only a build that passes verification is handed to the system installer. Android 8+ asks once for "install unknown apps"; the dialog sends you to Settings and the download resumes when you return. A failed verification deletes the file and offers a retry; a failed download reports why (network / too large / cancelled) and can be retried or replaced by the browser download.
 
-The `files.share` bridge capability (used by the viewer filename menu's **Share File** action) also exists in source only; the published 0.8.2 APK ([release.json](release.json)) does not advertise `files.share`, so the App has no filename menu and keeps one-tap path copy until an App release.
-
-This is merged in source but **not shipped in any App release**; the published 0.8.2 still only opens the download page.
+Tapping the preview header filename now opens a **Copy Path / Share File** menu where the device supports it. **Share File** hands off the current original bytes (Web Share on supported browsers, the `files.share` native bridge in the App); clients without the capability keep one-tap path copy.
 
 ## 0.8.2 update
 

@@ -8,6 +8,12 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - Offer Copy Path or Share File when tapping the preview header filename on touch clients that support file sharing (Web Share up to 8 MiB on demand; Android `files.share` bridge in source, not in the published 0.8.2 APK; unsupported clients keep one-tap copy). Thanks @chintoleung for [#459](https://github.com/saya-ch/dsh-mobile/pull/459).
 - Restore Mobile on DSH `0.2.3-alpha.2`. The launch URL is read from the public `webserver/entry-url` event, desktop management is admitted through the owner Peer WebServer attaches to the request, and the dedicated page follows DSH’s Remote plugin graph, so its layout and this device’s module exclusions survive the opening baseline, later changes and reconnects. Thanks @chintoleung for [#462](https://github.com/saya-ch/dsh-mobile/pull/462), which also reported the breakage in [#461](https://github.com/saya-ch/dsh-mobile/issues/461).
 
+## Android 0.8.3 - Unreleased
+
+- Finish upgrades inside the App: tapping Update downloads the matching build, verifies it, and hands it to the system installer, with a retry or browser-download fallback. Thanks @LUgABeEEE for [#447](https://github.com/saya-ch/dsh-mobile/issues/447).
+- Share the previewed file from the viewer filename menu via the `files.share` native bridge, with Copy Path kept where sharing is unsupported.
+- Report nothing withdrawn when cancelling an unknown viewer transfer instead of claiming bytes were recalled that the receiver may already hold.
+
 ## 0.8.14 - 2026-11-21
 
 - Seat the mobile access button in the sidebar footer under the same capacity contract as its neighbours ([#440](https://github.com/saya-ch/dsh-mobile/issues/440)): one 42px label form and one 36x36 icon form, chosen only from the occupant count and the row width, so the row can no longer show one labelled button beside bare icons or reflow as neighbours arrive. This replaces the previous 44x42 compact shared-row target: a row wide enough for labels now keeps them, and only a narrower one falls back to the icon. Thanks @abworks-dev for [#452](https://github.com/saya-ch/dsh-mobile/pull/452).

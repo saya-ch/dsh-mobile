@@ -56,8 +56,8 @@ android {
         applicationId = "io.github.sayach.dshmobile"
         minSdk = 29
         targetSdk = 36
-        versionCode = 95
-        versionName = "0.8.2"
+        versionCode = 96
+        versionName = "0.8.3"
         buildConfigField("boolean", "IROH_NATIVE_ENABLED", irohNativeEnabled.toString())
     }
 
