@@ -36,16 +36,16 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.14**. Assistant text no longer disappears entirely on Android WebViews below Chromium 120 (#450); the sidebar footer entry follows the capacity contract shared with its neighbours and keeps its label when the row is wide enough (#440); and a first automatic session renewal that comes back `transient` during a disconnect is retried once instead of needing a manual retry (#338). The plugin and the Android app update independently; Android app 0.8.2 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.14**. Assistant text no longer disappears entirely on Android WebViews below Chromium 120 (#450); the sidebar footer entry follows the capacity contract shared with its neighbours and keeps its label when the row is wide enough (#440); and a first automatic session renewal that comes back `transient` during a disconnect is retried once instead of needing a manual retry (#338). The plugin and the Android app update independently; Android app 0.8.3 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
 > **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile), synced from this repository.
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>Download Android app 0.8.2 (compatibility)</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.2">Release notes and checksums</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>Download Android app 0.8.2 (compatibility)</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">Release notes and checksums</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -382,7 +382,7 @@ The current plugin retains the 0.6.12 compatibility layer and startup feedback, 
 On a paired touch client that supports file sharing, tap the filename in the file preview. The two-action menu is anchored below the filename bar, or appears as a bottom sheet on small screens:
 
 - **Copy Path** copies the full, untruncated path to the clipboard without reading the file. It replaces the clipboard contents and briefly shows the copied path at the bottom (shortened on screen if long).
-- **Share File…** shares the current bytes of the original file, up to **8 MiB**, not rendered text or a converted PDF. On iPhone Safari and other capable browsers it uses Web Share (the iOS Share Sheet on iPhone). If a slow read outlasts iOS’s window for opening the share sheet from the original tap, tap **Ready to share — tap to share** within 60 seconds. The Android app stages the file via `files.share` and opens the system chooser with a read-only grant. This Android capability is in source only and is not in the published 0.8.2 APK.
+- **Share File…** shares the current bytes of the original file, up to **8 MiB**, not rendered text or a converted PDF. On iPhone Safari and other capable browsers it uses Web Share (the iOS Share Sheet on iPhone). If a slow read outlasts iOS’s window for opening the share sheet from the original tap, tap **Ready to share — tap to share** within 60 seconds. The Android app stages the file via `files.share` and opens the system chooser with a read-only grant. This Android capability ships in 0.8.3; it requires App 0.8.3 or later.
 
 Files over 8 MiB, files of unknown size, and files that have changed are refused with a neutral message, never truncated. Cancelling is not an error.
 

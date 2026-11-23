@@ -36,16 +36,16 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.14**。Android WebView 低于 Chromium 120 时助手正文不再整块消失（#450）；侧边栏 footer 的入口改为与相邻插件共用的容量契约，行宽够时保留标签（#440）；断线时首次自动续期返回 `transient` 会再自动试一次，不必手动重试（#338）。插件与 Android App 独立更新；Android App 0.8.2 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.14**。Android WebView 低于 Chromium 120 时助手正文不再整块消失（#450）；侧边栏 footer 的入口改为与相邻插件共用的容量契约，行宽够时保留标签（#440）；断线时首次自动续期返回 `transient` 会再自动试一次，不必手动重试（#338）。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.14) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
 > **国内 AtomGit 托管**：[saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile)，由 GitHub 主仓自动同步。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2.apk"><strong>下载 Android App 0.8.2（兼容版）</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.2/dsh-mobile-android-v0.8.2-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.2">版本说明与校验文件</a></sub>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>下载 Android App 0.8.2（兼容版）</strong></a><br>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">版本说明与校验文件</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -382,7 +382,7 @@ Android App 只是 Kotlin WebView 薄壳，不内置另一份网页；手机浏�
 在已配对且支持文件分享的触屏客户端中，点按预览顶部的文件名，会在文件名栏下方打开有两个选项的菜单；小屏幕上则改为底部面板：
 
 - **复制路径**：将完整、未截断的路径复制到剪贴板，不读取文件内容。复制会覆盖剪贴板当前内容，并在底部短暂显示所复制的路径（过长时仅在屏幕上省略显示）。
-- **分享文件…**：分享的是原文件当前的内容（最大 **8 MiB**），而非渲染后的文本或转换后的 PDF。iPhone Safari 和其他支持的浏览器使用 Web Share（在 iPhone 上打开 iOS 分享面板）。如果读取太慢，超过了 iOS 允许用第一次点按打开分享面板的时限，请在 60 秒内点按 **文件已就绪，轻点分享**。Android App 通过 `files.share` 暂存文件，再打开系统分享选择器，授予接收方只读访问权限。此 Android 功能仅在源码中提供，已发布的 0.8.2 APK 不包含它。
+- **分享文件…**：分享的是原文件当前的内容（最大 **8 MiB**），而非渲染后的文本或转换后的 PDF。iPhone Safari 和其他支持的浏览器使用 Web Share（在 iPhone 上打开 iOS 分享面板）。如果读取太慢，超过了 iOS 允许用第一次点按打开分享面板的时限，请在 60 秒内点按 **文件已就绪，轻点分享**。Android App 通过 `files.share` 暂存文件，再打开系统分享选择器，授予接收方只读访问权限。此 Android 功能随 0.8.3 发布，需要 App 0.8.3 及以上。
 
 超过 8 MiB、大小未知或已变化的文件不会被分享，也不会被截断；界面会显示中性提示。取消分享不算错误。
 
