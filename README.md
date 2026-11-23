@@ -558,4 +558,6 @@ npm run verify
 
 文档快速检查使用 `npm run check:docs`。按改动选择的浏览器测试、隔离 DSH 打包验收、截图和正式发布流程见 [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md)；Android 构建见 [App 手册](apps/mobile/README.zh-CN.md#构建)。不要用真实用户配置或正式 App 数据替代测试资料。
 
+如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 支持维护。
+
 Apache-2.0，详见 [LICENSE](LICENSE)。
