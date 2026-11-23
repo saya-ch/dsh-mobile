@@ -7,7 +7,7 @@ import { packBundle } from './packed-profile.mjs'
 import { completeSmoke, recordSmokeFailure } from './negative-control.mjs'
 import {
   CLIENT_TIMEOUT_MS, createMobileProfile, dismissOnboarding, launchDsh, openMobileSettings,
-  observeWorkspaceStream, openPairing, pairMobilePage, removeTemporaryRoot, sanitized, within,
+  observePluginEvents, observeWorkspaceStream, openPairing, pairMobilePage, removeTemporaryRoot, sanitized, within,
 } from './mobile-boot-fixture.mjs'
 import { browsePickerOwnsFlow } from './directory-picker-composition.mjs'
 
@@ -23,6 +23,7 @@ const filePreview = process.argv.includes('--file-preview')
 const missingCompanion = process.argv.includes('--negative-control-companion')
 const compressedWebSocket = process.argv.includes('--compressed-websocket')
 const checkDiagnostics = process.argv.includes('--diagnostics')
+const liveGraph = process.argv.includes('--live-graph')
 const blockedCompatibility = process.argv.includes('--negative-control-compat')
 const legacyWebView = blockedCompatibility || process.argv.includes('--legacy-webview')
 const compatibilityPath = '/mobile-access/compat.js'
@@ -85,6 +86,59 @@ async function mobileRpc(page, endpoint, args, { expectMultipart = false } = {})
       offsets: value === undefined ? undefined : { offset: value.offset, eof: value.eof, bytes: value.bytes },
     }
   }, { endpoint, args, expectMultipart, rpcId: `file-preview-${++rpcSequence}`, timeoutMs: PREVIEW_TIMEOUT_MS })
+}
+
+/**
+ * Toggle the real packed optional component through DSH's plugin manager and observe
+ * both graph consumers. Modules this device excluded at boot must stay excluded when a
+ * later graph arrives: the projected graph the follower applies must not list them, and
+ * none may be fetched through its stock URL.
+ */
+async function verifyLiveGraphUpdate(desktop, phone, { excluded, responses }) {
+  const rpc = (method, args) => desktop.evaluate(async ({ method, args }) => {
+    const endpoint = `pluginManager/${method}`
+    const response = await fetch(`/api/${endpoint}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: crypto.randomUUID(), method: endpoint, payload: { args } }),
+    })
+    const envelope = await response.json()
+    if (!response.ok || envelope.result?.ok !== true) throw new Error(`Plugin-manager ${method} failed (${response.status})`)
+    return envelope.result.value
+  }, { method, args })
+  const row = (await rpc('listPlugins', {})).find(candidate => candidate.patchId === 'dsh-ui-fixes')
+  if (!row?.entryId || row.enabled !== true) throw new Error('Live graph control could not identify the optional component')
+  const style = 'style[data-plugin="dsh-mobile-question-fixes"]'
+  const initial = await phone.locator('.dshm-shell').elementHandle()
+  const before = responses.length
+  try {
+    for (const enabled of [false, true]) {
+      const update = await rpc('setPluginEnabled', { id: row.entryId, enabled })
+      if (update.error !== undefined) throw new Error('Could not toggle the optional component through DSH')
+      const state = enabled ? 'attached' : 'detached'
+      await Promise.all([phone, desktop].map(page => page.locator(style).waitFor({ state, timeout: CLIENT_TIMEOUT_MS })))
+      if (!await initial.evaluate(shell => document.querySelector('.dshm-shell') === shell)) {
+        throw new Error('Live graph update replaced the dedicated layout')
+      }
+    }
+    const strays = excluded.filter(id => responses.slice(before).some(response => response.path.includes(id)))
+    if (strays.length > 0) throw new Error(`Live graph updates fetched modules this device excluded: ${strays.join(', ')}`)
+    if (excluded.length > 0) {
+      // A merged Mobile batch carries several modules under one URL, so also read the
+      // projected graph the follower applies, requested exactly as the follower does.
+      const graph = await phone.evaluate(async () => {
+        const response = await fetch('/mobile-access/client-graph', {
+          headers: { 'x-dsh-mobile-view': window.__DSH_MOBILE_GRAPH_VIEW__ }, credentials: 'same-origin', cache: 'no-store' })
+        if (!response.ok) throw new Error(`client-graph answered HTTP ${String(response.status)}`)
+        return response.json()
+      })
+      const ids = [...(graph.entries ?? []).map(entry => entry.id), ...(graph.batches ?? []).flatMap(batch => batch.entries ?? [])]
+      const offered = excluded.filter(id => ids.includes(id))
+      if (offered.length > 0) throw new Error(`Live graph refresh offered modules this device excluded: ${offered.join(', ')}`)
+    }
+  } finally { await initial.dispose() }
+  console.log(excluded.length === 0
+    ? 'Live plugin graph applied in both dedicated Mobile and stock DSH without replacing the dedicated shell'
+    : `Live plugin graph applied in both dedicated Mobile and stock DSH without replacing the dedicated shell; ${excluded.join(', ')} stayed excluded`)
 }
 
 /** Observe the actual Chromium upgrade headers without replacing the browser's WebSocket. */
@@ -193,6 +247,7 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
       })
     }
     const workspaceStream = observeWorkspaceStream(phone)
+    const pluginEvents = liveGraph ? observePluginEvents(phone) : undefined
     if (compressedWebSocket) compression = await observeWebSocketCompression(phone)
     const errors = []
     const failedBundles = []
@@ -338,6 +393,28 @@ async function inspectBrowser(baseUrl, logs, directoryRoot) {
       return event.defaultPrevented
     })
     await dismissOnboarding(phone)
+    if (pluginEvents !== undefined) {
+      // DSH 0.2.3+ carries plugin graph changes on the Remote mux; older hosts keep
+      // `GET /plugins/events`, where the live graph checks do not apply.
+      const transport = await within(Promise.race([
+        pluginEvents.baseline.then(() => 'remote'),
+        pluginEvents.legacy.then(() => 'events'),
+      ]), CLIENT_TIMEOUT_MS,
+        () => `Neither a pluginEvents/follow baseline nor a /plugins/events stream reached the paired document: ${JSON.stringify(pluginEvents.state)}`)
+      if (transport === 'events') {
+        console.log('Legacy plugin event route: live graph checks do not apply on this host.')
+      } else {
+        if (!await phone.locator('.dshm-drawer button[data-dsh-mobile-toggle]').isVisible()) {
+          throw new Error('Dedicated drawer missing after pluginEvents/follow baseline')
+        }
+        await verifyLiveGraphUpdate(desktop, phone, { excluded: excludedClientModules, responses })
+        // Mobile's follower replaces the stock client in this document; two streams
+        // would mean the unadapted Host graph is also being reconciled.
+        if (pluginEvents.state.opens !== 1) {
+          throw new Error(`Paired page opened ${String(pluginEvents.state.opens)} plugin graph streams; expected exactly one`)
+        }
+      }
+    }
     if (await back()) throw new Error('Mobile Back consumed the root conversation without an open layer')
     const drawer = phone.locator('.dshm-drawer')
     const scrim = phone.locator('.dshm-scrim')

@@ -546,7 +546,7 @@ async function gateway(
   upstreamPort: number,
   overrides: Record<string, unknown> = {},
   testSessionTtlMs?: number,
-  upstreamAuthenticatedUrl?: string,
+  upstreamAuthenticatedUrl?: string | (() => string | undefined),
   extraWebSocketPaths: readonly string[] = [],
   blockedUpgradeLog?: BlockedUpgradePathLog,
   onDiscoveryDegraded?: (source: 'broadcast' | 'mdns', code: string) => void,
@@ -2324,6 +2324,43 @@ describe('HTTP gateway', () => {
     for (const observation of inner.observations.filter(observation => !observation.url.includes('token='))) {
       expect(observation.headers.cookie).toBe(UPSTREAM_BROWSER_COOKIE)
     }
+  })
+
+  it('redeems a late launch URL without restarting the paired gateway', async () => {
+    const inner = await upstream('batched', true)
+    let login: string | undefined
+    const instance = await gateway(inner.port, {}, undefined, () => login)
+    const paired = await pair(instance)
+    const headers = { ...browserHeaders(instance), cookie: `${SESSION_COOKIE}=${paired.session}` }
+    const before = await request(instance.address().port, '/', { headers })
+    expect(before.status).toBe(502)
+    expect(inner.observations.filter(({ url }) => url.includes('token='))).toHaveLength(0)
+
+    login = `http://127.0.0.1:${String(inner.port)}/?token=${UPSTREAM_LAUNCH_TOKEN}`
+    const after = await request(instance.address().port, '/', { headers })
+    expect(after.status).toBe(200)
+    expect(after.headers['set-cookie']).toBeUndefined()
+    login = undefined
+    const cached = await request(instance.address().port, '/assets/app.js', { headers })
+    expect(cached.status).toBe(200)
+    expect(inner.observations.filter(({ url }) => url.includes('token='))).toHaveLength(1)
+  })
+
+  it('hides launch URL provider exceptions and does not contact the upstream', async () => {
+    const inner = await upstream('legacy', true)
+    let resolutions = 0
+    const instance = await gateway(inner.port, {}, undefined, () => {
+      resolutions += 1
+      throw new Error('private provider details')
+    })
+    const paired = await pair(instance)
+    const result = await request(instance.address().port, '/api/exchange-probe', {
+      headers: { ...browserHeaders(instance), cookie: `${SESSION_COOKIE}=${paired.session}` },
+    })
+    expect(result.status).toBe(502)
+    expect(JSON.parse(result.body)).toEqual({ error: 'upstream_unavailable' })
+    expect(resolutions).toBe(1)
+    expect(inner.observations).toEqual([])
   })
 
   it('retries a rejected upstream cookie exchange only when another caller explicitly requests access', async () => {

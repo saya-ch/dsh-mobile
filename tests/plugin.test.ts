@@ -57,11 +57,12 @@ async function invoke(
   hostHostname = '127.0.0.1',
   requestHeaders?: Record<string, string>,
   directPeer?: string,
+  admittedPeer?: object,
 ): Promise<{ status: number; body: string }> {
   const server = createServer((request, response) => {
     // Controlled admission fixture; the transport itself remains on loopback.
     if (directPeer !== undefined) Object.defineProperty(request.socket, 'remoteAddress', { value: directPeer })
-    void route.handler(request, response)
+    void Reflect.apply(route.handler, route, [request, response, admittedPeer])
   })
   await new Promise<void>(resolve => { server.listen(0, '127.0.0.1', resolve) })
   const port = (server.address() as AddressInfo).port
@@ -115,7 +116,7 @@ async function mount(
   initiallyEnabled = false,
   webServerPort = 3080,
   config: Partial<PluginConfig> = {},
-  requestRejection: (request: IncomingMessage) => 401 | 403 | undefined = () => 401,
+  requestRejection: ((request: IncomingMessage) => 401 | 403 | undefined) | 'admitted-peer' = () => 401,
   indexInjections: readonly { kind: string; text?: string }[] = [],
   pushHostAvailable = false,
   blockPushStoreDirectory = false,
@@ -151,13 +152,13 @@ async function mount(
       return () => { if (command === definition) command = undefined }
     },
   } as never)
-  context.provide('connection', {
+  context.provide('connection', (requestRejection === 'admitted-peer' ? {} : {
     authenticatedUrl(baseUrl: string) {
       upstreamBase = baseUrl
       return authenticationUrl === undefined ? `${baseUrl}/?token=test-launch-token` : authenticationUrl(baseUrl)
     },
     requestRejection,
-  } as never)
+  }) as never)
   let resolvePushProjectionRegistered!: () => void
   const pushProjectionRegistered = new Promise<void>(resolve => { resolvePushProjectionRegistered = resolve })
   let pushHostProviderSequence = 0
@@ -605,6 +606,42 @@ describe('upstream browser authentication', () => {
     expect(upstreamAuthenticatedUrl(withConnection({
       authenticatedUrl: () => 'not a url',
     }), upstreamOrigin)).toBeUndefined()
+  })
+
+  const withEntryUrls = (urls: (base: string) => string[], connection?: unknown): Context => {
+    const webServer = {}
+    return {
+      connection, webServer,
+      emit(thisArg: unknown, event: string, base: string, entries: { url: string }[]) {
+        if (thisArg === webServer && event === 'webserver/entry-url') {
+          entries.push(...urls(base).map(url => ({ url, label: 'test provider', open: true })))
+        }
+      },
+    } as unknown as Context
+  }
+
+  it('uses the scoped entry URL event and ignores invalid candidates even before a valid one', () => {
+    const ctx = withEntryUrls(base => [
+      'not a url', 'http://127.0.0.1:9999/?token=launch-token',
+      `${base}/?other=value`, `${base}/?token=`, `${base}/not-root?token=wrong`,
+      `${base}/?token=wrong#fragment`, 'http://user:pass@127.0.0.1:3080/?token=wrong',
+      `${base}/?token=launch-token`,
+    ])
+    expect(upstreamAuthenticatedUrl(ctx, upstreamOrigin)).toBe('http://127.0.0.1:3080/?token=launch-token')
+  })
+
+  it('does not silently downgrade to unauthenticated access if a modern entry listener throws', () => {
+    const ctx = withEntryUrls(() => { throw new Error('provider unavailable') })
+    expect(() => upstreamAuthenticatedUrl(ctx, upstreamOrigin)).toThrow('provider unavailable')
+  })
+
+  it('preserves a legacy provider decision when the event is also available', () => {
+    const event = () => { throw new Error('event must not be called') }
+    const withLegacy = (authenticatedUrl: (base: string) => string) => withEntryUrls(event, { authenticatedUrl })
+    expect(upstreamAuthenticatedUrl(withLegacy(base => `${base}/?legacy=value`), upstreamOrigin))
+      .toBe('http://127.0.0.1:3080/?legacy=value')
+    expect(upstreamAuthenticatedUrl(withLegacy(base => base), upstreamOrigin)).toBeUndefined()
+    expect(upstreamAuthenticatedUrl(withLegacy(() => 'invalid URL'), upstreamOrigin)).toBeUndefined()
   })
 
   it('does not swallow a failing connection service', () => {
@@ -1487,6 +1524,37 @@ describe('stock DSH lifecycle', () => {
     }
     expect(openPairing).toHaveBeenCalledTimes(2)
     expect(requestRejection).not.toHaveBeenCalled()
+  })
+
+  it('uses a modern admitted owner Peer for delegated desktop pairing and explicit LAN management', async () => {
+    const { route } = await mount(true, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER }
+    const paired = await invoke(route, 'POST', '/api/mobile-access/pairing/open', '{}', '127.0.0.1', marker, undefined, owner)
+    expect(paired.status).toBe(201)
+    const control = await invoke(route, 'GET', '/api/mobile-access/lan/control', '', '192.168.50.9', {}, '192.168.50.23', owner)
+    expect(control.status).toBe(200)
+  })
+
+  it('rejects missing, non-owner and retired modern Peers even on loopback', async () => {
+    const { route } = await mount(false, 3080, {}, 'admitted-peer')
+    for (const peer of [undefined,
+      { principal: { kind: 'device' }, signal: new AbortController().signal },
+      { principal: { kind: 'owner' }, signal: AbortSignal.abort() },
+    ]) {
+      const result = await invoke(route, 'GET', '/api/mobile-access/lan/control', '', '127.0.0.1', {}, undefined, peer)
+      expect(result.status).toBe(401)
+    }
+  })
+
+  it('keeps the modern owner subject to the Host, Origin, CIDR and loopback reset fences', async () => {
+    const { route } = await mount(false, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    const control = '/api/mobile-access/lan/control'
+    expect((await invoke(route, 'GET', control, '', 'evil.example', {}, undefined, owner)).status).toBe(403)
+    expect((await invoke(route, 'POST', control, '{}', '127.0.0.1', { origin: 'http://evil.example' }, undefined, owner)).status).toBe(403)
+    expect((await invoke(route, 'GET', control, '', '192.168.50.9', {}, '192.168.50.24', owner)).status).toBe(403)
+    expect((await invoke(route, 'POST', '/api/mobile-access/push/reset', '{"confirm":"reset-web-push"}', '192.168.50.9', undefined, '192.168.50.23', owner)).status).toBe(403)
   })
 
   it('rejects DNS-rebinding and public Host values on the desktop admin route', async () => {

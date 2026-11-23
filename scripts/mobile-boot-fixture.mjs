@@ -33,9 +33,9 @@ export async function removeTemporaryRoot(root, prefix = 'dsh-mobile-boot-smoke-
   await rm(absolute, { recursive: true, force: true })
 }
 
-/** Redact launch and pairing credentials from diagnostics. */
+/** Redact launch and pairing credentials from diagnostics. A missing diagnostic must not hide the failure it describes. */
 export function sanitized(output) {
-  return output
+  return String(output ?? '<no diagnostic captured>')
     .replace(/([?&#](?:token|key)=)[^\s&#]+/giu, '$1<redacted>')
     .slice(-12_000)
 }
@@ -70,6 +70,50 @@ export function observeWorkspaceStream(page) {
     socket.on('close', () => { state.closed++ })
   })
   return { baseline, state }
+}
+
+/**
+ * Observe how a page receives plugin graph changes: the Remote stream `pluginEvents/follow`
+ * on a mux socket (DSH 0.2.3+), or the event stream `GET /plugins/events` (older hosts).
+ * `baseline` settles at the first Remote baseline, `legacy` at the first event-stream
+ * response; attach before the page boots so neither opening is missed.
+ */
+export function observePluginEvents(page) {
+  const state = { sockets: [], opens: 0, baselines: 0, changes: 0, legacyStreams: 0 }
+  let resolveBaseline
+  let resolveLegacy
+  const baseline = new Promise(resolve => { resolveBaseline = resolve })
+  const legacy = new Promise(resolve => { resolveLegacy = resolve })
+  page.on('response', response => {
+    if (response.status() !== 200 || new URL(response.url()).pathname !== '/plugins/events') return
+    state.legacyStreams++
+    resolveLegacy({ response })
+  })
+  page.on('websocket', socket => {
+    if (new URL(socket.url()).pathname !== '/api/remote.mux') return
+    const record = { socket, opens: 0, baselines: 0 }
+    state.sockets.push(record)
+    const streams = new Set()
+    const decode = frame => { try { return JSON.parse(String(frame.payload)) } catch { return undefined } }
+    socket.on('framesent', frame => {
+      const message = decode(frame)
+      if (message?.type !== 'open' || message.endpoint !== 'pluginEvents/follow' || typeof message.streamId !== 'string') return
+      streams.add(message.streamId)
+      record.opens++
+      state.opens++
+    })
+    socket.on('framereceived', frame => {
+      const message = decode(frame)
+      if (message?.type !== 'item' || !streams.has(message.streamId)) return
+      const type = message.value?.type
+      if (type === 'baseline') {
+        record.baselines++
+        state.baselines++
+        resolveBaseline({ socket })
+      } else if (type === 'graph' || type === 'rebuilt') state.changes++
+    })
+  })
+  return { baseline, legacy, state }
 }
 
 /** Bound an observable state wait; clear the timer on every outcome. */

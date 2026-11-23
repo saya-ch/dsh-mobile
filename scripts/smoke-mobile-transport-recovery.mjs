@@ -10,7 +10,7 @@ import { chromium } from 'playwright'
 import { installPackedBundle, packBundle, runPackagingCommand } from './packed-profile.mjs'
 import { finishNegativeControl, observeMobileBootDiagnostics, summarizeMobileBootDiagnostics, writeMobileBootEvidence } from './mobile-boot-diagnostics.mjs'
 import {
-  CLIENT_TIMEOUT_MS, createMobileProfile, dismissOnboarding, launchDsh,
+  CLIENT_TIMEOUT_MS, createMobileProfile, dismissOnboarding, launchDsh, observePluginEvents,
   observeWorkspaceStream, openPairing, pairMobilePage, removeTemporaryRoot, sanitized, within,
 } from './mobile-boot-fixture.mjs'
 
@@ -250,6 +250,9 @@ try {
     const pairing = new URL(pairUrl)
     pairing.host = new URL(proxy.origin).host
     stage = 'initial-mobile-boot'
+    // Attach before boot: whether the page ever opens the plugin graph stream tells a
+    // DSH 0.2.3+ host apart from a legacy one after the outage too.
+    const pluginEvents = observePluginEvents(phone)
     const initial = await pairMobilePage(phone, pairing.href, dsh.logs)
     if (failedClientEvaluation) throw new Error('Owned Client evaluation negative control unexpectedly booted')
     assert(initial.value.items.some(item => item.workspaceId === workspace.workspace.workspaceId), 'Initial baseline missed the real fixture Workspace')
@@ -265,6 +268,8 @@ try {
     })
     const recoveredStream = observeWorkspaceStream(phone)
     const oldUpgradeCount = upgrades.upgrades.filter(upgrade => upgrade.status === 101).length
+    const pluginGraphOpens = pluginEvents.state.opens
+    const pluginGraphLegacy = pluginEvents.state.legacyStreams
     stage = 'actual mux interruption and recovery'
     proxy.interrupt()
     await eventually(() => initial.socket.isClosed(), () => 'Proxy interruption did not close the original browser mux')
@@ -296,6 +301,24 @@ try {
     assert(await editor.evaluate(node => node === window.__recoveryOriginalEditor), 'Mux recovery remounted the stock editor')
     assert.equal(await editor.textContent(), 'Held draft during actual socket loss; do not submit', 'Mux recovery lost the draft')
     console.log('Actual packed DSH: mux-only outage retained HTTP 200; a new HTTP 101 and fresh Workspace baseline restored the unchanged document/editor/draft.')
+    // DSH 0.2.3+ hosts deliver plugin graph changes on the same mux, and the follower
+    // must reopen that stream after recovery. Its new baseline carries the full Host
+    // graph, which must not unload the dedicated layout. A legacy host never opened
+    // the stream, so only a page that opened it before the outage owes a new baseline;
+    // a page that used neither route has already lost its graph transport.
+    if (pluginGraphOpens === 0 && pluginGraphLegacy === 0) {
+      throw new Error('Paired page used neither the Remote plugin graph stream nor /plugins/events before the outage')
+    }
+    if (pluginGraphOpens > 0) {
+      stage = 'plugin graph re-baseline after mux recovery'
+      await eventually(() => pluginEvents.state.sockets.some(record => record.socket === restored.socket && record.baselines > 0),
+        () => 'Recovered mux did not reopen the plugin graph stream with a fresh baseline')
+      assert(await phone.locator('.dshm-drawer button[data-dsh-mobile-toggle]').isVisible(),
+        'Plugin graph re-baseline after mux recovery lost the dedicated drawer')
+      console.log('Plugin graph stream reopened with a fresh baseline on the recovered mux; the dedicated drawer was retained.')
+    } else {
+      console.log('Legacy plugin event route: the recovered mux carries no plugin graph stream to reopen.')
+    }
 
     if (interactions) {
       stage = 'desktop question navigation'

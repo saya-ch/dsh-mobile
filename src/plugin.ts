@@ -164,6 +164,12 @@ interface BrowserAuthenticatedConnection {
   admit?: (request: IncomingMessage) => { readonly peer: object } | { readonly rejection: 401 | 403 }
 }
 
+/** The public Peer fields management needs from newer WebServer route admission. */
+interface AdminPeer {
+  readonly principal: { readonly kind: string }
+  readonly signal: AbortSignal
+}
+
 /** Older collectors ignore the optional Peer; newer collectors receive the public admission result. */
 interface DiagnosticIndexCollector {
   collectIndexInjections?: (peer?: object) => readonly { readonly kind: string; readonly text?: string }[]
@@ -172,25 +178,48 @@ interface DiagnosticIndexCollector {
 /**
  * Resolve the DSH launch-token URL the gateway exchanges for its upstream cookie.
  *
- * A layer that disables DSH browser authentication — dsh-lan-access with
- * `noAuth: true` replaces `authenticatedUrl` with one returning the bare origin
- * — produces a URL with no query string, so it cannot carry a launch token. That
- * is a legitimate "this upstream needs no browser auth" signal: report no URL and
- * the gateway proxies without a cookie instead of failing every route with
- * `upstream_unavailable`. A token-bearing URL keeps the existing exchange, and a
- * connection service that is absent or returns a malformed URL keeps failing
- * closed. Only parsing is guarded: a connection service that throws still fails
- * plugin activation loudly rather than silently proxying without authentication.
+ * Hosts that expose `connection.authenticatedUrl` keep their contract. A layer that
+ * disables DSH browser authentication — dsh-lan-access with `noAuth: true` replaces
+ * `authenticatedUrl` with one returning the bare origin — produces a URL with no
+ * query string, so it cannot carry a launch token. That is a legitimate "this
+ * upstream needs no browser auth" signal: report no URL and the gateway proxies
+ * without a cookie instead of failing every route with `upstream_unavailable`. A
+ * token-bearing URL keeps the existing exchange, a connection service that is
+ * absent or returns a malformed URL keeps failing closed, and only parsing is
+ * guarded, so a connection service that throws still fails plugin activation
+ * loudly rather than silently proxying without authentication.
+ *
+ * Hosts without that method publish the URL through the public
+ * `webserver/entry-url` event. There no URL is not a no-auth signal: the gateway
+ * resolves this function only when it needs a new cookie and otherwise answers the
+ * sanitized `upstream_unavailable` without contacting the upstream.
  */
 export function upstreamAuthenticatedUrl(ctx: Context, upstreamOrigin: URL): string | undefined {
   const connection = (ctx as Context & { readonly connection?: BrowserAuthenticatedConnection }).connection
-  if (typeof connection?.authenticatedUrl !== 'function') return undefined
-  const authenticatedUrl = connection.authenticatedUrl(upstreamOrigin.origin)
-  try {
-    return new URL(authenticatedUrl).search === '' ? undefined : authenticatedUrl
-  } catch {
-    return undefined
+  if (typeof connection?.authenticatedUrl === 'function') {
+    const authenticatedUrl = connection.authenticatedUrl(upstreamOrigin.origin)
+    try {
+      return new URL(authenticatedUrl).search === '' ? undefined : authenticatedUrl
+    } catch {
+      return undefined
+    }
   }
+
+  // The Token provider contributes its current launch URL through this scoped
+  // public event. Collect for the actual upstream origin, not WebApp's public URL.
+  const entries: { readonly url?: unknown }[] = []
+  const { webServer } = ctx
+  if (webServer === undefined || typeof ctx.emit !== 'function') return undefined
+  const emit = ctx.emit as unknown as (server: typeof webServer, event: string, baseUrl: string, contributions: typeof entries) => void
+  emit.call(ctx, webServer, 'webserver/entry-url', upstreamOrigin.origin, entries)
+  for (const entry of entries) {
+    if (typeof entry?.url !== 'string') continue
+    const url = URL.parse(entry.url)
+    if (url !== null && url.origin === upstreamOrigin.origin && url.pathname === '/'
+      && url.username === '' && url.password === '' && url.hash === ''
+      && (url.searchParams.get('token')?.length ?? 0) > 0) return entry.url
+  }
+  return undefined
 }
 
 function installedDshVersion(): string {
@@ -567,8 +596,12 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   let lanRebindRecoveryRequired = false
   const mobileAccess: MobileAccessService = createMobileAccessService(ctx)
   const baseTemplate = loopbackTemplate(loaded, ctx.webServer.port)
-  const upstreamLoginUrl = upstreamAuthenticatedUrl(ctx, baseTemplate.upstreamOrigin)
-  const adminLogin = upstreamLoginUrl === undefined ? undefined : new URL(upstreamLoginUrl)
+  const { connection } = ctx as unknown as { readonly connection?: BrowserAuthenticatedConnection }
+  const resolveUpstreamLogin = (): string | undefined => upstreamAuthenticatedUrl(ctx, baseTemplate.upstreamOrigin)
+  // The modern provider can mount after Mobile. Do not snapshot a missing URL
+  // during activation; resolve it when this gateway actually needs a new cookie.
+  const upstreamLoginUrl = typeof connection?.authenticatedUrl === 'function' ? resolveUpstreamLogin() : resolveUpstreamLogin
+  const adminLogin = typeof upstreamLoginUrl === 'string' ? new URL(upstreamLoginUrl) : undefined
   const supportsRemoteAdminAuthentication = adminLogin !== undefined
     && adminLogin.origin === baseTemplate.upstreamOrigin.origin && adminLogin.pathname === '/'
     && adminLogin.username === '' && adminLogin.password === '' && adminLogin.hash === ''
@@ -1339,16 +1372,15 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     }, pinnedFrpProbe === undefined ? {} : { remote: pinnedFrpProbe }) as unknown as Record<string, unknown>
   }
 
-  const authenticateDesktopAdmin = (request: IncomingMessage): boolean => {
-    const connection = (ctx as Context & { readonly connection?: BrowserAuthenticatedConnection }).connection
-    return typeof connection?.requestRejection === 'function'
-      && connection.requestRejection(request) === undefined
-  }
-
-  const adminRoute: WebRoute = {
+  const legacyAdminAdmission = typeof connection?.requestRejection === 'function'
+  const adminRoute: WebRoute & { readonly auth: 'required' } = {
     kind: 'prefix',
     path: LOCAL_ADMIN_PREFIX,
-    handler: async (request, response) => {
+    auth: 'required',
+    handler: async (request, response, peer?: AdminPeer) => {
+      const authenticateDesktopAdmin = (): boolean => legacyAdminAdmission
+        ? typeof connection?.requestRejection === 'function' && connection.requestRejection(request) === undefined
+        : peer?.principal.kind === 'owner' && peer.signal.aborted === false
       try {
         const target = parseRequestTarget(request.url)
         // The destructive notification-key reset keeps its original loopback-only
@@ -1356,9 +1388,10 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         // administration continues to cover every other management route.
         const pushReset = target.decodedPathname === `${LOCAL_ADMIN_PREFIX}/push/reset`
         assertLocalAdminTrust(request, request.method === 'POST', () => (
-          (isLoopbackAddress(request.socket.remoteAddress ?? '') || supportsRemoteAdminAuthentication)
-          && authenticateDesktopAdmin(request)
+          (!legacyAdminAdmission || isLoopbackAddress(request.socket.remoteAddress ?? '') || supportsRemoteAdminAuthentication)
+          && authenticateDesktopAdmin()
         ), pushReset ? [] : baseTemplate.adminAllowedCidrs)
+        if (!legacyAdminAdmission && !authenticateDesktopAdmin()) throw new HttpError(401, 'admin_authentication_required')
         if (adminClosing) throw new HttpError(503, 'unavailable')
         if (target.search !== '') throw new HttpError(400, 'bad_request')
         if (pushReset) {

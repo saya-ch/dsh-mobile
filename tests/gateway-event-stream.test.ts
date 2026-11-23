@@ -6,6 +6,7 @@ import { isAbsolute, join, relative } from 'node:path'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseGatewayConfig } from '../src/config.js'
+import { LEGACY_CUSTOM_ASSET_LIMIT } from '../src/extension-limits.js'
 import { MobileAccessGateway } from '../src/gateway.js'
 import { CSRF_HEADER, SESSION_COOKIE } from '../src/http-security.js'
 import { DSH_MOBILE_VERSION } from '../src/version.js'
@@ -16,8 +17,10 @@ const cleanups: Array<() => Promise<void>> = []
 const TRANSPORT_IDLE_MS = 1000
 const VIEW_HEADER = 'x-dsh-mobile-view'
 const LAYOUT_ID = '@deepseek-ai/dsh-client-ui-layout'
+const HMR_ID = '@deepseek-ai/dsh-client-hmr'
+const FOLLOWER_URL = '/mobile-access/mobile-graph-follower.js'
 
-function graph(featureRev = 'feature') {
+function graph(featureRev = 'feature', modern = false) {
   const entries = [
     { id: '@deepseek-ai/dsh-client-ui-renderer', rev: 'renderer', url: '/plugins/renderer.js?rev=renderer' },
     { id: LAYOUT_ID, rev: 'stock-layout', url: '/plugins/layout.js?rev=stock-layout', inject: [
@@ -28,6 +31,9 @@ function graph(featureRev = 'feature') {
     { id: '@deepseek-ai/dsh-client-ui-settings', rev: 'settings', url: '/plugins/settings.js?rev=settings', inject: ['@deepseek-ai/dsh-api-remotes'] },
     { id: 'dsh-mobile', rev: 'mobile', url: '/plugins/mobile.js?rev=mobile', inject: ['@deepseek-ai/dsh-client-connection', '@deepseek-ai/dsh-client-ui-sidebar'] },
     { id: 'feature', rev: featureRev, url: `/plugins/feature.js?rev=${featureRev}` },
+    // DSH 0.2.3+ ships plugin graph changes over the authenticated Remote stream.
+    ...(modern ? [{ id: HMR_ID, rev: 'hmr', url: '/plugins/hmr.js?rev=hmr', inject: [
+      '@deepseek-ai/dsh-api-gateway', '@deepseek-ai/dsh-api-remote-access', '@deepseek-ai/dsh-client-modules'] }] : []),
   ]
   return { rev: 'upstream', entries, batches: [{ phase: 'application', rev: 'upstream-batch', url: '/plugins/all.js?rev=upstream', entries: entries.map(entry => entry.id) }] }
 }
@@ -68,7 +74,7 @@ interface Probe {
   readonly received: (marker: string) => Promise<void>
 }
 
-async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs?: number; sessionTtlMs?: number; maxActiveRequests?: number; maxSessions?: number; excluded?: readonly string[] } = {}) {
+async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs?: number; sessionTtlMs?: number; maxActiveRequests?: number; maxSessions?: number; excluded?: readonly string[]; modern?: boolean; directStart?: boolean; followerBytes?: number } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-mobile-sse-'))
   cleanups.push(async () => {
     const inside = relative(tmpdir(), directory)
@@ -86,10 +92,18 @@ async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs
   }>()
   const sockets = new Set<Socket>()
   let requests = 0
+  let indexStatus = 200
   const upstream = createServer((request, response) => {
     requests++
     if (request.url === '/' && request.headers.accept?.includes('text/html')) {
-      const body = `<!doctype html><html><head><script>window.__DSH_BOOT__=${JSON.stringify(graph())};</script></head><body></body></html>`
+      if (indexStatus !== 200) {
+        const status = indexStatus
+        indexStatus = 200
+        response.writeHead(status)
+        response.end()
+        return
+      }
+      const body = `<!doctype html><html><head><script>window.__DSH_BOOT__=${JSON.stringify(graph('feature', options.modern === true))};</script></head><body></body></html>`
       response.writeHead(200, { 'content-type': 'text/html' }); response.end(body); return
     }
     const route = routes.get(request.url ?? '')
@@ -121,16 +135,23 @@ async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs
   const upstreamPort = (upstream.address() as AddressInfo).port
   const mobileLayoutFile = join(directory, 'mobile-layout.js')
   await writeFile(mobileLayoutFile, '// owned layout\n')
+  const mobileGraphFollowerFile = join(directory, 'mobile-graph-follower.js')
+  const followerHead = '// owned follower\n'
+  await writeFile(mobileGraphFollowerFile, options.followerBytes === undefined ? followerHead
+    : followerHead + ' '.repeat(Math.max(0, options.followerBytes - Buffer.byteLength(followerHead))))
   const config = parseGatewayConfig({ listenHost: '127.0.0.1', listenPort: 0,
     upstreamOrigin: `http://127.0.0.1:${upstreamPort}`, publicAuthorities: ['127.0.0.1'],
     allowedCidrs: ['127.0.0.0/8'], stateFile: join(directory, 'devices.json'), tls: { mode: 'disabled' },
     upstreamTimeoutMs: options.transportIdleMs ?? TRANSPORT_IDLE_MS, upstreamApiTimeoutMs: options.upstreamApiTimeoutMs ?? 0,
     maxActiveRequests: options.maxActiveRequests ?? 32, maxSessions: options.maxSessions ?? 64,
-    mobileLayoutFile, excludedClientModules: options.excluded ?? [] })
+    mobileLayoutFile, mobileGraphFollowerFile, excludedClientModules: options.excluded ?? [] })
   const gateway = new MobileAccessGateway(options.sessionTtlMs === undefined ? config
     : Object.freeze({ ...config, sessionTtlMs: options.sessionTtlMs }), new MemoryDeviceStore())
   cleanups.push(() => gateway.close())
-  await startWithMappedUdpDiscovery(gateway)
+  // The document cases below exercise HTTP only; the mapped fixture throws on a
+  // host that has no broadcast address, which says nothing about these paths.
+  if (options.directStart === true) await gateway.start()
+  else await startWithMappedUdpDiscovery(gateway)
   const address = gateway.address()
   const pair = async () => gateway.access.pair('owned-stream-client', (await gateway.access.openPairing()).token, 'Event stream test')
   const device = await pair()
@@ -200,8 +221,115 @@ async function fixture(options: { upstreamApiTimeoutMs?: number; transportIdleMs
   defaultViewId = initialDocument.viewId
   expect(defaultViewId).toMatch(/^[a-f0-9]{32}$/u)
   requests = 0
-  return { gateway, device, route, probe, headers, pair, openDocument, initialDocument, graph, requests: () => requests }
+  return { gateway, device, route, probe, headers, pair, openDocument, initialDocument, graph, requests: () => requests,
+    failNextIndex: (status: number) => { indexStatus = status } }
 }
+
+describe('dedicated document graph refresh', () => {
+  const GRAPH_PATH = '/mobile-access/client-graph'
+
+  it('returns the projected graph only to the document’s paired Session', async () => {
+    const test = await fixture({ excluded: ['feature'], directStart: true })
+    const view = test.initialDocument.viewId!
+    // Every pairing creates its own device, so this is another device's Session.
+    const other = await test.pair()
+    for (const [headers, status] of [
+      [{ ...test.headers(), cookie: '', [VIEW_HEADER]: view }, 401],
+      [test.headers(), 409],
+      [{ ...test.headers(other.sessionToken, other.csrfToken), [VIEW_HEADER]: view }, 409],
+      [{ ...test.headers(), [VIEW_HEADER]: '0'.repeat(32) }, 409],
+    ] as const) {
+      const rejected = test.probe(GRAPH_PATH, { headers })
+      expect((await rejected.response).statusCode).toBe(status)
+    }
+    expect(test.requests()).toBe(0)
+    const permitted = test.probe(GRAPH_PATH, { headers: { ...test.headers(), [VIEW_HEADER]: view } })
+    const response = await permitted.response
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['cache-control']).toContain('no-store')
+    expect(response.headers['set-cookie']).toBeUndefined()
+    await within(permitted.closed, 'Graph response did not finish')
+    const refreshed = JSON.parse(permitted.text()) as ReturnType<typeof graph>
+    expect(refreshed.entries.find(row => row.id === LAYOUT_ID)?.rev).toBe(`dsh-mobile-layout-${DSH_MOBILE_VERSION}`)
+    expect(refreshed.entries.map(row => row.id)).not.toContain('feature')
+    expect(refreshed).toEqual(test.initialDocument.graph)
+  })
+
+  it('serves the Mobile graph follower only as an authenticated script asset', async () => {
+    const test = await fixture({ directStart: true })
+    const anonymous = test.probe(FOLLOWER_URL, { headers: { ...test.headers(), cookie: '' } })
+    expect((await anonymous.response).statusCode).toBe(401)
+    await within(anonymous.closed, 'Anonymous follower request did not complete')
+    const served = test.probe(FOLLOWER_URL, { headers: { ...test.headers(), accept: '*/*' } })
+    const response = await served.response
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['content-type']).toBe('text/javascript; charset=utf-8')
+    await within(served.closed, 'Follower asset did not complete')
+    expect(served.text()).toBe('// owned follower\n')
+  })
+
+  it('serves a follower bundle larger than the customization asset cap', async () => {
+    // The built follower is hundreds of KB, while user CSS/JS assets stop at 256 KiB.
+    // The asset route is what an overflow batch or a client retry fetches.
+    const size = LEGACY_CUSTOM_ASSET_LIMIT + 64 * 1024
+    const test = await fixture({ directStart: true, followerBytes: size })
+    const served = test.probe(FOLLOWER_URL, { headers: { ...test.headers(), accept: '*/*' } })
+    const response = await served.response
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['content-encoding']).toBeUndefined()
+    await within(served.closed, 'Follower asset did not complete')
+    expect(served.body().byteLength).toBe(size)
+  })
+
+  it('still refuses a follower bundle above the boot entry cap', async () => {
+    const test = await fixture({ directStart: true, followerBytes: 8 * 1024 * 1024 + 1 })
+    const served = test.probe(FOLLOWER_URL, { headers: { ...test.headers(), accept: '*/*' } })
+    const response = await served.response
+    expect(response.statusCode).toBe(413)
+    await within(served.closed, 'Oversized follower response did not complete')
+    expect(JSON.parse(served.text())).toEqual({ error: 'payload_too_large' })
+  })
+
+  it('binds a modern Remote graph host to the Mobile follower and this document’s view', async () => {
+    const test = await fixture({ modern: true, directStart: true })
+    const { viewId, html, graph: boot } = test.initialDocument
+    expect(viewId).toMatch(/^[a-f0-9]{32}$/u)
+    expect(html).toContain(`window.__DSH_MOBILE_GRAPH_VIEW__="${viewId}";`)
+    const follower = boot.entries.find(row => row.id === HMR_ID)
+    expect(follower?.url).toBe(FOLLOWER_URL)
+    expect(follower?.rev).toBe(`dsh-mobile-graph-${DSH_MOBILE_VERSION}`)
+    expect(boot.entries.find(row => row.id === LAYOUT_ID)?.url).toBe('/mobile-access/mobile-layout.js')
+    // The follower code ships inside a Mobile-owned merged batch, never as a stock pass-through row.
+    const carriers = boot.batches.filter(batch => batch.entries.includes(HMR_ID))
+    expect(carriers).toHaveLength(1)
+    expect(carriers[0]?.url).toMatch(/^\/mobile-access\/mobile-boot\/[a-f0-9]{64}\.js$/u)
+    const refreshed = test.probe(GRAPH_PATH, { headers: { ...test.headers(), [VIEW_HEADER]: viewId! } })
+    expect((await refreshed.response).statusCode).toBe(200)
+    await within(refreshed.closed, 'Modern graph refresh did not complete')
+    expect(JSON.parse(refreshed.text())).toEqual(boot)
+  })
+
+  it('keeps a legacy graph host on its event stream without a follower or view binding', async () => {
+    const test = await fixture({ directStart: true })
+    const { viewId, html, graph: boot } = test.initialDocument
+    expect(viewId).toMatch(/^[a-f0-9]{32}$/u)
+    expect(html).not.toContain('__DSH_MOBILE_GRAPH_VIEW__')
+    expect(boot.entries.some(row => row.url === FOLLOWER_URL)).toBe(false)
+  })
+
+  it('answers 502 once and stays usable when the upstream index fails', async () => {
+    const test = await fixture({ directStart: true })
+    const headers = { ...test.headers(), [VIEW_HEADER]: test.initialDocument.viewId! }
+    test.failNextIndex(500)
+    const failed = test.probe(GRAPH_PATH, { headers })
+    expect((await failed.response).statusCode).toBe(502)
+    await within(failed.closed, 'Failed graph refresh did not complete')
+    expect(JSON.parse(failed.text())).toEqual({ error: 'upstream_unavailable' })
+    const recovered = test.probe(GRAPH_PATH, { headers })
+    expect((await recovered.response).statusCode).toBe(200)
+    await within(recovered.closed, 'Recovered graph refresh did not complete')
+  })
+})
 
 describe('authenticated DSH graph event streams', () => {
   it.each(['identity', 'gzip'])('delivers a graph after transport idle with %s accepted', async encoding => {
