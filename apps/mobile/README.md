@@ -4,7 +4,7 @@
 
 DeepSeek Harness is the display name of this community-maintained Android WebView app. It opens the plugin's authenticated HTTPS page rather than bundling another DSH frontend. The app and mobile browsers receive the same DSH features and computer-side mobile customizations.
 
-The current stable app is **0.8.2** (build 95). The plugin and the app update separately, and **a plugin update usually does not require reinstalling the app**. See the [0.8.2 changes](#082-update).
+The current stable app is **0.8.3** (build 96). The plugin and the app update separately, and **a plugin update usually does not require reinstalling the app**. See the [0.8.3 changes](#083-update).
 
 This APK supports Android 10 or later. iPhone and iPad use the [Safari Home Screen web app and optional Web Push](../../docs/WEB_PUSH.en.md), not this Android package; no native iOS app is distributed.
 

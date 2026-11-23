@@ -4,7 +4,7 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.8.2**；构建号为 95。插件和 App 各自更新，**升级插件一般不需要重装 App**。此次改进见 [0.8.2 更新](#082-更新)。
+当前正式 App 为 **0.8.3**；构建号为 96。插件和 App 各自更新，**升级插件一般不需要重装 App**。此次改进见 [0.8.3 更新](#083-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
