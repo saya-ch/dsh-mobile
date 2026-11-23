@@ -44,7 +44,7 @@
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>Download Android app 0.8.2 (compatibility)</strong></a><br>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>Download Android app 0.8.3 (compatibility)</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">Release notes and checksums</a></sub>
 </p>
 
@@ -197,7 +197,7 @@ The usage notes below reflect the maintainer's long-term experience on a persona
 | Own reverse proxy | Existing public HTTPS proxy | The plugin provides only its private authenticated backend; [guide](docs/SELF_HOSTED_ORIGIN.en.md) | Reuses your proxy infrastructure; stability depends on the proxy, network route and maintenance |
 | Managed Caddy | Tencent Cloud DNSPod-managed domain and reachable public ingress | Plugin-managed HTTPS and certificates on Windows/Linux x64; [guide](docs/CADDY_MANAGED.en.md) | Does not traverse NAT; check inbound ports and forwarding. Existing Cloudflared users do not need to migrate |
 
-If you already run your own frps, frp's **stcp** mode also lets the phone connect through a local loopback address without publishing any public port: run a `type = stcp` frpc on the computer and an stcp visitor frpc on the phone (Termux), forwarding the gateway's HTTPS port through frps to the phone's own `127.0.0.1`. This needs the **Loopback tunnel** switch from plugin **0.8.12**; the phone port matches the **computer's gateway listener port** by default (3443), and the **next version** additionally lets you give the tunnel a port of its own in the panel. Unlike the plugin-managed channels above, you run these frpc instances yourself; see [loopback tunnel access](docs/LOOPBACK_TUNNEL.en.md) for the configuration steps, the port constraint and the residual risks.
+If you already run your own frps, frp's **stcp** mode also lets the phone connect through a local loopback address without publishing any public port: run a `type = stcp` frpc on the computer and an stcp visitor frpc on the phone (Termux), forwarding the gateway's HTTPS port through frps to the phone's own `127.0.0.1`. This needs the **Loopback tunnel** switch from plugin **0.8.12**; the phone port matches the **computer's gateway listener port** by default (3443), and since **0.8.13** you can give the tunnel a port of its own in the panel. Unlike the plugin-managed channels above, you run these frpc instances yourself; see [loopback tunnel access](docs/LOOPBACK_TUNNEL.en.md) for the configuration steps, the port constraint and the residual risks.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/remote-access-en.png" width="82%" alt="DSH Mobile remote access and provider selection">
