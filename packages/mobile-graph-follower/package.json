@@ -5,6 +5,8 @@
   "type": "module",
   "devDependencies": {
     "@deepseek-ai/cordis": "4.2.0-alpha.1",
+    "@deepseek-ai/cordis-plugin-include": "~1.2.0-alpha.1",
+    "@deepseek-ai/cordis-plugin-loader": "~1.2.0-alpha.1",
     "@deepseek-ai/dsh-api-gateway": "0.2.3-alpha.2",
     "@deepseek-ai/dsh-client-hmr": "0.2.3-alpha.2"
   }
