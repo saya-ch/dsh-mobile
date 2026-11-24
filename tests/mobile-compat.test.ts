@@ -49,7 +49,10 @@ function legacyPage(options: { missingReason?: boolean } = {}): Context {
     if (descriptor === undefined) throw new Error(`Native AbortController.${name} was not found`)
     Object.defineProperty(controller.prototype, name, descriptor)
   }
-  const page = createContext({ AbortSignal: signal, AbortController: controller, DOMException, Event, EventTarget, URL })
+  // URLSearchParams is available in every WebView that can run the DSH client. Keeping it in the
+  // fixture is required: core-js's URL detection needs it, and without it core-js replaces URL
+  // wholesale (which invalidates the opaque-path fixture below). See the compatibility docs.
+  const page = createContext({ AbortSignal: signal, AbortController: controller, DOMException, Event, EventTarget, URL, URLSearchParams })
   runInContext('var intrinsicIterator = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())); ' +
     'for (var key of Reflect.ownKeys(intrinsicIterator)) { if (key !== Symbol.iterator) delete intrinsicIterator[key]; } ' +
     'delete globalThis.Iterator; delete Promise.withResolvers; ' +
@@ -89,7 +92,10 @@ function opaqueAuthorityPage(): Context {
       },
     })
   }
-  return createContext({ AbortSignal, AbortController, DOMException, Event, EventTarget, URL: OpaqueURL })
+  // URLSearchParams is present in every WebView that can run the client. Without it core-js's
+  // URL detection fails and it replaces the global URL wholesale, discarding the opaque getters
+  // this fixture installs. Keeping it here makes the fixture model a real opaque-path WebView.
+  return createContext({ AbortSignal, AbortController, DOMException, Event, EventTarget, URL: OpaqueURL, URLSearchParams })
 }
 
 describe('early published-client collection APIs', () => {
@@ -541,7 +547,7 @@ describe('custom scheme authority', () => {
   })
 
   it('leaves an engine that already reports the authority unchanged', () => {
-    const page = createContext({ URL })
+    const page = createContext({ URL, URLSearchParams })
     const before = runInContext('Object.getOwnPropertyDescriptor(URL.prototype, "hostname").get', page)
     load(page)
     expect(runInContext('Object.getOwnPropertyDescriptor(URL.prototype, "hostname").get', page)).toBe(before)

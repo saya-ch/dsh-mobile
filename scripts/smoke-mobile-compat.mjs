@@ -39,7 +39,7 @@ try {
     await page.route('https://compat.test/**', route => {
       const pathname = new URL(route.request().url()).pathname
       return pathname === '/compat.js'
-        ? route.fulfill({ contentType: 'text/javascript', body: mode === 'bundle' ? bundle : shim })
+        ? route.fulfill({ contentType: 'text/javascript; charset=utf-8', body: mode === 'bundle' ? bundle : shim })
         : route.fulfill({ contentType: 'text/html', body: '<!doctype html><script src="/compat.js"></script><script>new AbortController().signal.throwIfAborted(); globalThis.bootReady = Promise.withResolvers(); bootReady.resolve("ready");' + (mode === 'bundle' ? 'globalThis.collectionBoot = Object.hasOwn(structuredClone({ values: [3, 1, 2].toSorted().toReversed() }), "values") && [1, 2].findLast(Boolean) === 2 && [1, 2].findLastIndex(Boolean) === 1 && [1, 2].at(-1) === 2 && "abc".at(-1) === "c";' : '') + '</script>' })
     })
     const errors = []
@@ -248,7 +248,7 @@ try {
   await opaque.route('https://compat.test/**', route => {
     const pathname = new URL(route.request().url()).pathname
     return pathname === '/compat.js'
-      ? route.fulfill({ contentType: 'text/javascript', body: bundle })
+      ? route.fulfill({ contentType: 'text/javascript; charset=utf-8', body: bundle })
       : route.fulfill({ contentType: 'text/html', body: '<!doctype html><script src="/compat.js"></script>' })
   })
   await opaque.goto('https://compat.test/authority', { waitUntil: 'load' })
