@@ -189,7 +189,7 @@ dsh plugin --profile web add dshmarket
 | 连接方式 | 需要准备 | 地址特点与注意事项 | 维护者使用参考 |
 | --- | --- | --- | --- |
 | iroh（实验性） | Windows/Linux x64 电脑组件与 Android 0.7.0 完整版 | 无需域名、端口映射或隧道账号；加密直连、中继兜底；[使用与 VPN 排障](docs/IROH.md) | 可作为没有公网入口时的选择；不作稳定性排名，需在两端实际网络验证，手机浏览器不支持 |
-| cpolar | cpolar 账号与 Authtoken | 免费临时地址可能变化 | 免费方案限速明显，日常加载与同步体验较差 |
+| cpolar | cpolar 账号与 Authtoken | 免费临时地址可能变化 | 免费方案有带宽与连接数限制，具体以官方套餐为准 |
 | cloudflared 快速隧道 | 无需账号或域名 | 临时随机地址；不支持 SSE，[即时通知存在限制](docs/CLOUDFLARE_TUNNEL.md#快速隧道的功能限制)；[官方仅定位为开发测试用途](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) | 长期使用中经常断连，原因尚未确认；只作临时或测试选择 |
 | cloudflared 命名隧道 | Cloudflare 账号与域名 | 固定域名；[配置指南](docs/CLOUDFLARE_TUNNEL.md) | 已长期使用的通道中最稳定；有账号和域名可优先尝试 |
 | Tailscale Funnel | Tailscale 登录与 Funnel 授权 | 实际可用性取决于网络 | 自用网络常需代理辅助，仍可能连接失败；并非所有用户都需要代理 |

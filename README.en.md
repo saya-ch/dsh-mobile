@@ -189,7 +189,7 @@ The usage notes below reflect the maintainer's long-term experience on a persona
 | Channel | Prerequisites | Address and limitation | Maintainer's usage notes |
 | --- | --- | --- | --- |
 | iroh (experimental) | Windows/Linux x64 computer component and full Android App 0.7.0 | No domain, port forwarding or tunnel account; encrypted direct links with relay fallback; [setup and VPN troubleshooting](docs/IROH.en.md) | An option without public ingress, not a stability ranking; verify on both actual networks. Mobile browsers are unsupported |
-| cpolar | Account and Authtoken | Free temporary URLs may change | The free plan's bandwidth limit noticeably slows everyday loading and synchronization |
+| cpolar | Account and Authtoken | Free temporary URLs may change | The free plan has bandwidth and connection limits; see the provider's published plan |
 | cloudflared quick tunnel | No account or domain | Random temporary URL; no SSE, with [notification limits](docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits); [officially intended only for development and testing](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) | Frequent disconnections in long-term use, with the cause still unconfirmed; a temporary or testing choice |
 | cloudflared named tunnel | Cloudflare account and domain | Fixed hostname; [setup guide](docs/CLOUDFLARE_TUNNEL.en.md) | The most stable of the channels used long-term; worth trying first if you have an account and domain |
 | Tailscale Funnel | Sign-in and Funnel authorization | Availability depends on the network | This personal network often needs proxy assistance and may still fail to connect; not every user needs a proxy |
