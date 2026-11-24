@@ -1,7 +1,7 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import type { ComposerReadingModeHandle } from './composer-collapse.js'
-import { CENTERED_CONTENT_COLUMN_ATTRIBUTE, WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
+import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 import { MOBILE_LAYOUT_MESSAGES, type MobileLayoutLanguage } from './mobile-layout-messages.js'
 import {
   installComposerReadingMode,
@@ -74,6 +74,8 @@ interface ThemeSnapshot {
 
 interface LayoutSnapshot {
   readonly sidebarOpen: boolean
+  /** Width of the docked sidebar in the wide band, from the user's drag. */
+  readonly sidebarWidth: number
   readonly detailsOpen: boolean
   readonly rightbarTrack: boolean
   readonly rightbarFullscreen: boolean
@@ -121,7 +123,7 @@ export const WIDE_LAYOUT_MIN_WIDTH_PX = 900
  */
 export const WIDE_LAYOUT_MIN_SHORTER_SIDE_PX = 600
 /** Re-exported so the layout's own tests and callers keep one import site. */
-export { CENTERED_CONTENT_COLUMN_ATTRIBUTE, WIDE_LAYOUT_ATTRIBUTE }
+export { WIDE_LAYOUT_ATTRIBUTE }
 /**
  * Narrow band that still has room for a folded 56px rail beside the
  * conversation: the pre-existing 721-899px phone rule plus any narrow viewport
@@ -135,21 +137,33 @@ const RIGHTBAR_DEFAULT_RATIO = 0.45
 const SIDEBAR_EXPANDED_WIDTH_PX = 340
 const SIDEBAR_COLLAPSED_WIDTH_PX = 56
 /**
- * Widest the conversation column may grow on a wide viewport. A landscape tablet
- * measured 1021px of line length for content that reads comfortably at ~700, so
- * the column keeps a readable width and moves to the centre of the main area
- * instead of stretching with it. The composer sits in the same slot, so it
- * follows the column instead of spanning the whole band.
+ * Bounds for the wide band's draggable sidebar width.
+ *
+ * The docked sidebar was a fixed 340px column, so a wide window could not give
+ * the conversation more room by narrowing it (#465). The floor keeps the
+ * workspace rows readable and the ceiling stops the sidebar from swallowing the
+ * conversation on a small tablet.
  */
-export const WIDE_CONTENT_COLUMN_MAX_WIDTH_PX = 720
-/**
- * Main-area width that has to remain beside the centred column. Below it the
- * saved space is too little to be worth the shift — a portrait tablet's 569px
- * main area keeps the existing full-width column — and a landscape phone never
- * reaches this band at all (see `WIDE_LAYOUT_MIN_SHORTER_SIDE_PX`).
- */
-export const WIDE_CONTENT_COLUMN_MIN_MAIN_WIDTH_PX = 900
+export const SIDEBAR_MIN_WIDTH_PX = 220
+export const SIDEBAR_MAX_WIDTH_PX = 520
+/** localStorage key holding the user's dragged sidebar width, in CSS pixels. */
+export const SIDEBAR_WIDTH_STORAGE_KEY = 'dsh-mobile.sidebarWidth'
 
+/** Clamp a requested sidebar width into the supported range, ignoring garbage. */
+export function resolveSidebarWidth(requested: number | null | undefined): number {
+  if (typeof requested !== 'number' || !Number.isFinite(requested)) return SIDEBAR_EXPANDED_WIDTH_PX
+  return Math.min(SIDEBAR_MAX_WIDTH_PX, Math.max(SIDEBAR_MIN_WIDTH_PX, Math.round(requested)))
+}
+
+/** Read the width the user last dragged the wide sidebar to. */
+export function readStoredSidebarWidth(): number {
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+    return resolveSidebarWidth(raw === null ? null : Number(raw))
+  } catch {
+    return SIDEBAR_EXPANDED_WIDTH_PX
+  }
+}
 /**
  * The device's shorter side in CSS pixels, independent of rotation and of the
  * soft keyboard. Falls back to the viewport only where `screen` reports nothing
@@ -184,59 +198,6 @@ export function isWideViewportLayout(viewportWidth: number, deviceShortSide: num
     && deviceShortSide >= WIDE_LAYOUT_MIN_SHORTER_SIDE_PX
 }
 
-/**
- * Width the conversation column actually receives inside the shell.
- *
- * The drawer is a grid track and a docked right panel adds its own margin, so
- * the column's share is what the viewport leaves after both.
- * @param viewportWidth - the viewport width in CSS pixels.
- * @param wideViewport - whether the sidebar is docked as a column, from {@link isWideViewportLayout}.
- * @param sidebarOpen - whether that column is expanded; a folded rail leaves 284px more.
- * @param dockedRightbarWidth - width of a docked right track, or 0 when the panel overlays.
- * @returns the main area width in CSS pixels.
- */
-export function resolveMainAreaWidth(
-  viewportWidth: number,
-  wideViewport: boolean,
-  sidebarOpen: boolean,
-  dockedRightbarWidth: number,
-): number {
-  if (!wideViewport) return viewportWidth
-  const sidebarWidth = sidebarOpen ? SIDEBAR_EXPANDED_WIDTH_PX : SIDEBAR_COLLAPSED_WIDTH_PX
-  return viewportWidth - sidebarWidth - Math.max(0, dockedRightbarWidth)
-}
-
-/**
- * Whether a wide shell has room to centre the conversation column.
- *
- * The decision follows the space the conversation actually gets rather than the
- * viewport alone: a tablet with a wide right panel open keeps the full-width
- * column instead of centring into a squeezed band.
- * @param mainAreaWidth - the column's share, from {@link resolveMainAreaWidth}.
- * @param wideViewport - whether the sidebar is docked as a column.
- * @returns whether the main area keeps room for the centred column.
- */
-export function resolveCenteredContentColumn(mainAreaWidth: number, wideViewport: boolean): boolean {
-  return wideViewport && mainAreaWidth >= WIDE_CONTENT_COLUMN_MIN_MAIN_WIDTH_PX
-}
-
-/**
- * Side gutter that centres the conversation column in a wide main area.
- *
- * The slot itself is a `display: contents` anchor, so a width cap on it does
- * nothing; the gutter narrows the slot's parent instead and the whole column
- * (conversation and composer share it) keeps {@link WIDE_CONTENT_COLUMN_MAX_WIDTH_PX}.
- * @param mainAreaWidth - the column's share, from {@link resolveMainAreaWidth}.
- * @param centered - whether the wide shell centres the column.
- * @returns the padding, per side, in CSS pixels; 0 keeps the full-width column.
- */
-export function resolveContentColumnGutter(mainAreaWidth: number, centered: boolean): number {
-  if (!centered) return 0
-  // Half-pixel gutters are fine and keep the column exactly at the cap; an
-  // integer floor would leave a column one pixel wider on odd leftovers.
-  return Math.max(0, (mainAreaWidth - WIDE_CONTENT_COLUMN_MAX_WIDTH_PX) / 2)
-}
-
 /** Resolved right-panel presentation for the dedicated responsive layout. */
 export interface MobileRightbarLayout {
   readonly docked: boolean
@@ -250,6 +211,7 @@ export function resolveMobileRightbarLayout(
   sidebarOpen: boolean,
   track: boolean,
   fullscreen: boolean,
+  sidebarWidth: number = SIDEBAR_EXPANDED_WIDTH_PX,
 ): MobileRightbarLayout {
   const overlayWidth = wideViewport
     ? Math.min(viewportWidth * 0.94, RIGHTBAR_MAX_WIDTH_PX)
@@ -257,10 +219,10 @@ export function resolveMobileRightbarLayout(
   if (!track || fullscreen || (!wideViewport && sidebarOpen)) {
     return Object.freeze({ docked: false, width: overlayWidth })
   }
-  const sidebarWidth = wideViewport && sidebarOpen
-    ? SIDEBAR_EXPANDED_WIDTH_PX
+  const dockedSidebarWidth = wideViewport && sidebarOpen
+    ? resolveSidebarWidth(sidebarWidth)
     : SIDEBAR_COLLAPSED_WIDTH_PX
-  const available = Math.floor(viewportWidth - sidebarWidth - RIGHTBAR_CENTER_MIN_WIDTH_PX)
+  const available = Math.floor(viewportWidth - dockedSidebarWidth - RIGHTBAR_CENTER_MIN_WIDTH_PX)
   if (available < RIGHTBAR_MIN_WIDTH_PX) return Object.freeze({ docked: false, width: overlayWidth })
   const preferred = Math.min(
     RIGHTBAR_MAX_WIDTH_PX,
@@ -513,6 +475,7 @@ class MobileLayoutController {
   // so an explicit user collapse is never reset.
   private snapshot: LayoutSnapshot = Object.freeze({
     sidebarOpen: viewportIsWide(),
+    sidebarWidth: readStoredSidebarWidth(),
     detailsOpen: false,
     rightbarTrack: false,
     rightbarFullscreen: false,
@@ -547,6 +510,21 @@ class MobileLayoutController {
 
   toggleSidebar(): void {
     this.update({ sidebarOpen: !this.snapshot.sidebarOpen })
+  }
+
+  /**
+   * Record a sidebar width dragged by the user and keep it across sessions.
+   * Only the wide band can drag; the narrow drawer keeps its fixed width.
+   */
+  resizeSidebar(width: number): void {
+    const next = resolveSidebarWidth(width)
+    if (next === this.snapshot.sidebarWidth) return
+    this.update({ sidebarWidth: next })
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(next))
+    } catch {
+      // Storage can be denied (private mode); the in-memory width still applies.
+    }
   }
 
   openDetails(): void {
@@ -632,6 +610,7 @@ class MobileLayoutController {
     const snapshot = Object.freeze({ ...this.snapshot, ...next })
     if (
       snapshot.sidebarOpen === this.snapshot.sidebarOpen
+      && snapshot.sidebarWidth === this.snapshot.sidebarWidth
       && snapshot.detailsOpen === this.snapshot.detailsOpen
       && snapshot.rightbarTrack === this.snapshot.rightbarTrack
       && snapshot.rightbarFullscreen === this.snapshot.rightbarFullscreen
@@ -783,21 +762,25 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
    composer's own stacking context lost its left edge behind the opaque rail.
    A static column needs no layer, so it stays in normal flow order. */
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer{position:static;grid-area:1/1;box-shadow:none;z-index:auto}
-.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{width:340px;box-shadow:none}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{width:var(--dshm-sidebar-width,340px);box-shadow:none}
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=false]{width:56px}
+/* A wide band lets the user drag the docked sidebar narrower or wider instead
+   of living with one fixed 340px column (#465). The handle is a thin invisible
+   strip on the drawer's trailing edge: it only exists in the wide band while
+   the drawer is open, so the phone drawer keeps its own gestures. */
+.dshm-sidebarResize{display:none}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{position:relative}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]>.dshm-sidebarResize{display:block;position:absolute;top:0;right:0;z-index:80;box-sizing:border-box;width:9px!important;height:100%!important;padding:0;border:0;background:transparent;cursor:col-resize;touch-action:none}
+.dshm-sidebarResize::after{position:absolute;inset:0 4px;content:"";border-radius:999px;background:transparent;transition:background-color 120ms ease}
+.dshm-sidebarResize:hover::after,.dshm-sidebarResize:focus-visible::after,.dshm-sidebarResize[data-resizing=true]::after{background:var(--dsw-alias-label-primary-bluish,#2563eb);opacity:.55}
+.dshm-sidebarResize:focus-visible{outline:none}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-resizing=true]{transition:none}
 /* The conversation column outranks that column so an in-shell modal opened from
    it is not clipped by the navigation rail. It stays below the scrim (65), the
    detail panel (80) and the shell overlay (90), so a modal shell surface still
    dims and covers it. Only the wide grid needs this: on a phone the drawer is a
    floating overlay and must keep covering the conversation. */
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-main{grid-area:1/2;z-index:1}
-/* Cap and centre the conversation column while the main area keeps room beside
-   it. The conversation and the composer share the data-slot="main" anchor, so
-   narrowing its parent puts both on one axis instead of leaving a 1021px-wide
-   text column beside a narrower composer. The anchor is display: contents, so
-   the gutter has to live on the slot's parent; a third-party panel owns its own
-   layout and is excluded, and stock fixed overlays do not live inside the slot. */
-.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"][${CENTERED_CONTENT_COLUMN_ATTRIBUTE}="1"] .dshm-main:not([data-dsh-panel="1"]) .dshm-mainContent{padding-inline:var(--dshm-content-column-gutter,0px)}
 @media(prefers-reduced-motion:reduce){.dshm-drawer,.dshm-details,.dshm-scrim,.dshm-drawer>*,.dshm-main{transition:none!important}.dshm-drawer>*{animation:none!important}}
 /* Touch adaptation changes control boxes, not invisible hit regions. Root opt-out
    retains pane geometry too; nested opt-out preserves a widget's own controls.
@@ -881,6 +864,7 @@ function MobileAppFrame(props: MobileRootProps & {
     state.sidebarOpen,
     state.rightbarTrack,
     state.rightbarFullscreen,
+    state.sidebarWidth,
   )
   const rightbarDocked = state.detailsOpen && rightbar.docked
   // DSH reports a fullscreen panel through the layout service; the overlay has
@@ -891,22 +875,6 @@ function MobileAppFrame(props: MobileRootProps & {
   // The panel owns the viewport on phones (no column fits) and in fullscreen on
   // a wider screen, so the conversation behind it is inert and needs no scrim.
   const rightbarFullWidth = state.detailsOpen && !rightbarDocked && (!wideViewport || rightbarFullscreen)
-  // A wide shell keeps the conversation readable instead of letting it stretch
-  // with the viewport: the column is capped and centred only while the main area
-  // still keeps `WIDE_CONTENT_COLUMN_MIN_MAIN_WIDTH_PX` beside it, so a tablet
-  // with a docked right panel (or a folded rail on a smaller screen) keeps the
-  // previous full-width column instead of squeezing into a narrow band. The
-  // `[data-slot="main"]` anchor is `display: contents`, so a width cap there does
-  // nothing; the gutter narrows its parent, which the conversation and the
-  // composer share.
-  const mainAreaWidth = resolveMainAreaWidth(
-    viewportWidth,
-    wideViewport,
-    state.sidebarOpen,
-    rightbarDocked ? rightbar.width : 0,
-  )
-  const centeredContentColumn = resolveCenteredContentColumn(mainAreaWidth, wideViewport)
-  const contentColumnGutter = resolveContentColumnGutter(mainAreaWidth, centeredContentColumn)
   const [documentLanguage, setDocumentLanguage] = useState(document.documentElement.lang)
   const browserLanguages = navigator.languages.length > 0 ? navigator.languages : [navigator.language]
   const language = resolveMobileLayoutLanguage(documentLanguage, browserLanguages)
@@ -1136,10 +1104,9 @@ function MobileAppFrame(props: MobileRootProps & {
     // depends on `screen`, which CSS cannot read. It is part of the first render,
     // so a tablet never paints the drawer band and then reflows.
     [WIDE_LAYOUT_ATTRIBUTE]: wideViewport ? '1' : '0',
-    [CENTERED_CONTENT_COLUMN_ATTRIBUTE]: centeredContentColumn ? '1' : '0',
     'data-rightbar-docked': rightbarDocked,
     'data-rightbar-fullscreen': rightbarFullscreen,
-    style: { '--dshm-rightbar-width': `${rightbar.width}px`, '--dshm-content-column-gutter': `${contentColumnGutter}px` },
+    style: { '--dshm-rightbar-width': `${rightbar.width}px` },
   },
     createElement('main', {
       className: 'dshm-main',
@@ -1195,11 +1162,44 @@ function MobileAppFrame(props: MobileRootProps & {
       ...(state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}),
       // Community rows collapse their label when an ancestor carries this marker.
       ...(state.sidebarOpen ? {} : { 'data-sidebar-collapsed': '' }),
+      style: { '--dshm-sidebar-width': `${state.sidebarWidth}px` },
       onClickCapture: closeDrawerAfterSessionAction,
-    }, props.renderSlot('sidebar', {
-      collapsed: !state.sidebarOpen,
-      width: state.sidebarOpen ? 340 : 56,
-    })),
+    }, [
+      props.renderSlot('sidebar', {
+        collapsed: !state.sidebarOpen,
+        width: state.sidebarOpen ? state.sidebarWidth : 56,
+      }),
+      createElement('button', {
+        type: 'button',
+        className: 'dshm-sidebarResize',
+        'aria-label': messages.resizeSidebar,
+        title: messages.resizeSidebar,
+        tabIndex: -1,
+        onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+          if (!wideViewport || !state.sidebarOpen) return
+          event.preventDefault()
+          const startX = event.clientX
+          const startWidth = state.sidebarWidth
+          const target = event.currentTarget
+          target.dataset.resizing = 'true'
+          const drawer = target.parentElement
+          drawer?.setAttribute('data-resizing', 'true')
+          const move = (moveEvent: PointerEvent): void => {
+            props.controller.resizeSidebar(startWidth + moveEvent.clientX - startX)
+          }
+          const finish = (): void => {
+            delete target.dataset.resizing
+            drawer?.removeAttribute('data-resizing')
+            window.removeEventListener('pointermove', move)
+            window.removeEventListener('pointerup', finish)
+            window.removeEventListener('pointercancel', finish)
+          }
+          window.addEventListener('pointermove', move)
+          window.addEventListener('pointerup', finish)
+          window.addEventListener('pointercancel', finish)
+        },
+      }),
+    ]),
     createElement('aside', {
       'aria-hidden': !state.detailsOpen,
       className: 'dshm-details',

@@ -7,9 +7,6 @@ import {
   MOBILE_LAYOUT_MESSAGES,
   MOBILE_LAYOUT_STYLES,
   TOUCH_PRIMARY_QUERY,
-  CENTERED_CONTENT_COLUMN_ATTRIBUTE,
-  WIDE_CONTENT_COLUMN_MAX_WIDTH_PX,
-  WIDE_CONTENT_COLUMN_MIN_MAIN_WIDTH_PX,
   WIDE_LAYOUT_ATTRIBUTE,
   WIDE_LAYOUT_MIN_SHORTER_SIDE_PX,
   WIDE_LAYOUT_MIN_WIDTH_PX,
@@ -21,9 +18,10 @@ import {
   isSessionRowNavigation,
   isSidebarRightControl,
   isWideViewportLayout,
-  resolveCenteredContentColumn,
-  resolveContentColumnGutter,
-  resolveMainAreaWidth,
+  resolveSidebarWidth,
+  SIDEBAR_MAX_WIDTH_PX,
+  SIDEBAR_MIN_WIDTH_PX,
+  SIDEBAR_WIDTH_STORAGE_KEY,
   resolveComposerImePolicy,
   resolveDeviceShortSide,
   resolveMobileLayoutLanguage,
@@ -621,6 +619,7 @@ describe('dedicated mobile layout boot', () => {
       workspaceNavigation: 'Navigazione area di lavoro e sessioni',
       backToConversation: 'Torna alla conversazione',
       composerRestore: 'Mostra il campo di scrittura',
+      resizeSidebar: 'Ridimensiona la barra laterale',
     })
     expect(MOBILE_LAYOUT_MESSAGES.en.closePanels).toBe('Close panels')
     expect(MOBILE_LAYOUT_MESSAGES.en.backToConversation).toBe('Back to conversation')
@@ -678,51 +677,36 @@ describe('dedicated mobile layout boot', () => {
     expect(isWideViewportLayout(900, 599)).toBe(false)
   })
 
-  it('centres the conversation column only while the main area keeps room for it', () => {
-    expect(WIDE_CONTENT_COLUMN_MAX_WIDTH_PX).toBe(720)
-    expect(WIDE_CONTENT_COLUMN_MIN_MAIN_WIDTH_PX).toBe(900)
-    // Pad 9 Pro Max landscape: 1363 viewport minus the 340 drawer track leaves
-    // 1023 for the conversation, which the tablet measured as a 1021px line.
-    expect(resolveMainAreaWidth(1363, true, true, 0)).toBe(1023)
-    expect(resolveCenteredContentColumn(1023, true)).toBe(true)
-    // The gutter is the remainder split in two, floored so the column can only
-    // get narrower, never wider than the cap.
-    expect(resolveContentColumnGutter(1023, true)).toBe(151.5)
-    expect(resolveContentColumnGutter(1023, false)).toBe(0)
-    // The same tablet in portrait: 909 - 340 = 569, too little saved to move.
-    expect(resolveMainAreaWidth(909, true, true, 0)).toBe(569)
-    expect(resolveCenteredContentColumn(569, true)).toBe(false)
-    expect(resolveContentColumnGutter(569, true)).toBe(0)
-    // A folded rail gives the drawer's own width back to the conversation.
-    expect(resolveMainAreaWidth(1200, true, false, 0)).toBe(1144)
-    expect(resolveCenteredContentColumn(1144, true)).toBe(true)
-    // A docked right track takes its own share, so a wide window can still be
-    // too narrow for the centred column and keeps the full-width one.
-    expect(resolveMainAreaWidth(1363, true, true, 460)).toBe(563)
-    expect(resolveCenteredContentColumn(563, true)).toBe(false)
-    expect(resolveCenteredContentColumn(resolveMainAreaWidth(1800, true, true, 460), true)).toBe(true)
-    // A landscape phone never enters the wide band, and its main area is the
-    // whole viewport because no drawer track is reserved.
-    expect(resolveMainAreaWidth(932, false, false, 0)).toBe(932)
-    expect(resolveCenteredContentColumn(932, false)).toBe(false)
-    // The boundary is exact: 900px of main area qualifies, 899 does not.
-    expect(resolveCenteredContentColumn(900, true)).toBe(true)
-    expect(resolveCenteredContentColumn(899, true)).toBe(false)
-    // A cap-wide main area leaves no gutter at all.
-    expect(resolveContentColumnGutter(720, true)).toBe(0)
-    expect(resolveContentColumnGutter(721, true)).toBe(0.5)
+  it('gives the whole main area to the conversation on a wide viewport', () => {
+    // 0.8.10 capped this column at 720px and centred it. On a 1904px window that
+    // left ~560px of empty space on each side and the column read as fixed
+    // (#465), so the wide band hands the conversation its full share again.
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('--dshm-content-column-gutter')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('data-dshm-content-column')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('max-width:720px')
+    // No rule may cap the conversation slot inside the owned shell.
+    expect(MOBILE_LAYOUT_STYLES).not.toMatch(/\.dshm-mainContent\{[^}]*max-width/u)
   })
 
-  it('publishes the centred column as a shell attribute the stylesheet follows', () => {
-    expect(CENTERED_CONTENT_COLUMN_ATTRIBUTE).toBe('data-dshm-content-column')
-    expect(WIDE_LAYOUT_ATTRIBUTE).not.toBe(CENTERED_CONTENT_COLUMN_ATTRIBUTE)
-    // The `[data-slot="main"]` anchor is `display: contents`, so the gutter has
-    // to narrow its parent instead of capping the anchor itself.
-    expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"][${CENTERED_CONTENT_COLUMN_ATTRIBUTE}="1"] .dshm-main:not([data-dsh-panel="1"]) .dshm-mainContent{padding-inline:var(--dshm-content-column-gutter,0px)}`)
-    // The rule is scoped to the wide band and to the conversation slot, so a
-    // third-party panel and the phone band keep the previous full-width slot.
-    expect(MOBILE_LAYOUT_STYLES).not.toContain(`:not([${WIDE_LAYOUT_ATTRIBUTE}="1"])[${CENTERED_CONTENT_COLUMN_ATTRIBUTE}="1"]`)
-    expect(MOBILE_LAYOUT_STYLES).not.toContain(`[${CENTERED_CONTENT_COLUMN_ATTRIBUTE}="1"] .dshm-mainContent>[data-slot="main"]{`)
+  it('lets a wide window drag the docked sidebar to a sane width', () => {
+    // A wide band used to keep one fixed 340px sidebar, so the conversation
+    // could not be given more room (#465).
+    expect(resolveSidebarWidth(340)).toBe(340)
+    expect(resolveSidebarWidth(420)).toBe(420)
+    // Both ends are clamped, and a missing or unusable value keeps the default.
+    expect(resolveSidebarWidth(SIDEBAR_MIN_WIDTH_PX - 1)).toBe(SIDEBAR_MIN_WIDTH_PX)
+    expect(resolveSidebarWidth(SIDEBAR_MAX_WIDTH_PX + 1)).toBe(SIDEBAR_MAX_WIDTH_PX)
+    expect(resolveSidebarWidth(null)).toBe(340)
+    expect(resolveSidebarWidth(Number.NaN)).toBe(340)
+    expect(resolveSidebarWidth(Number.POSITIVE_INFINITY)).toBe(340)
+    // Fractions are rounded so the persisted value stays an integer.
+    expect(resolveSidebarWidth(300.6)).toBe(301)
+    expect(SIDEBAR_WIDTH_STORAGE_KEY).toBe('dsh-mobile.sidebarWidth')
+    // The shell publishes the width as a variable the stylesheet follows, and
+    // only the wide band renders the handle.
+    expect(MOBILE_LAYOUT_STYLES).toContain('--dshm-sidebar-width')
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-sidebarResize')
+    expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]>.dshm-sidebarResize{display:block`)
   })
 
   it('publishes the wide band as a shell attribute instead of a media query', () => {
@@ -910,7 +894,7 @@ describe('dedicated mobile layout boot', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"]{grid-template-columns:auto minmax(0,1fr)}`)
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-main{grid-area:1/2;z-index:1}`)
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer{position:static`)
-    expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{width:340px`)
+    expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{width:var(--dshm-sidebar-width,340px)`)
   })
 
   it('keeps a resting drawer free of transforms so stock fixed panels stay viewport-anchored', () => {

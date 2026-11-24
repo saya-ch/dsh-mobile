@@ -64,6 +64,9 @@ const views = [
   // The same rule in the other direction: both tablet orientations stay docked.
   { width: 909, height: 1314 },
   { width: 1363, height: 860 },
+  // The reported window from #465: 1904x915 with the folded 56px rail. Version
+  // 0.8.10 centred a 720px column here, leaving ~560px of empty space each side.
+  { width: 1904, height: 915 },
   // Pad 9 Pro Max landscape with the soft keyboard open: the viewport height
   // collapses to 441 while the screen is still 1364x909, so the docked layout
   // must survive the keyboard. A viewport-height rule undocked it here.
@@ -91,7 +94,7 @@ function fixture(open, wide) {
 <div class="Conversation_fixture_body"><div class="Conversation_fixture_scrollBody"><div data-slot="conversation.session"><div class="Conversation_fixture_viewArea"><div data-slot="conversation.view"><div class="Trajectory_fixture_root"><div class="Trajectory_fixture_ledger"><div class="Trajectory_fixture_viewport">${rows}</div></div></div></div></div></div></div></div>
 </div></div></div></div></main>
 <button class="dshm-scrim" data-open="${open && !wide}" aria-label="Close panels" type="button"></button>
-<aside class="dshm-drawer" data-pane="sidebar" data-open="${open}"${open ? '' : ' data-sidebar-collapsed=""'}><div id="sidebar-root"><button id="sidebar-action" type="button">Close sidebar</button></div></aside>
+<aside class="dshm-drawer" data-pane="sidebar" data-open="${open}"${open ? '' : ' data-sidebar-collapsed=""'}><div id="sidebar-root"><button id="sidebar-action" type="button">Close sidebar</button></div><button class="dshm-sidebarResize" type="button" aria-label="Resize sidebar"></button></aside>
 <aside class="dshm-details" data-open="false" inert></aside><div class="dshm-overlay"></div>
 </div></div></div></body></html>`
 }
@@ -201,15 +204,12 @@ async function geometry(page) {
   })
 }
 
-// A wide shell caps and centres the conversation slot instead of letting the
-// column stretch with the viewport. Driving the shell marker the layout
-// publishes keeps this a stylesheet check: the decision itself is covered by the
-// layout unit tests.
-async function assertCenteredColumn(page, at, mainArea) {
-  // The layout publishes this value itself; the smoke drives the same variable
-  // so the check covers the gutter rule rather than the measurement.
-  const gutter = (mainArea - 720) / 2
-  const measure = () => page.evaluate(() => {
+// A wide shell lets the conversation use the whole main area. Version 0.8.10
+// capped it at 720px and centred it, which on a 1904px window left ~560px of
+// empty space on each side and made the column feel fixed (#465). The column
+// must stretch again, and no gutter may come back.
+async function assertFullWidthColumn(page, at) {
+  const measured = await page.evaluate(() => {
     const contentNode = document.querySelector('.dshm-mainContent')
     const innerNode = document.querySelector('.Conversation_fixture_root')
     const box = contentNode.getBoundingClientRect()
@@ -220,24 +220,11 @@ async function assertCenteredColumn(page, at, mainArea) {
       paddingLeft: parseFloat(css.paddingLeft), paddingRight: parseFloat(css.paddingRight),
     }
   })
-  const setShell = value => page.evaluate(([v, g]) => {
-    const shell = document.querySelector('.dshm-shell')
-    shell.dataset.dshmContentColumn = v
-    shell.style.setProperty('--dshm-content-column-gutter', `${g}px`)
-  }, [value, gutter])
-  const setPanel = value => page.evaluate(v => { document.querySelector('.dshm-main').dataset.dshPanel = v }, value)
   const close = (a, b) => Math.abs(a - b) <= 0.5
-  await setShell('1')
-  const centred = await measure()
-  assert(close(centred.inner, 720), `${at}: the centred column kept ${centred.inner}px`)
-  assert(close(centred.paddingLeft, centred.paddingRight), `${at}: the gutter is asymmetric (${centred.paddingLeft}/${centred.paddingRight})`)
-  assert(close(centred.innerX, centred.paddingLeft), `${at}: the column does not start at its gutter`)
-  // A third-party panel owns its own layout, so the gutter must not reach it.
-  await setPanel('1')
-  assert(close((await measure()).inner, centred.content), `${at}: a third-party panel was narrowed`)
-  await setPanel('0')
-  await setShell('0')
-  assert(close((await measure()).inner, centred.content), `${at}: the full-width column did not return`)
+  assert(close(measured.inner, measured.content), `${at}: the conversation did not fill its main area (${measured.inner} of ${measured.content}px)`)
+  assert(close(measured.paddingLeft, 0), `${at}: a left gutter came back (${measured.paddingLeft}px)`)
+  assert(close(measured.paddingRight, 0), `${at}: a right gutter came back (${measured.paddingRight}px)`)
+  assert(close(measured.innerX, 0), `${at}: the column does not start at the main edge`)
 }
 
 // The band is one JS decision published as a shell attribute; CSS must never
@@ -446,10 +433,24 @@ try {
           assert.equal(boxes['.dshm-drawer'].height, view.height, `${key}: wide sidebar became a horizontal row`)
           assert.equal(boxes['.dshm-drawer'].width, sidebarWidth, `${key}: wide sidebar width`)
           assert.equal(boxes['.dshm-main'].x, sidebarWidth, `${key}: main was not placed after the sidebar`)
+          // The drag handle is a 9px strip on the drawer's trailing edge, and
+          // it must not eat the sidebar's own hit area.
+          if (open) {
+            const handle = await page.evaluate(() => {
+              const node = document.querySelector('.dshm-drawer > .dshm-sidebarResize')
+              if (node === null) return null
+              const box = node.getBoundingClientRect()
+              const drawer = document.querySelector('.dshm-drawer').getBoundingClientRect()
+              return { display: getComputedStyle(node).display, width: box.width, height: box.height, right: box.right - drawer.right }
+            })
+            assert(handle !== null && handle.display !== 'none', `${key}: the wide drawer lost its resize handle`)
+            assert(Math.abs(handle.width - 9) < 0.6, `${key}: resize handle width ${handle.width}`)
+            assert(Math.abs(handle.height - view.height) < 1, `${key}: resize handle height ${handle.height}`)
+            assert(handle.right > -10 && handle.right < 1.5, `${key}: resize handle sits ${handle.right}px past the drawer edge`)
+          }
           assert.equal(boxes['.dshm-main'].width, view.width - sidebarWidth, `${key}: main column lost available width`)
-          // Only a main area wider than the cap can prove the centring.
-          const mainArea = view.width - sidebarWidth
-          if (mainArea >= 900) await assertCenteredColumn(page, key, mainArea)
+          // A wide shell must hand the whole main area to the conversation.
+          await assertFullWidthColumn(page, key)
         } else {
           if (!open && view.width > 720) {
             // The persistent rail starts above the phone drawer breakpoint.
@@ -519,4 +520,4 @@ try {
   try { await browser?.close() } catch (error) { recordSmokeFailure(failures, error) }
 }
 completeSmoke(failures, negative ? marker : undefined, observedNegative)
-console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, the wide band following its shell marker on the 900px boundary instead of a viewport metric, the centred conversation column with its third-party-panel exemption, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)
+console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, the wide band following its shell marker on the 900px boundary instead of a viewport metric, the full-width conversation column in every wide case, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)
