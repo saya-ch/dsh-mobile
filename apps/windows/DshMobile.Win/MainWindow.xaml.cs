@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
@@ -78,6 +79,12 @@ public partial class MainWindow : Window
         Log($"portable root: {Root}");
         Log($"iroh identity: {IdentityDir}");
         RefreshDeviceList();
+        // The device page's header is fixed, so the scrolling body owns the page's
+        // vertical rhythm: centred while it only holds the empty state, pinned to the
+        // top once cards are under it. The empty state already drives the section
+        // header's visibility, so it drives this too.
+        NoDevicesText.IsVisibleChanged += (_, _) => SyncDevicePageLayout();
+        SyncDevicePageLayout();
         Loaded += async (_, _) =>
         {
             ApplyCaptionColor();
@@ -96,29 +103,112 @@ public partial class MainWindow : Window
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
-    /// <summary>
-    /// Paint the DWM caption with the same token as the embedded bar, so the native
-    /// titlebar and the in-app bar read as one continuous surface (Win11+; on older
-    /// systems the system caption color is kept).
-    /// </summary>
-    /// <summary>Re-apply the caption colour after a runtime theme change.</summary>
-    internal void RefreshCaptionColor() => ApplyCaptionColor();
+    /// <summary>DWMWA_USE_IMMERSIVE_DARK_MODE: dark titlebar with light glyphs.</summary>
+    private const int DwmwaUseImmersiveDarkMode = 20;
+    /// <summary>The same attribute before Windows 10 20H1/2004 answered to id 19.</summary>
+    private const int DwmwaUseImmersiveDarkModeLegacy = 19;
+    /// <summary>DWMWA_BORDER_COLOR (Windows 11): the 1px window frame.</summary>
+    private const int DwmwaBorderColor = 34;
+    /// <summary>DWMWA_CAPTION_COLOR (Windows 11): the titlebar background.</summary>
+    private const int DwmwaCaptionColor = 35;
 
+    /// <summary>
+    /// Paint the DWM caption with the same token as the page canvas, so the native
+    /// titlebar and the page below it read as one surface.
+    /// </summary>
+    /// <remarks>
+    /// Two attributes are needed, not one. <c>DWMWA_CAPTION_COLOR</c> only changes the
+    /// fill; the title text and the minimize/maximize/close glyphs are drawn by DWM in
+    /// the system's light or dark ink. Setting the fill alone left a light caption and
+    /// light glyphs over a dark page - the brightest band on the screen. The immersive
+    /// flag switches DWM's own ink, so it is set first and the fill second. Both are
+    /// re-applied on a runtime theme change through <see cref="RefreshCaptionColor"/>.
+    /// </remarks>
     private void ApplyCaptionColor()
     {
         try
         {
             if (FindResource("AppBackgroundBrush") is not SolidColorBrush brush) return;
-            var c = brush.Color;
-            int colorref = c.R | (c.G << 8) | (c.B << 16); // COLORREF is 0x00BBGGRR
             var hwnd = new WindowInteropHelper(this).Handle;
-            DwmSetWindowAttribute(hwnd, 35 /* DWMWA_CAPTION_COLOR */, ref colorref, sizeof(int));
+            if (hwnd == IntPtr.Zero) return;
+            var c = brush.Color;
+            // COLORREF is 0x00BBGGRR; DWMWA_CAPTION_COLOR and DWMWA_BORDER_COLOR both
+            // take it in that order.
+            int colorref = c.R | (c.G << 8) | (c.B << 16);
+            int dark = IsDarkColor(c) ? 1 : 0;
+            if (DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref dark, sizeof(int)) != 0)
+                DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkModeLegacy, ref dark, sizeof(int));
+            DwmSetWindowAttribute(hwnd, DwmwaCaptionColor, ref colorref, sizeof(int));
+            // Windows 11 draws a frame in the system accent; against a dark canvas it is
+            // the same defect, one pixel wide.
+            DwmSetWindowAttribute(hwnd, DwmwaBorderColor, ref colorref, sizeof(int));
         }
         catch
         {
-            // DWMWA_CAPTION_COLOR needs Windows 11; silently keep the default.
+            // These attributes need Windows 10 1809 or Windows 11; on anything older
+            // the system caption is kept, which is the pre-existing behaviour.
         }
     }
+
+    /// <summary>
+    /// Whether a palette surface is dark enough to want a dark caption. The page canvas
+    /// is the reference, so the caption follows the palette the user is looking at
+    /// rather than the stored preference (which "system" leaves unset).
+    /// </summary>
+    private static bool IsDarkColor(Color color) =>
+        (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) < 128;
+
+    /// <summary>
+    /// Look for a newer Windows client on the release track.
+    /// </summary>
+    /// <remarks>
+    /// The failure copy for an incompatible protocol or an HTTP 426 sends the user
+    /// here, so this has to resolve to something real. Only the comparison is local
+    /// logic (<see cref="UpdateCheck"/>); the request itself just needs a
+    /// User-Agent, which the GitHub API requires.
+    /// </remarks>
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateButton.IsEnabled = false;
+        UpdateResultText.Visibility = Visibility.Visible;
+        UpdateResultText.Text = "正在检查…";
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("dsh-mobile-windows/" + CurrentVersion);
+            client.Timeout = TimeSpan.FromSeconds(15);
+            var json = await client.GetStringAsync(UpdateCheck.ReleasesApi);
+            var latest = UpdateCheck.SelectLatest(json, CurrentVersion);
+            if (latest is null)
+            {
+                UpdateResultText.Text = $"已是最新版本（{CurrentVersion}）。";
+            }
+            else
+            {
+                UpdateResultText.Text = $"有新版本 {latest.Version}（当前 {CurrentVersion}）。下载：{latest.DownloadUrl}";
+            }
+        }
+        catch (Exception error)
+        {
+            Log("update check failed: " + error);
+            UpdateResultText.Text = "检查失败，可手动打开 " + UpdateCheck.ReleasesPage + " 查看。";
+        }
+        finally
+        {
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>The released identifier, without the build metadata after '+'.</summary>
+    private static string CurrentVersion =>
+        (System.Reflection.CustomAttributeExtensions
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(
+                typeof(MainWindow).Assembly)?.InformationalVersion
+         ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3)
+         ?? "0.1.0").Split('+')[0];
+
+    /// <summary>Re-apply the caption colour after a runtime theme change.</summary>
+    internal void RefreshCaptionColor() => ApplyCaptionColor();
 
     /// <summary>
     /// Repaint the saved-device list.
@@ -278,6 +368,21 @@ public partial class MainWindow : Window
         AddPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         AddToggleButton.Content = show ? "收起" : "添加新电脑";
     }
+
+    /// <summary>
+    /// Centre the empty state in the space below the fixed header instead of leaving it
+    /// stuck to the top over two thirds of blank window; a populated list stays at the
+    /// top, where the section header's rhythm expects it.
+    /// </summary>
+    /// <remarks>
+    /// The body's height is at least one viewport (bound in XAML), so a centred child
+    /// can use the whole page. Nothing is stretched: the cards keep their own height and
+    /// only the space around them changes.
+    /// </remarks>
+    private void SyncDevicePageLayout() =>
+        DevicesContent.VerticalAlignment = NoDevicesText.Visibility == Visibility.Visible
+            ? VerticalAlignment.Center
+            : VerticalAlignment.Top;
 
     private void AddToggle_Click(object sender, RoutedEventArgs e) =>
         ShowAddPanel(AddPanel.Visibility != Visibility.Visible);
@@ -651,7 +756,8 @@ public partial class MainWindow : Window
             // its error event when Chromium's own validation fails, so verify the pin
             // over a real handshake before handing the origin to the browser.
             if (!await VerifyPinnedOriginAsync(device, _connectCts.Token, Log))
-                throw new InvalidOperationException("配对 CA 校验失败：这台电脑出示的证书与配对时固定的不一致");
+                throw new InvalidOperationException(
+                    "无法用配对时固定的证书验证这台电脑：可能是网络不通，也可能证书与配对时不一致");
             _current = device;
             InstallCookies(session);
             await ClearCachedCertificateDecisionsAsync();
@@ -844,12 +950,22 @@ public partial class MainWindow : Window
         if (!device.HasPinnedCa) return true;
         try
         {
-            var addresses = await Dns.GetHostAddressesAsync(device.Hostname, token);
-            var address = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
-                ?? addresses.FirstOrDefault();
+            if (!Uri.TryCreate(device.Origin, UriKind.Absolute, out var origin) || origin.Port <= 0) return false;
+            // Probe the address the transport will actually use, not a DNS answer:
+            // an iroh row's hostname is a synthetic *.iroh.localhost identity that
+            // only the sidecar's loopback proxy answers for, and Windows DNS does
+            // not resolve it — asking DNS sent the probe to whatever a resolver
+            // returned and made every iroh connection fail with a security warning.
+            // The TLS server name still comes from the hostname below.
+            var address = device.Channel == "iroh" ? IPAddress.Loopback : null;
+            if (address is null)
+            {
+                var addresses = await Dns.GetHostAddressesAsync(device.Hostname, token);
+                address = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+                    ?? addresses.FirstOrDefault();
+            }
             if (address is null) return false;
             using var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            if (!Uri.TryCreate(device.Origin, UriKind.Absolute, out var origin) || origin.Port <= 0) return false;
             await socket.ConnectAsync(address, origin.Port, token);
             using var network = new NetworkStream(socket, ownsSocket: false);
             using var ssl = new SslStream(network, leaveInnerStreamOpen: false);
@@ -1262,14 +1378,20 @@ public partial class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
     }
 
-    /// <summary>Point the window, taskbar and tray at the selected artwork.</summary>
+    /// <summary>Point the window, taskbar, tray and the icon preview at the selected artwork.</summary>
+    /// <remarks>
+    /// The preview shows the artwork only: the icon names ("默认（眨眼指手机）" and friends)
+    /// described the same picture twice and were removed on request. The preview is the
+    /// same <c>BrandMark</c> image the device page uses, so one assignment keeps both in
+    /// step when the choice changes in the settings page.
+    /// </remarks>
     private void ApplyAppIcon()
     {
         var image = AppIcons.LoadImage(_appIcon);
         if (image is not null)
         {
             Icon = image;
-            IconPreview.Source = image;
+            BrandMark.Source = image;
         }
         if (_trayIcon is not null)
         {
@@ -1279,15 +1401,7 @@ public partial class MainWindow : Window
             // The NotifyIcon copies the handle, so the old one can go.
             if (!ReferenceEquals(previous, _trayIconHandle)) previous?.Dispose();
         }
-        IconLabel.Text = _appIcon.Label;
-        // The informational version carries build metadata after '+', which is noise
-        // in a settings row; the released identifier is the part before it.
-        var informational = System.Reflection.CustomAttributeExtensions
-            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(
-                typeof(MainWindow).Assembly)?.InformationalVersion
-            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
-        var version = informational.Split('+')[0];
-        VersionText.Text = $"DSH Mobile Windows {version}";
+        VersionText.Text = $"DSH Mobile Windows {CurrentVersion}";
     }
 
     /// <summary>Cycle to the next pose; the choice is stored beside the device list.</summary>

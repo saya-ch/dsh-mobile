@@ -22,11 +22,13 @@ jobs:
         run: node scripts/check-windows-sidecar-pin.mjs
       - name: Check the client tag matches the project version
         run: node scripts/check-windows-release-version.mjs
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 8.0.x
       - name: Restore
-        run: dotnet restore apps/windows/DshMobile.Win.Tests/DshMobile.Win.Tests.csproj
+        run: |
+          dotnet restore apps/windows/DshMobile.Win/DshMobile.Win.csproj -r win-x64
+          dotnet restore apps/windows/DshMobile.Win.Tests/DshMobile.Win.Tests.csproj
       - name: Build client (Release)
         run: dotnet build apps/windows/DshMobile.Win/DshMobile.Win.csproj -c Release --no-restore
       - name: Unit tests (Release)
@@ -38,14 +40,65 @@ jobs:
           $target = "portable/DshMobile.Win-$version-win-x64"
           dotnet publish apps/windows/DshMobile.Win/DshMobile.Win.csproj -c Release -r win-x64 --self-contained true --no-restore -o $target
           # The sidecar is deliberately absent: SidecarProvisioner fetches and verifies
-          # the pinned official build on first iroh use.
+          # the pinned official build on first iroh use. Its licence texts still travel
+          # with the package, because the notice file names them and the folder must be
+          # self-describing rather than pointing at a repository the user may not have.
           Remove-Item "$target/sidecar" -Recurse -Force -ErrorAction SilentlyContinue
-          # Licence and notice travel with the package so the portable folder is
-          # self-describing instead of pointing at a repository the user may not have.
+          New-Item -ItemType Directory -Force -Path "$target/licenses" | Out-Null
+          Copy-Item apps/windows/DshMobile.Win/sidecar/LICENSE.dsh-mobile-iroh "$target/licenses/"
+          Copy-Item apps/windows/DshMobile.Win/sidecar/LICENSE.dsh-tether "$target/licenses/"
+          Copy-Item apps/windows/DshMobile.Win/sidecar/NOTICE.dsh-mobile-iroh "$target/licenses/"
           Copy-Item LICENSE "$target/LICENSE"
           Copy-Item THIRD_PARTY_NOTICES.md "$target/THIRD_PARTY_NOTICES.md"
           Copy-Item apps/windows/README.md "$target/README.md"
           Copy-Item apps/windows/README.en.md "$target/README.en.md"
+          Copy-Item apps/windows/ARCHITECTURE.md "$target/ARCHITECTURE.md"
+          Copy-Item apps/windows/ARCHITECTURE.en.md "$target/ARCHITECTURE.en.md"
+      - name: Verify the package before publishing it
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          $target = "portable/DshMobile.Win-$version-win-x64"
+          $problems = @()
+
+          # The version the binary reports must be the version this tag claims,
+          # otherwise a stale build could ship under a fresh tag.
+          $exe = Get-Item "$target/DshMobile.Win.exe"
+          $productVersion = $exe.VersionInfo.ProductVersion
+          $reported = ($productVersion -split '\+')[0]
+          if ($reported -ne $version) {
+            $problems += "exe reports '$reported' but the tag says '$version'"
+          }
+
+          foreach ($required in @(
+            'LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.md', 'README.en.md',
+            'ARCHITECTURE.md', 'ARCHITECTURE.en.md',
+            'licenses/LICENSE.dsh-mobile-iroh', 'licenses/LICENSE.dsh-tether', 'licenses/NOTICE.dsh-mobile-iroh',
+            'icons/app.ico', 'icons/app-whale.ico')) {
+            if (-not (Test-Path (Join-Path $target $required))) {
+              $problems += "missing $required"
+            }
+          }
+
+          # Every icon the picker offers has to be present, or switching to it fails
+          # at runtime on a user's machine instead of here.
+          $icons = (Get-ChildItem "$target/icons" -File -Filter *.ico | Measure-Object).Count
+          if ($icons -lt 10) { $problems += "only $icons icons packaged, expected 10" }
+
+          # Symbols and the test assemblies must not ship.
+          if ((Get-ChildItem $target -Recurse -File -Filter *.pdb | Measure-Object).Count -gt 0) {
+            $problems += 'debug symbols are in the package'
+          }
+          if (Test-Path "$target/sidecar") { $problems += 'the sidecar directory is in the package' }
+
+          $sizeMb = [math]::Round(((Get-ChildItem $target -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB), 1)
+          Write-Output "package: $icons icons, $sizeMb MB"
+
+          if ($problems.Count -gt 0) {
+            $problems | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+          Write-Output "package verified"
       - name: Package and checksum
         shell: pwsh
         run: |
@@ -53,7 +106,7 @@ jobs:
           $name = "dsh-mobile-windows-v$version-win-x64"
           Compress-Archive -Path "portable/DshMobile.Win-$version-win-x64/*" -DestinationPath "$name.zip"
           $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  $name.zip" | Out-File -FilePath "$name.zip.sha256" -Encoding ascii -NoNewline
+          "$hash  $name.zip" | Out-File -FilePath "$name.zip.sha256" -Encoding ascii
           Get-Content "$name.zip.sha256"
       - name: Create GitHub release
         shell: pwsh
@@ -62,23 +115,38 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}".Substring("windows-v".Length)
           $name = "dsh-mobile-windows-v$version-win-x64.zip"
+          # Keep the requirements in step with apps/windows/README.md rather than
+          # restating a second copy here that will drift.
           $notes = @"
-          Portable Windows client **$version** (win-x64, self-contained .NET 8).
+          Portable Windows client **$version** — win-x64, self-contained .NET 8, no installer and no registry writes.
 
-          Unzip anywhere and run ``DshMobile.Win.exe``. No installer and no registry writes; runtime data stays in the folder's ``data\``.
+          **Requirements**: Windows 10 1809+ or Windows 11, **x64 only**; the WebView2 Evergreen Runtime (included with Windows 11, install once on Windows 10).
 
-          - Requires Windows 10 1809+ or Windows 11, **x64 only**.
-          - Requires the WebView2 Evergreen Runtime (included with Windows 11; Windows 10 needs it installed once).
-          - The iroh transport downloads its pinned official component on first use and verifies its SHA-256 before every launch.
-          - This is an alpha: the plugin and the Android app remain the stable surfaces.
+          Unzip into any writable folder and run ``DshMobile.Win.exe``. Runtime data stays in that folder's ``data\``. Pair it from the DSH "mobile access" panel on the computer.
+
+          The archive is about 66 MB and expands to about 149 MB. It has not been accepted on real Windows hardware, so this is a preview: the plugin and the Android app remain the stable surfaces. See ``README.md`` inside the archive for details.
           "@
           if (gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" 2>$null) {
             Write-Error "Release ${{ github.ref_name }} already exists; refusing to replace published assets."
             exit 1
           }
-          gh release create "${{ github.ref_name }}" "$name" "$name.sha256" `
+          gh release create "${{ github.ref_name }}" "$name" "$name.zip.sha256" `
             --repo "${{ github.repository }}" `
             --verify-tag `
             --prerelease `
             --title "Windows client $version" `
             --notes $notes
+      - name: Confirm the published release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          $json = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json isPrerelease,assets,tagName
+          $release = $json | ConvertFrom-Json
+          if (-not $release.isPrerelease) { Write-Error 'release is not marked prerelease'; exit 1 }
+          if ($release.tagName -ne "${{ github.ref_name }}") { Write-Error 'release tag mismatch'; exit 1 }
+          $assets = ($release.assets | ForEach-Object { $_.name } | Sort-Object) -join ','
+          $expected = "dsh-mobile-windows-v$version-win-x64.zip,dsh-mobile-windows-v$version-win-x64.zip.sha256"
+          if ($assets -ne $expected) { Write-Error "assets were '$assets', expected '$expected'"; exit 1 }
+          Write-Output "release verified: $assets"

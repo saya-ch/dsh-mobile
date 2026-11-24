@@ -19,12 +19,15 @@
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F7F8FA" />
         <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
         <SolidColorBrush x:Key="CardElevatedBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#E6E9F0" />
+        <!-- Border/divider tokens are set for >=1.6:1 against the surface they
+             sit on (WCAG 1.4.11 non-text): the old #E6E9F0 on white measured
+             1.24:1 and the #EFF1F5 row hairline 1.13:1, i.e. invisible. -->
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#C6CCD6" />
         <SolidColorBrush x:Key="RailBrush" Color="#FDFDFF" />
         <SolidColorBrush x:Key="RailBorderBrush" Color="#E8EBF2" />
         <SolidColorBrush x:Key="SurfaceAltBrush" Color="#EDF1F7" />
-        <SolidColorBrush x:Key="OutlineBrush" Color="#E4E7EC" />
-        <SolidColorBrush x:Key="DividerBrush" Color="#EFF1F5" />
+        <SolidColorBrush x:Key="OutlineBrush" Color="#C6CCD6" />
+        <SolidColorBrush x:Key="DividerBrush" Color="#C6CCD6" />
 
         <!-- Text -->
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
@@ -44,14 +47,22 @@
         <SolidColorBrush x:Key="PressedBrush" Color="#E6EBF2" />
         <SolidColorBrush x:Key="SwitchKnobBrush" Color="#FFFFFF" />
 
+        <!-- Disabled controls: a real fill/border/text triple instead of the old
+             45% opacity fade, which left white text on pale blue at ~1.8:1 (the
+             "连接中" cards). Text is 3.8:1 on the fill, border 1.8:1. -->
+        <SolidColorBrush x:Key="DisabledFillBrush" Color="#E6EBF2" />
+        <SolidColorBrush x:Key="DisabledBorderBrush" Color="#A7B3C4" />
+        <SolidColorBrush x:Key="DisabledTextBrush" Color="#6B7789" />
+
         <!-- Status -->
         <SolidColorBrush x:Key="ErrorBrush" Color="#B91C1C" />
         <SolidColorBrush x:Key="SuccessBrush" Color="#15803D" />
         <SolidColorBrush x:Key="WarningBrush" Color="#B45309" />
 
-        <!-- Scrollbar -->
-        <SolidColorBrush x:Key="ScrollThumbBrush" Color="#D8DEE7" />
-        <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#B4BFCD" />
+        <!-- Scrollbar. 1.7:1 thumb on the page surface; the old #D8DEE7
+             measured 1.27:1 and read as no scrollbar at all. -->
+        <SolidColorBrush x:Key="ScrollThumbBrush" Color="#B8C2D1" />
+        <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#9AA5B8" />
 
         <!-- =====================================================================
              Type and depth
@@ -64,9 +75,6 @@
 
         <DropShadowEffect x:Key="CardShadow" Color="#0B1220" BlurRadius="22"
                           ShadowDepth="3" Direction="270" Opacity="0.09"
-                          RenderingBias="Quality" />
-        <DropShadowEffect x:Key="FloatShadow" Color="#0B1220" BlurRadius="26"
-                          ShadowDepth="5" Direction="270" Opacity="0.10"
                           RenderingBias="Quality" />
 
         <!-- =====================================================================
@@ -84,8 +92,12 @@
         <Geometry x:Key="IcoNavDevices">M4 6h16M4 12h16M4 18h10</Geometry>
         <Geometry x:Key="IcoNavSettings">M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4 1.7 1.7 0 0 0-1.6 0Z</Geometry>
 
-        <!-- Visible keyboard focus (MASTER.md delivery checklist). The ring lives
-             on the adorner layer, so it never changes layout. -->
+        <!-- FocusVisualStyle used where the template cannot draw the ring itself:
+             the system TextBox template and the pairing-panel styles local to
+             MainWindow.xaml. Controls whose template this file owns draw the ring
+             in-template on IsKeyboardFocused instead (see the Button style), which
+             is the sibling path that keeps the ring independent of the adorner
+             layer. -->
         <Style x:Key="FocusRing" TargetType="Control">
             <Setter Property="Template">
                 <Setter.Value>
@@ -179,7 +191,13 @@
              ===================================================================== -->
 
         <!-- Secondary action: 12dp radius, >=40px hit area, calm hover/press colors.
-             Only the brush changes - layout never shifts (MASTER.md shape/motion). -->
+             Only the brush changes - layout never shifts (MASTER.md shape/motion).
+
+             Focus is drawn inside the template by an overlay ring on
+             IsKeyboardFocused, not through FocusVisualStyle: the adorner ring was
+             invisible in practice (WCAG 2.4.7 failure), and an in-template trigger
+             is the same signal every other state uses. The overlay sits in a Grid
+             cell of the same size, so showing it never reflows the button. -->
         <Style TargetType="Button">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="13" />
@@ -190,18 +208,24 @@
             <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,6" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="9"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="9"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <Border x:Name="FocusOutline" CornerRadius="9" BorderThickness="2"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                    SnapsToDevicePixels="True" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
@@ -209,8 +233,15 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <!-- Disabled reads as a disabled control with legible text
+                                 (3.8:1) instead of a 45% opacity fade. -->
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource DisabledFillBrush}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -228,14 +259,22 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Root"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <!-- On an accent fill the ring has to be the on-accent
+                                 colour, otherwise it is blue on blue. -->
+                            <Border x:Name="FocusOutline" CornerRadius="10" BorderThickness="2"
+                                    BorderBrush="{DynamicResource OnAccentBrush}"
+                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                    SnapsToDevicePixels="True" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentHoverBrush}" />
@@ -245,8 +284,17 @@
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentPressedBrush}" />
                                 <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentPressedBrush}" />
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <!-- Disabled (the "连接中" cards): the old 0.45 opacity
+                                 left white text on pale blue at ~1.8:1. A muted fill,
+                                 a visible border and 3.8:1 text replace it. -->
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource DisabledFillBrush}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}" />
+                                <Setter TargetName="FocusOutline" Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -262,14 +310,20 @@
             <Setter Property="MinWidth" Value="0" />
             <Setter Property="Padding" Value="10,5" />
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Root" Background="Transparent" CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root" Background="Transparent" CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <Border x:Name="FocusOutline" CornerRadius="8" BorderThickness="2"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                    SnapsToDevicePixels="True" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
@@ -277,6 +331,9 @@
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -291,7 +348,7 @@
             <Setter Property="Height" Value="54" />
             <Setter Property="Margin" Value="0,0,0,6" />
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -318,11 +375,18 @@
                                                HorizontalAlignment="Center"
                                                Foreground="{TemplateBinding Foreground}" />
                                 </StackPanel>
+                                <Border x:Name="FocusOutline" CornerRadius="12" BorderThickness="2"
+                                        BorderBrush="{DynamicResource AccentBrush}"
+                                        Visibility="Collapsed" IsHitTestVisible="False"
+                                        SnapsToDevicePixels="True" />
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
@@ -354,14 +418,20 @@
             <Setter Property="FontSize" Value="12.5" />
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Root" CornerRadius="7" Padding="{TemplateBinding Padding}"
-                                Background="Transparent">
-                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
-                        </Border>
+                        <Grid>
+                            <Border x:Name="Root" CornerRadius="7" Padding="{TemplateBinding Padding}"
+                                    Background="Transparent">
+                                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            </Border>
+                            <Border x:Name="FocusOutline" CornerRadius="7" BorderThickness="2"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                    SnapsToDevicePixels="True" />
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
@@ -370,8 +440,20 @@
                                 <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentBrush}" />
                                 <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <!-- A selected segment is accent-filled: draw the ring in
+                                 the on-accent colour so it is not blue on blue. -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsKeyboardFocused" Value="True" />
+                                    <Condition Property="IsChecked" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="FocusOutline" Property="BorderBrush" Value="{DynamicResource OnAccentBrush}" />
+                            </MultiTrigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -382,20 +464,26 @@
         <!-- Boolean row switch. 44x24 track, 16px knob; the knob travels inside a
              fixed-size track, so toggling never reflows the row. -->
         <Style x:Key="SwitchToggle" TargetType="CheckBox">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
                         <StackPanel Orientation="Horizontal" Background="Transparent">
-                            <Border x:Name="Track" Width="44" Height="24" CornerRadius="12"
-                                    Background="{DynamicResource PressedBrush}"
-                                    BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1">
-                                <Border x:Name="Knob" Width="16" Height="16" CornerRadius="8"
-                                        Background="{DynamicResource SwitchKnobBrush}"
-                                        HorizontalAlignment="Left" VerticalAlignment="Center"
-                                        Margin="3,0,0,0" />
-                            </Border>
+                            <Grid>
+                                <Border x:Name="Track" Width="44" Height="24" CornerRadius="12"
+                                        Background="{DynamicResource PressedBrush}"
+                                        BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1">
+                                    <Border x:Name="Knob" Width="16" Height="16" CornerRadius="8"
+                                            Background="{DynamicResource SwitchKnobBrush}"
+                                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            Margin="3,0,0,0" />
+                                </Border>
+                                <Border x:Name="FocusOutline" Width="44" Height="24" CornerRadius="12"
+                                        BorderThickness="2" BorderBrush="{DynamicResource AccentBrush}"
+                                        Visibility="Collapsed" IsHitTestVisible="False"
+                                        SnapsToDevicePixels="True" />
+                            </Grid>
                         </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
@@ -408,6 +496,16 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource SecondaryTextBrush}" />
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsKeyboardFocused" Value="True" />
+                                    <Condition Property="IsChecked" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="FocusOutline" Property="BorderBrush" Value="{DynamicResource OnAccentBrush}" />
+                            </MultiTrigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Track" Property="Opacity" Value="0.45" />
                             </Trigger>
@@ -508,6 +606,121 @@
             <!-- System template on purpose: a custom rounded template clipped the
                  text view to a 6px band at 40px height (measured), while the system
                  template renders the same box fully. Square corners are the trade. -->
+        </Style>
+
+        <!-- =====================================================================
+             Overlays: context menu, menu items, separators, tool tips
+
+             WPF ships these with SystemColors: a #F0F0F0 menu behind #F2F5F9 text
+             (measured 1.04:1 - the dark-mode "⋯" menu was white on white) and a
+             pale yellow tool tip, neither of which belongs to a token-based card
+             UI. Every brush here is a DynamicResource, so the light/dark swap in
+             App.ApplyDarkPalette repaints an open menu and later tool tips too.
+             ===================================================================== -->
+
+        <Style TargetType="ContextMenu">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="HasDropShadow" Value="True" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <StackPanel IsItemsHost="True"
+                                        KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The header colours through TemplateBinding Foreground, so a caller can
+             mark a destructive item red with item.SetResourceReference(
+             ForegroundProperty, "ErrorBrush") - the pixel the default template
+             ignored (MainWindow.Devices.cs's 删除（可撤销）). -->
+        <Style TargetType="MenuItem">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Separator">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Margin" Value="8,4" />
+            <Setter Property="Background" Value="{DynamicResource DividerBrush}" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Background="{TemplateBinding Background}"
+                                SnapsToDevicePixels="True" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ToolTip">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="HasDropShadow" Value="False" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}"
+                                Effect="{DynamicResource CardShadow}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Application.Resources>
 </Application>

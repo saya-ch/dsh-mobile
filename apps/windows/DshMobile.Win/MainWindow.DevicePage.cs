@@ -71,12 +71,10 @@ public partial class MainWindow
         {
             // No artwork beside the executable: keep the layout, drop the images.
             BrandMark.Visibility = Visibility.Collapsed;
-            EmptyMark.Visibility = Visibility.Collapsed;
         }
         else
         {
             BrandMark.Source = image;
-            EmptyMark.Source = image;
         }
         // Build metadata after '+' is not a version number a user can compare.
         var informational = typeof(MainWindow).Assembly

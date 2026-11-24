@@ -1,97 +1,117 @@
-# DSH Mobile for Windows
+# DSH Mobile Windows client
 
-[简体中文](README.md) · [Back to the project](../../README.en.md) · [Architecture and security model](ARCHITECTURE.en.md)
+[中文](README.md) · [Project home](../../README.en.md) · [Architecture and security model](ARCHITECTURE.en.md)
 
-A portable Windows client for DSH Mobile, the counterpart of the Android app in this repository (`apps/mobile/android/`): it lets Windows use DSH sessions through the authenticated HTTPS page served by the DSH Mobile plugin on the computer. The program is a WebView2 shell with pairing and certificate validation; it does not bundle a second frontend.
+A portable Windows client for DSH Mobile. It connects through the authenticated HTTPS page the DSH Mobile plugin already serves on the computer, and the program itself is a WebView2 shell with pairing and certificate validation — it does not bundle a second frontend and does not modify the page DOM.
 
-- Display name matches the Android app: **DeepSeek Harness**
-- The launcher icon reuses the Android launcher icon (`apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`; `DshMobile.Win/app.ico` is converted from that PNG)
-- Component responsibilities, the three-channel data flow and the trust model are in [ARCHITECTURE.en.md](ARCHITECTURE.en.md)
+- Same display name as the Android app: **DeepSeek Harness**
+- Shares the phone's launcher artwork (4 mascot poses and 6 whale colourways, switchable in settings)
+- Component responsibilities, the three transports and the trust model: [ARCHITECTURE.en.md](ARCHITECTURE.en.md)
 
-## Status and support
+## Download
 
-- **Alpha preview, not published yet**: the version is `0.1.0-alpha`, declared in `DshMobile.Win.csproj`, and the release track (`windows-v*` tag → `.github/workflows/windows-release.yml`) is in the repository, but **no `windows-v*` tag has been pushed** and there is no `dsh-mobile-windows-v<version>-win-x64.zip` on [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases). To try it, build it with "Build and publish" below. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces.
-- **Not device-accepted yet**: the iroh / LAN / remote channels and the five WebView2 policies have not been walked through on the maintainer's Windows machine. This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository. Failures are expected at this stage; attach `data\client.log` when reporting one.
-- **Where it runs**: a Windows 10 1809+ / Windows 11 **x64** PC. Windows ARM64 is unsupported, and this client cannot be built on Linux/macOS.
-- **Prerequisites**: .NET 8 SDK (x64) and the WebView2 Evergreen Runtime (included in Windows 11; install it on Windows 10 — see https://developer.microsoft.com/microsoft-edge/webview2 ). The first iroh connection downloads and verifies the official sidecar (about 14.8 MB / 14,865,920 bytes).
+Download `dsh-mobile-windows-v<version>-win-x64.zip` from the `windows-v*` tag in [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases), unzip it into any writable folder, and run `DshMobile.Win.exe`. A `.sha256` file sits beside the archive.
+
+The package is **self-contained**: no .NET install, no registry writes, no administrator rights. The whole folder is portable, but the device token in `devices.json` is sealed with the current Windows account, so moving to another machine or user means pairing again.
+
+> **Alpha preview**: currently `0.1.0-alpha`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. The three transports have not been accepted on real Windows hardware yet, so failures are expected; attach `data\client.log` when reporting one.
+
+## Requirements
+
+| Item | Requirement |
+| --- | --- |
+| OS | Windows 10 1809+ / Windows 11 |
+| Architecture | **x64** only (no ARM64; cannot run or be built on Linux/macOS) |
+| Runtime | No .NET install needed (self-contained publish) |
+| WebView2 | Evergreen Runtime. Included in Windows 11; install it once on Windows 10 — see https://developer.microsoft.com/microsoft-edge/webview2 |
+| First iroh connection | Downloads and verifies the official component (about 14.8 MB) |
 
 ## Features
 
-- **Three connection channels**
-  - `iroh`: paste the iroh pairing content; the official component builds the encrypted tunnel.
-  - `LAN` / `remote`: paste the `https://…/mobile-access/pair#…` pairing link and connect directly to the gateway.
-- **LAN discovery**: scan the network or type an address to find the computer, then paste that computer's pairing link; a link whose address disagrees with the discovery result asks for confirmation.
-- **Address follow-up**: when a remote address changes (for example a rotated tunnel address) or the credential expires, paste the same computer's current link to update the address and keep the name. A computer with a pinned certificate only accepts a link that also requires the certificate, so it cannot be downgraded to an unchecked connection.
-- **Reconnect without scanning**: pair once, then click Connect; nothing to paste again.
-- **Task completion notices**: while connected, a finished task raises a desktop notification that returns to the page when clicked; revoking the device on the computer says so and stops the notices.
-- **Downloads and voice**: same-origin downloads from the paired gateway go through a save dialog, off-gateway addresses stay blocked, and a paired page may use the microphone for the computer's voice path while the camera and other permissions stay denied.
-- **Device management**: multiple device cards, rename and delete; each card shows the connection type and credential expiry.
-- **Security**: pairing pins that computer's certificate, and a mismatch refuses the connection instead of asking you to install a certificate. Credentials are encrypted with your Windows account inside this folder, so another PC or another user must pair again. A certificate that has expired or been revoked is always refused on the WebView2 path; the custom-CA channel used for these pins does not check revocation, because the pairing CA is self-signed and has no revocation data.
-- **Top bar and title bar**: a window-level bar under the native title bar (device list / connection status / disconnect), colored like the DWM caption; the page DOM is not injected or modified.
-- **Light and dark**: semantic color tokens (`design-system/dsh-mobile/MASTER.md`) follow the system theme; `DSH_MOBILE_THEME=light|dark` overrides it.
+### Connecting
+
+- **Three transports**: `LAN`, `remote` (both paste a `https://…/mobile-access/pair#…` pairing link), and `iroh` (paste iroh pairing content; the official component builds the encrypted tunnel).
+- **LAN discovery**: scan the network or type an address to find a computer, then paste that computer's pairing link. A link whose address disagrees with the discovery result asks for confirmation.
+- **No re-scanning**: pair once, then just press Connect.
+- **Address tracking**: when a remote address changes or a credential expires, paste that computer's current link to update the address and keep its name. A computer with a pinned certificate only accepts links that also require pinning; it is never downgraded.
+- **Start behaviour**: show the device list on launch, or reconnect the last computer directly.
+
+### Device list
+
+- **Visible status**: each computer shows whether it is reachable (reachable / checking / unreachable / connected / credential expired / revoked on the computer). Reachability is polled in the background and paused while connecting.
+- **Recency**: shows when the computer was last opened ("19 minutes ago", "2 days ago").
+- **Rename and order**: rename, move up, move to front; the order survives a restart.
+- **Undoable delete**: a delete can be undone within five seconds (it only removes the local record, not the computer's authorisation).
+
+### Notifications and appearance
+
+- **Task notifications**: completions raise a desktop notification while connected; switchable in settings. Revoking the device on the computer reports it and stops the notifications.
+- **App icon**: 4 mascot poses and 6 whale colourways, the same artwork the phone ships. Frames below 32px use the simplified whale mark so the tray icon stays legible.
+- **Light and dark**: follows Windows, or pin light/dark in settings.
+- **Page zoom, font size, reading mode** stay in the DSH page's own settings, exactly as on the phone.
+
+### Security
+
+- **Certificate pinning**: the computer's certificate is pinned when you pair, and a mismatch stops the connection instead of asking you to trust something. The client also verifies the pin over its own TLS handshake before handing the origin to the browser, rather than relying on the browser's verdict alone.
+- **Encrypted credentials**: the device token is sealed with your Windows account; another machine or user means pairing again.
+- **Downloads and permissions**: downloads from the gateway's own origin go through a save dialog, other origins are blocked; the page may use the microphone (routed to the computer), the camera and every other permission is refused.
+- **No page injection**: the top bar is a native window control; the page DOM is neither injected nor modified.
+
+## Using it
+
+1. Unzip and run `DshMobile.Win.exe`;
+2. In the computer's DSH "mobile access" panel, generate a pairing, paste the link into the client and press "Pair and connect";
+3. Afterwards just press Connect.
+
+Runtime data lives in `data\` beside the executable:
+
+| Path | Contents |
+| --- | --- |
+| `data\devices.json` | Paired computers (token sealed with the Windows account) |
+| `data\settings.json` | Icon, theme, start behaviour, notification switch |
+| `data\client.log` | Log (rotates at 2 MB, keeps one previous file) |
+| `data\components\iroh\` | Verified iroh component cache |
+| `data\webview2\` | WebView2 user folder (cache and cookies) |
+
+The iroh client identity is kept by the component in `%USERPROFILE%\.dsh-mobile-win\iroh`, so another machine means pairing again.
+
+## Building from source
+
+Prerequisite: .NET 8 SDK (x64). Building and running are Windows x64 only.
+
+```bash
+cd apps/windows/DshMobile.Win
+
+dotnet restore
+dotnet build -c Release
+dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
+
+# Portable build (self-contained .NET, a folder you can copy)
+dotnet publish -c Release -r win-x64 --self-contained true -o <target>
+```
+
+No Rust or Android toolchain is needed: the iroh transport reuses the official published component, which is not in the repository. It is downloaded from a pinned address on first use, its size and SHA-256 are verified, and it is verified again before every launch.
 
 ## Layout
 
 ```
 apps/windows/
-├── .gitignore                # ignores bin/ obj/ data/
-├── ARCHITECTURE.md           # architecture and security model (Chinese)
-├── ARCHITECTURE.en.md        # architecture and security model (English)
-├── README.en.md              # this file
-├── DshMobile.Win/            # client sources (WPF + WebView2)
-│   ├── *.cs / *.xaml          # sources
-│   ├── app.ico                # launcher icon converted from the Android PNG
-│   ├── DshMobile.Win.csproj
-│   └── sidecar/
-│       ├── manifest.json                 # pinned version / URL / bytes / SHA-256 (mirror)
-│       ├── LICENSE.dsh-mobile-iroh      # the next three files come from native/iroh-host/
-│       ├── LICENSE.dsh-tether
-│       └── NOTICE.dsh-mobile-iroh
-└── DshMobile.Win.Tests/      # pure-logic unit tests (xunit)
-    └── DshMobile.Win.Tests.csproj
+├── ARCHITECTURE.md / .en.md   # Architecture and security model
+├── README.md / .en.md         # This document
+├── DshMobile.Win/             # Client source (WPF + WebView2)
+│   ├── *.cs / *.xaml
+│   ├── icons/                 # 10 selectable icons (multi-size ICO + brand art)
+│   ├── sidecar/               # Pinned version / URL / SHA-256 + licence texts
+│   └── DshMobile.Win.csproj
+└── DshMobile.Win.Tests/       # Pure-logic unit tests (xunit)
 ```
-
-## Use
-
-Once a Windows release exists: download and unzip `dsh-mobile-windows-v<version>-win-x64.zip` into any writable folder, run `DshMobile.Win.exe`, then pair this Windows PC from the computer's DSH mobile-access panel by pasting the pairing content or link. No such package exists yet; build it with "Build and publish" below first — the output folder is used the same way.
-
-The package is **self-contained**: no .NET install, no registry writes, no administrator rights. Runtime data (`devices.json`, `client.log`, the WebView2 user folder, the iroh component cache) lives in `data\` beside the executable, so the folder is portable; the device token in `devices.json` is sealed with DPAPI for the current Windows account, so moving to another machine or user means pairing again.
-
-## Build and publish
-
-Prerequisites are in "Status and support". Building and running are only supported on Windows x64.
-
-```bash
-cd apps/windows/DshMobile.Win
-
-# build
-dotnet restore
-dotnet build -c Release
-
-# pure-logic unit tests (no device or gateway required)
-dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
-
-# portable publish (self-contained .NET, a standalone directory)
-dotnet publish -c Release -r win-x64 --self-contained true -o <target-directory>
-```
-
-`<Version>` in `DshMobile.Win.csproj` carries the client version, independent of the plugin version and of the iroh component pin. To release, push a `windows-v<version>` tag: `.github/workflows/windows-release.yml` checks the tag against the project version, builds, runs the unit tests, packages the zip with its SHA-256 and uploads it as a prerelease. **This track has not produced anything yet** — no `windows-v*` tag exists in the repository, and whether to publish is a separate maintainer decision.
-
-No Rust/Android toolchain is needed: the iroh transport reuses the official component, and **the component itself is not stored in this repository**. The first iroh connection downloads it from a fixed address and verifies size plus SHA-256; if the plugin already installed and verified the same copy on this computer, that copy is reused. The component is re-verified before every start, and a mismatch refuses to launch.
-
-`.github/workflows/windows-client.yml` runs on `windows-latest`: it restores the test project, then builds the main project with `--no-restore` and runs the tests (equivalent to the restore/build/test above). It covers source build and pure-logic tests only; it does not produce a release package and does not exercise WebView2 or real hardware. Whether that job is a required check is configured by the maintainer in GitHub branch protection, not in the repository. Dependencies come from the default NuGet feed (nuget.org). For slow networks add a mirror at the **user** level rather than changing repository configuration: `dotnet nuget add source <mirror-url> -n <name>`.
-
-The publish directory root holds `DshMobile.Win.exe` and the .NET dependencies; runtime data (`devices.json`, `client.log`, the WebView2 user-data folder, and the downloaded sidecar cache) lives under `data\` inside that directory. The sidecar and the license texts under `sidecar/` are not copied into the publish directory.
-
-## Portability boundaries
-
-- iroh client identity is forced by the sidecar into `%USERPROFILE%\.dsh-mobile-win\iroh` (its private-directory ACL check rejects drive roots); moving to another machine requires pairing again.
-- The sidecar cache lives under `data\components\iroh\<version>\`; a corrupt or mismatched cache is deleted and re-fetched, and an unverified binary is never launched.
-- Paired devices are stored in `data\devices.json`; deviceToken is encrypted with DPAPI (CurrentUser) and does not migrate across machines.
-- Log: `data\client.log`.
 
 ## For maintainers
 
-The iroh component pin is stored three times, and `scripts/check-windows-sidecar-pin.mjs` asserts the three agree in the Windows client CI job: `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts` is authoritative, `apps/windows/DshMobile.Win/SidecarProvisioner.cs` hardcodes the same values, and `apps/windows/DshMobile.Win/sidecar/manifest.json` mirrors them. Move all three together when the pin changes; the check fails when one drifts.
+**Version and release**: the version lives in `<Version>` in `DshMobile.Win.csproj` and is independent of the plugin version and the iroh component pin. To release, push a `windows-v<version>` tag; `.github/workflows/windows-release.yml` checks the tag against the project version, builds, runs the unit tests, packages the zip with a SHA-256, and uploads it as a prerelease.
 
-This directory is an additional client; it does not modify the plugin or the existing Android code. Repository conventions are in `AGENTS.md` at the repository root (upstream DSH sources are read-only; changes stay in this repository). Functional changes stay under `apps/windows/`; the only repository-level exception is `.github/workflows/windows-client.yml` (the Windows client CI job). No other upstream file should appear in the diff.
+**The iroh component pin exists in three places** and `scripts/check-windows-sidecar-pin.mjs` asserts they agree: `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts` is authoritative, `SidecarProvisioner.cs` hardcodes the same value, and `sidecar/manifest.json` mirrors it. Changing the pin means changing all three.
+
+**CI**: `.github/workflows/windows-client.yml` builds and runs the pure-logic tests on `windows-latest` and produces no package; only `windows-release.yml` produces one, when a tag is pushed.
+
+This directory is a new surface and does not modify existing plugin or Android code; repository conventions are in the root `AGENTS.md`.

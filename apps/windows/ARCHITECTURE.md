@@ -11,7 +11,19 @@
 | 文件 | 职责 |
 | --- | --- |
 | `App.xaml(.cs)` | 应用启动、系统深浅色跟随与 `DSH_MOBILE_THEME=light\|dark` 覆盖 |
-| `MainWindow.xaml(.cs)` | WPF 外壳：连接页 + 浏览器页、设备列表、连接/重连编排、WebView2 边界策略 |
+| `MainWindow.xaml(.cs)` | WPF 外壳：连接页 + 浏览器页、连接/重连编排、WebView2 边界策略、原生 TLS 固定校验（`VerifyPinnedOriginAsync`） |
+| `MainWindow.Devices.cs` / `MainWindow.DevicePage.cs` | 设备列表（卡片渲染、可达状态接线、排序菜单、删除与 5 秒撤销）与设置页的两个分部类 |
+| `AppSettings.cs` | `data/settings.json`：图标、启动方式、主题、任务完成提醒、上次连接的电脑；缺文件或损坏时回退默认值，不报错 |
+| `AppIcons.cs` | 与 Android 同款的 10 种启动图标（4 种吉祥物姿态 + 6 种鲸鱼），标题栏与托盘共用，预览取文件里最大一帧 |
+| `StartupBehavior.cs` | 启动后「显示设备列表」还是「自动连接上次的电脑」的决策；凭据过期或读不出的记录永不自动连接 |
+| `DeviceOrder.cs` | 列表显示顺序（`SortOrder`）与「上移一位 / 移到最前」，对齐 Android `PairedDeviceOrderPolicy` |
+| `DeviceStatus.cs` / `DeviceReachability.cs` | 八种可达状态到文案与语义色 token 的映射；15 秒一轮探测、8 秒超时、连接期间暂停 |
+| `ClientLog.cs` | `data/client.log` 追加写入；达到 2 MB 轮转为 `client.log.1`，写日志失败不影响运行 |
+| `PortableData.cs` | `data/` 可写性探测（写入再删除试探文件）；放在 Program Files 等不可写目录时给出一条可执行提示 |
+| `ConnectionDiagnosis.cs` | 连接失败分类（凭据失效、协议版本、WebView2 缺失、CA 不符、DNS、HTTP 426/429/5xx）与用户文案 |
+| `WebView2Availability.cs` | 启动前探测 WebView2 Evergreen 运行时；缺失时直接给出安装地址与 x64 提示，而不是等初始化超时 |
+| `UpdateCheck.cs` | `windows-v*` Release 的版本比较与选择（纯逻辑；设置页的「检查更新」尚未接入，见下方「已知差距」） |
+| `CrashGuard.cs` / `RelativeTime.cs` | 未捕获异常兜底；设备卡片「19 分钟前」这类相对时间文案 |
 | `UrlPairing.cs` | 解析 `https://…/mobile-access/pair#…` 链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），并按同文件的 `RemoteHostPolicy` 区分局域网/远程 |
 | `PairingTrustPolicy.cs` | `ca.cer` 回执的决策（404 是否允许平台信任），对齐 Android `PairingTrust.selectTrustAnchor` / `RemotePairingTrust.decide` |
 | `PairingDescriptor.cs` | 解析 iroh 配对 JSON 描述符（EndpointId / Hostname / Origin / LocalPort / InstanceId / CA） |
@@ -23,7 +35,7 @@
 | `LanDiscovery.cs` | 局域网发现：UDP 公告校验、手输地址归一化、单点 `/mobile-access/discovery` 探测、网段扫描 |
 | `BackgroundEventWatcher.cs` | 连接期间订阅 `/mobile-access/background-events`，任务完成弹桌面气球；`SseParser` 逐行解析 SSE |
 | `WebViewPolicy.cs` | 精确网关 origin 判定（导航/下载/麦克风共用），无 WebView2 类型依赖以便单测 |
-| `DshMobile.Win.Tests/` | 纯逻辑单测（配对链接、信任决策、证书链/SAN、设备存储、sidecar pin） |
+| `DshMobile.Win.Tests/` | 纯逻辑单测（配对链接、信任决策、证书链/SAN、固定 origin 校验、设备存储与排序、可达状态、启动行为、日志轮转、便携目录、失败诊断、更新选择、WebView2 探测） |
 
 ## 两层结构
 
@@ -86,9 +98,15 @@
 
 提示按类别每会话只显示一次，避免权限/下载事件反复弹窗。
 
+## 已知差距
+
+- **「检查更新」尚未接入**：`UpdateCheck.cs` 的版本比较与 `windows-v*` Release 选择只有单测覆盖，设置页没有对应的行；`ConnectionDiagnosis` 里协议版本不符和 HTTP 426 的文案却提示用户去「设置 → 检查更新」。发版前应补上设置项，或改掉这两条文案（0.1.0-alpha 目前是后者所需的最小改动）。
+- **真机验收未完成**：iroh / 局域网 / 远程三通道与五类 WebView2 策略尚未在维护者的 Windows 机器上完整走查，本文描述的是设计与已入库的自动检查。
+
 ## 持久化与便携边界
 
-- `Root = AppContext.BaseDirectory`；`data/` 存放 `devices.json`、`client.log`、WebView2 用户目录。
+- `Root = AppContext.BaseDirectory`；`data/` 存放 `devices.json`、`settings.json`、`client.log`（达到 2 MB 轮转出 `client.log.1`）与 WebView2 用户目录 `data/webview2/`。
+- `settings.json` 保存图标、启动方式、主题、任务完成提醒开关和上次连接的电脑；它是外壳偏好，不是信任数据，损坏或缺失时按默认值继续运行。
 - iroh 身份由 sidecar 强制存放于 `%USERPROFILE%\.dsh-mobile-win\iroh`（其私有目录 ACL 校验拒绝盘符根目录）。
 - sidecar 缓存于 `data/components/iroh/<version>/`，损坏或不匹配 pin 时删除重取，绝不启动未校验的二进制。
 - `deviceToken` 以 DPAPI(CurrentUser) 加密后落盘，不跨用户/跨机可用；一次性 `irohCode` / `gatewayToken` 从不持久化。
@@ -97,6 +115,6 @@
 
 - 前置：.NET 8 SDK（x64）+ WebView2 Evergreen；构建与运行仅支持 Windows x64（见 README「状态与支持范围」）。
 - 命令：`dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`。
-- CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 上执行同一组 restore/build/test 步骤（restore 测试项目，再以 `--no-restore` 构建主项目并测试）；不产出发布包，也不做 WebView2/真机验收。
-- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN）、`DeviceStore.Validate`（含 `AdoptNewOrigin`）、`SidecarProvisioner.Verify`、`LanDiscovery`（公告校验、手输归一化、子网推导、UDP 收听）、`SseParser`、`WebViewPolicy`（同源判定）；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
+- CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 上执行同一组 restore/build/test 步骤（restore 测试项目，再以 `--no-restore` 构建主项目并测试）；不产出发布包，也不做 WebView2/真机验收。发布包只由 `.github/workflows/windows-release.yml` 在推送 `windows-v<版本>` 标签时产出（自包含 win-x64 目录 → zip + SHA-256 → 预发布）。
+- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN、固定 origin 前置校验）、`DeviceStore.Validate`（含 `AdoptNewOrigin` 与排序）、`DeviceOrder`、`DeviceStatus`/`DeviceReachability`、`StartupBehavior`、`ClientLog` 轮转、`PortableData`、`ConnectionDiagnosis`、`UpdateCheck`、`WebView2Availability`、`SidecarProvisioner.Verify`、`LanDiscovery`（公告校验、手输归一化、子网推导、UDP 收听）、`SseParser`、`WebViewPolicy`（同源判定）；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
 - 验收状态：iroh / 局域网 / 远程通道与 WebView2 五类策略尚未完成维护者真机验收；需要 Windows 机器按验收清单复核。

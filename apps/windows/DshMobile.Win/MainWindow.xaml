@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="DeepSeek Harness" Height="880" Width="1280"
+        Title="DeepSeek Harness" Height="760" Width="1280"
         MinHeight="520" MinWidth="520"
         Icon="/app.ico"
         Background="{DynamicResource AppBackgroundBrush}">
@@ -46,11 +46,6 @@
             <Setter Property="Visibility" Value="Collapsed" />
         </Style>
 
-        <Style x:Key="PageTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="22" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-        </Style>
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -109,443 +104,500 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Device list page. Everything in this region (header, empty state,
-                 pairing panel, connecting state) is device-page presentation only; the
-                 settings page and the rail are separate regions. Styles live on the
-                 ScrollViewer rather than Window.Resources so the two pages can evolve
-                 without sharing a dictionary. -->
-            <ScrollViewer x:Name="DevicesScroll" Grid.Column="0" VerticalScrollBarVisibility="Auto"
-                          Loaded="DevicesPage_Loaded">
-                <ScrollViewer.Resources>
-                    <!-- Stroke glyphs, not emoji (MASTER.md): they follow the token
-                         colours, keep one 1.6px weight and need no icon font. -->
-                    <Geometry x:Key="IconPairWifi">M3.5 9.6a13 13 0 0 1 17 0 M6.6 12.9a8.4 8.4 0 0 1 10.8 0 M9.7 16.1a3.9 3.9 0 0 1 4.6 0 M12 19.2h.01</Geometry>
-                    <Geometry x:Key="IconPairGlobe">M12 3.6a8.4 8.4 0 1 0 0 16.8 8.4 8.4 0 0 0 0-16.8Z M3.9 9.4h16.2 M3.9 14.6h16.2 M12 3.6c2.5 2.4 3.7 5.2 3.7 8.4s-1.2 6-3.7 8.4c-2.5-2.4-3.7-5.2-3.7-8.4s1.2-6 3.7-8.4Z</Geometry>
-                    <Geometry x:Key="IconPairLink">M9.6 14.4l4.8-4.8 M7.9 10.8 6.1 12.6a3.7 3.7 0 0 0 5.3 5.3l1.8-1.9 M16.1 13.2l1.8-1.8a3.7 3.7 0 0 0-5.3-5.3l-1.8 1.9</Geometry>
-                    <Geometry x:Key="IconChevron">M9.5 6.5 15 12l-5.5 5.5</Geometry>
+            <!-- Device list page. The header (identity, page title, 添加新电脑) sits
+                 outside the scroller: with a populated list that button is the only way
+                 to add a computer, so scrolling the cards must not take it away. The
+                 header copies the settings page structure (eyebrow, display title,
+                 subtitle) instead of the old rounded brand band, so both pages read as
+                 one product, and the band's card-like surface - which made a fixed
+                 header look like scrolling content - is gone. The outer Grid follows the
+                 scroller's Visibility, so one toggle in ShowSettingsPage still hides the
+                 whole page. Styles live on this page rather than Window.Resources so the
+                 two pages can evolve without sharing a dictionary. -->
+            <Grid x:Name="DevicesPage" Grid.Column="0"
+                  Background="{DynamicResource AppBackgroundBrush}"
+                  Visibility="{Binding Visibility, ElementName=DevicesScroll}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-                    <!-- Brand band: a quiet surface, not a gradient. The artwork tile is
-                         the one place the product's own illustration appears. -->
-                    <Style x:Key="PageBand" TargetType="Border">
-                        <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
-                        <Setter Property="BorderThickness" Value="1" />
-                        <Setter Property="CornerRadius" Value="14" />
-                        <Setter Property="Padding" Value="20,18" />
-                    </Style>
-                    <Style x:Key="ArtworkTile" TargetType="Border">
-                        <Setter Property="Background" Value="{DynamicResource CardBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
-                        <Setter Property="BorderThickness" Value="1" />
-                        <Setter Property="CornerRadius" Value="13" />
-                    </Style>
+                <!-- Fixed page header. Same 1000px column, padding, eyebrow, display title
+                     and subtitle as the settings page, so the two headers are exactly the
+                     same height and switching pages does not shift the content; the right
+                     side carries the page action (添加新电脑), the way the settings page
+                     carries its back action. No artwork in the header: the user asked for
+                     no character image inside the client. -->
+                <Border Grid.Row="0" Background="{DynamicResource AppBackgroundBrush}"
+                        BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="0,0,0,1">
+                    <Grid MaxWidth="1000" Margin="36,22,36,18">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource EyebrowText}"
+                                       Text="DEEPSEEK HARNESS · WINDOWS" />
+                            <!-- Title and build badge share a WrapPanel: on a narrow
+                                 window the badge drops under the name instead of
+                                 squeezing it, so nothing clips. -->
+                            <WrapPanel Margin="0,7,0,0">
+                                <TextBlock Style="{StaticResource DisplayTitle}" Text="设备"
+                                           Margin="0,0,12,0" />
+                                <Border VerticalAlignment="Center" CornerRadius="20"
+                                        Padding="9,3" BorderThickness="1"
+                                        Background="{DynamicResource CardBrush}"
+                                        BorderBrush="{DynamicResource OutlineBrush}">
+                                    <TextBlock x:Name="BrandVersion" FontSize="11.5"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </Border>
+                            </WrapPanel>
+                            <TextBlock Style="{StaticResource PageSubtitle}" Margin="0,8,0,0"
+                                       Text="选一台已配对的电脑继续，或添加一台新的。所有配对只保存在这台电脑上。" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Button x:Name="AddToggleButton" VerticalAlignment="Center"
+                                    MinWidth="0" Padding="14,0" FontSize="12.5"
+                                    Content="添加新电脑" Click="AddToggle_Click"
+                                    ToolTip="打开配对面板；再点一次收起" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <!-- One selectable pairing method in the empty state. Only the
-                         background changes on hover: the row never reflows. -->
-                    <Style x:Key="MethodChoice" TargetType="Button">
-                        <Setter Property="MinHeight" Value="34" />
-                        <Setter Property="MinWidth" Value="0" />
-                        <Setter Property="Padding" Value="12,7" />
-                        <Setter Property="HorizontalContentAlignment" Value="Left" />
-                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-                        <Setter Property="Background" Value="{DynamicResource CardBrush}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
-                        <Setter Property="BorderThickness" Value="1" />
-                        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="Root" CornerRadius="9"
-                                            Background="{TemplateBinding Background}"
-                                            BorderBrush="{TemplateBinding BorderBrush}"
-                                            BorderThickness="{TemplateBinding BorderThickness}"
-                                            Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter VerticalAlignment="Center" />
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
+                <!-- Section header, fixed with the page: "已配对电脑" is the list's
+                     label and must stay with its action while the cards move. Hidden
+                     while the empty state stands in for the list; the code that toggles
+                     NoDevicesText drives it too. -->
+                <Grid x:Name="SectionHeader" Grid.Row="1" MaxWidth="1000"
+                      Margin="36,18,36,10">
+                    <TextBlock Text="已配对电脑" Style="{StaticResource SectionTitle}"
+                               Margin="0" VerticalAlignment="Center" />
+                </Grid>
 
-                    <!-- Pairing-method segmented control inside the add panel: an inset
-                         track, one raised segment for the current choice. -->
-                    <Style x:Key="MethodTab" TargetType="RadioButton">
-                        <Setter Property="MinHeight" Value="30" />
-                        <Setter Property="Padding" Value="14,0" />
-                        <Setter Property="FontSize" Value="12.5" />
-                        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
-                        <Setter Property="VerticalContentAlignment" Value="Center" />
-                        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="RadioButton">
-                                    <Border x:Name="Root" CornerRadius="7" Margin="2"
-                                            Background="Transparent"
-                                            BorderBrush="Transparent" BorderThickness="1"
-                                            Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center" />
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource CardBrush}" />
-                                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
-                                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
+                <ScrollViewer x:Name="DevicesScroll" Grid.Row="2"
+                              VerticalScrollBarVisibility="Auto"
+                              Loaded="DevicesPage_Loaded">
+                    <ScrollViewer.Resources>
+                        <!-- Stroke glyphs, not emoji (MASTER.md): they follow the token
+                             colours, keep one 1.6px weight and need no icon font. -->
+                        <Geometry x:Key="IconPairWifi">M3.5 9.6a13 13 0 0 1 17 0 M6.6 12.9a8.4 8.4 0 0 1 10.8 0 M9.7 16.1a3.9 3.9 0 0 1 4.6 0 M12 19.2h.01</Geometry>
+                        <Geometry x:Key="IconPairGlobe">M12 3.6a8.4 8.4 0 1 0 0 16.8 8.4 8.4 0 0 0 0-16.8Z M3.9 9.4h16.2 M3.9 14.6h16.2 M12 3.6c2.5 2.4 3.7 5.2 3.7 8.4s-1.2 6-3.7 8.4c-2.5-2.4-3.7-5.2-3.7-8.4s1.2-6 3.7-8.4Z</Geometry>
+                        <Geometry x:Key="IconPairLink">M9.6 14.4l4.8-4.8 M7.9 10.8 6.1 12.6a3.7 3.7 0 0 0 5.3 5.3l1.8-1.9 M16.1 13.2l1.8-1.8a3.7 3.7 0 0 0-5.3-5.3l-1.8 1.9</Geometry>
+                        <Geometry x:Key="IconChevron">M9.5 6.5 15 12l-5.5 5.5</Geometry>
 
-                    <!-- Text-weight action (reveal the discovery tools, show a hint):
-                         no fill and no border, so it never competes with 配对并连接. -->
-                    <Style x:Key="QuietAction" TargetType="Button">
-                        <Setter Property="MinHeight" Value="32" />
-                        <Setter Property="MinWidth" Value="0" />
-                        <Setter Property="Padding" Value="10,0" />
-                        <Setter Property="FontSize" Value="12.5" />
-                        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="BorderThickness" Value="0" />
-                        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="Root" CornerRadius="7"
-                                            Background="{TemplateBinding Background}"
-                                            Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center" />
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
-                </ScrollViewer.Resources>
+                        <!-- One selectable pairing method in the empty state. Only the
+                             background changes on hover: the row never reflows. -->
+                        <Style x:Key="MethodChoice" TargetType="Button">
+                            <Setter Property="MinHeight" Value="34" />
+                            <Setter Property="MinWidth" Value="0" />
+                            <Setter Property="Padding" Value="12,7" />
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+                            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Grid>
+                                            <Border x:Name="Root" CornerRadius="9"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter VerticalAlignment="Center" />
+                                            </Border>
+                                            <!-- Keyboard focus is an in-template ring, not a
+                                                 FocusVisualStyle adorner: the adorner did not
+                                                 appear when focus arrived programmatically, so
+                                                 Tab through the pairing panel had no visible
+                                                 stop here. Same size cell, so no reflow. -->
+                                            <Border x:Name="FocusOutline" CornerRadius="9"
+                                                    BorderThickness="2"
+                                                    BorderBrush="{DynamicResource AccentBrush}"
+                                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                                    SnapsToDevicePixels="True" />
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
 
-                <StackPanel Margin="36,22,36,18">
+                        <!-- Pairing-method segmented control inside the add panel: an inset
+                             track, one raised segment for the current choice. -->
+                        <Style x:Key="MethodTab" TargetType="RadioButton">
+                            <Setter Property="MinHeight" Value="30" />
+                            <Setter Property="Padding" Value="14,0" />
+                            <Setter Property="FontSize" Value="12.5" />
+                            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Grid>
+                                            <Border x:Name="Root" CornerRadius="7" Margin="2"
+                                                    Background="Transparent"
+                                                    BorderBrush="Transparent" BorderThickness="1"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center" />
+                                            </Border>
+                                            <!-- Accent ring, not the accent fill: the checked
+                                                 segment is already filled, so focus has to read
+                                                 as a separate state. -->
+                                            <Border x:Name="FocusOutline" CornerRadius="7" Margin="2"
+                                                    BorderThickness="2"
+                                                    BorderBrush="{DynamicResource AccentBrush}"
+                                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                                    SnapsToDevicePixels="True" />
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource CardBrush}" />
+                                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+
+                        <!-- Text-weight action (reveal the discovery tools, show a hint):
+                             no fill and no border, so it never competes with 配对并连接. -->
+                        <Style x:Key="QuietAction" TargetType="Button">
+                            <Setter Property="MinHeight" Value="32" />
+                            <Setter Property="MinWidth" Value="0" />
+                            <Setter Property="Padding" Value="10,0" />
+                            <Setter Property="FontSize" Value="12.5" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Grid>
+                                            <Border x:Name="Root" CornerRadius="7"
+                                                    Background="{TemplateBinding Background}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center" />
+                                            </Border>
+                                            <Border x:Name="FocusOutline" CornerRadius="7"
+                                                    BorderThickness="2"
+                                                    BorderBrush="{DynamicResource AccentBrush}"
+                                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                                    SnapsToDevicePixels="True" />
+                                        </Grid>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource PressedBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ScrollViewer.Resources>
+
+                <!-- Scrolling body. The MinHeight binding keeps it at least one viewport
+                     tall, so the empty state can be centred in the page instead of
+                     hugging the header above a large blank area. -->
+                    <Grid MinHeight="{Binding ViewportHeight, ElementName=DevicesScroll}">
+                        <StackPanel x:Name="DevicesContent" Margin="36,8,36,32"
+                                VerticalAlignment="Top">
                     <!-- Same measure and centring as the settings page: a left-aligned
                          820px column on a 1280-wide window left the right half empty and
                          made the two pages look like different products. -->
-                    <Grid MaxWidth="1000" HorizontalAlignment="Stretch">
-                        <StackPanel>
-                            <!-- Page header: the brand's own artwork beside the product name. It
-                         is the only illustration on this page; everything else is text
-                         and tokens, per MASTER.md. -->
-                    <Border Style="{StaticResource PageBand}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource ArtworkTile}" Width="46" Height="46"
-                                    VerticalAlignment="Center">
-                                <Image x:Name="BrandMark" Width="32" Height="32"
-                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                            <Grid MaxWidth="1000" HorizontalAlignment="Stretch">
+                                <StackPanel>
+
+                            <!-- Connecting state: status, progress and a visible way out. Kept
+                                 above the list so it is seen no matter which card was clicked. -->
+                            <Border x:Name="ProgressPanel" Margin="0,16,0,0" Padding="16,14"
+                                    Background="{DynamicResource CardBrush}"
+                                    BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                                    CornerRadius="12" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                                     Fill="{DynamicResource AccentBrush}" />
+                                            <TextBlock x:Name="StatusText" Margin="8,0,0,0" FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" Text="" />
+                                        </StackPanel>
+                                        <ProgressBar x:Name="Progress" Margin="0,10,0,0" Height="4"
+                                                     IsIndeterminate="True" BorderThickness="0"
+                                                     Foreground="{DynamicResource AccentBrush}"
+                                                     Background="{DynamicResource OutlineBrush}" />
+                                        <TextBlock Margin="0,8,0,0" Style="{StaticResource Hint}"
+                                                   Text="连接期间可以随时取消，不会留下半开的连接" />
+                                    </StackPanel>
+                                    <Button x:Name="CancelButton" Grid.Column="1" MinWidth="96"
+                                            VerticalAlignment="Center"
+                                            Content="取消连接" Click="Cancel_Click"
+                                            ToolTip="停止连接并释放本地代理" />
+                                </Grid>
                             </Border>
-                            <StackPanel Grid.Column="1" Margin="14,0,12,0" VerticalAlignment="Center">
-                                <!-- Title and build badge share a WrapPanel: on a narrow
-                                     window the badge drops under the name instead of
-                                     squeezing it, so nothing clips. -->
-                                <WrapPanel>
-                                    <TextBlock Text="DeepSeek Harness" Style="{StaticResource PageTitle}"
-                                               VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <Border VerticalAlignment="Center" CornerRadius="20"
-                                            Padding="9,3" BorderThickness="1"
-                                            Background="{DynamicResource CardBrush}"
-                                            BorderBrush="{DynamicResource OutlineBrush}">
-                                        <TextBlock x:Name="BrandVersion" FontSize="11.5"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    </Border>
-                                </WrapPanel>
-                                <TextBlock Margin="0,4,0,0" Style="{StaticResource Hint}"
-                                           TextWrapping="Wrap"
-                                           Text="设备列表 · 选一台已配对的电脑继续，或添加一台新的" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
 
-                    <!-- Connecting state: status, progress and a visible way out. Kept
-                         above the list so it is seen no matter which card was clicked. -->
-                    <Border x:Name="ProgressPanel" Margin="0,16,0,0" Padding="16,14"
-                            Background="{DynamicResource CardBrush}"
-                            BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
-                            CornerRadius="12" Visibility="Collapsed">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="7" Height="7" VerticalAlignment="Center"
-                                             Fill="{DynamicResource AccentBrush}" />
-                                    <TextBlock x:Name="StatusText" Margin="8,0,0,0" FontSize="13"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource PrimaryTextBrush}" Text="" />
-                                </StackPanel>
-                                <ProgressBar x:Name="Progress" Margin="0,10,0,0" Height="4"
-                                             IsIndeterminate="True" BorderThickness="0"
-                                             Foreground="{DynamicResource AccentBrush}"
-                                             Background="{DynamicResource OutlineBrush}" />
-                                <TextBlock Margin="0,8,0,0" Style="{StaticResource Hint}"
-                                           Text="连接期间可以随时取消，不会留下半开的连接" />
-                            </StackPanel>
-                            <Button x:Name="CancelButton" Grid.Column="1" MinWidth="96"
-                                    VerticalAlignment="Center"
-                                    Content="取消连接" Click="Cancel_Click"
-                                    ToolTip="停止连接并释放本地代理" />
-                        </Grid>
-                    </Border>
+                            <!-- Section header lives in the fixed page header above, so the
+                                 cards scroll under a label that stays put. -->
+                            <StackPanel x:Name="DeviceList" />
 
-                    <!-- Section header. Hidden while the empty state stands in for the
-                         list; the code that toggles NoDevicesText drives it too. -->
-                    <Grid x:Name="SectionHeader" Margin="0,26,0,12">
-                        <TextBlock Text="已配对电脑" Style="{StaticResource SectionTitle}"
-                                   Margin="0" VerticalAlignment="Center" />
-                        <Button x:Name="AddToggleButton" HorizontalAlignment="Right"
-                                VerticalAlignment="Center" MinWidth="0" MinHeight="32"
-                                Height="32" Padding="14,0" FontSize="12.5"
-                                Content="添加新电脑" Click="AddToggle_Click"
-                                ToolTip="打开配对面板；再点一次收起" />
-                    </Grid>
-
-                    <StackPanel x:Name="DeviceList" />
-
-                    <!-- Empty state. NoDevicesText keeps its name because the code-behind
-                         toggles its Visibility on every rebuild; it is a panel now, not a
-                         bare line of text. -->
-                    <Border x:Name="NoDevicesText" Visibility="Collapsed" Padding="24,22"
-                            Margin="0,0,0,4"
-                            Background="{DynamicResource CardBrush}"
-                            BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
-                            CornerRadius="14">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Border Style="{StaticResource ArtworkTile}" Width="58" Height="58"
-                                        CornerRadius="16" VerticalAlignment="Top">
-                                    <Image x:Name="EmptyMark" Width="38" Height="38"
-                                           RenderOptions.BitmapScalingMode="HighQuality" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <!-- Empty state. NoDevicesText keeps its name because the code-behind
+                                 toggles its Visibility on every rebuild; it is a panel now, not a
+                                 bare line of text. The top margin is the same 26 DIP the section
+                                 header carries when a list is present: with the header collapsed
+                                 the card would otherwise butt against the header's bottom border
+                                 and the two rounded surfaces would read as one double rule. -->
+                            <Border x:Name="NoDevicesText" Visibility="Collapsed" Padding="24,22"
+                                    Margin="0,26,0,4"
+                                    Background="{DynamicResource CardBrush}"
+                                    BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                                    CornerRadius="14">
+                                <StackPanel>
+                                    <!-- The artwork that sat left of the heading was removed
+                                         on request: no character artwork inside the client. -->
                                     <TextBlock Text="还没有配对的电脑" FontSize="17"
                                                FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <!-- Left-aligned on purpose: a StackPanel stretches its
+                                         children, and a stretched child held back by
+                                         MaxWidth is centred by WPF, which pushed this line
+                                         158 DIP to the right of the title above it. -->
                                     <TextBlock Margin="0,6,0,0" Style="{StaticResource Hint}"
-                                               MaxWidth="560"
+                                               MaxWidth="640" HorizontalAlignment="Left"
                                                Text="在电脑端 DSH 打开「移动访问」，复制配对内容或链接贴到下面。配对只有这一次，之后点「连接」就能进。" />
-                                </StackPanel>
-                            </Grid>
 
-                            <!-- Three ways in, each one line of what it is for. They only
-                                 select the matching tab and focus the box below. -->
-                            <WrapPanel Margin="0,20,0,0">
-                                <Button Style="{StaticResource MethodChoice}" Tag="lan"
-                                        Width="236" Margin="0,0,10,10" Click="EmptyMethod_Click"
-                                        AutomationProperties.Name="用局域网配对">
-                                    <Grid>
+                                    <!-- Three ways in, each one line of what it is for. They only
+                                         select the matching tab and focus the box below. Equal
+                                         columns across the card's inner width, so the row belongs
+                                         to the card instead of hanging off its left edge with 222
+                                         DIP of empty space on the right. -->
+                                    <Grid Margin="0,20,0,0">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Path Data="{StaticResource IconPairWifi}" Width="18" Height="18"
-                                              Stretch="Uniform" Stroke="{DynamicResource AccentBrush}"
-                                              StrokeThickness="1.6" StrokeStartLineCap="Round"
-                                              StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                              VerticalAlignment="Top" Margin="0,2,0,0" />
-                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                            <TextBlock Text="局域网" FontSize="13" FontWeight="SemiBold" />
-                                            <TextBlock Text="同一 Wi-Fi 下最快" Margin="0,3,0,0"
-                                                       Style="{StaticResource Hint}" FontSize="11.5" />
-                                        </StackPanel>
+                                        <Button Grid.Column="0" Style="{StaticResource MethodChoice}"
+                                                Tag="lan" Click="EmptyMethod_Click"
+                                                AutomationProperties.Name="用局域网配对">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path Data="{StaticResource IconPairWifi}" Width="18" Height="18"
+                                                      Stretch="Uniform" Stroke="{DynamicResource AccentBrush}"
+                                                      StrokeThickness="1.6" StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                      VerticalAlignment="Top" Margin="0,2,0,0" />
+                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                    <TextBlock Text="局域网" FontSize="13" FontWeight="SemiBold" />
+                                                    <TextBlock Text="同一 Wi-Fi 下最快" Margin="0,3,0,0"
+                                                               Style="{StaticResource Hint}" FontSize="11.5" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                        <Button Grid.Column="2" Style="{StaticResource MethodChoice}"
+                                                Tag="remote" Click="EmptyMethod_Click"
+                                                AutomationProperties.Name="用远程地址配对">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path Data="{StaticResource IconPairGlobe}" Width="18" Height="18"
+                                                      Stretch="Uniform" Stroke="{DynamicResource AccentBrush}"
+                                                      StrokeThickness="1.6" StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                      VerticalAlignment="Top" Margin="0,2,0,0" />
+                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                    <TextBlock Text="远程" FontSize="13" FontWeight="SemiBold" />
+                                                    <TextBlock Text="走公网域名或隧道" Margin="0,3,0,0"
+                                                               Style="{StaticResource Hint}" FontSize="11.5" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                        <Button Grid.Column="4" Style="{StaticResource MethodChoice}"
+                                                Tag="iroh" Click="EmptyMethod_Click"
+                                                AutomationProperties.Name="用 iroh 配对">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path Data="{StaticResource IconPairLink}" Width="18" Height="18"
+                                                      Stretch="Uniform" Stroke="{DynamicResource AccentBrush}"
+                                                      StrokeThickness="1.6" StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                      VerticalAlignment="Top" Margin="0,2,0,0" />
+                                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                    <TextBlock Text="iroh" FontSize="13" FontWeight="SemiBold" />
+                                                    <TextBlock Text="点对点，不开端口" Margin="0,3,0,0"
+                                                               Style="{StaticResource Hint}" FontSize="11.5" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
                                     </Grid>
-                                </Button>
-                                <Button Style="{StaticResource MethodChoice}" Tag="remote"
-                                        Width="236" Margin="0,0,10,10" Click="EmptyMethod_Click"
-                                        AutomationProperties.Name="用远程地址配对">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Path Data="{StaticResource IconPairGlobe}" Width="18" Height="18"
-                                              Stretch="Uniform" Stroke="{DynamicResource AccentBrush}"
-                                              StrokeThickness="1.6" StrokeStartLineCap="Round"
-                                              StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                              VerticalAlignment="Top" Margin="0,2,0,0" />
-                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                            <TextBlock Text="远程" FontSize="13" FontWeight="SemiBold" />
-                                            <TextBlock Text="走公网域名或隧道" Margin="0,3,0,0"
-                                                       Style="{StaticResource Hint}" FontSize="11.5" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                                <Button Style="{StaticResource MethodChoice}" Tag="iroh"
-                                        Width="236" Margin="0,0,10,10" Click="EmptyMethod_Click"
-                                        AutomationProperties.Name="用 iroh 配对">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Path Data="{StaticResource IconPairLink}" Width="18" Height="18"
-                                              Stretch="Uniform" Stroke="{DynamicResource AccentBrush}"
-                                              StrokeThickness="1.6" StrokeStartLineCap="Round"
-                                              StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                              VerticalAlignment="Top" Margin="0,2,0,0" />
-                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                            <TextBlock Text="iroh" FontSize="13" FontWeight="SemiBold" />
-                                            <TextBlock Text="点对点，不开端口" Margin="0,3,0,0"
-                                                       Style="{StaticResource Hint}" FontSize="11.5" />
-                                        </StackPanel>
-                                    </Grid>
-                                </Button>
-                            </WrapPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Pairing panel: one input, three explained methods. The two less
-                         common paths are a tab away and the discovery tools start
-                         collapsed, so the first screen is a single decision. -->
-                    <Border x:Name="AddPanel" Margin="0,12,0,24" Padding="20,18"
-                            Background="{DynamicResource CardBrush}"
-                            BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
-                            CornerRadius="14" Visibility="Collapsed">
-                        <StackPanel>
-                            <TextBlock Text="添加一台电脑" FontSize="15" FontWeight="SemiBold" />
-                            <TextBlock Margin="0,5,0,0" Style="{StaticResource Hint}"
-                                       Text="配对内容只用于这一次握手，不会保存到本机。" />
-
-                            <Border Margin="0,14,0,0" Padding="2" CornerRadius="10"
-                                    HorizontalAlignment="Left"
-                                    Background="{DynamicResource SurfaceAltBrush}">
-                                <StackPanel Orientation="Horizontal">
-                                    <RadioButton x:Name="PairModeLan" Style="{StaticResource MethodTab}"
-                                                 GroupName="pairmode" Content="局域网" IsChecked="True"
-                                                 Checked="PairMethod_Checked" />
-                                    <RadioButton x:Name="PairModeRemote" Style="{StaticResource MethodTab}"
-                                                 GroupName="pairmode" Content="远程"
-                                                 Checked="PairMethod_Checked" />
-                                    <RadioButton x:Name="PairModeIroh" Style="{StaticResource MethodTab}"
-                                                 GroupName="pairmode" Content="iroh"
-                                                 Checked="PairMethod_Checked" />
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock x:Name="PairModeHint" Margin="0,12,0,0"
-                                       Style="{StaticResource Hint}" TextWrapping="Wrap" />
-
-                            <Grid Margin="0,10,0,0">
-                                <TextBox x:Name="DescriptorBox" Height="84"
-                                         AcceptsReturn="True" TextWrapping="Wrap"
-                                         VerticalScrollBarVisibility="Auto"
-                                         FontFamily="Consolas" FontSize="13"
-                                         ToolTip="一次性配对内容，不会保存配对码或 token" />
-                                <TextBlock x:Name="DescriptorPlaceholder" Margin="12,9,12,0"
-                                           VerticalAlignment="Top" IsHitTestVisible="False"
-                                           FontSize="12.5" FontFamily="Microsoft YaHei UI"
-                                           Foreground="{DynamicResource SecondaryTextBrush}">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Text, ElementName=DescriptorBox}"
-                                                             Value="">
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Grid>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                                <Button x:Name="PairButton" MinWidth="132"
-                                        Style="{StaticResource PrimaryButton}"
-                                        Content="配对并连接" Click="Pair_Click" />
-                                <Button x:Name="DiscoveryToggle" Margin="8,0,0,0"
-                                        Style="{StaticResource QuietAction}"
-                                        Content="在本机查找电脑" Click="DiscoveryToggle_Click"
-                                        ToolTip="输入地址或扫描局域网，找到电脑后再粘贴它的配对链接" />
-                            </StackPanel>
-
-                            <!-- Advanced path, folded away until asked for. -->
-                            <Border x:Name="DiscoveryPanel" Margin="0,12,0,0" Padding="14"
-                                    CornerRadius="10" Visibility="Collapsed"
-                                    Background="{DynamicResource SurfaceAltBrush}">
+                            <!-- Pairing panel: one input, three explained methods. The two less
+                                 common paths are a tab away and the discovery tools start
+                                 collapsed, so the first screen is a single decision. -->
+                            <Border x:Name="AddPanel" Margin="0,12,0,24" Padding="20,18"
+                                    Background="{DynamicResource CardBrush}"
+                                    BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                                    CornerRadius="14" Visibility="Collapsed">
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource Hint}"
-                                               Text="输入电脑地址，或扫描当前局域网。找到的电脑仍需粘贴它自己的配对链接。" />
+                                    <TextBlock Text="添加一台电脑" FontSize="15" FontWeight="SemiBold" />
+                                    <TextBlock Margin="0,5,0,0" Style="{StaticResource Hint}"
+                                               Text="配对内容只用于这一次握手，不会保存到本机。" />
+
+                                    <Border Margin="0,14,0,0" Padding="2" CornerRadius="10"
+                                            HorizontalAlignment="Left"
+                                            Background="{DynamicResource SurfaceAltBrush}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="PairModeLan" Style="{StaticResource MethodTab}"
+                                                         GroupName="pairmode" Content="局域网" IsChecked="True"
+                                                         Checked="PairMethod_Checked" />
+                                            <RadioButton x:Name="PairModeRemote" Style="{StaticResource MethodTab}"
+                                                         GroupName="pairmode" Content="远程"
+                                                         Checked="PairMethod_Checked" />
+                                            <RadioButton x:Name="PairModeIroh" Style="{StaticResource MethodTab}"
+                                                         GroupName="pairmode" Content="iroh"
+                                                         Checked="PairMethod_Checked" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock x:Name="PairModeHint" Margin="0,12,0,0"
+                                               Style="{StaticResource Hint}" TextWrapping="Wrap" />
+
                                     <Grid Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid>
-                                            <TextBox x:Name="AddressBox" Height="32"
-                                                     VerticalContentAlignment="Center"
-                                                     FontFamily="Consolas" FontSize="13"
-                                                     ToolTip="输入电脑的局域网地址，如 192.168.1.18 或 https://host:port" />
-                                            <TextBlock x:Name="AddressPlaceholder" Margin="11,0,11,0"
-                                                       VerticalAlignment="Center" IsHitTestVisible="False"
-                                                       FontSize="12.5" FontFamily="Consolas"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=AddressBox}"
-                                                                         Value="">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <Button x:Name="ProbeButton" Grid.Column="1" Margin="8,0,0,0"
-                                                MinWidth="72" Content="查找" Click="ProbeButton_Click"
-                                                ToolTip="探测该地址是否为 DSH Mobile 网关" />
-                                        <Button x:Name="ScanButton" Grid.Column="2" Margin="8,0,0,0"
-                                                MinWidth="96" Content="扫描局域网" Click="ScanButton_Click"
-                                                ToolTip="广播查询并逐个探测本机所在网段" />
+                                        <TextBox x:Name="DescriptorBox" Height="84"
+                                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 FontFamily="Consolas" FontSize="13"
+                                                 ToolTip="一次性配对内容，不会保存配对码或 token" />
+                                        <TextBlock x:Name="DescriptorPlaceholder" Margin="12,9,12,0"
+                                                   VerticalAlignment="Top" IsHitTestVisible="False"
+                                                   FontSize="12.5" FontFamily="Microsoft YaHei UI"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=DescriptorBox}"
+                                                                     Value="">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </Grid>
-                                    <TextBlock x:Name="DiscoveryHint" Margin="0,10,0,0"
-                                               Style="{StaticResource Hint}" Visibility="Collapsed" />
-                                    <StackPanel x:Name="FoundList" Margin="0,8,0,0" />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                        <Button x:Name="PairButton" MinWidth="132"
+                                                Style="{StaticResource PrimaryButton}"
+                                                Content="配对并连接" Click="Pair_Click" />
+                                        <Button x:Name="DiscoveryToggle" Margin="8,0,0,0"
+                                                Style="{StaticResource QuietAction}"
+                                                Content="在本机查找电脑" Click="DiscoveryToggle_Click"
+                                                ToolTip="输入地址或扫描局域网，找到电脑后再粘贴它的配对链接" />
+                                    </StackPanel>
+
+                                    <!-- Advanced path, folded away until asked for. -->
+                                    <Border x:Name="DiscoveryPanel" Margin="0,12,0,0" Padding="14"
+                                            CornerRadius="10" Visibility="Collapsed"
+                                            Background="{DynamicResource SurfaceAltBrush}">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource Hint}"
+                                                       Text="输入电脑地址，或扫描当前局域网。找到的电脑仍需粘贴它自己的配对链接。" />
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid>
+                                                    <TextBox x:Name="AddressBox" Height="32"
+                                                             VerticalContentAlignment="Center"
+                                                             FontFamily="Consolas" FontSize="13"
+                                                             ToolTip="输入电脑的局域网地址，如 192.168.1.18 或 https://host:port" />
+                                                    <TextBlock x:Name="AddressPlaceholder" Margin="11,0,11,0"
+                                                               VerticalAlignment="Center" IsHitTestVisible="False"
+                                                               FontSize="12.5" FontFamily="Consolas"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Text, ElementName=AddressBox}"
+                                                                                 Value="">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                                <Button x:Name="ProbeButton" Grid.Column="1" Margin="8,0,0,0"
+                                                        MinWidth="72" Content="查找" Click="ProbeButton_Click"
+                                                        ToolTip="探测该地址是否为 DSH Mobile 网关" />
+                                                <Button x:Name="ScanButton" Grid.Column="2" Margin="8,0,0,0"
+                                                        MinWidth="96" Content="扫描局域网" Click="ScanButton_Click"
+                                                        ToolTip="广播查询并逐个探测本机所在网段" />
+                                            </Grid>
+                                            <TextBlock x:Name="DiscoveryHint" Margin="0,10,0,0"
+                                                       Style="{StaticResource Hint}" Visibility="Collapsed" />
+                                            <StackPanel x:Name="FoundList" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
-                    </Border>
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Grid>
-                </StackPanel>
-            </ScrollViewer>
+                </ScrollViewer>
+            </Grid>
 
             <!-- Settings page. The header is outside the scroller: the product name and
                  the live icon preview stay visible while the groups move, and the whole
@@ -575,9 +627,12 @@
                             <TextBlock Style="{StaticResource PageSubtitle}" Margin="0,8,0,0"
                                        Text="外观、启动方式与本机数据，所有设置只保存在这台电脑上。" />
                         </StackPanel>
+                        <!-- Page action only: no illustration in the header. The mascot
+                             artwork that used to sit here was removed on request, so the
+                             header carries the way back and nothing else. -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal"
                                     VerticalAlignment="Center">
-                            <Button Style="{StaticResource GhostButton}" Margin="0,0,16,0"
+                            <Button Style="{StaticResource GhostButton}"
                                     Click="SettingsBack_Click" ToolTip="回到设备列表">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource IcoChevron}" Width="15" Height="15"
@@ -590,18 +645,6 @@
                                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                                 </StackPanel>
                             </Button>
-                            <!-- Brand card: the app's own artwork, cropped to a circle.
-                                 It is the only illustration on this page; everything
-                                 else is text, glyphs and tokens (MASTER.md). -->
-                            <Border Width="76" Height="76" CornerRadius="38"
-                                    BorderBrush="{DynamicResource CardBorderBrush}"
-                                    BorderThickness="1"
-                                    Effect="{StaticResource FloatShadow}">
-                                <Border.Background>
-                                    <ImageBrush ImageSource="pack://siteoforigin:,,,/icons/brand-mascot.png"
-                                                Stretch="UniformToFill" />
-                                </Border.Background>
-                            </Border>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -642,16 +685,19 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal"
                                                 VerticalAlignment="Center">
-                                        <Border Width="40" Height="40" CornerRadius="11" Margin="0,0,10,0"
+                                        <!-- Preview only: the artwork is recognisable on its
+                                             own and the icon name was a second label for the
+                                             same thing, so it is gone. The frame is large
+                                             enough to tell the ten poses and colours apart.
+                                             The image is BrandMark, the same element the
+                                             device page's RefreshBrandMarks keeps in sync. -->
+                                        <Border Width="48" Height="48" CornerRadius="13" Margin="0,0,14,0"
                                                 Background="{DynamicResource CardElevatedBrush}"
                                                 BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1">
-                                            <Image x:Name="IconPreview" Width="32" Height="32"
+                                            <Image x:Name="BrandMark" Width="40" Height="40"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                                    RenderOptions.BitmapScalingMode="HighQuality" />
                                         </Border>
-                                        <TextBlock x:Name="IconLabel" VerticalAlignment="Center"
-                                                   Margin="0,0,14,0" FontSize="12.5"
-                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
                                         <Button Content="切换" MinWidth="72" Click="CycleIcon_Click"
                                                 ToolTip="切换到下一个图标" />
                                     </StackPanel>
@@ -810,20 +856,33 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                <!-- The whale is the product mark here, so it is set at a
+                                     size the eye reads as one: 38 DIP inside a 14+30 row
+                                     left it looking like a bullet point. -->
                                 <Image Source="pack://siteoforigin:,,,/icons/brand-whale.png"
-                                       Width="30" Height="30" VerticalAlignment="Center"
+                                       Width="40" Height="40" VerticalAlignment="Center"
                                        RenderOptions.BitmapScalingMode="HighQuality" />
-                                <StackPanel Grid.Column="1" Margin="14,0,18,0" VerticalAlignment="Center">
+                                <StackPanel Grid.Column="1" Margin="16,0,18,0" VerticalAlignment="Center">
                                     <TextBlock x:Name="VersionText" FontSize="12.5"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource PrimaryTextBrush}" />
                                     <TextBlock Style="{StaticResource RowHint}" Margin="0,3,0,0"
                                                Text="便携版：不写注册表，运行时数据保存在程序目录的 data\ 下" />
                                 </StackPanel>
-                                <TextBlock Grid.Column="2" Style="{StaticResource EyebrowText}"
-                                           Text="PORTABLE" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource EyebrowText}"
+                                               Text="PORTABLE" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                    <!-- The failure copy for an incompatible protocol tells the
+                                         user to update from here, so this row has to exist. -->
+                                    <Button x:Name="CheckUpdateButton" Content="检查更新" MinWidth="88"
+                                            Click="CheckUpdate_Click"
+                                            ToolTip="检查是否有新的 Windows 客户端版本" />
+                                </StackPanel>
                             </Grid>
                         </Border>
+                        <TextBlock x:Name="UpdateResultText" Margin="18,8,18,0" FontSize="12"
+                                   TextWrapping="Wrap" Visibility="Collapsed"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
@@ -843,13 +902,15 @@
                     </Grid.RowDefinitions>
 
                     <!-- The whale from the shared launcher artwork set: the one brand
-                         element on this page that is never replaced by content. -->
+                         element on this page that is never replaced by content. At 26 DIP
+                         inside a 76 DIP rail it read as stray punctuation, so it is set
+                         to 44 DIP, which keeps 16 DIP of air on either side. -->
                     <Image Grid.Row="0" Source="pack://siteoforigin:,,,/icons/brand-whale.png"
-                           Width="26" Height="26" Margin="0,20,0,0"
+                           Width="44" Height="44" Margin="0,22,0,0"
                            HorizontalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality" />
 
-                    <Border Grid.Row="1" Height="1" Margin="16,16,16,0"
+                    <Border Grid.Row="1" Height="1" Margin="16,20,16,0"
                             Background="{DynamicResource DividerBrush}" />
 
                     <StackPanel Grid.Row="2" Margin="0,14,0,0">

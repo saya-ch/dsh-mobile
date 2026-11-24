@@ -11,7 +11,19 @@ This document describes the Windows client internals for maintainers and follow-
 | File | Responsibility |
 | --- | --- |
 | `App.xaml(.cs)` | Application startup, system light/dark following, and the `DSH_MOBILE_THEME=light\|dark` override |
-| `MainWindow.xaml(.cs)` | WPF shell: connect page + browser page, device list, connect/reconnect orchestration, WebView2 boundary policy |
+| `MainWindow.xaml(.cs)` | WPF shell: connect page + browser page, connect/reconnect orchestration, WebView2 boundary policy, and the native TLS pin check (`VerifyPinnedOriginAsync`) |
+| `MainWindow.Devices.cs` / `MainWindow.DevicePage.cs` | Partial classes for the device list (card rendering, reachability wiring, ordering menu, delete with a five-second undo) and the settings page |
+| `AppSettings.cs` | `data/settings.json`: icon, start behaviour, theme, task-completion notices, last connected computer; a missing or damaged file falls back to defaults instead of failing |
+| `AppIcons.cs` | The ten launcher artworks the Android app ships (four mascot poses, six whale skins), shared by the titlebar and the tray; previews use the largest frame in the file |
+| `StartupBehavior.cs` | Decides between the device list and "reconnect the last computer" on launch; a record whose credential expired or cannot be read is never auto-connected |
+| `DeviceOrder.cs` | Display order (`SortOrder`) and the move-up / move-to-top actions, mirroring Android `PairedDeviceOrderPolicy` |
+| `DeviceStatus.cs` / `DeviceReachability.cs` | Maps the eight reachability states to user-visible text and semantic colour tokens; 15-second probe rounds, 8-second timeout, paused while a session is live |
+| `ClientLog.cs` | Appends to `data/client.log`; at 2 MB the live file rotates to `client.log.1`, and a failed write never becomes an application error |
+| `PortableData.cs` | Proves `data/` accepts a new file (write then delete a probe); an unwritable folder such as Program Files produces one actionable message |
+| `ConnectionDiagnosis.cs` | Classifies connection failures (credential, protocol version, missing WebView2, CA mismatch, DNS, HTTP 426/429/5xx) and owns their user-facing text |
+| `WebView2Availability.cs` | Probes the WebView2 Evergreen Runtime before startup and reports the install link and x64 hint instead of waiting out an initialization timeout |
+| `UpdateCheck.cs` | Version comparison and `windows-v*` release selection (pure logic; the settings page's Check for updates is not wired yet, see "Known gaps") |
+| `CrashGuard.cs` / `RelativeTime.cs` | Last-resort handling for unhandled exceptions; "19 minutes ago" style timestamps on device cards |
 | `UrlPairing.cs` | Parses `https://…/mobile-access/pair#…` links (legacy `instance/token` or a `dsh1`/`dsh2` key) and classifies LAN/remote through the `RemoteHostPolicy` in the same file |
 | `PairingTrustPolicy.cs` | `/mobile-access/ca.cer` outcome decision (whether a 404 may fall back to platform trust), mirroring Android `PairingTrust.selectTrustAnchor` / `RemotePairingTrust.decide` |
 | `PairingDescriptor.cs` | Parses the iroh pairing JSON descriptor (EndpointId / Hostname / Origin / LocalPort / InstanceId / CA) |
@@ -23,7 +35,7 @@ This document describes the Windows client internals for maintainers and follow-
 | `LanDiscovery.cs` | LAN discovery: UDP announcement validation, manual address normalization, single `GET /mobile-access/discovery` probes, subnet scans |
 | `BackgroundEventWatcher.cs` | While connected, subscribes to `/mobile-access/background-events` and raises desktop balloons on task completion; `SseParser` parses SSE line by line |
 | `WebViewPolicy.cs` | Exact gateway-origin check shared by navigation/downloads/microphone, free of WebView2 types so it stays testable |
-| `DshMobile.Win.Tests/` | Pure-logic unit tests (pairing links, trust decisions, certificate chain/SAN, device store, sidecar pin) |
+| `DshMobile.Win.Tests/` | Pure-logic unit tests (pairing links, trust decisions, certificate chain/SAN, pinned-origin gate, device store and ordering, reachability states, start behaviour, log rotation, portable folder, failure diagnosis, update selection, WebView2 probe) |
 
 ## Two layers
 
@@ -82,9 +94,15 @@ Mirrors Android's `SecureWebViewClient` / `GatewayUrlPolicy` / `MainActivity` an
 
 Notices are shown at most once per category per session, so permission/download events do not spam dialogs.
 
+## Known gaps
+
+- **Check for updates is not wired**: `UpdateCheck.cs` (version comparison and `windows-v*` release selection) has unit tests but the settings page has no row for it, while the protocol-mismatch and HTTP 426 texts in `ConnectionDiagnosis` tell the user to use "Settings → Check for updates". Before release, either add the settings row or change those two texts — for `0.1.0-alpha` the latter is the smaller change.
+- **Real-hardware acceptance is incomplete**: the iroh, LAN and remote channels and the five WebView2 policies have not been walked through on the maintainer's Windows machine; this document describes the design and the checks that are in the repository.
+
 ## Persistence and portability
 
-- `Root = AppContext.BaseDirectory`; `data/` holds `devices.json`, `client.log`, and the WebView2 user-data folder.
+- `Root = AppContext.BaseDirectory`; `data/` holds `devices.json`, `settings.json`, `client.log` (rotated to `client.log.1` at 2 MB) and the WebView2 user-data folder `data/webview2/`.
+- `settings.json` carries the icon, start behaviour, theme, task-completion notice switch and the last connected computer. It is shell preference, not trust data: a damaged or missing file simply falls back to the defaults.
 - iroh identity is forced by the sidecar into `%USERPROFILE%\.dsh-mobile-win\iroh` (its private-directory ACL check rejects drive roots).
 - The sidecar cache lives under `data/components/iroh/<version>/`; a corrupt or mismatched cache is deleted and re-fetched, and an unverified binary is never launched.
 - `deviceToken` is encrypted with DPAPI(CurrentUser) and does not work across users or machines; one-time `irohCode` / `gatewayToken` values are never persisted.
@@ -93,6 +111,6 @@ Notices are shown at most once per category per session, so permission/download 
 
 - Prerequisites: .NET 8 SDK (x64) + WebView2 Evergreen; building and running are only supported on Windows x64 (see "Status and support" in the README).
 - Commands: `dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`.
-- CI: `.github/workflows/windows-client.yml` runs the same restore/build/test steps on `windows-latest` (it restores the test project, then builds the main project with `--no-restore` and runs the tests); it does not produce a release package and does not exercise WebView2 or real hardware.
-- Unit tests: `DshMobile.Win.Tests/` covers `UrlPairing`, `PairingDescriptor`, `PairingTrustPolicy` (including the dsh2 hard failure and dsh1 fallback on 404), `CertificatePolicy` (`ValidateFetchedCa`, DNS/wildcard/IP SAN), `DeviceStore.Validate` (including `AdoptNewOrigin`), `SidecarProvisioner.Verify`, `LanDiscovery` (announcement validation, manual normalization, subnet derivation, UDP listen), `SseParser`, and `WebViewPolicy` (same-origin decisions). Case counts and results come from an actual `dotnet test` run; this document does not record one-off local results.
+- CI: `.github/workflows/windows-client.yml` runs the same restore/build/test steps on `windows-latest` (it restores the test project, then builds the main project with `--no-restore` and runs the tests); it does not produce a release package and does not exercise WebView2 or real hardware. Only `.github/workflows/windows-release.yml` produces packages, when a `windows-v<version>` tag is pushed (self-contained win-x64 folder → zip + SHA-256 → prerelease).
+- Unit tests: `DshMobile.Win.Tests/` covers `UrlPairing`, `PairingDescriptor`, `PairingTrustPolicy` (including the dsh2 hard failure and dsh1 fallback on 404), `CertificatePolicy` (`ValidateFetchedCa`, DNS/wildcard/IP SAN, the pinned-origin gate), `DeviceStore.Validate` (including `AdoptNewOrigin` and ordering), `DeviceOrder`, `DeviceStatus`/`DeviceReachability`, `StartupBehavior`, `ClientLog` rotation, `PortableData`, `ConnectionDiagnosis`, `UpdateCheck`, `WebView2Availability`, `SidecarProvisioner.Verify`, `LanDiscovery` (announcement validation, manual normalization, subnet derivation, UDP listen), `SseParser`, and `WebViewPolicy` (same-origin decisions). Case counts and results come from an actual `dotnet test` run; this document does not record one-off local results.
 - Acceptance: iroh, LAN, remote channels and the five WebView2 policies have not completed maintainer acceptance on real hardware yet; they need a Windows machine and the acceptance checklist.

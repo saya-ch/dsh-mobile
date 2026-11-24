@@ -142,7 +142,14 @@ internal sealed class SavedDevice
             return Encoding.UTF8.GetString(ProtectedData.Unprotect(
                 Convert.FromBase64String(ProtectedDeviceToken), Entropy, DataProtectionScope.CurrentUser));
         }
-        catch (CryptographicException) { return null; } // different user or machine
+        // An unusable record must read as "no credential", because every caller turns
+        // null into "paste the current link again". Catching only CryptographicException
+        // let a hand-edited or truncated token escape as a FormatException from
+        // Convert.FromBase64String and surface as an unhandled-exception dialog.
+        catch (Exception error) when (error is CryptographicException or FormatException or ArgumentException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Re-verify every persisted trust field before the record may be used.</summary>

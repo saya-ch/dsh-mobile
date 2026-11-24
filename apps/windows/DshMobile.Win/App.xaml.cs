@@ -159,12 +159,12 @@ public partial class App : Application
             ("AppBackgroundBrush",   Color.FromRgb(0x0A, 0x10, 0x1E)),
             ("CardBrush",            Color.FromRgb(0x15, 0x1E, 0x2E)),
             ("CardElevatedBrush",    Color.FromRgb(0x1A, 0x24, 0x36)),
-            ("CardBorderBrush",      Color.FromRgb(0x26, 0x32, 0x48)),
+            ("CardBorderBrush",      Color.FromRgb(0x33, 0x42, 0x5C)),
             ("RailBrush",            Color.FromRgb(0x08, 0x0D, 0x18)),
             ("RailBorderBrush",      Color.FromRgb(0x1B, 0x24, 0x35)),
             ("SurfaceAltBrush",      Color.FromRgb(0x10, 0x18, 0x28)),
-            ("OutlineBrush",         Color.FromRgb(0x2A, 0x35, 0x49)),
-            ("DividerBrush",         Color.FromRgb(0x1E, 0x28, 0x39)),
+            ("OutlineBrush",         Color.FromRgb(0x3A, 0x49, 0x64)),
+            ("DividerBrush",         Color.FromRgb(0x33, 0x42, 0x5C)),
             ("PrimaryTextBrush",     Color.FromRgb(0xF2, 0xF5, 0xF9)),
             ("SecondaryTextBrush",   Color.FromRgb(0xA9, 0xB6, 0xCB)),
             ("MutedTextBrush",       Color.FromRgb(0x8A, 0x97, 0xAC)),
@@ -177,6 +177,9 @@ public partial class App : Application
             ("HoverBrush",           Color.FromRgb(0x1B, 0x27, 0x39)),
             ("PressedBrush",         Color.FromRgb(0x22, 0x30, 0x4A)),
             ("SwitchKnobBrush",      Color.FromRgb(0xE6, 0xEC, 0xF5)),
+            ("DisabledFillBrush",    Color.FromRgb(0x22, 0x30, 0x4A)),
+            ("DisabledBorderBrush",  Color.FromRgb(0x4A, 0x5C, 0x7A)),
+            ("DisabledTextBrush",    Color.FromRgb(0x8A, 0x97, 0xAC)),
             ("ErrorBrush",           Color.FromRgb(0xFC, 0xA5, 0xA5)),
             ("SuccessBrush",         Color.FromRgb(0x4A, 0xDE, 0x80)),
             ("WarningBrush",         Color.FromRgb(0xFB, 0xBF, 0x24)),
@@ -194,11 +197,6 @@ public partial class App : Application
             Color = Color.FromRgb(0x00, 0x00, 0x00), BlurRadius = 22, ShadowDepth = 2,
             Direction = 270, Opacity = 0.34, RenderingBias = RenderingBias.Quality,
         };
-        Resources["FloatShadow"] = new DropShadowEffect
-        {
-            Color = Color.FromRgb(0x00, 0x00, 0x00), BlurRadius = 30, ShadowDepth = 6,
-            Direction = 270, Opacity = 0.45, RenderingBias = RenderingBias.Quality,
-        };
     }
 
     /// <summary>Restore the light brushes declared in App.xaml.</summary>
@@ -209,12 +207,12 @@ public partial class App : Application
             ("AppBackgroundBrush",   Color.FromRgb(0xF7, 0xF8, 0xFA)),
             ("CardBrush",            Color.FromRgb(0xFF, 0xFF, 0xFF)),
             ("CardElevatedBrush",    Color.FromRgb(0xFF, 0xFF, 0xFF)),
-            ("CardBorderBrush",      Color.FromRgb(0xE6, 0xE9, 0xF0)),
+            ("CardBorderBrush",      Color.FromRgb(0xC6, 0xCC, 0xD6)),
             ("RailBrush",            Color.FromRgb(0xFD, 0xFD, 0xFF)),
             ("RailBorderBrush",      Color.FromRgb(0xE8, 0xEB, 0xF2)),
             ("SurfaceAltBrush",      Color.FromRgb(0xED, 0xF1, 0xF7)),
-            ("OutlineBrush",         Color.FromRgb(0xE4, 0xE7, 0xEC)),
-            ("DividerBrush",         Color.FromRgb(0xEF, 0xF1, 0xF5)),
+            ("OutlineBrush",         Color.FromRgb(0xC6, 0xCC, 0xD6)),
+            ("DividerBrush",         Color.FromRgb(0xC6, 0xCC, 0xD6)),
             ("PrimaryTextBrush",     Color.FromRgb(0x11, 0x18, 0x27)),
             ("SecondaryTextBrush",   Color.FromRgb(0x66, 0x70, 0x85)),
             ("MutedTextBrush",       Color.FromRgb(0x5F, 0x6A, 0x7A)),
@@ -227,11 +225,14 @@ public partial class App : Application
             ("HoverBrush",           Color.FromRgb(0xF1, 0xF4, 0xF9)),
             ("PressedBrush",         Color.FromRgb(0xE6, 0xEB, 0xF2)),
             ("SwitchKnobBrush",      Color.FromRgb(0xFF, 0xFF, 0xFF)),
+            ("DisabledFillBrush",    Color.FromRgb(0xE6, 0xEB, 0xF2)),
+            ("DisabledBorderBrush",  Color.FromRgb(0xA7, 0xB3, 0xC4)),
+            ("DisabledTextBrush",    Color.FromRgb(0x6B, 0x77, 0x89)),
             ("ErrorBrush",           Color.FromRgb(0xB9, 0x1C, 0x1C)),
             ("SuccessBrush",         Color.FromRgb(0x15, 0x80, 0x3D)),
             ("WarningBrush",         Color.FromRgb(0xB4, 0x53, 0x09)),
-            ("ScrollThumbBrush",     Color.FromRgb(0xD8, 0xDE, 0xE7)),
-            ("ScrollThumbHoverBrush", Color.FromRgb(0xB4, 0xBF, 0xCD)),
+            ("ScrollThumbBrush",     Color.FromRgb(0xB8, 0xC2, 0xD1)),
+            ("ScrollThumbHoverBrush", Color.FromRgb(0x9A, 0xA5, 0xB8)),
         ];
 
         foreach (var (key, color) in light)
@@ -241,11 +242,6 @@ public partial class App : Application
         {
             Color = Color.FromRgb(0x0B, 0x12, 0x20), BlurRadius = 18, ShadowDepth = 2,
             Direction = 270, Opacity = 0.06, RenderingBias = RenderingBias.Quality,
-        };
-        Resources["FloatShadow"] = new DropShadowEffect
-        {
-            Color = Color.FromRgb(0x0B, 0x12, 0x20), BlurRadius = 26, ShadowDepth = 5,
-            Direction = 270, Opacity = 0.10, RenderingBias = RenderingBias.Quality,
         };
     }
 }
