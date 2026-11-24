@@ -4,6 +4,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Unreleased
 
+- Give the docked right panel a real grid column and a draggable width, so its divider lines up with the conversation and a wide window can trade space either way. The boolean data-open/data-rightbar-docked attributes are now written as strings: React omits a data-* attribute whose value is the boolean true, which had silently disabled every rule keyed on those markers.
 - Return the wide layout's conversation column to the full main area and make the docked sidebar draggable. Version 0.8.10 capped the column at 720px and centred it, which on a 1904px window left about 560px of empty space on each side and made the page feel fixed; the sidebar was also stuck at 340px or 56px. The column now always takes its share, and the wide-band sidebar can be dragged between 220px and 520px, remembered across sessions.
 - Use the host focus-ring token chain (`--dsw-focus-ring-color` with the previous token as fallback) for the sidebar footer trigger, matching the community UI conventions §40. Document the footer conventions and the migration skill in the plugin adaptation guide.
 

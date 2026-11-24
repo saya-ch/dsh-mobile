@@ -172,7 +172,7 @@
     "clean": "node ./scripts/clean.mjs",
     "generate:funnel-licenses": "node ./scripts/funnel-third-party-licenses.mjs --write",
     "lint": "tsc --noEmit",
-    "test": "vitest run --pool=threads --maxWorkers=1",
+    "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run check:version && npm run check:docs && npm run check:funnel-licenses && npm run build",

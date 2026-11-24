@@ -76,6 +76,8 @@ interface LayoutSnapshot {
   readonly sidebarOpen: boolean
   /** Width of the docked sidebar in the wide band, from the user's drag. */
   readonly sidebarWidth: number
+  /** Width of the docked right panel, from the user's drag; undefined keeps the default share. */
+  readonly rightbarWidth: number | undefined
   readonly detailsOpen: boolean
   readonly rightbarTrack: boolean
   readonly rightbarFullscreen: boolean
@@ -155,6 +157,34 @@ export function resolveSidebarWidth(requested: number | null | undefined): numbe
   return Math.min(SIDEBAR_MAX_WIDTH_PX, Math.max(SIDEBAR_MIN_WIDTH_PX, Math.round(requested)))
 }
 
+/**
+ * Bounds for the docked right panel's draggable width.
+ *
+ * The docked panel was a fixed share of the viewport, so a wide window could not
+ * give the conversation more room by narrowing it (#465). The floor keeps a file
+ * preview readable and the ceiling keeps the conversation usable.
+ */
+export const RIGHTBAR_MIN_DRAG_WIDTH_PX = 300
+export const RIGHTBAR_MAX_DRAG_WIDTH_PX = 760
+/** localStorage key holding the user's dragged right-panel width, in CSS pixels. */
+export const RIGHTBAR_WIDTH_STORAGE_KEY = 'dsh-mobile.rightbarWidth'
+
+/** Clamp a requested right-panel width into the supported range, ignoring garbage. */
+export function resolveRightbarWidth(requested: number | null | undefined): number | undefined {
+  if (typeof requested !== 'number' || !Number.isFinite(requested)) return undefined
+  return Math.min(RIGHTBAR_MAX_DRAG_WIDTH_PX, Math.max(RIGHTBAR_MIN_DRAG_WIDTH_PX, Math.round(requested)))
+}
+
+/** Read the width the user last dragged the docked right panel to. */
+export function readStoredRightbarWidth(): number | undefined {
+  try {
+    const raw = window.localStorage.getItem(RIGHTBAR_WIDTH_STORAGE_KEY)
+    return resolveRightbarWidth(raw === null ? undefined : Number(raw))
+  } catch {
+    return undefined
+  }
+}
+
 /** Read the width the user last dragged the wide sidebar to. */
 export function readStoredSidebarWidth(): number {
   try {
@@ -212,6 +242,7 @@ export function resolveMobileRightbarLayout(
   track: boolean,
   fullscreen: boolean,
   sidebarWidth: number = SIDEBAR_EXPANDED_WIDTH_PX,
+  rightbarWidth?: number,
 ): MobileRightbarLayout {
   const overlayWidth = wideViewport
     ? Math.min(viewportWidth * 0.94, RIGHTBAR_MAX_WIDTH_PX)
@@ -222,9 +253,15 @@ export function resolveMobileRightbarLayout(
   const dockedSidebarWidth = wideViewport && sidebarOpen
     ? resolveSidebarWidth(sidebarWidth)
     : SIDEBAR_COLLAPSED_WIDTH_PX
+  // The docked panel now occupies a real grid column, so docking costs the
+  // conversation exactly its width. Refuse to dock when the column left over
+  // would be narrower than the readable minimum, and let the overlay carry it.
   const available = Math.floor(viewportWidth - dockedSidebarWidth - RIGHTBAR_CENTER_MIN_WIDTH_PX)
   if (available < RIGHTBAR_MIN_WIDTH_PX) return Object.freeze({ docked: false, width: overlayWidth })
-  const preferred = Math.min(
+  // A dragged width wins over the viewport share, but never past the room left
+  // beside the conversation.
+  const dragged = resolveRightbarWidth(rightbarWidth)
+  const preferred = dragged ?? Math.min(
     RIGHTBAR_MAX_WIDTH_PX,
     Math.max(RIGHTBAR_MIN_WIDTH_PX, Math.round(viewportWidth * RIGHTBAR_DEFAULT_RATIO)),
   )
@@ -476,6 +513,7 @@ class MobileLayoutController {
   private snapshot: LayoutSnapshot = Object.freeze({
     sidebarOpen: viewportIsWide(),
     sidebarWidth: readStoredSidebarWidth(),
+    rightbarWidth: readStoredRightbarWidth(),
     detailsOpen: false,
     rightbarTrack: false,
     rightbarFullscreen: false,
@@ -510,6 +548,21 @@ class MobileLayoutController {
 
   toggleSidebar(): void {
     this.update({ sidebarOpen: !this.snapshot.sidebarOpen })
+  }
+
+  /**
+   * Record a right-panel width dragged by the user and keep it across sessions.
+   * Only the docked panel can drag; the phone overlay keeps the viewport width.
+   */
+  resizeRightbar(width: number): void {
+    const next = resolveRightbarWidth(width)
+    if (next === undefined || next === this.snapshot.rightbarWidth) return
+    this.update({ rightbarWidth: next })
+    try {
+      window.localStorage.setItem(RIGHTBAR_WIDTH_STORAGE_KEY, String(next))
+    } catch {
+      // Storage can be denied (private mode); the in-memory width still applies.
+    }
   }
 
   /**
@@ -611,6 +664,7 @@ class MobileLayoutController {
     if (
       snapshot.sidebarOpen === this.snapshot.sidebarOpen
       && snapshot.sidebarWidth === this.snapshot.sidebarWidth
+      && snapshot.rightbarWidth === this.snapshot.rightbarWidth
       && snapshot.detailsOpen === this.snapshot.detailsOpen
       && snapshot.rightbarTrack === this.snapshot.rightbarTrack
       && snapshot.rightbarFullscreen === this.snapshot.rightbarFullscreen
@@ -663,14 +717,23 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 @layer dsh-mobile-layout{
 .dshm-shell{display:grid!important;grid-template-rows:minmax(0,1fr)!important;grid-template-columns:minmax(0,1fr)!important}
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"]{grid-template-columns:auto minmax(0,1fr)!important}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"][data-rightbar-docked=true]{grid-template-columns:auto minmax(0,1fr) var(--dshm-rightbar-width)!important}
 }
 .dshm-main{grid-area:1/1;position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;margin-right:0;overflow:hidden;transition:margin-right var(--ds-transition-duration-slow,190ms) var(--ds-ease-in-out,ease)}
 .dshm-mainContent{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}
-.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:var(--dshm-rightbar-width)}
-.dshm-shell[data-rightbar-docked=true] .dshm-details{position:absolute;width:var(--dshm-rightbar-width);box-shadow:none;padding-top:0}
+.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:0}
+.dshm-shell[data-rightbar-docked=true] .dshm-details{position:relative;grid-area:1/3;inset:auto;transform:none;width:var(--dshm-rightbar-width);max-width:var(--dshm-rightbar-width);box-shadow:none;padding-top:0}
 /* Draw above the native absolute panel without consuming its width or
    intercepting controls; only docked mode needs this column separator. */
 .dshm-shell[data-rightbar-docked=true] .dshm-details::after{content:"";position:absolute;inset:0 auto 0 0;width:.5px;background:var(--dsw-alias-border-l4);z-index:11;pointer-events:none}
+/* A docked panel can be dragged wider or narrower instead of holding one share
+   of the viewport (#465). The handle sits on the divider it already draws. */
+.dshm-rightbarResize{display:none}
+.dshm-shell[data-rightbar-docked=true] .dshm-details[data-open=true]>.dshm-rightbarResize{display:block;position:absolute;top:0;left:0;z-index:12;box-sizing:border-box;width:9px!important;height:100%!important;padding:0;border:0;background:transparent;cursor:col-resize;touch-action:none}
+.dshm-rightbarResize::after{position:absolute;inset:0 4px;content:"";border-radius:999px;background:transparent;transition:background-color 120ms ease}
+.dshm-rightbarResize:hover::after,.dshm-rightbarResize:focus-visible::after,.dshm-rightbarResize[data-resizing=true]::after{background:var(--dsw-alias-label-primary-bluish,#2563eb);opacity:.55}
+.dshm-rightbarResize:focus-visible{outline:none}
+.dshm-shell[data-rightbar-docked=true] .dshm-details[data-resizing=true]{transition:none}
 /* The native panel paints itself at 100vw in fullscreen mode. Inside the
    docked overlay (94vw/460px, overflow:hidden) that layout was clipped to the
    right edge of the track, so the header slid out of view and the body showed
@@ -756,6 +819,7 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
 /* Wide band: the shell carries the decision, so these rules follow the same
    device+viewport test as the JS. An absent attribute is the narrow default. */
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"]{grid-template-columns:auto minmax(0,1fr)}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"][data-rightbar-docked=true]{grid-template-columns:auto minmax(0,1fr) var(--dshm-rightbar-width)}
 /* The wide drawer is a static grid column, not an overlay: it occupies its own
    track and never overlaps the conversation. Keeping a z-index here made it
    outrank the conversation column, so a dialog a plugin mounts inside the
@@ -865,6 +929,7 @@ function MobileAppFrame(props: MobileRootProps & {
     state.rightbarTrack,
     state.rightbarFullscreen,
     state.sidebarWidth,
+    state.rightbarWidth,
   )
   const rightbarDocked = state.detailsOpen && rightbar.docked
   // DSH reports a fullscreen panel through the layout service; the overlay has
@@ -1104,8 +1169,11 @@ function MobileAppFrame(props: MobileRootProps & {
     // depends on `screen`, which CSS cannot read. It is part of the first render,
     // so a tablet never paints the drawer band and then reflows.
     [WIDE_LAYOUT_ATTRIBUTE]: wideViewport ? '1' : '0',
-    'data-rightbar-docked': rightbarDocked,
-    'data-rightbar-fullscreen': rightbarFullscreen,
+    // React omits a data attribute whose value is the boolean `true`, so these
+    // must be strings: the stylesheet matches `[data-rightbar-docked=true]`, and
+    // a boolean here silently dropped the docked width and its divider.
+    'data-rightbar-docked': rightbarDocked ? 'true' : 'false',
+    'data-rightbar-fullscreen': rightbarFullscreen ? 'true' : 'false',
     style: { '--dshm-rightbar-width': `${rightbar.width}px` },
   },
     createElement('main', {
@@ -1142,7 +1210,7 @@ function MobileAppFrame(props: MobileRootProps & {
       className: 'dshm-scrim',
       // A persistent wide sidebar needs no dimming; the scrim only covers
       // the narrow overlay drawer and the details panel.
-      'data-open': scrimOpen,
+      'data-open': scrimOpen ? 'true' : 'false',
       'aria-hidden': !scrimOpen,
       onClick: () => {
         if (!scrimOpen) return
@@ -1155,7 +1223,7 @@ function MobileAppFrame(props: MobileRootProps & {
       'aria-label': messages.workspaceNavigation,
       className: 'dshm-drawer',
       'data-pane': 'sidebar',
-      'data-open': state.sidebarOpen,
+      'data-open': state.sidebarOpen ? 'true' : 'false',
       // The phone adapter promotes the whale toggle to a fixed high layer.
       // Remove that entire navigation surface while the right modal owns focus.
       'data-right-modal': state.detailsOpen && !rightbarDocked,
@@ -1203,12 +1271,45 @@ function MobileAppFrame(props: MobileRootProps & {
     createElement('aside', {
       'aria-hidden': !state.detailsOpen,
       className: 'dshm-details',
-      'data-open': state.detailsOpen,
+      'data-open': state.detailsOpen ? 'true' : 'false',
       ...(state.detailsOpen ? {} : { inert: '' }),
     }, [
       // DSH 0.1.3 and earlier bind details to a Session. Newer DSH owns the
       // Session decision inside its root-scoped rightbar occupant, so that
       // occupant must stay mounted even while no Session is selected.
+      // The docked panel's width follows the user's drag, so the conversation and
+      // the divider move together instead of the panel covering the column.
+      createElement('button', {
+        type: 'button',
+        className: 'dshm-rightbarResize',
+        'aria-label': messages.resizeRightbar,
+        title: messages.resizeRightbar,
+        tabIndex: -1,
+        onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+          if (!rightbarDocked) return
+          event.preventDefault()
+          const startX = event.clientX
+          const startWidth = rightbar.width
+          const target = event.currentTarget
+          target.dataset.resizing = 'true'
+          const panel = target.parentElement
+          panel?.setAttribute('data-resizing', 'true')
+          const move = (moveEvent: PointerEvent): void => {
+            // Dragging the left edge leftwards makes the panel wider.
+            props.controller.resizeRightbar(startWidth + startX - moveEvent.clientX)
+          }
+          const finish = (): void => {
+            delete target.dataset.resizing
+            panel?.removeAttribute('data-resizing')
+            window.removeEventListener('pointermove', move)
+            window.removeEventListener('pointerup', finish)
+            window.removeEventListener('pointercancel', finish)
+          }
+          window.addEventListener('pointermove', move)
+          window.addEventListener('pointerup', finish)
+          window.addEventListener('pointercancel', finish)
+        },
+      }),
       hasSession ? props.renderSlot('details', {}) : undefined,
       props.renderSlot('rightbar', {
         width: rightbar.width,

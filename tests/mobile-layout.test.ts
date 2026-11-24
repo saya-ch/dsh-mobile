@@ -620,6 +620,7 @@ describe('dedicated mobile layout boot', () => {
       backToConversation: 'Torna alla conversazione',
       composerRestore: 'Mostra il campo di scrittura',
       resizeSidebar: 'Ridimensiona la barra laterale',
+      resizeRightbar: 'Ridimensiona il pannello laterale',
     })
     expect(MOBILE_LAYOUT_MESSAGES.en.closePanels).toBe('Close panels')
     expect(MOBILE_LAYOUT_MESSAGES.en.backToConversation).toBe('Back to conversation')
@@ -835,7 +836,9 @@ describe('dedicated mobile layout boot', () => {
 
   it('reserves only the resolved native rightbar track', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('margin-right:0;')
-    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:var(--dshm-rightbar-width)}')
+    // The docked panel owns a grid column, so the conversation really gives the room
+    // up; a margin on a grid item cannot shrink it inside its track.
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:0}')
     expect(MOBILE_LAYOUT_STYLES).not.toContain('--dsh-sidebar-width')
     expect(MOBILE_LAYOUT_STYLES).not.toContain('data-dsh-sidebar-dragging')
   })
@@ -860,7 +863,7 @@ describe('dedicated mobile layout boot', () => {
   it('uses the full phone viewport for the right panel without changing wide docking', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details{width:100%;max-width:100%;box-shadow:none}`)
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details [data-sidebar-right-toggle],.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]) .dshm-details [data-sidebar-right-mode]{min-width:48px;min-height:48px}`)
-    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-details{position:absolute;width:var(--dshm-rightbar-width)')
+    expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-details{position:relative;grid-area:1/3')
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain('const scrimOpen = !rightbarFullWidth && isMobileScrimOpen(')
     expect(source).toContain("rightbarFullWidth ? { inert: '', 'aria-hidden': true } : {}")

@@ -414,6 +414,7 @@ try {
   } else {
     await checkPanelTouch(styles)
     await checkBandSource(styles)
+  await checkDockedPanelAlignment(styles)
     await checkPluginPanelPage(styles)
     for (const view of views) for (const open of [false, true]) for (const [theme, tokens] of Object.entries(themes)) for (const order of ['before', 'after']) {
       await withContext({ viewport: view, ...(view.screen === undefined ? {} : { screen: view.screen }), hasTouch: true }, async context => {
@@ -520,4 +521,40 @@ try {
   try { await browser?.close() } catch (error) { recordSmokeFailure(failures, error) }
 }
 completeSmoke(failures, negative ? marker : undefined, observedNegative)
+// A docked right panel must own a real grid column, so the conversation ends
+// exactly where the panel begins. When it was an absolute overlay the divider
+// sat inside the conversation column and never lined up (#465).
+async function checkDockedPanelAlignment(styles) {
+  for (const width of [1904, 1363]) {
+    await withContext({ viewport: { width, height: 900 }, hasTouch: true }, async context => {
+      const page = await context.newPage()
+      await page.setContent(`<!doctype html><html><head></head><body style="margin:0">
+<div class="dshm-shell" data-dshm-wide="1" data-rightbar-docked="true" data-rightbar-fullscreen="false"
+     style="--dshm-rightbar-width:460px;--dshm-sidebar-width:340px">
+  <main class="dshm-main" data-dsh-panel="0"><div class="dshm-mainContent">M</div></main>
+  <aside class="dshm-drawer" data-open="true"><div>S</div></aside>
+  <aside class="dshm-details" data-open="true"><button class="dshm-rightbarResize" type="button" aria-label="Resize panel"></button><div>D</div></aside>
+</div></body></html>`)
+      await page.addStyleTag({ content: styles.stylesheet })
+      const measured = await page.evaluate(() => {
+        const box = s => { const n = document.querySelector(s); if (n === null) return null; const b = n.getBoundingClientRect(); return { x: b.x, right: b.right, width: b.width } }
+        const handle = document.querySelector('.dshm-rightbarResize')
+        return {
+          main: box('.dshm-main'), details: box('.dshm-details'), drawer: box('.dshm-drawer'),
+          handle: handle === null ? null : { display: getComputedStyle(handle).display, width: handle.getBoundingClientRect().width },
+        }
+      })
+      cases++
+      const at = `docked ${width}px`
+      assert(Math.abs(measured.main.right - measured.details.x) < 1,
+        `${at}: the conversation ends at ${measured.main.right} but the panel starts at ${measured.details.x}`)
+      assert(Math.abs(measured.details.width - 460) < 1, `${at}: docked panel width ${measured.details.width}`)
+      assert(Math.abs(measured.details.right - width) < 1, `${at}: docked panel does not reach the viewport edge (${measured.details.right})`)
+      assert(measured.main.width >= 400, `${at}: the docked panel left only ${measured.main.width}px for the conversation`)
+      assert(measured.handle !== null && measured.handle.display !== 'none', `${at}: the docked panel lost its resize handle`)
+      assert(Math.abs(measured.handle.width - 9) < 0.6, `${at}: resize handle width ${measured.handle.width}`)
+    })
+  }
+}
+
 console.log(`Built mobile shell geometry passed ${cases} owned browser-fixture cases: populated virtual trace height/scroll/clicks, light/dark, viewport/sidebar states, the wide band following its shell marker on the 900px boundary instead of a viewport metric, the full-width conversation column in every wide case, stylesheet order, body-portal layering over the open drawer (with its negative control) and stock-desktop isolation. This is not full DSH/skin or physical-device acceptance.`)
