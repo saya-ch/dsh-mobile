@@ -879,7 +879,7 @@ describe('dedicated mobile layout boot', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-details{position:relative;grid-area:1/3')
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain('const scrimOpen = !rightbarFullWidth && isMobileScrimOpen(')
-    expect(source).toContain("rightbarFullWidth ? { inert: '', 'aria-hidden': true } : {}")
+    expect(source).toContain("rightbarFullWidth ? { inert: true, 'aria-hidden': true } : {}")
   })
 
   it('draws a theme-aware docked separator without changing geometry or hit targets', () => {
@@ -897,13 +897,18 @@ describe('dedicated mobile layout boot', () => {
     expect(source).toContain('const rightbarFullWidth = state.detailsOpen && !rightbarDocked && (!wideViewport || rightbarFullscreen)')
   })
 
-  it('writes every layout marker attribute as an explicit string', () => {
+  it('writes the right-panel markers as explicit strings', () => {
     // React stringifies a boolean on a `data-*` attribute, so a bare boolean is not
     // broken — but the rendered value then depends on React's coercion rules rather
     // than on this module, and the selectors read `=true` / `=false` either way. The
     // markers are written explicitly so the value the CSS matches is the value the
     // layout resolver decided on. A substring check cannot guard this (both forms
     // contain the property name), so the source is parsed.
+    //
+    // Scope: only the three right-panel markers are covered. `data-right-modal` and
+    // `data-shell-overlay` stay booleans on purpose and are asserted elsewhere; this
+    // case is about keeping the docked/fullscreen decision and its marker in step,
+    // not about a general attribute convention.
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     const markers = ['data-open', 'data-rightbar-docked', 'data-rightbar-fullscreen']
     const assignments = [...source.matchAll(/['"](data-open|data-rightbar-docked|data-rightbar-fullscreen)['"]\s*:\s*([^,\n]+)/gu)]
@@ -918,7 +923,7 @@ describe('dedicated mobile layout boot', () => {
   it('suppresses the fixed whale toggle only while the right modal is open', () => {
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain("'data-right-modal': state.detailsOpen && !rightbarDocked")
-    expect(source).toContain("state.detailsOpen && !rightbarDocked ? { inert: '', 'aria-hidden': true } : {}")
+    expect(source).toContain("state.detailsOpen && !rightbarDocked ? { inert: true, 'aria-hidden': true } : {}")
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer[data-right-modal=true]{display:none!important}')
   })
 

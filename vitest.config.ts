@@ -9,12 +9,18 @@ export default defineConfig({
     hookTimeout: 10_000,
     // These suites are dominated by real sockets, TLS handshakes and child
     // processes rather than CPU, so running files concurrently is close to free:
-    // the whole suite drops from ~297s serial to ~82s on four workers. Four is
-    // deliberate rather than "as many as possible": some suites still call
-    // `spawnSync`, which blocks its worker's event loop and starves timers in the
-    // files sharing it, and that showed up as a random flake above four workers
-    // (three consecutive four-worker runs were clean). Raise this only after
-    // those blocking calls become async. `--maxWorkers` on the command line wins.
+    // the whole suite drops from ~296s serial to ~82s on four workers.
+    //
+    // Isolation stays on (Vitest's default), so every test file gets its own fresh
+    // worker: a `spawnSync` can only stall the file that calls it, never another
+    // file's timers. Four is still deliberate rather than "as many as possible",
+    // because above four the child processes those suites spawn start missing
+    // their own fixed budgets — under eight-way load `spawnSync ... ETIMEDOUT`
+    // fired in tests/dsh-compatibility-contract.test.ts, which allows 5s per call,
+    // and two of five runs failed there. Raise this only after those blocking
+    // calls become async or get load-tolerant budgets. Note that Vitest enforces
+    // testTimeout with a timer inside the worker, so a synchronous block cannot
+    // even be interrupted by it. `--maxWorkers` on the command line wins.
     pool: 'threads',
     maxWorkers: 4,
     coverage: {

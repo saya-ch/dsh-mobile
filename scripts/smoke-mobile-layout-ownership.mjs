@@ -551,6 +551,7 @@ async function checkDockedPanelAlignment(styles) {
         const handle = document.querySelector('.dshm-rightbarResize')
         return {
           main: box('.dshm-main'), details: box('.dshm-details'), drawer: box('.dshm-drawer'),
+          content: box('.dshm-mainContent'),
           handle: handle === null ? null : { display: getComputedStyle(handle).display, width: handle.getBoundingClientRect().width },
         }
       })
@@ -563,6 +564,14 @@ async function checkDockedPanelAlignment(styles) {
       assert(measured.main.width >= 400, `${at}: the docked panel left only ${measured.main.width}px for the conversation`)
       assert(measured.handle !== null && measured.handle.display !== 'none', `${at}: the docked panel lost its resize handle`)
       assert(Math.abs(measured.handle.width - 9) < 0.6, `${at}: resize handle width ${measured.handle.width}`)
+      // Docking must cost the conversation exactly the panel's width and nothing
+      // else: a max-width or width cap on the content column leaves every seam
+      // above intact while the reading column shrinks, which is what #465 looked
+      // like before the panel owned its own column.
+      assert(Math.abs(measured.content.width - measured.main.width) < 0.6,
+        `${at}: the conversation column is capped inside the docked main area (${measured.content.width} of ${measured.main.width}px)`)
+      assert(Math.abs(measured.content.x - measured.main.x) < 0.6,
+        `${at}: the conversation column is offset inside the docked main area`)
     })
   }
 }
