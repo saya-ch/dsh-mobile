@@ -10,8 +10,8 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 
 ## Status and support
 
-- **No installer yet**: this client is still in development. There is no official download and it is not part of the npm package; to try it, build it yourself with the commands below.
-- **It may not connect**: the iroh / LAN / remote acceptance matrix has not been completed on a real Windows machine. This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository. Failures are expected at this stage; attach `data\client.log` when reporting one.
+- **Alpha preview**: the current version is `0.1.0-alpha`, downloaded from the `windows-v*` tag in [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases) as `dsh-mobile-windows-v<version>-win-x64.zip`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces.
+- **Not device-accepted yet**: the iroh / LAN / remote channels and the five WebView2 policies have not been walked through on the maintainer's Windows machine. This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository. Failures are expected at this stage; attach `data\client.log` when reporting one.
 - **Where it runs**: a Windows 10 1809+ / Windows 11 **x64** PC. Windows ARM64 is unsupported, and this client cannot be built on Linux/macOS.
 - **Prerequisites**: .NET 8 SDK (x64) and the WebView2 Evergreen Runtime (included in Windows 11; install it on Windows 10 — see https://developer.microsoft.com/microsoft-edge/webview2 ). The first iroh connection downloads and verifies the official sidecar (about 14.8 MB / 14,865,920 bytes).
 
@@ -50,6 +50,14 @@ apps/windows/
 └── DshMobile.Win.Tests/      # pure-logic unit tests (xunit)
     └── DshMobile.Win.Tests.csproj
 ```
+
+## Use
+
+1. Download and unzip `dsh-mobile-windows-v<version>-win-x64.zip` into any writable folder;
+2. Run `DshMobile.Win.exe`;
+3. Pair this Windows PC from the computer's DSH mobile-access panel by pasting the pairing content or link.
+
+The package is **self-contained**: no .NET install, no registry writes, no administrator rights. Runtime data (`devices.json`, `client.log`, the WebView2 user folder, the iroh component cache) lives in `data\` beside the executable, so the folder is portable; the device token in `devices.json` is sealed with DPAPI for the current Windows account, so moving to another machine or user means pairing again.
 
 ## Build and publish
 

@@ -1,0 +1,84 @@
+name: Windows client release
+
+on:
+  push:
+    tags: ['windows-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Portable Windows client
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24.x
+      - name: Check iroh sidecar pin across plugin, client and manifest
+        run: node scripts/check-windows-sidecar-pin.mjs
+      - name: Check the client tag matches the project version
+        run: node scripts/check-windows-release-version.mjs
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore apps/windows/DshMobile.Win.Tests/DshMobile.Win.Tests.csproj
+      - name: Build client (Release)
+        run: dotnet build apps/windows/DshMobile.Win/DshMobile.Win.csproj -c Release --no-restore
+      - name: Unit tests (Release)
+        run: dotnet test apps/windows/DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+      - name: Publish portable client
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          $target = "portable/DshMobile.Win-$version-win-x64"
+          dotnet publish apps/windows/DshMobile.Win/DshMobile.Win.csproj -c Release -r win-x64 --self-contained true --no-restore -o $target
+          # The sidecar is deliberately absent: SidecarProvisioner fetches and verifies
+          # the pinned official build on first iroh use.
+          Remove-Item "$target/sidecar" -Recurse -Force -ErrorAction SilentlyContinue
+          # Licence and notice travel with the package so the portable folder is
+          # self-describing instead of pointing at a repository the user may not have.
+          Copy-Item LICENSE "$target/LICENSE"
+          Copy-Item THIRD_PARTY_NOTICES.md "$target/THIRD_PARTY_NOTICES.md"
+          Copy-Item apps/windows/README.md "$target/README.md"
+          Copy-Item apps/windows/README.en.md "$target/README.en.md"
+      - name: Package and checksum
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          $name = "dsh-mobile-windows-v$version-win-x64"
+          Compress-Archive -Path "portable/DshMobile.Win-$version-win-x64/*" -DestinationPath "$name.zip"
+          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -FilePath "$name.zip.sha256" -Encoding ascii -NoNewline
+          Get-Content "$name.zip.sha256"
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          $name = "dsh-mobile-windows-v$version-win-x64.zip"
+          $notes = @"
+          Portable Windows client **$version** (win-x64, self-contained .NET 8).
+
+          Unzip anywhere and run ``DshMobile.Win.exe``. No installer and no registry writes; runtime data stays in the folder's ``data\``.
+
+          - Requires Windows 10 1809+ or Windows 11, **x64 only**.
+          - Requires the WebView2 Evergreen Runtime (included with Windows 11; Windows 10 needs it installed once).
+          - The iroh transport downloads its pinned official component on first use and verifies its SHA-256 before every launch.
+          - This is an alpha: the plugin and the Android app remain the stable surfaces.
+          "@
+          if (gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" 2>$null) {
+            Write-Error "Release ${{ github.ref_name }} already exists; refusing to replace published assets."
+            exit 1
+          }
+          gh release create "${{ github.ref_name }}" "$name" "$name.sha256" `
+            --repo "${{ github.repository }}" `
+            --verify-tag `
+            --prerelease `
+            --title "Windows client $version" `
+            --notes $notes

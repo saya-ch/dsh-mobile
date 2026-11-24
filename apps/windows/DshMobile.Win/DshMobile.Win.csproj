@@ -8,6 +8,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DshMobile.Win</AssemblyName>
     <RootNamespace>DshMobile.Win</RootNamespace>
+    <!-- First published build. The client ships on its own track, so its version is
+         independent of the plugin (package.json) and of the iroh sidecar pin. -->
+    <Version>0.1.0-alpha</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>0.1.0-alpha</InformationalVersion>
+    <Product>DSH Mobile</Product>
+    <Company>DSH Mobile contributors</Company>
+    <Copyright>Copyright (c) DSH Mobile contributors</Copyright>
     <!-- Portable self-contained build: keep the win-x64 assets in project.assets.json -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <!-- Same launcher icon as the Android app (apps/mobile/.../mipmap-xxxhdpi/ic_launcher.png). -->

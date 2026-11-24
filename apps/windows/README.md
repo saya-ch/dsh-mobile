@@ -10,8 +10,8 @@ DSH Mobile 的便携 Windows 客户端，与仓库内 Android App（`apps/mobile
 
 ## 状态与支持范围
 
-- **暂时没有安装包**：这个客户端还在开发中，没有官方下载包，也不在 npm 包里；想试用需要按下方命令自己编译。
-- **可能连不上**：还没有在任何一台 Windows 机器上完成 iroh / 局域网 / 远程的完整验收，本文与 `ARCHITECTURE.md` 描述的是设计与已入库的检查。遇到问题属预期内，请附 `data\client.log` 反馈。
+- **alpha 预览**：当前版本 `0.1.0-alpha`，从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases) 的 `windows-v*` 标签下载 `dsh-mobile-windows-v<版本>-win-x64.zip`。它不随插件发布，也不在 npm 包里。插件与 Android App 仍是稳定面。
+- **尚未真机验收**：iroh / 局域网 / 远程三通道与 WebView2 五类策略还没有在维护者的 Windows 机器上完整走查过，本文与 `ARCHITECTURE.md` 描述的是设计与已入库的自动检查。遇到问题属预期内，请附 `data\client.log` 反馈。
 - **能用在哪**：Windows 10 1809+ / Windows 11 的 **x64** 电脑。不支持 Windows ARM64；也不能在 Linux/macOS 上编译这个客户端。
 - **前置**：.NET 8 SDK（x64）、WebView2 Evergreen Runtime（Windows 11 自带；Windows 10 需安装，见 https://developer.microsoft.com/microsoft-edge/webview2 ）；首次 iroh 连接需要联网下载并校验官方 sidecar（约 14.8 MB / 14,865,920 字节）。
 
@@ -51,6 +51,14 @@ apps/windows/
     └── DshMobile.Win.Tests.csproj
 ```
 
+## 使用
+
+1. 下载并解压 `dsh-mobile-windows-v<版本>-win-x64.zip` 到任意可写目录；
+2. 运行 `DshMobile.Win.exe`；
+3. 在电脑端 DSH 的移动访问面板里配对这台 Windows，粘贴配对内容或配对链接。
+
+发布包是**自包含**的：不装 .NET、不写注册表、不需要管理员权限。运行时数据（`devices.json`、`client.log`、WebView2 用户目录、iroh 组件缓存）都在同目录的 `data\` 下，整个文件夹可以拷走；但 `devices.json` 里的设备令牌用当前 Windows 账户的 DPAPI 加密，换机或换用户需要重新配对。
+
 ## 编译与发布
 
 前置条件见「状态与支持范围」。仅支持在 Windows x64 上构建与运行。
@@ -68,6 +76,8 @@ dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
 # 发布便携版（自包含 .NET，输出为独立目录，拷走即用）
 dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 ```
+
+版本号写在 `DshMobile.Win.csproj` 的 `<Version>` 里，与插件版本、iroh 组件 pin 相互独立。发版时打 `windows-v<版本>` 标签，`.github/workflows/windows-release.yml` 会校验标签与项目版本一致，构建、跑单测、打包 zip 并附 SHA-256，然后以预发布形式上传到 GitHub Releases。
 
 无需 Rust/Android 工具链：iroh 传输复用官方发布的组件，**组件本身不进仓库**。首次 iroh 连接时按固定地址下载并校验大小和 SHA-256；如果电脑上已有插件装好的同一份副本，会直接复用。每次启动组件前都会重新校验，对不上就拒绝启动。
 

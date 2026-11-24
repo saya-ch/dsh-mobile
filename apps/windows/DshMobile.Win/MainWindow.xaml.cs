@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -571,6 +574,11 @@ public partial class MainWindow : Window
                 throw new TimeoutException("WebView2 init timed out");
             await webViewTask;
 
+            // WebView2 cannot report which certificate a response used and only raises
+            // its error event when Chromium's own validation fails, so verify the pin
+            // over a real handshake before handing the origin to the browser.
+            if (!await VerifyPinnedOriginAsync(device, _connectCts.Token, Log))
+                throw new InvalidOperationException("配对 CA 校验失败：这台电脑出示的证书与配对时固定的不一致");
             _current = device;
             InstallCookies(session);
             await ClearCachedCertificateDecisionsAsync();
@@ -784,6 +792,63 @@ public partial class MainWindow : Window
         if (diagnostics.Contains("pair", StringComparison.OrdinalIgnoreCase)) return false;
         return diagnostics.Contains("host connection timed out", StringComparison.OrdinalIgnoreCase)
             || diagnostics.Contains("No addressing information available", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Confirm over a real handshake that this origin still presents a certificate
+    /// signed by the pairing CA.
+    /// </summary>
+    /// <remarks>
+    /// WebView2 raises <c>ServerCertificateErrorDetected</c> only when Chromium's own
+    /// validation fails, and it exposes no way to read the certificate a response used.
+    /// A certificate the platform already trusts — an enterprise TLS-inspection root, or
+    /// a public CA for a tunnel hostname that was reassigned — therefore reaches the
+    /// page without the pinned CA ever being checked. This probe performs the same
+    /// handshake the browser is about to do and applies the pin itself, so a mismatch
+    /// stops the connection instead of silently loading a page under the wrong anchor.
+    /// Platform-trust devices keep Chromium's verdict, which is their contract.
+    /// </remarks>
+    private static async Task<bool> VerifyPinnedOriginAsync(SavedDevice device, CancellationToken token, Action<string> log)
+    {
+        if (!device.HasPinnedCa) return true;
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(device.Hostname, token);
+            var address = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+                ?? addresses.FirstOrDefault();
+            if (address is null) return false;
+            using var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            if (!Uri.TryCreate(device.Origin, UriKind.Absolute, out var origin) || origin.Port <= 0) return false;
+            await socket.ConnectAsync(address, origin.Port, token);
+            using var network = new NetworkStream(socket, ownsSocket: false);
+            using var ssl = new SslStream(network, leaveInnerStreamOpen: false);
+            var observed = (X509Certificate2?)null;
+            var options = new SslClientAuthenticationOptions
+            {
+                TargetHost = device.Hostname,
+                EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                CertificateRevocationCheckMode = X509RevocationMode.NoCheck,
+                // The pin replaces the platform chain, exactly as the data path does.
+                RemoteCertificateValidationCallback = (_, certificate, _, _) =>
+                {
+                    if (certificate is null) return false;
+                    observed = new X509Certificate2(certificate);
+                    return CertificatePolicy.ValidateLeaf(observed, device.Ca, device.Hostname);
+                },
+            };
+            await ssl.AuthenticateAsClientAsync(options, token);
+            observed?.Dispose();
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception error)
+        {
+            log("pinned-origin probe failed: " + error.GetType().Name);
+            return false;
+        }
     }
 
     private void ShowBrowserPage(SavedDevice device)
