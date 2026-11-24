@@ -46,6 +46,14 @@ For skin conflicts, inspect the attached images as well as the installed package
 
 Keep implementation changes within the plugin; the read-only rule for DSH source and installed artifacts is owned by the [cross-layer decisions](../SKILL.md#cross-layer-decisions). Prefer an existing optional capability or version-independent feature detection to a brittle version allowlist. When the documented DSH seam cannot provide the requested behavior, explain the limitation and retain an isolated upstream reproduction rather than patching private implementation or bundles.
 
+### Client props and the host's React version
+
+Plugin client code renders into DSH's React tree, and `react` is an optional peer dependency: the installed major belongs to the host, not to this repository. A prop whose DOM effect differs between React 18 and 19 must be written in the form both accept.
+
+`inert` is the concrete case. React 18 does not know the property, so a boolean value is dropped as a non-boolean attribute and the panel stays interactive; React 19 knows it as a boolean attribute and treats an empty string as false. Only the non-empty string (`inert: 'true'`) sets the attribute under both, which is why the layout passes it as a literal ([mobile-layout](../../../../src/mobile-layout.ts)). Values that only mean "on" can otherwise ride on the `data-*`/`aria-*` prefixes: React's DOM branch stringifies their booleans to `"true"` and removes a boolean value from every other attribute, so a boolean `data-*`/`aria-*` prop is safe while a boolean custom attribute is not.
+
+Acceptance: the mounted DOM carries `inert="true"`, and the prop's source form is a string literal. A DOM assertion under the installed major alone cannot catch the React 18 drop, because React 19 renders a boolean `true` as `"true"` as well; review the source form, and read the installed `react-dom` property branch before relying on this for a third major.
+
 ### Scoped optional services
 
 If a service works in a root mock or sibling plugin but fails inside Mobile, check the actual scoped Context before declaring the runtime unsupported. A direct `ctx.service` getter can throw `cannot get property "service" without inject`; optional chaining still invokes that getter. Static plugin-export and Loader-entry `inject` declarations are required dependencies, not optional capability flags: adding a newer service there can prevent ordinary Mobile from starting when it is absent.

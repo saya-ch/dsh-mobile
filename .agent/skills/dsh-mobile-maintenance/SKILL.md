@@ -1,11 +1,11 @@
 ---
 name: dsh-mobile-maintenance
-description: Maintain the standalone DSH Mobile plugin and Android App through code changes, upstream compatibility, PR and issue review, packed installation, ADB regression, and release preparation. Use source and runtime evidence; this is not a DSH core development workflow.
+description: Maintain the standalone DSH Mobile plugin, Android App and portable Windows client through code changes, upstream compatibility, PR and issue review, packed installation, ADB regression, desktop UI review, and release preparation on their independent tracks. Use source and runtime evidence; this is not a DSH core development workflow.
 ---
 
 # DSH Mobile maintenance
 
-Deliver a scoped, tested change that preserves existing users, contributor history and the separation between DSH, the plugin, and the Android App. The repository root contains `package.json`, `cordis.patch.yml`, `src/`, and `apps/mobile/`; resolve paths from that root, not from a previous maintainer's computer.
+Deliver a scoped, tested change that preserves existing users, contributor history and the separation between DSH, the plugin, and the Android App. The repository root contains `package.json`, `cordis.patch.yml`, `src/`, `apps/mobile/` and `apps/windows/`; resolve paths from that root, not from a previous maintainer's computer.
 
 ## Establish the real starting point
 
@@ -21,6 +21,7 @@ Use [CONTRIBUTING.md](../../../CONTRIBUTING.md) for commands and [package.json](
 | --- | --- |
 | DSH upgrade, startup failure, installation or client discovery | [Compatibility and packaging](references/compatibility-and-packaging.md) |
 | Mobile layout, reconnection, remote providers, Android or ADB | [Runtime, UI and Android](references/runtime-ui-android.md) |
+| Windows client layout, desktop UI review, its settings or packaging | [Windows desktop client](references/windows-client.md) |
 | Test isolation, asynchronous races, fixture teardown or flaky checks | [Test and fixture reliability](references/testing-and-fixtures.md) |
 | PR/issue integration, documentation, versioning or publication | [Collaboration and releases](references/collaboration-and-releases.md) |
 | Deleting stale worktrees or other on-disk cleanup | [Local workspace hygiene](references/local-workspace.md) |
@@ -36,11 +37,14 @@ This skill has no required external-skill dependency; its references and reposit
 - Treat paired devices and local extension hosts as trusted operators, not a sandbox. Preserve exact-Origin, authentication, CSRF, certificate and revocation checks. Hiding a frontend module is not revoking authorization or disabling a Host plugin.
 - Optional frontend modules can be excluded as whole modules, subject to required/dependency checks. This is not arbitrary per-widget hiding or a promise to adapt every third-party plugin combination.
 - Trace behavior to its actual consumer. Saved preferences, CSS variables and visible controls do not prove a feature affects a canvas, editor or native API. Withdraw a nonworking control rather than claiming support or introducing a speculative service patch.
+- The plugin, the Android App and the Windows client are separate products sharing one page. Shared web UI reaches the client through the same authenticated page, but the client's version, settings store and desktop design values are its own: Android dp values, the App version and the plugin version do not define its presentation, and advancing one track never requires advancing another.
 - Keep product text locale-owned: update Chinese and English dictionaries together, and keep the Italian dictionaries in place pending DSH support. App language follows the system; plugin copy follows the DSH locale first and falls back to the browser language (`selectMobileControlLocale` in `src/client.ts`). Developer instructions do not need to become user-facing UI.
 
 ## Match evidence to the claim
 
-Select checks for the changed behavior, including rejection and teardown paths. Source tests, packed installation, mounted browser behavior, physical Android behavior, public-route traffic and final CI are different evidence. Report which were executed and which remain unverified.
+Select checks for the changed behavior, including rejection and teardown paths. Source tests, packed installation, mounted browser behavior, physical Android behavior, packed Windows client behavior, public-route traffic and final CI are different evidence. Report which were executed and which remain unverified.
+
+A stated technical reason is a claim too. Confirm library behavior in the consumed version's actual source or by measurement before writing it into code, a comment or a review: recollection of how an attribute is coerced can invent a defect and can equally bless a value that one supported major silently drops.
 
 Use actual npm tarballs for published loading paths and the real DSH loader/client registry. Verify final `lib/` output after changing client source. Use allocated ports and owned temporary profiles/processes; await disposal before removing their directories. Keep real profiles, credentials and conversations out of fixtures.
 

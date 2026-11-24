@@ -30,13 +30,32 @@ Replacing an image at the same URL is not enough to update what readers see. Git
 
 ## Independent versions
 
-The npm plugin and Android App have independent versions/releases. Do not advance the App version or create a new signed App release merely because plugin web UI or gateway code changed. Android validation builds, including applicable CI Debug builds, still run when needed. Native changes require an App version and a monotonically increasing versionCode; the embedded component version belongs to the plugin artifact, not the App.
+Four public tracks ship independently, and each is identified by its own tag:
 
-Read current values from `package.json`, `package-lock.json`, the Android build file and `apps/mobile/release.json`. The descriptor names an already published and verified APK. Keep it and stable App links unchanged for an unpublished candidate. Promote new App metadata only after checking the downloaded APK's identity, versionCode, checksum and established signer.
+| Track | Tag | Artifact |
+| --- | --- | --- |
+| plugin | `v<version>` | npm package and GitHub release |
+| Android App | `android-v<version>` | signed APK (plus its compatibility build) and the release descriptor |
+| Windows client | `windows-v<version>` | portable win-x64 zip with SHA-256, published as a prerelease |
+| optional Caddy component | fixed component tag | non-latest component distribution |
+
+Do not advance one track because another changed: plugin web UI or gateway work does not require an App or client version, and a native App change does not move the client's `<Version>`. Native App changes require an App version and a monotonically increasing versionCode; the embedded component version belongs to the plugin artifact, not the App. The Windows client's version lives in [DshMobile.Win.csproj](../../../../apps/windows/DshMobile.Win/DshMobile.Win.csproj) and is independent of `package.json`, the Android version and the iroh component pin.
+
+A tag names a release only when it agrees with the project's own version. [check-windows-release-version.mjs](../../../../scripts/check-windows-release-version.mjs) fails a `windows-v*` tag whose suffix differs from `<Version>`, so bump the project version, commit it, and tag that commit; a mistyped tag would otherwise publish a package whose metadata disagrees with its release name. Follow each track's version gate rather than reading a release name back as the version.
+
+Read current values from `package.json`, `package-lock.json`, the Android build file, `apps/mobile/release.json` and the client project file. The descriptor names an already published and verified APK. Keep it and stable App links unchanged for an unpublished candidate. Promote new App metadata only after checking the downloaded APK's identity, versionCode, checksum and established signer.
+
+The Windows release workflow is tag-triggered, derives the version from the tag and refuses to replace an existing release. A retry therefore needs a corrected version and a new tag rather than a re-run under the same name: check whether the earlier attempt published anything before creating another. Public availability is owned by the tag, release and its assets — a merged workflow, a bumped version or a green build publishes nothing, and a track with no release must not be described as a supported download.
+
+## Concurrent maintainer edits
+
+More than one Agent can hold this working tree at once, and nothing on disk merges concurrent writes: a shell command, formatter, generator or second Agent replaces whole files or regions. The resulting failures look like product defects — a half-written page, a duplicated member, a missing method — and cost more rounds than the change itself.
+
+Give each writer a disjoint file or region before work starts and record it in the task, prefer a targeted edit over a whole-file rewrite, and rebuild or run the affected check immediately after each change so a broken intermediate state is attributed to the write that caused it. Treat a large page and its code-behind, or a settings store, as single-writer; [the Windows client's hot files](windows-client.md#hot-files-one-writer-at-a-time) are the concrete case. The Agent integrating the work reviews the final diff and runs the checks: adjacency is not merge safety, and one writer's green run does not cover another's edits.
 
 ## Prepare, then publish only when authorized
 
-Follow the current procedure in `CONTRIBUTING.md` and the actual workflows rather than copying remembered commands or an old version number. Preparation leaves notes marked unreleased and retains public working downloads. Separate plugin `v<version>`, native `android-v<version>` and optional-component releases; a component distribution must not become the latest plugin/App release.
+Follow the current procedure in `CONTRIBUTING.md` and the actual workflows rather than copying remembered commands or an old version number. Preparation leaves notes marked unreleased and retains public working downloads. Separate plugin `v<version>`, native `android-v<version>`, Windows `windows-v<version>` and optional-component releases; each tag's release carries only its own artifact, and a component distribution must not become the latest plugin/App release.
 
 Choose checks based on the outgoing diff: source/type/behavior, real packed installation and upgrades, mounted browser consumers, relevant ADB paths and platform-specific component tests. Validate the final candidate in CI before publication; a contributor's green PR is not evidence for the maintainer's later corrections. Do not describe local Windows evidence as Linux/macOS CI.
 
