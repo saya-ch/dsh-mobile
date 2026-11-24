@@ -1187,7 +1187,7 @@ function MobileAppFrame(props: MobileRootProps & {
     createElement('main', {
       className: 'dshm-main',
       'data-dsh-mobile-session': activeSessionId,
-      ...(rightbarFullWidth ? { inert: true, 'aria-hidden': true } : {}),
+      ...(rightbarFullWidth ? { inert: 'true', 'aria-hidden': true } : {}),
       // Legacy dsh-web community plugins use semantic pane attributes as their
       // compatibility path when the stock CSS-module column names are absent.
       'data-pane': 'conversation',
@@ -1235,7 +1235,7 @@ function MobileAppFrame(props: MobileRootProps & {
       // The phone adapter promotes the whale toggle to a fixed high layer.
       // Remove that entire navigation surface while the right modal owns focus.
       'data-right-modal': state.detailsOpen && !rightbarDocked,
-      ...(state.detailsOpen && !rightbarDocked ? { inert: true, 'aria-hidden': true } : {}),
+      ...(state.detailsOpen && !rightbarDocked ? { inert: 'true', 'aria-hidden': true } : {}),
       // Community rows collapse their label when an ancestor carries this marker.
       ...(state.sidebarOpen ? {} : { 'data-sidebar-collapsed': '' }),
       style: { '--dshm-sidebar-width': `${state.sidebarWidth}px` },
@@ -1280,7 +1280,7 @@ function MobileAppFrame(props: MobileRootProps & {
       'aria-hidden': !state.detailsOpen,
       className: 'dshm-details',
       'data-open': state.detailsOpen ? 'true' : 'false',
-      ...(state.detailsOpen ? {} : { inert: true }),
+      ...(state.detailsOpen ? {} : { inert: 'true' }),
     }, [
       // DSH 0.1.3 and earlier bind details to a Session. Newer DSH owns the
       // Session decision inside its root-scoped rightbar occupant, so that

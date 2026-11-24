@@ -879,7 +879,7 @@ describe('dedicated mobile layout boot', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-docked=true] .dshm-details{position:relative;grid-area:1/3')
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain('const scrimOpen = !rightbarFullWidth && isMobileScrimOpen(')
-    expect(source).toContain("rightbarFullWidth ? { inert: true, 'aria-hidden': true } : {}")
+    expect(source).toContain("rightbarFullWidth ? { inert: 'true', 'aria-hidden': true } : {}")
   })
 
   it('draws a theme-aware docked separator without changing geometry or hit targets', () => {
@@ -895,6 +895,22 @@ describe('dedicated mobile layout boot', () => {
     // A fullscreen panel covers the conversation: it must not stay tabbable or
     // need a scrim behind it, exactly like the phone overlay already behaves.
     expect(source).toContain('const rightbarFullWidth = state.detailsOpen && !rightbarDocked && (!wideViewport || rightbarFullscreen)')
+  })
+
+  it('passes inert as a non-empty string, the only value both React majors accept', () => {
+    // `inert` is the one attribute here with no single React-safe form:
+    //  - React 18 does not know the attribute, so a boolean falls into its
+    //    "unknown attribute + boolean => remove" path and the panel stays focusable;
+    //  - React 19 knows it as a boolean attribute and treats an empty string as
+    //    false, removing it again.
+    // A non-empty string survives both: React 18 passes it straight to
+    // setAttribute, and React 19 only strips booleans and null.
+    const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    const usages = [...source.matchAll(/inert:\s*([^,}\n]+)/gu)]
+    expect(usages.length).toBeGreaterThanOrEqual(3)
+    for (const [, value] of usages) {
+      expect(value?.trim(), 'inert must be a non-empty string literal').toBe("'true'")
+    }
   })
 
   it('writes the right-panel markers as explicit strings', () => {
@@ -923,7 +939,7 @@ describe('dedicated mobile layout boot', () => {
   it('suppresses the fixed whale toggle only while the right modal is open', () => {
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain("'data-right-modal': state.detailsOpen && !rightbarDocked")
-    expect(source).toContain("state.detailsOpen && !rightbarDocked ? { inert: true, 'aria-hidden': true } : {}")
+    expect(source).toContain("state.detailsOpen && !rightbarDocked ? { inert: 'true', 'aria-hidden': true } : {}")
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-drawer[data-right-modal=true]{display:none!important}')
   })
 
