@@ -819,15 +819,16 @@ describe('dedicated mobile layout boot', () => {
     [375, false, false, false, false, false, 375],
     [375, false, false, true, false, false, 375],
     [755, false, false, true, false, false, 755],
-    [756, false, false, true, false, true, 300],
-    [899, false, false, true, false, true, 405],
+    [756, false, false, true, false, false, 756],
+    [899, false, false, true, false, false, 899],
     [899, false, true, true, false, false, 899],
     [900, true, true, true, false, false, 460],
     [900, true, false, true, false, true, 405],
     // A landscape phone keeps the full-width overlay even with the sidebar open.
     [932, false, true, true, false, false, 932],
-    // Closed drawer + requested track docks exactly like the 899px narrow band.
-    [932, false, false, true, false, true, 419],
+    // Closed drawer on a narrow viewport still overlays: only the wide shell
+    // declares the third column a docked panel needs.
+    [932, false, false, true, false, false, 932],
     [1039, true, true, true, false, false, 460],
     [1040, true, true, true, false, true, 300],
     [1200, true, true, true, false, true, 460],
@@ -891,10 +892,27 @@ describe('dedicated mobile layout boot', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain('.dshm-shell[data-rightbar-fullscreen=true] .dshm-details{inset:0;width:100vw;max-width:100vw;box-shadow:none}')
     const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
     expect(source).toContain('const rightbarFullscreen = state.detailsOpen && state.rightbarFullscreen')
-    expect(source).toContain("'data-rightbar-fullscreen': rightbarFullscreen")
     // A fullscreen panel covers the conversation: it must not stay tabbable or
     // need a scrim behind it, exactly like the phone overlay already behaves.
     expect(source).toContain('const rightbarFullWidth = state.detailsOpen && !rightbarDocked && (!wideViewport || rightbarFullscreen)')
+  })
+
+  it('writes every layout marker attribute as an explicit string', () => {
+    // React stringifies a boolean on a `data-*` attribute, so a bare boolean is not
+    // broken — but the rendered value then depends on React's coercion rules rather
+    // than on this module, and the selectors read `=true` / `=false` either way. The
+    // markers are written explicitly so the value the CSS matches is the value the
+    // layout resolver decided on. A substring check cannot guard this (both forms
+    // contain the property name), so the source is parsed.
+    const source = readFileSync(new URL('../src/mobile-layout.ts', import.meta.url), 'utf8')
+    const markers = ['data-open', 'data-rightbar-docked', 'data-rightbar-fullscreen']
+    const assignments = [...source.matchAll(/['"](data-open|data-rightbar-docked|data-rightbar-fullscreen)['"]\s*:\s*([^,\n]+)/gu)]
+    expect(assignments.length).toBeGreaterThanOrEqual(5)
+    for (const [, marker, value] of assignments) {
+      expect(markers).toContain(marker)
+      // The value must be a ternary producing the strings 'true'/'false'.
+      expect(value, `${marker} must be coerced to a string`).toMatch(/\?\s*'true'\s*:\s*'false'$/u)
+    }
   })
 
   it('suppresses the fixed whale toggle only while the right modal is open', () => {

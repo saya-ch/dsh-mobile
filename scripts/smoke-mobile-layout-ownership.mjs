@@ -212,15 +212,25 @@ async function assertFullWidthColumn(page, at) {
   const measured = await page.evaluate(() => {
     const contentNode = document.querySelector('.dshm-mainContent')
     const innerNode = document.querySelector('.Conversation_fixture_root')
+    const mainNode = document.querySelector('.dshm-main')
     const box = contentNode.getBoundingClientRect()
     const css = getComputedStyle(contentNode)
     const inner = innerNode.getBoundingClientRect()
+    const main = mainNode.getBoundingClientRect()
     return {
       content: box.width, inner: inner.width, innerX: inner.x - box.x,
+      main: main.width, contentX: box.x - main.x,
       paddingLeft: parseFloat(css.paddingLeft), paddingRight: parseFloat(css.paddingRight),
+      maxWidth: css.maxWidth,
     }
   })
   const close = (a, b) => Math.abs(a - b) <= 0.5
+  // A `max-width` or `width` cap on the content column leaves the inner node filling
+  // the column, so the four checks below all pass while the conversation is still
+  // narrow. The column must equal the main area, not merely match its own child.
+  assert(close(measured.content, measured.main),
+    `${at}: the conversation column is capped inside its main area (${measured.content} of ${measured.main}px, max-width ${measured.maxWidth})`)
+  assert(close(measured.contentX, 0), `${at}: the column is offset from the main edge`)
   assert(close(measured.inner, measured.content), `${at}: the conversation did not fill its main area (${measured.inner} of ${measured.content}px)`)
   assert(close(measured.paddingLeft, 0), `${at}: a left gutter came back (${measured.paddingLeft}px)`)
   assert(close(measured.paddingRight, 0), `${at}: a right gutter came back (${measured.paddingRight}px)`)

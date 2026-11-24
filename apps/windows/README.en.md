@@ -10,7 +10,7 @@ A portable Windows client for DSH Mobile, the counterpart of the Android app in 
 
 ## Status and support
 
-- **Alpha preview**: the current version is `0.1.0-alpha`, downloaded from the `windows-v*` tag in [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases) as `dsh-mobile-windows-v<version>-win-x64.zip`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces.
+- **Alpha preview, not published yet**: the version is `0.1.0-alpha`, declared in `DshMobile.Win.csproj`, and the release track (`windows-v*` tag → `.github/workflows/windows-release.yml`) is in the repository, but **no `windows-v*` tag has been pushed** and there is no `dsh-mobile-windows-v<version>-win-x64.zip` on [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases). To try it, build it with "Build and publish" below. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces.
 - **Not device-accepted yet**: the iroh / LAN / remote channels and the five WebView2 policies have not been walked through on the maintainer's Windows machine. This document and `ARCHITECTURE.en.md` describe the design and the checks in the repository. Failures are expected at this stage; attach `data\client.log` when reporting one.
 - **Where it runs**: a Windows 10 1809+ / Windows 11 **x64** PC. Windows ARM64 is unsupported, and this client cannot be built on Linux/macOS.
 - **Prerequisites**: .NET 8 SDK (x64) and the WebView2 Evergreen Runtime (included in Windows 11; install it on Windows 10 — see https://developer.microsoft.com/microsoft-edge/webview2 ). The first iroh connection downloads and verifies the official sidecar (about 14.8 MB / 14,865,920 bytes).
@@ -53,9 +53,7 @@ apps/windows/
 
 ## Use
 
-1. Download and unzip `dsh-mobile-windows-v<version>-win-x64.zip` into any writable folder;
-2. Run `DshMobile.Win.exe`;
-3. Pair this Windows PC from the computer's DSH mobile-access panel by pasting the pairing content or link.
+Once a Windows release exists: download and unzip `dsh-mobile-windows-v<version>-win-x64.zip` into any writable folder, run `DshMobile.Win.exe`, then pair this Windows PC from the computer's DSH mobile-access panel by pasting the pairing content or link. No such package exists yet; build it with "Build and publish" below first — the output folder is used the same way.
 
 The package is **self-contained**: no .NET install, no registry writes, no administrator rights. Runtime data (`devices.json`, `client.log`, the WebView2 user folder, the iroh component cache) lives in `data\` beside the executable, so the folder is portable; the device token in `devices.json` is sealed with DPAPI for the current Windows account, so moving to another machine or user means pairing again.
 
@@ -76,6 +74,8 @@ dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
 # portable publish (self-contained .NET, a standalone directory)
 dotnet publish -c Release -r win-x64 --self-contained true -o <target-directory>
 ```
+
+`<Version>` in `DshMobile.Win.csproj` carries the client version, independent of the plugin version and of the iroh component pin. To release, push a `windows-v<version>` tag: `.github/workflows/windows-release.yml` checks the tag against the project version, builds, runs the unit tests, packages the zip with its SHA-256 and uploads it as a prerelease. **This track has not produced anything yet** — no `windows-v*` tag exists in the repository, and whether to publish is a separate maintainer decision.
 
 No Rust/Android toolchain is needed: the iroh transport reuses the official component, and **the component itself is not stored in this repository**. The first iroh connection downloads it from a fixed address and verifies size plus SHA-256; if the plugin already installed and verified the same copy on this computer, that copy is reused. The component is re-verified before every start, and a mismatch refuses to launch.
 

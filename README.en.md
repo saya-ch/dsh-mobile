@@ -28,15 +28,15 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.15">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
-> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; the repository also contains an **unpublished** [portable Windows client](apps/windows/README.md) (merged into main, not part of any release yet and not accepted on real Windows, so it is not a supported platform).
+> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; the repository also contains an **alpha preview** [portable Windows client](apps/windows/README.en.md) (no download published yet), not yet accepted on real Windows, so it is not a supported platform.
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.15**. The on-screen keyboard no longer covers the Mobile composer on Firefox for Android (#457); tapping the preview header filename offers Copy Path or Share File (#459); DSH 0.2.3-alpha.2 compatibility is restored for pairing, layout and management (#462). The plugin and the Android app update independently; Android app 0.8.3 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.15) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.16**. The wide layout gives the conversation its full column again and both side panels are draggable, while opening the sidebar no longer stutters (#465); file previews work again on WebViews that parse a custom scheme as an opaque path (#415). The plugin and the Android app update independently; Android app 0.8.3 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
@@ -45,7 +45,8 @@
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>Download Android app 0.8.3 (compatibility)</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">Release notes and checksums</a></sub>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">Release notes and checksums</a></sub><br>
+  <sub>Other platforms: <a href="apps/windows/README.en.md">portable Windows client (alpha preview, no download yet)</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -58,7 +59,7 @@ It also lets you customize the phone from a DSH conversation: `/mobile <what you
 
 - **Continue DSH work from a phone**: the same sessions, Workspaces, messages, and tools, in real time.
 - **Customize the phone UI by talking to DSH**: request layout, interaction, or feature changes in a conversation; changed customization resources are usually picked up automatically.
-- **A dedicated touch layout**: session drawer, tool details, settings, question cards, and composer reorganized for phones. The sidebar remembers its list position within the page instead of jumping to the top after a session switch. The app follows the system locale (Chinese/English/Italian), plugin UI follows DSH's locale. On a wide window such as a tablet the sidebar stays docked, and while the main area still has room the conversation column keeps ~720px and is centred with the composer on the same axis; a narrower main area, such as a portrait tablet, keeps the full-width column.
+- **A dedicated touch layout**: session drawer, tool details, settings, question cards, and composer reorganized for phones. The sidebar remembers its list position within the page instead of jumping to the top after a session switch. The app follows the system locale (Chinese/English/Italian), plugin UI follows DSH's locale. On a wide window such as a tablet the sidebar stays docked and both side panels can be dragged to a preferred width; the conversation column always takes the remaining space at full width, and an open right panel owns its own column so the divider lines up with the conversation.
 - **[Tap the filename to copy or share](#copy-or-share-from-the-mobile-file-viewer)**: copy the path from a file preview or share the original file on clients that support file sharing.
 - **Several remote options**: Tailscale, cpolar, cloudflared quick/named tunnels, self-hosted FRP, your own reverse proxy, and experimental iroh without a domain or public port; Windows/Linux x64 can also let the plugin manage Caddy HTTPS and certificates.
 - **Pairing and multi-device**: pair once via QR code, link, or key; the same Origin renews automatically, while an address, certificate or listener change requires pairing again through **Change network** (while LAN access runs) or takes effect the next time you enable it; the app lists LAN and remote paired computers together, checks their reachability periodically, and lets you switch, re-pair, or delete a local record.
@@ -131,6 +132,14 @@ The plugin runs on the **computer**; Safari loads its mobile interface. There is
 You can also keep using Safari without installing an icon. The computer, DSH and Mobile Gateway must stay running and reachable; adding the web app does **not** provide offline DSH. A changing tunnel hostname does not automatically transfer pairing or push consent.
 
 **Enable Web Push:** launch the Home Screen icon, open **DSH Settings → General → Web push notifications**, select **Enable**, allow notifications and choose your categories. This targets capable iOS/iPadOS **18.4+** Home Screen apps on trusted HTTPS; ordinary Safari tabs and the Android app do not show this entry. Notifications are optional and are not required for ordinary access. [Full guide and troubleshooting](docs/WEB_PUSH.en.md).
+
+### Other platforms: Windows client (alpha preview)
+
+DSH Mobile also runs on Windows: the [portable Windows client](apps/windows/README.en.md) is a WebView2 shell that connects through the same plugin-authenticated HTTPS page as the Android app.
+
+There is no download yet; build it as described in the [Windows client guide](apps/windows/README.en.md) with `dotnet publish -c Release -r win-x64 --self-contained true`. The output is a self-contained folder that runs as-is, with no .NET install and no administrator rights. Windows 10 1809+ / Windows 11 **x64** only.
+
+> This client is still an **alpha preview** (currently `0.1.0-alpha`) and is not published yet. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. It has not been accepted on real Windows hardware, so failures are expected at this stage; attach `data\client.log` when reporting one. See the [Windows client guide](apps/windows/README.en.md).
 
 ## Connection guide
 
@@ -364,6 +373,7 @@ Selection priority is device choice → computer defaults → plugin configurati
 | Android app | Everyday use | Separate Local and Remote entries at first pairing; LAN discovery, system trust for public remote certificates, and app-pinned CA for the self-signed FRP entry |
 | iPhone/iPad Safari or Home Screen web app (PWA) | Everyday iOS access and optional push | [Pair in Safari and add a Home Screen icon](<#iphone-and-ipad-home-screen-web-app-pwa>); no native iOS app. Capable Home Screen apps can enable [Web Push](docs/WEB_PUSH.en.md) |
 | Mobile browser | Everyday or cross-platform access | Open the HTTPS origin shown by Mobile Access; a private LAN certificate may need confirmation, while a public remote certificate should not warn. Continuing through a certificate warning does not make the page eligible for Web Push |
+| [Windows client (alpha preview)](apps/windows/README.en.md) | Access from a Windows PC | No download yet; a WebView2 shell that pins the computer's certificate at pairing. Still a preview, not accepted on real Windows, and not a supported platform |
 
 The Android app is a thin Kotlin WebView shell and contains no frontend copy; mobile browsers load the same page. Developers can append `?frontend=stock` to an authenticated mobile URL to diagnose boot and layout behavior. This entry skips dedicated mobile boot rewriting and module selection, but installed client adaptation and authenticated customizations may still apply. It is not a plugin-free control; some API operations may be rejected, so it does not replace normal mobile access. See [skins and mobile layout](docs/SKIN_COMPATIBILITY.en.md).
 
@@ -455,6 +465,7 @@ On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy 
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.16` | The wide conversation column is full width again and both side panels are draggable, and the sidebar no longer stutters when opening (#465); file previews work on opaque-path WebViews (#415). Android app 0.8.3 |
 | `0.8.15` | Firefox for Android no longer hides the composer behind the keyboard (#457); the preview filename offers Copy Path / Share File (#459); DSH 0.2.3-alpha.2 compatibility restored (#462). Android app 0.8.3 |
 | `0.8.14` | Assistant text no longer disappears on Android WebViews below Chromium 120 (#450); the sidebar footer entry shares one capacity contract with its neighbours (#440); a `transient` first renewal during a disconnect retries once (#338). Android app 0.8.2 |
 | `0.8.13` | The **loopback tunnel** can use a port of its own instead of matching the gateway listener port (#444); mobile customization recovers by itself after a DSH reconnect (#338). Android app 0.8.2 |

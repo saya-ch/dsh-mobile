@@ -11,12 +11,12 @@ This guide is for DSH plugin authors, aiming for **usable small screens without 
 | Current mobile-page behavior | What the plugin should do |
 | --- | --- |
 | Opening a panel in the `main` slot adds a “Back to conversation” bar above it | Use the container's actual available height. The bar is at least 56px high; safe areas and content can increase it. Do not subtract a fixed 56px from screen height |
-| The narrow sidebar is a drawer no wider than `min(88vw, 340px)`; a wide layout can keep it persistent | Do not assume a fixed 340px sidebar. Let entry labels and buttons shrink |
+| The narrow sidebar is a drawer no wider than `min(88vw, 340px)`; a wide layout keeps the sidebar docked at a user-draggable width (220–520px) | Do not assume a fixed 340px sidebar. Let entry labels and buttons shrink |
 | The mobile layout has `.dshm-shell`, `[data-pane="conversation"]` and `[data-pane="sidebar"]` markers | Use these to locate regions while diagnosing. Scope internal styles to the plugin's own root rather than private host CSS class names |
 | The mobile shell gives inputs and editable areas a 16px font floor while retaining larger inherited sizes | Leave room for editing, rather than counteracting user preferences with a smaller fixed font |
 | Adapted shared entry points do not guarantee arbitrary third-party hit areas | Plugin authors must still check buttons, close actions, checkboxes and menus for actual hit testing |
 
-These describe the current layout, not fixed dimensions a plugin should copy. Overlays, sidebars and main panels have different available space; verify the actual mounting location.
+These describe the current layout, not fixed dimensions a plugin should copy. Overlays, sidebars and main panels have different available space; verify the actual mounting location. The narrow drawer stays at `min(88vw, 340px)`, while the docked sidebar's width comes from the user's drag (220–520px). A docked right panel is its own grid column too — about 45% of the viewport by default, draggable between 300px and 760px — and falls back to an overlay when the conversation would get too narrow.
 
 ## Back, full-screen overlays and safe areas
 

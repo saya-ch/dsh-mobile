@@ -28,15 +28,15 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.15">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；仓库另含一个**尚未发布**的[便携 Windows 客户端](apps/windows/README.md)（源码已合入 main，但未随任何版本发布，也未完成真实 Windows 验收，因此不作为已支持平台）。
+> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；仓库另含一个 **alpha 预览**的[便携 Windows 客户端](apps/windows/README.md)（尚未发布下载包，也未完成真实 Windows 验收，因此不作为已支持平台）。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.15**。火狐 Android 端键盘弹起不再盖住移动端输入框（#457）；预览文件名点按可复制路径或分享文件（#459）；DSH 0.2.3-alpha.2 下配对页 502、布局丢失与管理 403 已修复（#462）。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.15) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.16**。宽屏下会话列恢复全宽、左右两侧栏都可拖拽调宽，侧栏打开不再有顿感（#465）；部分 WebView 上文件预览恢复可用（#415）。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
@@ -45,7 +45,8 @@
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>下载 Android App 0.8.3（兼容版）</strong></a><br>
-  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">版本说明与校验文件</a></sub>
+  <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">版本说明与校验文件</a></sub><br>
+  <sub>其他平台：<a href="apps/windows/README.md">便携 Windows 客户端（alpha 预览，尚未提供下载）</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -58,7 +59,7 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 
 - **在手机上继续电脑端的工作**：同一份会话、工作区、消息和工具，实时同步。
 - **用对话定制手机端**：在 DSH 对话里提出布局、交互或功能需求；文件修改完成后，自定义资源通常会自动更新。
-- **专属触屏布局**：会话抽屉、工具详情、设置、提问卡片和输入栏都按手机重新组织；侧栏列表在本页内记住位置，切换会话再打开不会总跳回顶部。App 跟随系统语言（简/英/意），插件界面跟随 DSH 语言。平板等宽屏上侧栏作为常驻栏，主区仍有足够空间时会话列保持约 720px 并居中，输入栏与列同轴；竖屏平板等主区较窄时保持整宽。
+- **专属触屏布局**：会话抽屉、工具详情、设置、提问卡片和输入栏都按手机重新组织；侧栏列表在本页内记住位置，切换会话再打开不会总跳回顶部。App 跟随系统语言（简/英/意），插件界面跟随 DSH 语言。平板等宽屏上侧栏作为常驻栏、可左右拖拽调宽，会话列始终占满剩余空间并保持整宽；右侧栏展开时独占一列，分隔线与会话列对齐。
 - **[点按文件名复制或分享](#在移动端文件预览中复制路径或分享文件)**：从文件预览复制路径，或在支持文件分享的客户端上分享原文件。
 - **多种远程通道**：Tailscale、cpolar、cloudflared 快速/命名隧道、自建 FRP、自有反向代理，以及无需域名和公网端口的实验性 iroh；Windows/Linux x64 还可由插件托管 Caddy HTTPS 与证书。
 - **配对与多设备**：扫码、链接或密钥配对一次；同一 Origin 下自动续期，地址、证书或监听变化后需按「更换网络」重新配对（局域网运行时）或下次开启生效；App 在一个列表中显示局域网和远程配对的电脑，定期检测可达状态，并支持切换、重新配对或删除本地记录。
@@ -131,6 +132,14 @@ dsh plugin --profile web add dshmarket
 不添加图标也可以继续使用 Safari。电脑、DSH 与 Mobile Gateway 须保持运行且手机能够连接；添加 Web App **不会**提供离线 DSH。隧道域名改变后，不会自动迁移配对或推送同意。
 
 **开启网页推送：**从主屏幕图标进入 DSH，打开 **设置 → 通用设置 → 网页推送通知**，点击**启用**并允许通知，再按需选择六类提醒。目标环境为具备页面级推送能力的 iOS/iPadOS **18.4+**，需要受信任的 HTTPS；普通 Safari 标签页和 Android App 不显示此入口。通知是可选功能，不影响日常访问。[完整指南与排障](docs/WEB_PUSH.md)。
+
+### 其他平台：Windows 客户端（alpha 预览）
+
+Windows 上也可以用 DSH Mobile：[便携 Windows 客户端](apps/windows/README.md)是一个 WebView2 外壳，通过与 Android 相同的插件认证 HTTPS 页面连接电脑。
+
+目前还没有提供下载包，需要按 [Windows 客户端说明](apps/windows/README.md) 自行编译：`dotnet publish -c Release -r win-x64 --self-contained true`。产物是自包含目录，解压即用，不需要安装 .NET、不需要管理员权限。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
+
+> 该客户端仍是 **alpha 预览**（当前 `0.1.0-alpha`），尚未发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
 
 ## 连接教程
 
@@ -364,6 +373,7 @@ excludedClientModules:
 | Android App | 日常使用 | 首次配对时分别提供局域网与远程入口；局域网自动发现，公开远程证书由系统验证，自签 FRP 入口由 App 固定 CA |
 | iPhone/iPad Safari 或主屏幕 Web App（PWA） | iOS 日常访问与可选推送 | [用 Safari 配对并添加主屏幕图标](<#iphone-与-ipad主屏幕-web-apppwa>)，无需原生 iOS App；具备能力的主屏幕 App 可开启[网页推送](docs/WEB_PUSH.md) |
 | 手机浏览器 | 日常或跨平台访问 | 打开“移动访问”卡片显示的 HTTPS 地址；局域网私有证书可能需要手动确认，公开远程证书不应出现警告。绕过证书警告不等于满足网页推送条件 |
+| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | 尚未提供下载；WebView2 外壳，配对时固定电脑证书。仍是预览版，未完成真实 Windows 验收，不是已支持平台 |
 
 Android App 只是 Kotlin WebView 薄壳，不内置另一份网页；手机浏览器访问的是同一页面。开发者可在已认证移动地址后追加 `?frontend=stock` 诊断启动与布局行为；该入口跳过专用移动启动改写和模块选择，但仍可能加载客户端移动适配及已认证定制，并非不含插件的对照页。部分 API 操作可能被拒绝，不能代替正常移动入口。详见[皮肤与移动布局](docs/SKIN_COMPATIBILITY.md)。
 
@@ -455,6 +465,7 @@ macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funn
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.8.16` | 宽屏下会话列恢复全宽，左右侧栏均可拖拽调宽，侧栏打开不再顿挫（#465）；opaque-path WebView 上文件预览恢复（#415）。Android App 为 0.8.3 |
 | `0.8.15` | 火狐 Android 端键盘遮挡输入框已修复（#457）；预览文件名支持复制路径 / 分享文件（#459）；DSH 0.2.3-alpha.2 兼容恢复（#462）。Android App 为 0.8.3 |
 | `0.8.14` | Android WebView 低于 Chromium 120 时助手正文整块消失的问题已修复（#450）；侧边栏 footer 入口改用与相邻插件共用的容量契约（#440）；断线时首次续期返回 `transient` 会自动再试一次（#338）。Android App 为 0.8.2 |
 | `0.8.13` | **回环隧道接入**可给隧道指定独立端口，不必迁就网关自身的监听端口（#444）；DSH 重连后移动定制会自动恢复，不再需要手动重试（#338）。Android App 为 0.8.2 |

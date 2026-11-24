@@ -247,7 +247,11 @@ export function resolveMobileRightbarLayout(
   const overlayWidth = wideViewport
     ? Math.min(viewportWidth * 0.94, RIGHTBAR_MAX_WIDTH_PX)
     : viewportWidth
-  if (!track || fullscreen || (!wideViewport && sidebarOpen)) {
+  // Only a wide viewport owns a spare grid column to dock into. Below that the
+  // shell declares two columns, so a docked panel would land in an implicit third
+  // one sized by its content and squeeze the conversation for no benefit — the
+  // narrow band keeps the full-width overlay it had before docking existed.
+  if (!track || fullscreen || !wideViewport) {
     return Object.freeze({ docked: false, width: overlayWidth })
   }
   const dockedSidebarWidth = wideViewport && sidebarOpen
@@ -838,8 +842,7 @@ body:has(.dshm-shell) :is(input,textarea,[contenteditable=true],[contenteditable
    strip on the drawer's trailing edge: it only exists in the wide band while
    the drawer is open, so the phone drawer keeps its own gestures. */
 .dshm-sidebarResize{display:none}
-.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]{position:relative}
-.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]>.dshm-sidebarResize{display:block;position:absolute;top:0;right:0;z-index:80;box-sizing:border-box;width:9px!important;height:100%!important;padding:0;border:0;background:transparent;cursor:col-resize;touch-action:none}
+.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]>.dshm-sidebarResize{display:block;position:fixed;top:0;left:calc(var(--dshm-sidebar-width,340px) - 9px);z-index:80;box-sizing:border-box;width:9px!important;height:100dvh!important;padding:0;border:0;background:transparent;cursor:col-resize;touch-action:none}
 .dshm-sidebarResize::after{position:absolute;inset:0 4px;content:"";border-radius:999px;background:transparent;transition:background-color 120ms ease}
 .dshm-sidebarResize:hover::after,.dshm-sidebarResize:focus-visible::after,.dshm-sidebarResize[data-resizing=true]::after{background:var(--dsw-alias-label-primary-bluish,#2563eb);opacity:.55}
 .dshm-sidebarResize:focus-visible{outline:none}
@@ -1174,9 +1177,9 @@ function MobileAppFrame(props: MobileRootProps & {
     // depends on `screen`, which CSS cannot read. It is part of the first render,
     // so a tablet never paints the drawer band and then reflows.
     [WIDE_LAYOUT_ATTRIBUTE]: wideViewport ? '1' : '0',
-    // React omits a data attribute whose value is the boolean `true`, so these
-    // must be strings: the stylesheet matches `[data-rightbar-docked=true]`, and
-    // a boolean here silently dropped the docked width and its divider.
+    // Written as explicit strings: React would stringify a boolean here, but then
+    // the value the stylesheet matches would depend on React's coercion rather than
+    // on the decision made above. Keep the marker and the resolver in step.
     'data-rightbar-docked': rightbarDocked ? 'true' : 'false',
     'data-rightbar-fullscreen': rightbarFullscreen ? 'true' : 'false',
     style: { '--dshm-rightbar-width': `${rightbar.width}px` },
