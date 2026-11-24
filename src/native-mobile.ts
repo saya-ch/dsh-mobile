@@ -143,7 +143,11 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-header] [class*="_tab"] { padding-bottom:5px !important; }
   [data-dsh-mobile-header] [class*="_tabs"]::-webkit-scrollbar { display:none; }
   [data-dsh-mobile-sidebar] { position:fixed !important; z-index:240 !important; inset:0 auto 0 0 !important; width:0 !important; overflow:visible !important; }
-  [data-dsh-mobile-sidebar-root] { position:fixed !important; z-index:241 !important; inset:max(env(safe-area-inset-top),0px) auto 0 0 !important; height:auto !important; transition:width 180ms var(--dsh-mobile-motion-ease),box-shadow 180ms ease !important; }
+  /* The width is not transitioned: animating it reflows the entire sidebar
+     subtree — a virtualized session list plus workspace rows — on every frame,
+     which is the sluggish opening users report. The width snaps and the shadow
+     still eases, so the motion is preserved without the layout cost. */
+  [data-dsh-mobile-sidebar-root] { position:fixed !important; z-index:241 !important; inset:max(env(safe-area-inset-top),0px) auto 0 0 !important; height:auto !important; transition:box-shadow 180ms ease !important; }
   [data-dsh-mobile-sidebar][data-open="true"] [data-dsh-mobile-sidebar-root] { width:min(88vw,340px) !important; padding-top:0 !important; box-shadow:18px 0 46px rgb(15 23 42 / 18%); }
   /* Extra panel/footer seats may exceed a short drawer. Keep a bounded
      workspace scrollport and let the drawer scroll to the remaining seats. */

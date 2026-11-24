@@ -57,6 +57,43 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
   let frame = 0
   let deadline = 0
   let disposed = false
+  /**
+   * Defer until the drawer's opening animation has finished.
+   *
+   * Restoring the remembered scroll position reads layout on every animation
+   * frame, and the drawer animates its content slide at the same time. Running
+   * both at once made the sidebar open feel sluggish, so the restore waits for
+   * the drawer's own animations instead of competing with them. Engines without
+   * `getAnimations` and fixtures without animations restore immediately.
+   */
+  const whenDrawerSettled = (run: () => void): void => {
+    if (root === undefined || typeof root.getAnimations !== 'function') { run(); return }
+    let animations: Animation[]
+    try {
+      animations = root.getAnimations({ subtree: true })
+    } catch {
+      run()
+      return
+    }
+    const running = animations.filter(animation => animation.playState === 'running')
+    if (running.length === 0) { run(); return }
+    let remaining = running.length
+    let started = false
+    const start = (): void => {
+      if (started || disposed) return
+      started = true
+      run()
+    }
+    for (const animation of running) {
+      animation.finished.then(() => {
+        remaining -= 1
+        if (remaining <= 0) start()
+      }, () => {
+        remaining -= 1
+        if (remaining <= 0) start()
+      })
+    }
+  }
 
   const isOpen = (): boolean => root !== undefined && visible(root)
     && !hasSuffix(root, '_collapsed')
@@ -132,7 +169,14 @@ export function installMobileSidebarScrollMemory(): { sync: () => void; dispose:
     }
     for (const port of pending.keys()) if (!nextPorts.has(port)) pending.delete(port)
     ports = nextPorts
-    if (pending.size > 0 && frame === 0) frame = requestAnimationFrame(restore)
+    if (pending.size > 0 && frame === 0) {
+      // The deadline still guards the loop; waiting for the drawer to settle only
+      // delays its first frame, it does not extend the budget by much.
+      whenDrawerSettled(() => {
+        if (disposed || pending.size === 0 || frame !== 0) return
+        frame = requestAnimationFrame(restore)
+      })
+    }
   }
   const onScroll = (event: Event): void => {
     const port = event.target

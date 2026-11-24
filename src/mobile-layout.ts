@@ -719,7 +719,7 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"]{grid-template-columns:auto minmax(0,1fr)!important}
 .dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"][data-rightbar-docked=true]{grid-template-columns:auto minmax(0,1fr) var(--dshm-rightbar-width)!important}
 }
-.dshm-main{grid-area:1/1;position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;margin-right:0;overflow:hidden;transition:margin-right var(--ds-transition-duration-slow,190ms) var(--ds-ease-in-out,ease)}
+.dshm-main{grid-area:1/1;position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;margin-right:0;overflow:hidden}
 .dshm-mainContent{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}
 .dshm-shell[data-rightbar-docked=true] .dshm-main{margin-right:0}
 .dshm-shell[data-rightbar-docked=true] .dshm-details{position:relative;grid-area:1/3;inset:auto;transform:none;width:var(--dshm-rightbar-width);max-width:var(--dshm-rightbar-width);box-shadow:none;padding-top:0}
@@ -740,7 +740,12 @@ html,body,#root{width:100%;height:100%;overflow:hidden}
    only clipped line tails. A fullscreen panel owns the whole viewport. */
 .dshm-shell[data-rightbar-fullscreen=true] .dshm-details{inset:0;width:100vw;max-width:100vw;box-shadow:none}
 .dshm-main>*,.dshm-main>*>*{min-width:0}
-.dshm-drawer{position:fixed;z-index:70;inset:0 auto 0 0;box-sizing:border-box;width:56px;max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background-color:Canvas;background-image:linear-gradient(var(--dsw-alias-bg-layer-1,#f8fafc),var(--dsw-alias-bg-layer-1,#f8fafc));box-shadow:none;will-change:width;transition:width 240ms cubic-bezier(.22,1,.36,1),box-shadow 240ms ease}
+/* The drawer's width is deliberately not transitioned. Animating the width
+   reflows the whole sidebar subtree on every frame — a virtualized session list
+   plus workspace rows — which is what made opening the sidebar feel sluggish on
+   phones since 0.1.0. The width snaps to its final value and the motion comes
+   from the content slide and the shadow, which the compositor can handle. */
+.dshm-drawer{position:fixed;z-index:70;inset:0 auto 0 0;box-sizing:border-box;width:56px;max-width:100%;padding-top:env(safe-area-inset-top);overflow:hidden;background-color:Canvas;background-image:linear-gradient(var(--dsw-alias-bg-layer-1,#f8fafc),var(--dsw-alias-bg-layer-1,#f8fafc));box-shadow:none;transition:box-shadow 240ms ease}
 .dshm-drawer[data-open=true]{width:min(88vw,340px);box-shadow:18px 0 46px rgb(15 23 42 / 18%)}
 .dshm-drawer[data-open=false]{pointer-events:auto;visibility:visible}
 /* Slide the sidebar content only while opening or closing. A resting transform

@@ -710,6 +710,18 @@ describe('dedicated mobile layout boot', () => {
     expect(MOBILE_LAYOUT_STYLES).toContain(`.dshm-shell[${WIDE_LAYOUT_ATTRIBUTE}="1"] .dshm-drawer[data-open=true]>.dshm-sidebarResize{display:block`)
   })
 
+  it('never animates the drawer width, which would reflow the sidebar every frame', () => {
+    // Opening the drawer used to transition `width`. That reflows the whole
+    // sidebar subtree (a virtualized session list plus workspace rows) on every
+    // frame, which is the sluggish opening users reported since 0.1.0. The width
+    // snaps and the motion comes from the content slide and the shadow.
+    expect(MOBILE_LAYOUT_STYLES).not.toMatch(/\.dshm-drawer\{[^}]*transition:[^;}]*width/u)
+    expect(MOBILE_LAYOUT_STYLES).not.toMatch(/\.dshm-drawer\{[^}]*will-change:\s*width/u)
+    expect(MOBILE_LAYOUT_STYLES).not.toMatch(/\.dshm-main\{[^}]*transition:[^;}]*margin-right/u)
+    // The child slide still owns the motion, and it is transform-only.
+    expect(MOBILE_LAYOUT_STYLES).toContain('@keyframes dshm-drawer-slide-open{from{transform:translateX(-6px)}to{transform:translateX(0)}}')
+  })
+
   it('publishes the wide band as a shell attribute instead of a media query', () => {
     // Media queries cannot read `screen`, so the stylesheet follows the marker
     // the JS decision writes on the shell. An absent marker is the narrow default.
