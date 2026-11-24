@@ -29,6 +29,17 @@
     <Resource Include="app.ico" />
   </ItemGroup>
 
+  <!-- Launcher artwork the user can switch between. These are the same assets the
+       Android app ships, converted to multi-size ICO; they must land in the
+       published folder because the icon picker reads them at runtime.
+       The PNGs are the shell's brand artwork (page header avatar, rail mark); they
+       are PNG rather than ICO because the WPF ICO decoder picks a small frame and
+       the scaled-up result looked soft next to the vector glyphs. -->
+  <ItemGroup>
+    <Content Include="icons\*.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="icons\brand-mascot.png;icons\brand-whale.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Pure-logic unit tests live in a separate project; expose internals only to it. -->
   <ItemGroup>
     <InternalsVisibleTo Include="DshMobile.Win.Tests" />

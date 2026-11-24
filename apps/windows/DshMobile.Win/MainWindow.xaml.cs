@@ -45,6 +45,9 @@ public partial class MainWindow : Window
     private SavedDevice? _current;
     private BackgroundEventWatcher? _watcher;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
+    private System.Drawing.Icon? _trayIconHandle;
+    private AppIcons.Choice _appIcon = AppIcons.All[0];
+    private AppSettings _settings = new();
     private CoreWebView2? _core;
     private bool _certificateHandlerAttached;
     private CancellationTokenSource? _connectCts;
@@ -55,11 +58,22 @@ public partial class MainWindow : Window
     private DiscoveredGateway? _selectedDiscovery;
     private CancellationTokenSource? _scanCts;
     private SavedDevice? _pendingAdopt;
+    private bool _dataWritable = true;
+    private string? _dataFolderError;
+    /// <summary>Set while the launch-time auto-connect runs, so its failure can say so.</summary>
+    private bool _autoConnecting;
 
     public MainWindow()
     {
         InitializeComponent();
-        Directory.CreateDirectory(DataRoot);
+        FitToScreen();
+        // A portable folder under Program Files is readable but refuses new files, and
+        // Directory.CreateDirectory throws for it. The client still works for this run,
+        // so the failure is reported once instead of ending the process.
+        _dataWritable = PortableData.TryPrepare(DataRoot, out _dataFolderError);
+        _settings = AppSettings.Load(DataRoot);
+        _appIcon = AppIcons.Resolve(_settings.Icon);
+        ApplyAppIcon();
         _store = new DeviceStore(DevicesPath, Log);
         Log($"portable root: {Root}");
         Log($"iroh identity: {IdentityDir}");
@@ -67,7 +81,9 @@ public partial class MainWindow : Window
         Loaded += async (_, _) =>
         {
             ApplyCaptionColor();
+            if (!_dataWritable) ShowDataFolderWarning();
             await InitializeWebViewAsync();
+            await AutoConnectOnLaunchAsync();
         };
         Closed += (_, _) =>
         {
@@ -85,6 +101,9 @@ public partial class MainWindow : Window
     /// titlebar and the in-app bar read as one continuous surface (Win11+; on older
     /// systems the system caption color is kept).
     /// </summary>
+    /// <summary>Re-apply the caption colour after a runtime theme change.</summary>
+    internal void RefreshCaptionColor() => ApplyCaptionColor();
+
     private void ApplyCaptionColor()
     {
         try
@@ -101,108 +120,156 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RefreshDeviceList()
+    /// <summary>
+    /// Repaint the saved-device list.
+    /// </summary>
+    /// <remarks>
+    /// The card layout, reachability wiring and undo logic live in MainWindow.Devices.cs;
+    /// this stays the one entry point every caller already uses.
+    /// </remarks>
+    private void RefreshDeviceList() => RebuildDeviceList();
+
+    /// <summary>
+    /// Tell the user once that settings, paired computers and the log cannot be saved,
+    /// and offer to open the download page for a writable copy of the client.
+    /// </summary>
+    private void ShowDataFolderWarning()
     {
-        DeviceList.Children.Clear();
-        _connectButtons.Clear();
-        var devices = _store.All;
-        var hasDevices = devices.Count > 0;
-        NoDevicesText.Visibility = hasDevices ? Visibility.Collapsed : Visibility.Visible;
-        // With no saved device the pairing input is the only action, so hide the
-        // toggle instead of showing a confusing "collapse" button.
-        AddToggleButton.Visibility = hasDevices ? Visibility.Visible : Visibility.Collapsed;
-        if (!hasDevices) ShowAddPanel(true);
-        foreach (var device in devices)
+        Log("portable data folder is not writable: " + (_dataFolderError ?? "unknown"));
+        var result = MessageBox.Show(this,
+            PortableData.UnwritableMessage + "\n\n详细错误：" + (_dataFolderError ?? "未知") +
+            $"\n\n数据目录：{DataRoot}",
+            PortableData.UnwritableTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+        _ = result;
+    }
+
+    /// <summary>
+    /// Launch behaviour from the settings page: "显示设备列表" leaves the connect page
+    /// alone, "自动连接上次的电脑" reconnects the last computer and falls back to the
+    /// device list with an explanation when that fails.
+    /// </summary>
+    /// <summary>
+    /// Record which computer the user connected to last, so the "auto connect"
+    /// start behaviour has a target.
+    /// </summary>
+    /// <remarks>
+    /// The decision itself lives in <see cref="StartupBehavior"/> so it can be tested
+    /// without a window; this only supplies the current settings and data folder.
+    /// </remarks>
+    private void RememberLastDevice(SavedDevice device)
+    {
+        if (StartupBehavior.RememberLastDevice(_settings, DataRoot, device))
+            Log("last device recorded: " + device.ShortId);
+    }
+
+    /// <summary>Stamp "last connected" so the device list can show a relative time.</summary>
+    private void MarkConnected(SavedDevice device)
+    {
+        _store.MarkConnected(device.EndpointId,
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Log);
+    }
+
+    private async Task AutoConnectOnLaunchAsync()
+    {
+        if (!_dataWritable) return; // nothing was persisted, so there is nothing to reconnect
+        var target = StartupBehavior.SelectAutoConnectTarget(
+            _settings.StartPage, _store.All, _settings.LastDeviceEndpointId);
+        if (target is null) return;
+        _autoConnecting = true;
+        try
         {
-            // Semantic token resources (design-system/MASTER.md). DynamicResource
-            // references follow the light/dark palette applied at startup.
-            var info = new StackPanel();
-            var name = new TextBlock
-            {
-                Text = device.Name, FontSize = 14, FontWeight = FontWeights.SemiBold,
-            };
-            name.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryTextBrush");
-            info.Children.Add(name);
+            await ConnectToAsync(target, null, null);
+        }
+        finally
+        {
+            _autoConnecting = false;
+        }
+    }
 
-            var paired = DateTimeOffset.FromUnixTimeMilliseconds(device.PairedAt).LocalDateTime;
-            var expiry = device.DeviceExpiresAt > 0
-                ? " · 凭据至 " + DateTimeOffset.FromUnixTimeMilliseconds(device.DeviceExpiresAt).LocalDateTime.ToString("yyyy-MM-dd")
-                : string.Empty;
-            var channelLabel = device.Channel switch
-            {
-                "lan" => "局域网",
-                "remote" => "远程",
-                _ => "iroh",
-            };
-            var detail = new TextBlock
-            {
-                Text = $"{channelLabel} · {device.ShortId}… · 配对 {paired:yyyy-MM-dd}{expiry}",
-                FontSize = 12,
-                Margin = new Thickness(0, 4, 0, 0),
-            };
-            detail.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryTextBrush");
-            info.Children.Add(detail);
+    /// <summary>Show the settings page, keeping the device list state intact.</summary>
+    private void SettingsOpen_Click(object sender, RoutedEventArgs e) => ShowSettingsPage(true);
+    /// <summary>Return to the device list from either the rail or the page header.</summary>
+    private void SettingsBack_Click(object sender, RoutedEventArgs e) => ShowSettingsPage(false);
 
-            if (!device.CanReconnect)
-            {
-                var warning = new TextBlock
-                {
-                    Text = "凭据已过期或不可读，粘贴该电脑当前链接即可更新",
-                    FontSize = 12,
-                    Margin = new Thickness(0, 4, 0, 0),
-                };
-                warning.SetResourceReference(TextBlock.ForegroundProperty, "ErrorBrush");
-                info.Children.Add(warning);
-            }
+    private void ShowSettingsPage(bool show)
+    {
+        DevicesScroll.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        SettingsScroll.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        // TODO(rail): switch to IsChecked once the rail uses RadioButtons — the checked
+        // state then carries both the selected pill and the accessibility state.
+        SettingsRailButton.Background = show
+            ? (Brush)FindResource("SurfaceAltBrush") : Brushes.Transparent;
+        DevicesRailButton.Background = show
+            ? Brushes.Transparent : (Brush)FindResource("SurfaceAltBrush");
+        if (show) SyncSettingsControls();
+        else RefreshDeviceList();
+    }
 
-            var rename = new Button
-            {
-                Content = "重命名", Width = 80,
-                Margin = new Thickness(12, 0, 0, 0), Tag = device,
-                ToolTip = "仅修改本机显示名称",
-            };
-            rename.Click += RenameDevice_Click;
-            var connect = new Button
-            {
-                Content = "连接", Width = 96,
-                Margin = new Thickness(8, 0, 0, 0), Tag = device,
-                Style = (Style)FindResource("PrimaryButton"),
-            };
-            connect.Click += ConnectSaved_Click;
-            var remove = new Button
-            {
-                Content = "删除", Width = 72,
-                Margin = new Thickness(8, 0, 0, 0), Tag = device,
-            };
-            remove.Click += RemoveDevice_Click;
-            _connectButtons.Add(rename);
-            _connectButtons.Add(connect);
-            _connectButtons.Add(remove);
+    /// <summary>Push the stored preferences into the controls that display them.</summary>
+    private void SyncSettingsControls()
+    {
+        ApplyAppIcon();
+        ThemeSystem.IsChecked = _settings.Theme == "system";
+        ThemeLight.IsChecked = _settings.Theme == "light";
+        ThemeDark.IsChecked = _settings.Theme == "dark";
+        StartDevices.IsChecked = _settings.StartPage == AppSettings.StartPageDevices;
+        StartLast.IsChecked = _settings.StartPage == AppSettings.StartPageLastDevice;
+        NotifyToggle.IsChecked = _settings.BackgroundNotifications;
+    }
 
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.Children.Add(info);
-            grid.Children.Add(rename);
-            grid.Children.Add(connect);
-            grid.Children.Add(remove);
-            Grid.SetColumn(rename, 1);
-            Grid.SetColumn(connect, 2);
-            Grid.SetColumn(remove, 3);
+    private void Theme_Checked(object sender, RoutedEventArgs e)
+    {
+        // Checked fires while the XAML is still being built; ignore until loaded.
+        if (_settings is null) return;
+        _settings.Theme = ThemeDark.IsChecked == true ? "dark"
+            : ThemeLight.IsChecked == true ? "light" : "system";
+        _settings.Save(DataRoot);
+        (Application.Current as App)?.ApplyThemePreference(_settings.Theme);
+    }
 
-            var card = new Border
-            {
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(10), // desktop-scale radius per user preference
-                Padding = new Thickness(16),
-                Margin = new Thickness(0, 0, 0, 10),
-                Child = grid,
-            };
-            card.SetResourceReference(Border.BackgroundProperty, "CardBrush");
-            card.SetResourceReference(Border.BorderBrushProperty, "OutlineBrush");
-            DeviceList.Children.Add(card);
+    private void StartPage_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_settings is null) return;
+        _settings.StartPage = StartLast.IsChecked == true
+            ? AppSettings.StartPageLastDevice : AppSettings.StartPageDevices;
+        _settings.Save(DataRoot);
+    }
+
+    private void Notify_Click(object sender, RoutedEventArgs e)
+    {
+        if (_settings is null) return;
+        _settings.BackgroundNotifications = NotifyToggle.IsChecked == true;
+        _settings.Save(DataRoot);
+        // Turning the switch off stops an active watcher immediately; the connected
+        // page keeps working, only the notifications stop.
+        if (!_settings.BackgroundNotifications) StopTaskWatcher();
+        else if (_current is not null && _watcher is null) Log("notifications re-enabled; reconnect to start the watcher");
+    }
+
+    private async void ClearSiteData_Click(object sender, RoutedEventArgs e)
+    {
+        if (_core is null)
+        {
+            MessageBox.Show("先连接一次，WebView 数据才有可清除的内容。", "清除站点数据",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var confirm = MessageBox.Show(
+            "清除 WebView 的缓存、Cookie 与本地存储？\n已配对的电脑与凭据不受影响。",
+            "清除站点数据", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK) return;
+        try
+        {
+            await _core.Profile.ClearBrowsingDataAsync();
+            Log("site data cleared");
+            MessageBox.Show("已清除。重新连接后会重新载入页面。", "清除站点数据",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception error)
+        {
+            Log("site data clear failed: " + error);
+            MessageBox.Show("清除失败：" + error.Message, "清除站点数据",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -473,16 +540,9 @@ public partial class MainWindow : Window
         await ConnectToAsync(device, null, null);
     }
 
-    private void RemoveDevice_Click(object sender, RoutedEventArgs e)
-    {
-        if (_busy) return;
-        var device = (SavedDevice)((Button)sender).Tag;
-        if (MessageBox.Show(this, $"删除已配对电脑「{device.Name}」？下次连接需要重新粘贴配对链接。",
-                "删除设备", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-        _store.Remove(device.EndpointId, Log);
-        RefreshDeviceList();
-        Log("removed saved device: " + device.EndpointId);
-    }
+    // Deletion is handled by DeleteDevice in MainWindow.Devices.cs: it removes the
+    // record without a modal (the undo strip replaces the confirmation) and leaves a
+    // live session running.
 
     private void RenameDevice_Click(object sender, RoutedEventArgs e)
     {
@@ -539,7 +599,20 @@ public partial class MainWindow : Window
                 carrier.Failed += reason =>
                 {
                     Log(reason);
-                    try { Dispatcher.BeginInvoke(new Action(() => { if (_carrier is not null) SetProgress("连接已中断"); })); }
+                    try
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (_carrier is null) return;
+                            SetProgress("连接已中断");
+                            // The progress line lives on the connect page, which is
+                            // hidden while the user is reading the page. The bar stays
+                            // visible, so the disconnect has to show up there too.
+                            BrowserTitle.Text = "连接已中断 · " + device.Name;
+                            if (_settings.BackgroundNotifications)
+                                ShowTrayBalloon("连接已中断", reason, System.Windows.Forms.ToolTipIcon.Warning);
+                        }));
+                    }
                     catch { /* window closed */ }
                 };
                 Log("iroh transport ready: " + carrier.ProxyOrigin);
@@ -585,6 +658,8 @@ public partial class MainWindow : Window
             ShowBrowserPage(device);
             _core!.Navigate(device.Origin);
             Log("connected: " + device.Origin);
+            RememberLastDevice(device);
+            MarkConnected(device);
             StartTaskWatcher(device, session);
         }
         catch (Exception error)
@@ -603,6 +678,7 @@ public partial class MainWindow : Window
             ShowConnectPage();
             if (repair) { ShowAddPanel(true); DescriptorBox.Focus(); }
             SetProgress(string.Empty);
+            if (_autoConnecting) hint = StartupBehavior.DescribeAutoConnectFailure(hint, device.Name);
             if (repair && IsAdoptableFailure(error, device))
             {
                 // The gateway may have moved (rotated tunnel address) or the
@@ -653,47 +729,15 @@ public partial class MainWindow : Window
 
     private (string Hint, bool Repair) BuildHint(Exception error, string diagnostics, SavedDevice device)
     {
-        var prefix = device.ShortId;
-        var message = error.Message;
-        bool credential = message.Contains("设备凭据", StringComparison.Ordinal) ||
-                          message.Contains("device_expired", StringComparison.Ordinal) ||
-                          message.Contains("device credential", StringComparison.OrdinalIgnoreCase) ||
-                          message.Contains("401", StringComparison.Ordinal) ||
-                          diagnostics.Contains("did not acknowledge", StringComparison.OrdinalIgnoreCase) ||
-                          diagnostics.Contains("pairing rejected", StringComparison.OrdinalIgnoreCase);
-        if (credential)
-            return ($"这台电脑的设备凭据已失效，或电脑端已撤销此设备。\n\n" +
-                    $"实例：{prefix}…\n请重新生成二维码并完成一次配对。", true);
-        if (device.Channel != "iroh")
+        var failure = ConnectionDiagnosis.Diagnose(error, diagnostics,
+            new ConnectionTarget(device.Channel, device.Hostname));
+        if (failure.Kind is ConnectionFailureKind.CredentialExpired or ConnectionFailureKind.ProtocolMismatch
+            or ConnectionFailureKind.CaMismatch)
         {
-            if (message.Contains("配对 CA 与二维码指纹不匹配", StringComparison.Ordinal))
-                return ("连接到的电脑与二维码指向的不是同一台（CA 指纹不匹配）。\n" +
-                        "请确认二维码来自这台电脑，且中间没有地址劫持。", false);
-            if (message.Contains("无法解析主机", StringComparison.Ordinal))
-                return ($"无法解析电脑地址 {device.Hostname}。\n\n" +
-                        (device.Channel == "lan"
-                            ? "局域网连接：请确认本机与电脑在同一网络，电脑端网关正在运行。"
-                            : "远程连接：请确认远程通道（Tailscale/cpolar/cloudflared 等）正在运行，且域名可访问。"), false);
-            if (error is SocketException || message.Contains("refused", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
-                message.Contains("无法连接", StringComparison.Ordinal))
-                return ("无法建立到电脑端网关的 HTTPS 连接。\n\n" +
-                        (device.Channel == "lan"
-                            ? "局域网连接：请确认本机与电脑在同一网络，防火墙放行了网关端口，且通道处于就绪状态。"
-                            : "远程连接：请确认远程通道正在运行，公网可访问该地址。"), false);
+            var prefix = device.ShortId;
+            return (failure.Hint + $"\n\n实例：{prefix}…", failure.Repair);
         }
-        if (error is OperationCanceledException || error is TimeoutException)
-            return ("连接超时。请确认电脑端 iroh 通道处于就绪状态、两端网络可达，然后重试。", false);
-        if (diagnostics.Contains("No addressing information", StringComparison.OrdinalIgnoreCase))
-            return ("iroh 找不到该电脑端的地址（已自动重试 2 次）。\n\n" +
-                    $"EndpointId：{prefix}…\n" +
-                    "请在代理/VPN 中放行 dns.iroh.link、iroh.link、relay.iroh.network 的 DNS 与 UDP。", false);
-        if (diagnostics.Contains("host connection timed out", StringComparison.OrdinalIgnoreCase))
-            return ("iroh 在 15 秒内没能连上二维码指向的电脑端（已自动重试 2 次）。\n\n" +
-                    $"EndpointId：{prefix}…\n" +
-                    "常见原因：电脑端通道刚重启、发现记录尚未传播，或代理/VPN 拦了 UDP。\n" +
-                    "请确认通道就绪后重试；详细诊断见 data\\client.log。", false);
-        return (message, false);
+        return (failure.Hint, failure.Repair);
     }
 
     /// <summary>
@@ -701,21 +745,8 @@ public partial class MainWindow : Window
     /// the gateway moved or the credential expired/revoked. iroh records
     /// carry their own endpoint identity and reconnect via Hello instead.
     /// </summary>
-    private static bool IsAdoptableFailure(Exception error, SavedDevice device)
-    {
-        if (device.Channel is not ("lan" or "remote")) return false;
-        var message = error.Message;
-        if (message.Contains("设备凭据", StringComparison.Ordinal) ||
-            message.Contains("device_expired", StringComparison.Ordinal) ||
-            message.Contains("device credential", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("401", StringComparison.Ordinal))
-            return true;
-        return message.Contains("无法解析主机", StringComparison.Ordinal) ||
-            error is SocketException ||
-            message.Contains("refused", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("无法连接", StringComparison.Ordinal);
-    }
+    private static bool IsAdoptableFailure(Exception error, SavedDevice device) =>
+        ConnectionDiagnosis.IsAdoptable(error, new ConnectionTarget(device.Channel, device.Hostname));
 
     private void SetProgress(string status)
     {
@@ -907,6 +938,11 @@ public partial class MainWindow : Window
     private async Task EnsureWebViewAsync()
     {
         if (_core is not null) return;
+        // Chromium reports a generic init timeout when the runtime is absent, which
+        // reads as a network problem. Ask the loader directly so the user is told
+        // what to install instead.
+        if (WebView2Availability.Detect(() => CoreWebView2Environment.GetAvailableBrowserVersionString()) is null)
+            throw new InvalidOperationException(WebView2Availability.MissingMessage);
         await _webViewGate.WaitAsync();
         var previousVisibility = WebView.Visibility;
         try
@@ -1155,6 +1191,13 @@ public partial class MainWindow : Window
     /// </summary>
     private void StartTaskWatcher(SavedDevice device, NativeSession session)
     {
+        // The settings page can switch notifications off; a watcher that still ran
+        // would keep a tray icon alive for notifications the user declined.
+        if (!_settings.BackgroundNotifications)
+        {
+            Log("task watcher disabled by preference");
+            return;
+        }
         StopTaskWatcher();
         var watcher = new BackgroundEventWatcher(device, RenewForWatcherAsync, Log);
         watcher.TaskNotified += (title, body) => Dispatcher.BeginInvoke(new Action(() =>
@@ -1164,7 +1207,9 @@ public partial class MainWindow : Window
                 System.Windows.Forms.ToolTipIcon.Info)));
         watcher.Revoked += reason => Dispatcher.BeginInvoke(new Action(() =>
         {
-            StopTaskWatcher();
+            // Keep the icon alive until the balloon has been shown; hiding it first
+            // discarded the notification the user needs to see.
+            StopTaskWatcher(keepTrayIcon: true);
             ShowTrayBalloon("设备已失效", reason + "。请粘贴该电脑当前的配对链接更新。",
                 System.Windows.Forms.ToolTipIcon.Warning);
         }));
@@ -1175,11 +1220,11 @@ public partial class MainWindow : Window
         watcher.Start(session.SessionToken);
     }
 
-    private void StopTaskWatcher()
+    private void StopTaskWatcher(bool keepTrayIcon = false)
     {
         _watcher?.Dispose();
         _watcher = null;
-        if (_trayIcon is not null) _trayIcon.Visible = false;
+        if (!keepTrayIcon && _trayIcon is not null) _trayIcon.Visible = false;
     }
 
     private async Task<NativeSession> RenewForWatcherAsync(CancellationToken ct)
@@ -1196,19 +1241,88 @@ public partial class MainWindow : Window
         return renewed;
     }
 
+    /// <summary>
+    /// Keep the default window inside the work area, without shrinking it on a
+    /// display that has room.
+    /// </summary>
+    /// <remarks>
+    /// The declared size is a comfortable default on a large desktop. It is only
+    /// reduced when the screen genuinely cannot hold it, because a window wider
+    /// than the display clipped the right-hand rail and the card actions.
+    /// </remarks>
+    private void FitToScreen()
+    {
+        var area = SystemParameters.WorkArea;
+        if (area.Width <= 0 || area.Height <= 0) return;
+        var availableWidth = area.Width - 32;
+        var availableHeight = area.Height - 32;
+        // Only clamp when the screen is smaller than the default; never grow past it.
+        if (availableWidth < Width) Width = Math.Max(MinWidth, availableWidth);
+        if (availableHeight < Height) Height = Math.Max(MinHeight, availableHeight);
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+    }
+
+    /// <summary>Point the window, taskbar and tray at the selected artwork.</summary>
+    private void ApplyAppIcon()
+    {
+        var image = AppIcons.LoadImage(_appIcon);
+        if (image is not null)
+        {
+            Icon = image;
+            IconPreview.Source = image;
+        }
+        if (_trayIcon is not null)
+        {
+            var previous = _trayIconHandle;
+            _trayIconHandle = AppIcons.LoadTrayIcon(_appIcon) ?? System.Drawing.SystemIcons.Application;
+            _trayIcon.Icon = _trayIconHandle;
+            // The NotifyIcon copies the handle, so the old one can go.
+            if (!ReferenceEquals(previous, _trayIconHandle)) previous?.Dispose();
+        }
+        IconLabel.Text = _appIcon.Label;
+        // The informational version carries build metadata after '+', which is noise
+        // in a settings row; the released identifier is the part before it.
+        var informational = System.Reflection.CustomAttributeExtensions
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(
+                typeof(MainWindow).Assembly)?.InformationalVersion
+            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
+        var version = informational.Split('+')[0];
+        VersionText.Text = $"DSH Mobile Windows {version}";
+    }
+
+    /// <summary>Cycle to the next pose; the choice is stored beside the device list.</summary>
+    private void CycleIcon_Click(object sender, RoutedEventArgs e)
+    {
+        var index = AppIcons.All.ToList().FindIndex(choice => choice.Id == _appIcon.Id);
+        _appIcon = AppIcons.All[(index + 1) % AppIcons.All.Count];
+        ApplyAppIcon();
+        // One writer for settings.json: writing a second, narrower document here used
+        // to erase the theme, start behaviour and notification choice.
+        _settings.Icon = _appIcon.Id;
+        _settings.Save(DataRoot);
+        Log("app icon: " + _appIcon.Id);
+    }
+
     private void EnsureTrayIcon()
     {
         if (_trayIcon is not null) return;
+        _trayIconHandle = AppIcons.LoadTrayIcon(_appIcon) ?? System.Drawing.SystemIcons.Application;
         _trayIcon = new System.Windows.Forms.NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = _trayIconHandle,
             Text = "DeepSeek Harness",
             Visible = false,
         };
         _trayIcon.BalloonTipClicked += (_, _) => Dispatcher.BeginInvoke(new Action(() =>
         {
             if (_current is not null) ShowBrowserPage(_current);
+            // A balloon click usually arrives while the window is minimised, so
+            // activating alone would leave it behind the taskbar.
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Show();
             Activate();
+            Topmost = true;
+            Topmost = false;
         }));
     }
 
@@ -1230,8 +1344,8 @@ public partial class MainWindow : Window
 
     private void Log(string message)
     {
-        var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
-        try { lock (_logLock) { File.AppendAllText(LogPath, line + Environment.NewLine); } }
-        catch { /* disk full */ }
+        // ClientLog rotates at 2 MB and keeps one previous file, so a long-running
+        // install cannot fill the portable folder with an unbounded log.
+        lock (_logLock) { ClientLog.Write(LogPath, message); }
     }
 }

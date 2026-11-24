@@ -43,6 +43,16 @@ internal sealed class SavedDevice
     public long DeviceExpiresAt { get; set; }
     public long PairedAt { get; set; }
 
+    /// <summary>
+    /// Manual position in the device list; lower comes first. Zero means "not arranged
+    /// yet" - every record written before this field existed - so those rows keep the
+    /// previous newest-first order and an upgrade needs no migration write.
+    /// </summary>
+    public int SortOrder { get; set; }
+
+    /// <summary>When this computer was last opened from this client; 0 means never.</summary>
+    public long LastConnectedAt { get; set; }
+
     [JsonIgnore]
     internal X509Certificate2 Ca => _ca ??= new X509Certificate2(Convert.FromBase64String(CaDerBase64));
 
@@ -215,9 +225,14 @@ internal sealed class DeviceStore
         catch (Exception error) { log("device store unreadable, starting empty: " + error.Message); }
     }
 
+    /// <summary>
+    /// The saved computers in display order: <c>SortOrder</c> first, then newest-paired.
+    /// A store whose records all predate <c>SortOrder</c> therefore lists exactly as the
+    /// previous release did.
+    /// </summary>
     internal IReadOnlyList<SavedDevice> All
     {
-        get { lock (_gate) return _items.OrderByDescending(d => d.PairedAt).ToList(); }
+        get { lock (_gate) return DeviceOrder.Order(_items); }
     }
 
     internal void Upsert(SavedDevice device, Action<string> log)
@@ -228,9 +243,77 @@ internal sealed class DeviceStore
             if (index >= 0)
             {
                 device.Name = _items[index].Name;      // keep a user-visible name across renewals
+                device.SortOrder = _items[index].SortOrder;
+                device.LastConnectedAt = _items[index].LastConnectedAt;
                 _items[index] = device;
             }
-            else _items.Add(device);
+            else
+            {
+                // Appends below the existing rows instead of jumping to the front.
+                device.SortOrder = DeviceOrder.NextSortOrder(_items);
+                _items.Add(device);
+            }
+            Save(log);
+        }
+    }
+
+    /// <summary>Record that this client opened the computer, for the "last connected" line.</summary>
+    internal void MarkConnected(string endpointId, long atUnixMilliseconds, Action<string> log)
+    {
+        lock (_gate)
+        {
+            var device = _items.FirstOrDefault(d => d.EndpointId == endpointId);
+            if (device is null || device.LastConnectedAt >= atUnixMilliseconds) return;
+            device.LastConnectedAt = atUnixMilliseconds;
+            Save(log);
+        }
+    }
+
+    /// <summary>
+    /// Move one row one position towards the front. Returns true when the list changed,
+    /// so the caller only rebuilds and repaints on a real move.
+    /// </summary>
+    internal bool MoveUp(string endpointId, Action<string> log)
+    {
+        lock (_gate)
+        {
+            var ordered = DeviceOrder.Order(_items);
+            if (!DeviceOrder.MoveUp(ordered, endpointId)) return false;
+            // SortOrder now carries the whole arrangement, so write it back per record.
+            foreach (var row in ordered) _items.First(d => d.EndpointId == row.EndpointId).SortOrder = row.SortOrder;
+            Save(log);
+            return true;
+        }
+    }
+
+    /// <summary>Move one row to the front; false when it is already first.</summary>
+    internal bool MoveToTop(string endpointId, Action<string> log)
+    {
+        lock (_gate)
+        {
+            var ordered = DeviceOrder.Order(_items);
+            if (!DeviceOrder.MoveToTop(ordered, endpointId)) return false;
+            foreach (var row in ordered) _items.First(d => d.EndpointId == row.EndpointId).SortOrder = row.SortOrder;
+            Save(log);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Put a removed record back, keeping its name, its <c>SortOrder</c> and its
+    /// <c>LastConnectedAt</c>, so <see cref="All"/> shows it where it was before.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="Upsert"/>: that keeps the *stored* record's order and
+    /// assigns a new one for an unknown endpoint, which would move the restored row to
+    /// the bottom. This is the undo path, so the record goes back exactly as it was.
+    /// </remarks>
+    internal void Restore(SavedDevice device, Action<string> log)
+    {
+        lock (_gate)
+        {
+            if (_items.Any(d => d.EndpointId == device.EndpointId)) return;
+            _items.Add(device);
             Save(log);
         }
     }
