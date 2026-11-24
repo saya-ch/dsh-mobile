@@ -120,6 +120,12 @@ jobs:
           if [ -n "$contributor_note" ]; then
             release_note="$release_note"$'\n\n'"$contributor_note"
           fi
+          # The generated "What's Changed" list includes every commit title on this
+          # range, and the Windows client work landed on main under a title that says
+          # "publish". Nothing on that track is downloadable, so say so here rather
+          # than leaving the list to imply it.
+          windows_note="The portable Windows client under \`apps/windows/\` is **not published**: it has no download, no release, and has not been accepted on real Windows hardware. Commits mentioning it describe code that is in this tree, not a package you can install."
+          release_note="$release_note"$'\n\n'"$windows_note"
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists; refusing to replace published assets." >&2
             exit 1
