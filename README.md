@@ -32,7 +32,7 @@
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；仓库另含一个 **alpha 预览**的[便携 Windows 客户端](apps/windows/README.md)（尚未发布下载包，也未完成真实 Windows 验收，因此不作为已支持平台）。
+> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；仓库另含一个 **alpha 预览**的[便携 Windows 客户端](apps/windows/README.md)（[从 GitHub Releases 的 `windows-v*` 标签下载](https://github.com/saya-ch/dsh-mobile/releases)，尚未完成真实 Windows 验收，因此不作为已支持平台）。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
@@ -139,7 +139,7 @@ Windows 上也可以用 DSH Mobile：[便携 Windows 客户端](apps/windows/REA
 
 目前还没有提供下载包，需要按 [Windows 客户端说明](apps/windows/README.md) 自行编译：`dotnet publish -c Release -r win-x64 --self-contained true`。产物是自包含目录，解压即用，不需要安装 .NET、不需要管理员权限。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
 
-> 该客户端仍是 **alpha 预览**（当前 `0.1.0-alpha`），尚未发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
+> 该客户端仍是 **alpha 预览**（当前 `0.1.0-alpha`），以预发布形式单独发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
 
 ## 连接教程
 

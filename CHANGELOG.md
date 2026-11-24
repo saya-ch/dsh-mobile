@@ -4,7 +4,19 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Unreleased
 
-- Windows client track (code only, nothing downloadable): the portable client now declares a version and has a release path, **without being published**. `apps/windows/DshMobile.Win/DshMobile.Win.csproj` now declares `0.1.0-alpha`, and a `windows-v*` release workflow is ready to check the tag against that version, build, test, package a self-contained zip with its SHA-256 and upload it as a prerelease. No `windows-v*` tag has been pushed and no Windows package is downloadable: publishing on this track is a separate, explicit decision, and the client stays outside the supported platforms. It also verifies the pinned pairing CA over its own TLS handshake before handing an origin to WebView2, which only reports certificate failures and cannot say which certificate a response used — a platform-trusted certificate could otherwise load the page without the pairing CA ever being checked.
+
+## Windows 0.1.0-alpha - 2026-11-25
+
+The portable Windows client is published for the first time, as a prerelease on its own `windows-v*` track. It is not part of the plugin or its npm package, and it has not been accepted on real Windows hardware yet.
+
+- **Connect three ways**: LAN and remote pairing links, plus iroh through the official component. Pair once, then reconnect with one click; a changed remote address can be adopted from the computer's current link without dropping to an unpinned trust mode.
+- **A device list that says what is going on**: reachability is polled in the background (two at a time, no more often than every 15s, paused while connecting) and shown as a colour plus text; rows show when a computer was last opened, can be renamed, reordered, and a delete can be undone within five seconds.
+- **Settings**: start behaviour (list, or reconnect the last computer), theme (follow Windows, or pin light/dark), one of ten app icons shared with the phone, task notifications, and check-for-updates. All of it lives in one settings file with a single writer.
+- **Pinned certificate, verified independently**: the pairing CA is checked over the client's own TLS handshake before an origin is handed to WebView2, which only reports certificate failures and cannot say which certificate a response used. A platform-trusted certificate would otherwise load the page without the CA ever being checked.
+- **Survives its own environment**: a read-only folder is reported instead of throwing, a missing WebView2 runtime is named with a download link instead of surfacing as a generic timeout, unhandled exceptions are logged and reported once, the log rotates at 2 MB, and a dropped connection stays visible on the window bar.
+- **Readable in both themes**: the context menu, tooltips and separators follow the theme; keyboard focus is visible on every control; the two pages share one header shape, one measure and a fixed header; the dark caption is set through DWM.
+
+What it does not do yet: it has no in-app installer, no single-instance guard, and no acceptance run on real hardware. Reported issues should come with `data\client.log`.
 
 ## 0.8.16 - 2026-11-24
 
