@@ -220,6 +220,8 @@ try {
     globalThis.originalAny = AbortSignal.any
     globalThis.originalCheck = AbortSignal.prototype.throwIfAborted
     globalThis.originalAbort = AbortController.prototype.abort
+    globalThis.originalHostname = Object.getOwnPropertyDescriptor(URL.prototype, 'hostname').get
+    globalThis.originalHost = Object.getOwnPropertyDescriptor(URL.prototype, 'host').get
     globalThis.originalCollections = [Object.hasOwn, Array.prototype.at, String.prototype.at, Array.prototype.findLast, Array.prototype.findLastIndex, Array.prototype.toSorted, Array.prototype.toReversed]
   })
   await native.addScriptTag({ content: bundle })
@@ -227,8 +229,40 @@ try {
   assert.equal(await native.evaluate(() => originalPromise === Promise.withResolvers && originalAny === AbortSignal.any
     && originalCheck === AbortSignal.prototype.throwIfAborted && originalAbort === AbortController.prototype.abort), true)
   assert.equal(await native.evaluate(() => originalCollections.every((value, index) => value === [Object.hasOwn, Array.prototype.at, String.prototype.at, Array.prototype.findLast, Array.prototype.findLastIndex, Array.prototype.toSorted, Array.prototype.toReversed][index])), true)
+  assert.equal(await native.evaluate(() => originalHostname === Object.getOwnPropertyDescriptor(URL.prototype, 'hostname').get
+    && originalHost === Object.getOwnPropertyDescriptor(URL.prototype, 'host').get
+    && new URL('dsh-resource://file/probe').hostname === 'file'), true, 'An engine that already reports the authority must keep its own accessors')
   await native.close()
   console.log('Native browser Promise, AbortSignal and collection implementations remained unchanged')
+  const opaque = await browser.newPage()
+  await opaque.addInitScript(() => {
+    const protocol = Object.getOwnPropertyDescriptor(URL.prototype, 'protocol').get
+    const hostname = Object.getOwnPropertyDescriptor(URL.prototype, 'hostname').get
+    const host = Object.getOwnPropertyDescriptor(URL.prototype, 'host').get
+    const special = new Set(['http:', 'https:', 'file:', 'ftp:', 'ws:', 'wss:'])
+    const opaqueAuthority = (instance, read) => (special.has(protocol.call(instance)) ? read.call(instance) : '')
+    Object.defineProperty(URL.prototype, 'hostname', { configurable: true, enumerable: true, get() { return opaqueAuthority(this, hostname) } })
+    Object.defineProperty(URL.prototype, 'host', { configurable: true, enumerable: true, get() { return opaqueAuthority(this, host) } })
+    globalThis.authorityMissingAtStart = new URL('dsh-resource://file/session/s-1/a.txt').hostname
+  })
+  await opaque.route('https://compat.test/**', route => {
+    const pathname = new URL(route.request().url()).pathname
+    return pathname === '/compat.js'
+      ? route.fulfill({ contentType: 'text/javascript', body: bundle })
+      : route.fulfill({ contentType: 'text/html', body: '<!doctype html><script src="/compat.js"></script>' })
+  })
+  await opaque.goto('https://compat.test/authority', { waitUntil: 'load' })
+  assert.equal(await opaque.evaluate(() => authorityMissingAtStart), '')
+  assert.deepEqual(await opaque.evaluate(() => [
+    new URL('dsh-resource://file/session/s-1/a.txt').hostname,
+    new URL('dsh-resource://file/session/s-1/a.txt').host,
+    new URL('dsh-resource://FILE:8443/x').host,
+    new URL('dsh-resource:///x').hostname,
+    new URL('other-scheme://host/x').hostname,
+    new URL('https://example.com/a').hostname,
+  ]), ['file', 'file', 'file:8443', '', '', 'example.com'], 'The compat layer must restore the written authority without inventing one')
+  await opaque.close()
+  console.log('Custom scheme authority restored for a WebView that parses it as an opaque path')
 } finally {
   await browser.close()
 }

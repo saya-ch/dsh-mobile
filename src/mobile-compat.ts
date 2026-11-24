@@ -16,6 +16,10 @@ import 'core-js/actual/url/parse.js'
 import 'core-js/stable/structured-clone.js'
 import { installAbortSignalCompatibility } from './mobile-abort-signal.js'
 import { installMobileBootFeedback } from './mobile-boot-feedback.js'
+// A custom-scheme address parses as an opaque path on some WebViews, which empties the
+// authority that client resource records are filed under (#415).
+import { installUrlAuthorityCompatibility } from './mobile-url-authority.js'
 
 installAbortSignalCompatibility()
+installUrlAuthorityCompatibility()
 installMobileBootFeedback()

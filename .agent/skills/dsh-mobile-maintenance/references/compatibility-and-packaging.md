@@ -76,7 +76,7 @@ When converting an existing `link:` dependency to an archive, a successful `pnpm
 
 ## Older WebViews
 
-Check the actual WebView engine and missing feature, not only Android's OS version or the vendor's package-version naming. The compatibility entry is `src/mobile-compat.ts`; the helpers it installs live in `src/mobile-abort-signal.ts` and `src/mobile-boot-feedback.ts`, and the authenticated early-boot injection is served from `src/mobile-compat-bootstrap.ts`. Preserve native implementations, CSP/nonces, cancellation semantics and owned listener cleanup.
+Check the actual WebView engine and missing feature, not only Android's OS version or the vendor's package-version naming. The compatibility entry is `src/mobile-compat.ts`; the helpers it installs live in `src/mobile-abort-signal.ts`, `src/mobile-boot-feedback.ts` and `src/mobile-url-authority.ts`, and the authenticated early-boot injection is served from `src/mobile-compat-bootstrap.ts`. Preserve native implementations, CSP/nonces, cancellation semantics and owned listener cleanup. A getter installed over a captured native getter must not reuse that name for the installed function: a named function expression binds its own name in scope, so `function hostname` would shadow the captured `hostname` and recurse until the stack overflows.
 
 A compatibility script must run before code that needs its APIs. Pair a failing missing-feature fixture with a negative control that fails for the intended marker; an unrelated install or timeout failure is not a passing negative control. Height compatibility must preserve a real conversation scroll range, not merely replace `dvh` text in a stylesheet.
 

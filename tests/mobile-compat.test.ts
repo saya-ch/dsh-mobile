@@ -66,6 +66,32 @@ function load(page: Context): void {
   runInContext(bundle, page, { timeout: 5_000 })
 }
 
+const SPECIAL_SCHEMES = new Set(['http:', 'https:', 'file:', 'ftp:', 'ws:', 'wss:'])
+
+function opaqueAuthorityPage(): Context {
+  const protocol = Object.getOwnPropertyDescriptor(URL.prototype, 'protocol')?.get
+  const href = Object.getOwnPropertyDescriptor(URL.prototype, 'href')?.get
+  const hostname = Object.getOwnPropertyDescriptor(URL.prototype, 'hostname')?.get
+  const host = Object.getOwnPropertyDescriptor(URL.prototype, 'host')?.get
+  if (protocol === undefined || href === undefined || hostname === undefined || host === undefined) {
+    throw new Error('Native URL accessors were not found')
+  }
+  const OpaqueURL = class extends URL {}
+  Object.defineProperty(OpaqueURL.prototype, 'protocol', { configurable: true, enumerable: true, get: protocol })
+  Object.defineProperty(OpaqueURL.prototype, 'href', { configurable: true, enumerable: true, get: href })
+  for (const [name, read] of [['hostname', hostname], ['host', host]] as const) {
+    Object.defineProperty(OpaqueURL.prototype, name, {
+      configurable: true,
+      enumerable: true,
+      // An engine that parses a non-special scheme as an opaque path reports no authority at all.
+      get: function (this: URL): string {
+        return SPECIAL_SCHEMES.has(protocol.call(this)) ? read.call(this) : ''
+      },
+    })
+  }
+  return createContext({ AbortSignal, AbortController, DOMException, Event, EventTarget, URL: OpaqueURL })
+}
+
 describe('early published-client collection APIs', () => {
   it('repairs the observed missing APIs before client code uses them', () => {
     const page = legacyPage()
@@ -478,5 +504,55 @@ describe('early AbortSignal composition', () => {
     runInContext('delete globalThis.WeakRef; delete globalThis.FinalizationRegistry;', page)
     load(page)
     expect(runInContext('var source = new AbortController(); var removed = 0; source.signal.removeEventListener = function (...args) { removed++; return EventTarget.prototype.removeEventListener.apply(this, args); }; var result = AbortSignal.any([source.signal]); source.abort("fallback"); [result.reason, removed]', page)).toEqual(['fallback', 1])
+  })
+})
+
+describe('custom scheme authority', () => {
+  it('restores the authority that an opaque-path engine drops', () => {
+    const page = opaqueAuthorityPage()
+    // The reported regression (#415): an empty hostname filed the resource record under protocol
+    // "undefined", so the file provider never attached and the preview reported the service as
+    // unavailable.
+    expect(runInContext('new URL("dsh-resource://file/session/s-1/a.txt").hostname', page)).toBe('')
+    load(page)
+    expect(runInContext('new URL("dsh-resource://file/session/s-1/a.txt").hostname', page)).toBe('file')
+    expect(runInContext('new URL("dsh-resource://file/session/s-1/a.txt").host', page)).toBe('file')
+  })
+
+  it('lowercases the written authority and keeps its port', () => {
+    const page = opaqueAuthorityPage()
+    load(page)
+    expect(runInContext('new URL("dsh-resource://FILE:8443/x").hostname', page)).toBe('file')
+    expect(runInContext('new URL("dsh-resource://FILE:8443/x").host', page)).toBe('file:8443')
+  })
+
+  it('leaves an address that carries no authority empty', () => {
+    const page = opaqueAuthorityPage()
+    load(page)
+    expect(runInContext('new URL("dsh-resource:///x").hostname', page)).toBe('')
+    expect(runInContext('new URL("dsh-resource:///x").host', page)).toBe('')
+  })
+
+  it('does not answer for other schemes', () => {
+    const page = opaqueAuthorityPage()
+    load(page)
+    expect(runInContext('new URL("other-scheme://host/x").hostname', page)).toBe('')
+    expect(runInContext('new URL("https://example.com/a").hostname', page)).toBe('example.com')
+  })
+
+  it('leaves an engine that already reports the authority unchanged', () => {
+    const page = createContext({ URL })
+    const before = runInContext('Object.getOwnPropertyDescriptor(URL.prototype, "hostname").get', page)
+    load(page)
+    expect(runInContext('Object.getOwnPropertyDescriptor(URL.prototype, "hostname").get', page)).toBe(before)
+    expect(runInContext('new URL("dsh-resource://file/probe").hostname', page)).toBe('file')
+  })
+
+  it('is not installed twice', () => {
+    const page = opaqueAuthorityPage()
+    load(page)
+    const installed = runInContext('Object.getOwnPropertyDescriptor(URL.prototype, "hostname").get', page)
+    load(page)
+    expect(runInContext('Object.getOwnPropertyDescriptor(URL.prototype, "hostname").get', page)).toBe(installed)
   })
 })
