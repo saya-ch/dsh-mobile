@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- Use the host focus-ring token chain (`--dsw-focus-ring-color` with the previous token as fallback) for the sidebar footer trigger, matching the community UI conventions §40. Document the footer conventions and the migration skill in the plugin adaptation guide.
+
 ## 0.8.15 - 2026-11-24
 
 - Keep the dedicated Mobile composer visible once the on-screen keyboard opens in Firefox for Android. The dedicated page and the pairing, reauthentication and module-recovery pages request a smaller layout viewport while the keyboard is open. Thanks @novscorhw for [#457](https://github.com/saya-ch/dsh-mobile/pull/457).
