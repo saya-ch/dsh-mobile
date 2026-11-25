@@ -373,7 +373,7 @@ Selection priority is device choice → computer defaults → plugin configurati
 | Android app | Everyday use | Separate Local and Remote entries at first pairing; LAN discovery, system trust for public remote certificates, and app-pinned CA for the self-signed FRP entry |
 | iPhone/iPad Safari or Home Screen web app (PWA) | Everyday iOS access and optional push | [Pair in Safari and add a Home Screen icon](<#iphone-and-ipad-home-screen-web-app-pwa>); no native iOS app. Capable Home Screen apps can enable [Web Push](docs/WEB_PUSH.en.md) |
 | Mobile browser | Everyday or cross-platform access | Open the HTTPS origin shown by Mobile Access; a private LAN certificate may need confirmation, while a public remote certificate should not warn. Continuing through a certificate warning does not make the page eligible for Web Push |
-| [Windows client (alpha preview)](apps/windows/README.en.md) | Access from a Windows PC | Download from the `windows-v*` tag; a WebView2 shell that pins the computer's certificate at pairing. Still a preview, not accepted on real Windows, and not a supported platform |
+| [Windows client (alpha preview)](apps/windows/README.en.md) | Access from a Windows PC | [Download the zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip); a WebView2 shell that pins the computer's certificate at pairing. Supports the LAN, remote and iroh entry points with the same pairing links the phone uses. Still a preview |
 
 The Android app is a thin Kotlin WebView shell and contains no frontend copy; mobile browsers load the same page. Developers can append `?frontend=stock` to an authenticated mobile URL to diagnose boot and layout behavior. This entry skips dedicated mobile boot rewriting and module selection, but installed client adaptation and authenticated customizations may still apply. It is not a plugin-free control; some API operations may be rejected, so it does not replace normal mobile access. See [skins and mobile layout](docs/SKIN_COMPATIBILITY.en.md).
 
@@ -454,14 +454,16 @@ This table describes the **computer running the plugin**, not the phone's OS; iP
 | --- | --- | --- | --- | --- |
 | Local network | Yes (firewall automated) | Yes (open the firewall yourself) | Yes | Yes |
 | Tailscale Funnel | Yes (bundled) | Yes (bundled) | Yes (bundled) | No |
-| cpolar | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) | No |
+| cpolar | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) | Yes, x64/arm64 (on-demand) |
 | cloudflared quick/named tunnel | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) | Yes, x64/arm64 (on-demand) |
 | Self-hosted FRP | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) |
 | Own reverse proxy | Yes (config only) | Yes (config only) | Yes (config only) | Yes (config only) |
 | Managed Caddy | Yes (on-demand) | Yes (on-demand) | No | No |
 | iroh (Experimental) | Yes (on-demand) | Yes (on-demand) | No | No |
 
-On macOS, local network, cloudflared, self-hosted FRP and the own reverse proxy work; Funnel and cpolar have no managed macOS component yet. The diagnostics firewall check currently covers Windows only and reports “not applicable” elsewhere.
+On macOS, local network, cpolar, cloudflared, self-hosted FRP and the own reverse proxy work; Funnel has no managed macOS component yet. The diagnostics firewall check currently covers Windows only and reports “not applicable” elsewhere.
+
+This table describes the **computer**. Phones and tablets use the Android app or a mobile browser; a Windows computer can also use the [portable client](apps/windows/README.en.md), which connects through the same gateway and pairing links and does not change the channel support above.
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |

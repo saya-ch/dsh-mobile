@@ -373,7 +373,7 @@ excludedClientModules:
 | Android App | 日常使用 | 首次配对时分别提供局域网与远程入口；局域网自动发现，公开远程证书由系统验证，自签 FRP 入口由 App 固定 CA |
 | iPhone/iPad Safari 或主屏幕 Web App（PWA） | iOS 日常访问与可选推送 | [用 Safari 配对并添加主屏幕图标](<#iphone-与-ipad主屏幕-web-apppwa>)，无需原生 iOS App；具备能力的主屏幕 App 可开启[网页推送](docs/WEB_PUSH.md) |
 | 手机浏览器 | 日常或跨平台访问 | 打开“移动访问”卡片显示的 HTTPS 地址；局域网私有证书可能需要手动确认，公开远程证书不应出现警告。绕过证书警告不等于满足网页推送条件 |
-| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | 尚未提供下载；WebView2 外壳，配对时固定电脑证书。仍是预览版，未完成真实 Windows 验收，不是已支持平台 |
+| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | [下载 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip)；WebView2 外壳，配对时固定电脑证书。支持局域网、远程与 iroh 三种入口，与手机使用同一套配对链接。仍是预览版 |
 
 Android App 只是 Kotlin WebView 薄壳，不内置另一份网页；手机浏览器访问的是同一页面。开发者可在已认证移动地址后追加 `?frontend=stock` 诊断启动与布局行为；该入口跳过专用移动启动改写和模块选择，但仍可能加载客户端移动适配及已认证定制，并非不含插件的对照页。部分 API 操作可能被拒绝，不能代替正常移动入口。详见[皮肤与移动布局](docs/SKIN_COMPATIBILITY.md)。
 
@@ -454,14 +454,16 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | 局域网 | 支持（自动配防火墙） | 支持（防火墙自理） | 支持 | 支持 |
 | Tailscale Funnel | 支持（随包提供） | 支持（随包提供） | 支持（随包提供） | 不支持 |
-| cpolar | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） | 不支持 |
+| cpolar | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） | 支持 x64/arm64（按需下载） |
 | cloudflared 快速/命名隧道 | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） | 支持 x64/arm64（按需下载） |
 | 自建 FRP | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） |
 | 自有反向代理 | 支持（纯配置） | 支持（纯配置） | 支持（纯配置） | 支持（纯配置） |
 | 托管 Caddy | 支持（按需下载） | 支持（按需下载） | 不支持 | 不支持 |
 | iroh（实验性） | 支持（按需下载） | 支持（按需下载） | 不支持 | 不支持 |
 
-macOS 上局域网、cloudflared、自建 FRP 与自有反向代理可用；Funnel 与 cpolar 暂未提供 macOS 组件。诊断页的防火墙检查目前仅覆盖 Windows，其他系统显示“不适用”。
+macOS 上局域网、cpolar、cloudflared、自建 FRP 与自有反向代理可用；Funnel 暂未提供 macOS 组件。诊断页的防火墙检查目前仅覆盖 Windows，其他系统显示“不适用”。
+
+这张表说的是**电脑端**。手机/平板用 Android App 或手机浏览器访问；Windows 电脑本身也可以用[便携客户端](apps/windows/README.md)，它连接的是同一套网关与配对链接，不改变上表的通道支持。
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |

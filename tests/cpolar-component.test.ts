@@ -40,7 +40,7 @@ describe('managed cpolar component', () => {
     expect(CPOLAR_COMPONENT_RELEASE.downloadUrl).toMatch(/^https:\/\/www\.cpolar\.com\//u)
     expect(CPOLAR_COMPONENT_RELEASE.downloadSha256).toMatch(/^[a-f0-9]{64}$/u)
     expect(CPOLAR_COMPONENT_RELEASE.executableSha256).toMatch(/^[a-f0-9]{64}$/u)
-    expect(Object.keys(CPOLAR_COMPONENT_RELEASES).sort()).toEqual(['linux-arm64', 'linux-x64', 'win32-x64'])
+    expect(Object.keys(CPOLAR_COMPONENT_RELEASES).sort()).toEqual(['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-x64'])
     for (const release of Object.values(CPOLAR_COMPONENT_RELEASES)) {
       expect(release.version).toBe(CPOLAR_COMPONENT_RELEASE.version)
       expect(release.downloadUrl).toMatch(/^https:\/\/www\.cpolar\.com\//u)
