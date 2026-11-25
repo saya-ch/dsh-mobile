@@ -32,7 +32,7 @@
   <a href="README.md">简体中文</a>
 </p>
 
-> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; there is also a **Windows client (alpha preview)** for Windows 10 / 11 x64: [download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe) · [portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip) · [guide](apps/windows/README.en.md).
+> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; there is also a **Windows client (alpha preview)** for Windows 10 / 11 x64: [download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe) (recommended) · [guide](apps/windows/README.en.md).
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
@@ -46,7 +46,7 @@
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>Download Android app 0.8.3 (compatibility)</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">Release notes and checksums</a></sub><br>
-  <sub>Other platforms: <a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip">portable Windows client (alpha preview, direct zip)</a> · <a href="apps/windows/README.en.md">guide</a></sub>
+  <sub>Other platforms: <a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe">Windows client (alpha preview, installer)</a> · <a href="apps/windows/README.en.md">guide</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -135,14 +135,13 @@ You can also keep using Safari without installing an icon. The computer, DSH and
 
 ### Other platforms: Windows client (alpha preview)
 
-DSH Mobile also runs on Windows: the [portable Windows client](apps/windows/README.en.md) is a WebView2 shell that connects through the same plugin-authenticated HTTPS page as the Android app.
+DSH Mobile also runs on Windows: the [Windows client](apps/windows/README.en.md) is a WebView2 shell that connects through the same plugin-authenticated HTTPS page as the Android app.
 
-Two forms, same build:
+**[Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** (49.2 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
 
-- **[Installer exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** (49.2 MB): a wizard installs it wherever you choose (the default is `%LocalAppData%\Programs\DshMobile`), adds a Start Menu shortcut, and registers itself for uninstalling from Settings > Apps; uninstalling keeps `data\`, so paired computers and settings survive.
-- **[Portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)** (65.8 MB): unzip into any writable folder and run `DshMobile.Win.exe`; no registry writes, and the whole folder can be carried on a stick.
+Run it, pick the install location in the wizard (the default is `%LocalAppData%\Programs\DshMobile`; **no administrator rights needed**), then launch from the Start Menu. Uninstalling keeps `data\`, so paired computers and settings survive. No separate .NET install. Windows 10 1809+ / Windows 11 **x64** only.
 
-Neither needs a .NET install or administrator rights. Checksums: [exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases). Windows 10 1809+ / Windows 11 **x64** only.
+<sub>If you need no registry writes and a folder you can carry on a stick, use the [portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip) instead (65.8 MB, [checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256)): unzip into any writable folder and run `DshMobile.Win.exe`.</sub>
 
 > This client is still an **alpha preview** (currently `0.1.1-alpha`), published separately as a prerelease. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. It has not been accepted on real Windows hardware, so failures are expected at this stage; attach `data\client.log` when reporting one. See the [Windows client guide](apps/windows/README.en.md).
 
@@ -378,7 +377,7 @@ Selection priority is device choice → computer defaults → plugin configurati
 | Android app | Everyday use | Separate Local and Remote entries at first pairing; LAN discovery, system trust for public remote certificates, and app-pinned CA for the self-signed FRP entry |
 | iPhone/iPad Safari or Home Screen web app (PWA) | Everyday iOS access and optional push | [Pair in Safari and add a Home Screen icon](<#iphone-and-ipad-home-screen-web-app-pwa>); no native iOS app. Capable Home Screen apps can enable [Web Push](docs/WEB_PUSH.en.md) |
 | Mobile browser | Everyday or cross-platform access | Open the HTTPS origin shown by Mobile Access; a private LAN certificate may need confirmation, while a public remote certificate should not warn. Continuing through a certificate warning does not make the page eligible for Web Push |
-| [Windows client (alpha preview)](apps/windows/README.en.md) | Access from a Windows PC | [Installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe) · [portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip); a WebView2 shell that pins the computer's certificate at pairing. Supports the LAN, remote and iroh entry points with the same pairing links the phone uses. Still a preview |
+| [Windows client (alpha preview)](apps/windows/README.en.md) | Access from a Windows PC | [Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe); a WebView2 shell that pins the computer's certificate at pairing. Supports the LAN, remote and iroh entry points with the same pairing links the phone uses. Still a preview |
 
 The Android app is a thin Kotlin WebView shell and contains no frontend copy; mobile browsers load the same page. Developers can append `?frontend=stock` to an authenticated mobile URL to diagnose boot and layout behavior. This entry skips dedicated mobile boot rewriting and module selection, but installed client adaptation and authenticated customizations may still apply. It is not a plugin-free control; some API operations may be rejected, so it does not replace normal mobile access. See [skins and mobile layout](docs/SKIN_COMPATIBILITY.en.md).
 

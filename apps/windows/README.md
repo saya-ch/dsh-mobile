@@ -10,24 +10,30 @@
 
 ## 下载
 
-Windows 客户端提供两种形态，按需要选一个：
+**[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)**（49.2 MB）· [SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
 
-| 形态 | 下载 | 说明 |
-| --- | --- | --- |
-| 便携版（zip） | **[dsh-mobile-windows-v0.1.1-alpha-win-x64.zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)**（65.8 MB，解压后约 149 MB） | 解压即用；不写注册表、不需要管理员权限；整个文件夹可以拷走 |
-| 安装包（exe） | **[dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** | 按向导安装到用户目录（可自己选择安装路径）；创建开始菜单快捷方式和可选桌面快捷方式；可从“设置 > 应用”卸载；卸载保留 `data\` |
+双击运行，按向导**选择安装位置**（默认 `%LocalAppData%\Programs\DshMobile`，不需要管理员权限），完成后从开始菜单启动，也可以勾选创建桌面快捷方式。
 
-SHA-256 校验文件：[zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
+- 从「设置 > 应用」卸载。
+- **卸载默认保留程序目录下的 `data\`**：已配对电脑、设置和日志都不会丢；只有卸载向导里明确选择删除才会清除。
+- 安装包是**自包含**的，不需要另外安装 .NET。
 
-**便携版**：解压到任意可写目录，运行 `DshMobile.Win.exe`。不安装任何东西，也不写注册表。
+`data\` 里的 `devices.json` 用当前 Windows 账户加密保存设备令牌，换机或换用户需要重新配对。
 
-**安装包**：双击运行 setup.exe，按向导选择安装路径（默认在 `%LocalAppData%\Programs\DshMobile`，不需要管理员权限），完成后从开始菜单启动。卸载时默认保留程序目录下的 `data\`，已配对电脑、设置和日志不会丢；只有卸载向导里明确选择删除才会清除。
+<details>
+<summary>需要便携版（不写注册表、整个文件夹可拷走）</summary>
 
-两种形态都是**自包含**的：不装 .NET、不需要管理员权限。便携版整个文件夹可以拷走；安装包的 `data\` 在安装目录旁。`devices.json` 里的设备令牌用当前 Windows 账户加密，换机或换用户需要重新配对。
+[下载便携 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)（65.8 MB，解压后约 149 MB）· [校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256)
+
+解压到任意可写目录，运行 `DshMobile.Win.exe`。不安装任何东西，也不写注册表；整个文件夹可以拷走，`data\` 就在程序旁边。
+
+与安装包内容完全相同，只是少了开始菜单快捷方式和卸载项。
+
+</details>
 
 下载后可以用 `Get-FileHash <文件> -Algorithm SHA256` 与校验文件比对。
 
-> **alpha 预览**：当前 `0.1.0-alpha`。它不随插件发布，也不在 npm 包里；插件与 Android App 仍是稳定面。还没有在真实 Windows 机器上完成三通道验收，遇到问题属预期内，请附 `data\client.log` 反馈。
+> **alpha 预览**：当前 `0.1.1-alpha`。它不随插件发布，也不在 npm 包里；插件与 Android App 仍是稳定面。还没有在真实 Windows 机器上完成三通道验收，遇到问题属预期内，请附 `data\client.log` 反馈。
 
 ## 系统要求
 

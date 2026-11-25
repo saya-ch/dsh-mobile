@@ -10,24 +10,30 @@ A Windows client for DSH Mobile. It connects through the authenticated HTTPS pag
 
 ## Download
 
-The Windows client comes in two forms; pick one:
+**[Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** (49.2 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
 
-| Form | Download | Notes |
-| --- | --- | --- |
-| Portable zip | **[dsh-mobile-windows-v0.1.1-alpha-win-x64.zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)** (65.8 MB, about 149 MB unzipped) | Unzip and run; no registry writes, no administrator rights; the whole folder is portable |
-| Installer exe | **[dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** | Installs into your user folder (the wizard lets you choose the path); Start Menu shortcut plus optional desktop shortcut; uninstall from Settings > Apps; uninstalling keeps `data\` |
+Run it, **choose the install location** in the wizard (the default is `%LocalAppData%\Programs\DshMobile`; no administrator rights needed), then launch from the Start Menu. You can also tick the desktop shortcut.
 
-SHA-256 files: [zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
+- Uninstall from Settings > Apps.
+- **Uninstalling keeps `data\`** in the program folder by default: paired computers, settings and logs are not lost; only an explicit choice in the uninstall wizard removes it.
+- The installer is **self-contained**; no separate .NET install is needed.
 
-**Portable zip**: unzip it into any writable folder and run `DshMobile.Win.exe`. Nothing is installed and nothing is written to the registry.
+The device token in `data\devices.json` is sealed with the current Windows account, so moving to another machine or user means pairing again.
 
-**Installer**: run setup.exe and choose the install path in the wizard (the default is `%LocalAppData%\Programs\DshMobile`; no administrator rights are needed), then launch it from the Start Menu. Uninstalling keeps the program folder's `data\` by default, so paired computers, settings and logs are not lost; only an explicit choice in the uninstall wizard removes it.
+<details>
+<summary>Need the portable build (no registry writes, folder you can carry)?</summary>
 
-Both forms are **self-contained**: no .NET install and no administrator rights. The portable folder can be copied anywhere; the installer keeps `data\` beside its executable. The device token in `devices.json` is sealed with the current Windows account, so moving to another machine or user means pairing again.
+[Download the portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip) (65.8 MB, about 149 MB unzipped) · [checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256)
+
+Unzip into any writable folder and run `DshMobile.Win.exe`. Nothing is installed and nothing is written to the registry; the whole folder can be carried on a stick, with `data\` sitting beside the program.
+
+Same contents as the installer, just without the Start Menu shortcut and the uninstall entry.
+
+</details>
 
 To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the checksum file.
 
-> **Alpha preview**: currently `0.1.0-alpha`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. The three transports have not been accepted on real Windows hardware yet, so failures are expected; attach `data\client.log` when reporting one.
+> **Alpha preview**: currently `0.1.1-alpha`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. The three transports have not been accepted on real Windows hardware yet, so failures are expected; attach `data\client.log` when reporting one.
 
 ## Requirements
 
