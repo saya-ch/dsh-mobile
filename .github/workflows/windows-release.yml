@@ -114,7 +114,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $version = "${{ github.ref_name }}".Substring("windows-v".Length)
-          $name = "dsh-mobile-windows-v$version-win-x64.zip"
+          # Base name without the extension: the archive and its checksum are built
+          # from it below, and keeping ".zip" here produced "....zip.zip.sha256".
+          $name = "dsh-mobile-windows-v$version-win-x64"
           # Keep the requirements in step with apps/windows/README.md rather than
           # restating a second copy here that will drift.
           $notes = @"
@@ -134,7 +136,9 @@ jobs:
             Write-Error "Release ${{ github.ref_name }} already exists; refusing to replace published assets."
             exit 1
           }
-          gh release create "${{ github.ref_name }}" "$name" "$name.zip.sha256" `
+          $archive = "$name.zip"
+          $checksum = "$name.zip.sha256"
+          gh release create "${{ github.ref_name }}" $archive $checksum `
             --repo "${{ github.repository }}" `
             --verify-tag `
             --prerelease `

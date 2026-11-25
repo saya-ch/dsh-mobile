@@ -652,7 +652,9 @@ public partial class MainWindow : Window
     private void RenameDevice_Click(object sender, RoutedEventArgs e)
     {
         if (_busy) return;
-        var device = (SavedDevice)((Button)sender).Tag;
+        // Reached from the row menu, so the sender is a MenuItem, not a Button.
+        // Both are FrameworkElements and carry the device in Tag.
+        if ((sender as FrameworkElement)?.Tag is not SavedDevice device) return;
         var dialog = new RenameDialog(device.Name) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         _store.Rename(device.EndpointId, dialog.DeviceName, Log);
