@@ -570,6 +570,8 @@ Source users replace `dsh` with `pnpm dsh`.
 
 Thanks to everyone who submitted PRs, reproduced issues, or proposed improvements. [The contributors list](CONTRIBUTORS.md) credits merged PRs, PR work later incorporated without a direct merge, and issue reports separately. GitHub's sidebar Contributors panel is generated from commits on the default branch and cannot be manually extended with issue-only contributors.
 
+[![Contributors](https://contrib.rocks/image?repo=saya-ch/dsh-mobile)](https://github.com/saya-ch/dsh-mobile/graphs/contributors)
+
 ## Development
 
 ```powershell
