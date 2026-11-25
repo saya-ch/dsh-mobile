@@ -48,12 +48,12 @@
   <b>Android app 0.8.3</b>
   &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk">compatibility</a>
   · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">release</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">release notes</a>
   <br>
   <b>Windows client 0.1.1-alpha</b>
   &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe">installer</a>
   · <a href="apps/windows/README.en.md">guide</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/windows-v0.1.1-alpha">release</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/windows-v0.1.1-alpha">release notes</a>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
