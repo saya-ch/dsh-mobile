@@ -185,6 +185,33 @@ public class ConnectionDiagnosisTests
         Assert.Contains("新的配对链接", failure.Hint);
     }
 
+    [Theory]
+    [InlineData("No such host is known")]          // English Windows
+    [InlineData("不知道这样的主机")]                  // Chinese Windows
+    [InlineData("nodename nor servname provided")] // macOS
+    public void HostResolutionFailureIsRecognisedWhateverLanguageTheOsReportsItIn(string osMessage)
+    {
+        // The classification used to read the exception message, which is localised,
+        // so the same failure was "host unresolved" on an English machine and
+        // "network" elsewhere. The socket error code is language-independent and must
+        // drive the decision; the message stays only as a fallback.
+        var error = new System.Net.Sockets.SocketException(
+            (int)System.Net.Sockets.SocketError.HostNotFound) { };
+        Assert.True(ConnectionDiagnosis.IsHostUnresolved(error, osMessage));
+    }
+
+    [Fact]
+    public void HostResolutionFailureIsRecognisedFromTheSocketCodeAlone()
+    {
+        // A SocketException carries HostNotFound even when the message is something
+        // this build has never seen, which is the case on any OS locale we did not
+        // anticipate.
+        var error = new System.Net.Sockets.SocketException(
+            (int)System.Net.Sockets.SocketError.HostNotFound);
+        Assert.True(ConnectionDiagnosis.IsHostUnresolved(error, null));
+        Assert.True(ConnectionDiagnosis.IsHostUnresolved(error, "some localised text"));
+    }
+
     [Fact]
     public void SocketFailureOnANonCpolarRemoteHostIsPlainNetwork()
     {

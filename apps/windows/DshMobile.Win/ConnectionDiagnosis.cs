@@ -1,3 +1,5 @@
+using System.Net.Sockets;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -168,11 +170,14 @@ internal static class ConnectionDiagnosis
           message.Contains("证书", StringComparison.Ordinal) ||
           message.Contains("SecureChannelFailure", StringComparison.OrdinalIgnoreCase)));
 
-    internal static bool IsHostUnresolved(string? message) =>
-        !string.IsNullOrEmpty(message) &&
-        (message.Contains("无法解析主机", StringComparison.Ordinal) ||
-         message.Contains("No such host", StringComparison.OrdinalIgnoreCase) ||
-         message.Contains("nodename nor servname", StringComparison.OrdinalIgnoreCase));
+    internal static bool IsHostUnresolved(Exception error, string? message) =>
+        // The socket error code is language-independent; the message text is not,
+        // so it stays only as a fallback for wrapped or re-thrown errors.
+        (error is SocketException socket && socket.SocketErrorCode == SocketError.HostNotFound) ||
+        (!string.IsNullOrEmpty(message) &&
+         (message.Contains("无法解析主机", StringComparison.Ordinal) ||
+          message.Contains("No such host", StringComparison.OrdinalIgnoreCase) ||
+          message.Contains("nodename nor servname", StringComparison.OrdinalIgnoreCase)));
 
     internal static bool IsNetworkFailure(Exception error, string? message) =>
         error is System.Net.Sockets.SocketException ||
@@ -215,13 +220,22 @@ internal static class ConnectionDiagnosis
                 "连接到的电脑与配对时固定的不是同一台（CA 指纹不匹配）。\n" +
                 "请确认配对链接来自这台电脑，且中间没有地址劫持。", false);
 
-        if (target.IsDirect && IsHostUnresolved(message))
+        if (target.IsDirect && IsHostUnresolved(error, message))
+        {
+            // A cpolar tunnel that has been rotated leaves a hostname that no longer
+            // exists, so the useful advice is "re-pair", not "check your network".
+            if (target.IsRemote && IsCpolarHost(id))
+                return new ConnectionFailure(ConnectionFailureKind.CpolarAddressStale,
+                    "cpolar 的临时地址已经失效。\n\n" +
+                    "cpolar 免费隧道每次重启都会换域名，保存的地址已经连不到这台电脑。\n" +
+                    "请在电脑端打开 DSH Mobile 的远程访问，复制新的配对链接后重新粘贴。", true);
             return new ConnectionFailure(ConnectionFailureKind.HostUnresolved,
                 $"无法解析电脑地址 {id}。\n\n" +
                 (target.Channel == "lan"
                     ? "局域网连接：请确认本机与电脑在同一网络，电脑端网关正在运行。"
                     : "远程连接：请确认远程通道（Tailscale/cpolar/cloudflared 等）正在运行，且域名可访问。"),
                 true);
+        }
 
         if (TryExtractHttpStatus(message, out var status))
         {
