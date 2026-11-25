@@ -581,14 +581,18 @@ npm run verify
 
 Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md) covers behavior-specific browser tests, isolated packed DSH acceptance, captures and release steps; the [Android manual](apps/mobile/README.md#build) covers app builds. Do not substitute real user profiles or official app data for test fixtures.
 
-If you find this project helpful, you can support its maintenance via [Afdian](https://afdian.com/a/saya-ch) or [Buy Me a Tokens](https://buymeatokens.com/saya-ch). For sponsorships or business inquiries: `2065586050@qq.com`.
-
 ### Code signing policy
 
 Free code signing provided by SignPath.io, certificate by SignPath Foundation.
 
 - **Authors / Reviewers / Approvers**: `@saya-ch`
 - **Privacy policy**: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+## Sponsors & Support
+
+- **Support maintenance**: If you find this project helpful, you can support it via [Afdian](https://afdian.com/a/saya-ch) or [Buy Me a Tokens](https://buymeatokens.com/saya-ch).
+- **Sponsorships & business inquiries**: README sponsor slots and partnerships are welcome at `2065586050@qq.com`.
+- **Recommended API provider**: For reliable access to DeepSeek and other models, you can try [SiliconFlow (free starter credits)](https://cloud.siliconflow.cn/i/qHBsrZ2i).
 
 [![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
 
