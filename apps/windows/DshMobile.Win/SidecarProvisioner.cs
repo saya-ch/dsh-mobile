@@ -15,12 +15,12 @@ namespace DshMobile.Win;
 internal static class SidecarProvisioner
 {
     internal const string FileName = "dsh-mobile-iroh-host-win32-x64.exe";
-    internal const string Version = "0.1.0-alpha.1";
+    internal const string Version = "0.1.0-alpha.2";
     internal const string DownloadUrl =
         "https://unpkg.com/dsh-mobile-iroh@" + Version + "/native/" + FileName;
-    internal const long ExpectedBytes = 14865920;
+    internal const long ExpectedBytes = 14861312;
     internal const string ExpectedSha256 =
-        "883987c636a379dc999a7f15fd1f9addbb7d28f430ed1f952ad5a610c37cc032";
+        "38d32e37e535ae5c7174008057326fe1afdb1859650871043f02622099fc6cfa";
 
     internal static string CachePath(string dataRoot) =>
         Path.Combine(dataRoot, "components", "iroh", Version, FileName);
