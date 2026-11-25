@@ -32,7 +32,7 @@
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[直接下载 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip) · [使用说明](apps/windows/README.md)。
+> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe) · [便携 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip) · [使用说明](apps/windows/README.md)。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
@@ -137,9 +137,14 @@ dsh plugin --profile web add dshmarket
 
 Windows 上也可以用 DSH Mobile：[便携 Windows 客户端](apps/windows/README.md)是一个 WebView2 外壳，通过与 Android 相同的插件认证 HTTPS 页面连接电脑。
 
-[直接下载 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)（65.8 MB）· [SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)。解压到任意可写目录后运行 `DshMobile.Win.exe`，不需要安装 .NET、不需要管理员权限。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
+有两种形式，内容相同：
 
-> 该客户端仍是 **alpha 预览**（当前 `0.1.0-alpha`），以预发布形式单独发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
+- **[安装包 exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)**（49.2 MB）：按向导安装，**安装路径可自己选**（默认 `%LocalAppData%\Programs\DshMobile`），创建开始菜单快捷方式，可从「设置 > 应用」卸载；卸载默认保留 `data\`，已配对电脑和设置不会丢。
+- **[便携 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)**（65.8 MB）：解压到任意可写目录后运行 `DshMobile.Win.exe`，不写注册表，整个文件夹可以拷走。
+
+两者都不需要安装 .NET、不需要管理员权限。校验文件：[exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
+
+> 该客户端仍是 **alpha 预览**（当前 `0.1.1-alpha`），以预发布形式单独发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
 
 ## 连接教程
 
@@ -373,7 +378,7 @@ excludedClientModules:
 | Android App | 日常使用 | 首次配对时分别提供局域网与远程入口；局域网自动发现，公开远程证书由系统验证，自签 FRP 入口由 App 固定 CA |
 | iPhone/iPad Safari 或主屏幕 Web App（PWA） | iOS 日常访问与可选推送 | [用 Safari 配对并添加主屏幕图标](<#iphone-与-ipad主屏幕-web-apppwa>)，无需原生 iOS App；具备能力的主屏幕 App 可开启[网页推送](docs/WEB_PUSH.md) |
 | 手机浏览器 | 日常或跨平台访问 | 打开“移动访问”卡片显示的 HTTPS 地址；局域网私有证书可能需要手动确认，公开远程证书不应出现警告。绕过证书警告不等于满足网页推送条件 |
-| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | [下载 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)；WebView2 外壳，配对时固定电脑证书。支持局域网、远程与 iroh 三种入口，与手机使用同一套配对链接。仍是预览版 |
+| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | [安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe) · [便携 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)；WebView2 外壳，配对时固定电脑证书。支持局域网、远程与 iroh 三种入口，与手机使用同一套配对链接。仍是预览版 |
 
 Android App 只是 Kotlin WebView 薄壳，不内置另一份网页；手机浏览器访问的是同一页面。开发者可在已认证移动地址后追加 `?frontend=stock` 诊断启动与布局行为；该入口跳过专用移动启动改写和模块选择，但仍可能加载客户端移动适配及已认证定制，并非不含插件的对照页。部分 API 操作可能被拒绝，不能代替正常移动入口。详见[皮肤与移动布局](docs/SKIN_COMPATIBILITY.md)。
 
@@ -500,9 +505,6 @@ macOS 上局域网、cpolar、cloudflared、自建 FRP 与自有反向代理可�
 | `0.6.17` | `0.2.0-rc.2`、`0.2.1-rc.2` 的 15 项真实打包 Chromium 目录选择检查、旧 WebView 缺失 API 模拟与工作区 mux 读取；发布后装入官方 Desktop `0.2.1-rc.2` 并核对包内文件一致 |
 | `0.6.18` | `0.2.1-rc.2` 上的 18 项真实打包 Chromium 目录选择检查，含紧凑布局、目录创建和取消；本机官方 Desktop `0.2.1-rc.3` 已装入候选并启用局域网与 Cloudflare 网关 |
 | `0.7.0` | 8 个 DSH 版本（`0.1.7-alpha.2`–`0.2.1-rc.2`）的打包浏览器 CI；Windows/Linux Gateway 与 iroh Host、Android 双 ABI 和兼容版包检查。设备与网络范围见 [iroh 说明](docs/IROH.md) |
-
-| DSH Mobile 插件                         | 验证支持的 DeepSeek Harness 版本                             |
-| ----------------------------------------- | -------------------------------------------------------------- |
 | `0.6.8` | `0.2.1-alpha.3` 的打包移动页面、旧 WebView API 模拟、WebSocket 工作区读取、移动设置、模块管理、侧栏及输入栏回归；身份修复另有真实 HTTP/TLS 与旧凭据升级测试。本机官方 Desktop `0.2.0-rc.2` 已加载该版本插件，原配对保留；不代表手机 5G 或全部第三方插件组合已验收 |
 | `0.6.6` | `0.2.0-rc.2`、`0.2.1-alpha.2` 的打包附件接收与图片预览回归，覆盖多图、取消、迟到结果和旧请求；Android 系统选择器改进独立发布，不包含在 npm 更新中 |
 | `0.6.5` | `0.2.0-rc.2`、`0.2.1-alpha.2` 的打包模块管理与移动设置回归；另验证 Windows cpolar 解包及正式 `maid-atelier` 0.1.7 下有内容轨迹的布局修复。不代表全部第三方皮肤或报告者设备已验收 |
