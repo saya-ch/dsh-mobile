@@ -2,7 +2,7 @@
 
 [English](README.en.md) · [返回项目首页](../../README.md) · [架构与安全模型](ARCHITECTURE.md)
 
-在 Windows 电脑上使用 DSH Mobile 的便携客户端。它通过电脑端 DSH Mobile 插件提供的认证 HTTPS 页面连接，本体是一个带配对与证书校验的 WebView2 外壳——不打包另一套前端，也不修改页面 DOM。
+在 Windows 电脑上使用 DSH Mobile 的 Windows 客户端。它通过电脑端 DSH Mobile 插件提供的认证 HTTPS 页面连接，本体是一个带配对与证书校验的 WebView2 外壳——不打包另一套前端，也不修改页面 DOM。
 
 - 显示名称与 Android 版一致：**DeepSeek Harness**
 - 与手机共用同一套启动图标（4 种吉祥物姿态 + 6 种鲸鱼配色，可在设置里切换）
@@ -10,11 +10,22 @@
 
 ## 下载
 
-**[下载 `dsh-mobile-windows-v0.1.0-alpha-win-x64.zip`](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip)**（65.8 MB，解压后约 149 MB）· **[SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip.sha256)** · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
+Windows 客户端提供两种形态，按需要选一个：
 
-解压到任意可写目录，运行 `DshMobile.Win.exe`。下载后可以用 `Get-FileHash <zip> -Algorithm SHA256` 与校验文件比对。
+| 形态 | 下载 | 说明 |
+| --- | --- | --- |
+| 便携版（zip） | **[dsh-mobile-windows-v0.1.1-alpha-win-x64.zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)**（65.8 MB，解压后约 149 MB） | 解压即用；不写注册表、不需要管理员权限；整个文件夹可以拷走 |
+| 安装包（exe） | **[dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** | 按向导安装到用户目录（可自己选择安装路径）；创建开始菜单快捷方式和可选桌面快捷方式；可从“设置 > 应用”卸载；卸载保留 `data\` |
 
-发布包是**自包含**的：不装 .NET、不写注册表、不需要管理员权限。整个文件夹可以拷走；但 `devices.json` 里的设备令牌用当前 Windows 账户加密，换机或换用户需要重新配对。
+SHA-256 校验文件：[zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
+
+**便携版**：解压到任意可写目录，运行 `DshMobile.Win.exe`。不安装任何东西，也不写注册表。
+
+**安装包**：双击运行 setup.exe，按向导选择安装路径（默认在 `%LocalAppData%\Programs\DshMobile`，不需要管理员权限），完成后从开始菜单启动。卸载时默认保留程序目录下的 `data\`，已配对电脑、设置和日志不会丢；只有卸载向导里明确选择删除才会清除。
+
+两种形态都是**自包含**的：不装 .NET、不需要管理员权限。便携版整个文件夹可以拷走；安装包的 `data\` 在安装目录旁。`devices.json` 里的设备令牌用当前 Windows 账户加密，换机或换用户需要重新配对。
+
+下载后可以用 `Get-FileHash <文件> -Algorithm SHA256` 与校验文件比对。
 
 > **alpha 预览**：当前 `0.1.0-alpha`。它不随插件发布，也不在 npm 包里；插件与 Android App 仍是稳定面。还没有在真实 Windows 机器上完成三通道验收，遇到问题属预期内，请附 `data\client.log` 反馈。
 
@@ -61,7 +72,7 @@
 
 ## 使用
 
-1. 解压并运行 `DshMobile.Win.exe`；
+1. 便携版解压后运行 `DshMobile.Win.exe`；安装包从开始菜单或安装目录运行 `DshMobile.Win.exe`；
 2. 在电脑端 DSH 的「移动访问」面板里生成配对，把配对链接粘贴到客户端，点「配对并连接」；
 3. 之后每次打开点「连接」即可。
 
@@ -90,9 +101,14 @@ dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
 
 # 便携版（自包含 .NET，输出为独立目录，拷走即用）
 dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
+
+# 安装包（需要 Inno Setup 6；版本自动从 DshMobile.Win.csproj 读取）
+pwsh ../installer/build-installer.ps1 -PublishDir <目标目录>
 ```
 
 无需 Rust / Android 工具链：iroh 传输复用官方发布的组件，组件本身不进仓库，首次使用时按固定地址下载并校验大小与 SHA-256，每次启动前重新校验。
+
+安装包脚本在 `installer/DshMobile.Win.iss`。Inno Setup 6 可通过 `winget install --id JRSoftware.InnoSetup` 安装；`build-installer.ps1` 会自动查找 ISCC.exe，也可以用 `-IsccPath` 指定。
 
 ## 目录结构
 
@@ -100,6 +116,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -o <目标目录>
 apps/windows/
 ├── ARCHITECTURE.md / .en.md   # 架构与安全模型
 ├── README.md / .en.md         # 本文
+├── installer/                 # Inno Setup 安装包脚本 + 简体中文语言文件
 ├── DshMobile.Win/             # 客户端源码（WPF + WebView2）
 │   ├── *.cs / *.xaml
 │   ├── icons/                 # 10 种可选图标（多尺寸 ICO + 品牌图）
@@ -110,7 +127,7 @@ apps/windows/
 
 ## 给维护者
 
-**版本与发布**：版本号写在 `DshMobile.Win.csproj` 的 `<Version>` 里，与插件版本、iroh 组件 pin 相互独立。发版时打 `windows-v<版本>` 标签，`.github/workflows/windows-release.yml` 会校验标签与项目版本一致，构建、跑单测、打包 zip 并附 SHA-256，以预发布形式上传。
+**版本与发布**：版本号写在 `DshMobile.Win.csproj` 的 `<Version>` 里，与插件版本、iroh 组件 pin 相互独立。发版时打 `windows-v<版本>` 标签，`.github/workflows/windows-release.yml` 会校验标签与项目版本一致，构建、跑单测、打包便携 zip 并用 Inno Setup 编译安装包，两者各附 SHA-256 后以预发布形式上传。
 
 **iroh 组件 pin 有三处**，`scripts/check-windows-sidecar-pin.mjs` 会断言一致：`src/iroh-component.ts` 里的 `IROH_COMPONENT_RELEASES['win32-x64']` 是权威值，`SidecarProvisioner.cs` 硬编码同值，`sidecar/manifest.json` 只是镜像。升级 pin 时三处必须一起改。
 

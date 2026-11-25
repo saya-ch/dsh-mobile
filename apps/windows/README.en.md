@@ -2,7 +2,7 @@
 
 [中文](README.md) · [Project home](../../README.en.md) · [Architecture and security model](ARCHITECTURE.en.md)
 
-A portable Windows client for DSH Mobile. It connects through the authenticated HTTPS page the DSH Mobile plugin already serves on the computer, and the program itself is a WebView2 shell with pairing and certificate validation — it does not bundle a second frontend and does not modify the page DOM.
+A Windows client for DSH Mobile. It connects through the authenticated HTTPS page the DSH Mobile plugin already serves on the computer, and the program itself is a WebView2 shell with pairing and certificate validation — it does not bundle a second frontend and does not modify the page DOM.
 
 - Same display name as the Android app: **DeepSeek Harness**
 - Shares the phone's launcher artwork (4 mascot poses and 6 whale colourways, switchable in settings)
@@ -10,11 +10,22 @@ A portable Windows client for DSH Mobile. It connects through the authenticated 
 
 ## Download
 
-**[Download `dsh-mobile-windows-v0.1.0-alpha-win-x64.zip`](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip)** (65.8 MB, about 149 MB unzipped) · **[SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip.sha256)** · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
+The Windows client comes in two forms; pick one:
 
-Unzip it into any writable folder and run `DshMobile.Win.exe`. To verify the download, compare `Get-FileHash <zip> -Algorithm SHA256` with the checksum file.
+| Form | Download | Notes |
+| --- | --- | --- |
+| Portable zip | **[dsh-mobile-windows-v0.1.1-alpha-win-x64.zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip)** (65.8 MB, about 149 MB unzipped) | Unzip and run; no registry writes, no administrator rights; the whole folder is portable |
+| Installer exe | **[dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)** | Installs into your user folder (the wizard lets you choose the path); Start Menu shortcut plus optional desktop shortcut; uninstall from Settings > Apps; uninstalling keeps `data\` |
 
-The package is **self-contained**: no .NET install, no registry writes, no administrator rights. The whole folder is portable, but the device token in `devices.json` is sealed with the current Windows account, so moving to another machine or user means pairing again.
+SHA-256 files: [zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64.zip.sha256) · [setup.exe](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
+
+**Portable zip**: unzip it into any writable folder and run `DshMobile.Win.exe`. Nothing is installed and nothing is written to the registry.
+
+**Installer**: run setup.exe and choose the install path in the wizard (the default is `%LocalAppData%\Programs\DshMobile`; no administrator rights are needed), then launch it from the Start Menu. Uninstalling keeps the program folder's `data\` by default, so paired computers, settings and logs are not lost; only an explicit choice in the uninstall wizard removes it.
+
+Both forms are **self-contained**: no .NET install and no administrator rights. The portable folder can be copied anywhere; the installer keeps `data\` beside its executable. The device token in `devices.json` is sealed with the current Windows account, so moving to another machine or user means pairing again.
+
+To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the checksum file.
 
 > **Alpha preview**: currently `0.1.0-alpha`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. The three transports have not been accepted on real Windows hardware yet, so failures are expected; attach `data\client.log` when reporting one.
 
@@ -61,7 +72,7 @@ The package is **self-contained**: no .NET install, no registry writes, no admin
 
 ## Using it
 
-1. Unzip and run `DshMobile.Win.exe`;
+1. For the portable form, unzip and run `DshMobile.Win.exe`; for the installer, launch it from the Start Menu or the install folder;
 2. In the computer's DSH "mobile access" panel, generate a pairing, paste the link into the client and press "Pair and connect";
 3. Afterwards just press Connect.
 
@@ -90,9 +101,14 @@ dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release
 
 # Portable build (self-contained .NET, a folder you can copy)
 dotnet publish -c Release -r win-x64 --self-contained true -o <target>
+
+# Installer (requires Inno Setup 6; the version is read from DshMobile.Win.csproj)
+pwsh ../installer/build-installer.ps1 -PublishDir <target>
 ```
 
 No Rust or Android toolchain is needed: the iroh transport reuses the official published component, which is not in the repository. It is downloaded from a pinned address on first use, its size and SHA-256 are verified, and it is verified again before every launch.
+
+The installer script is `installer/DshMobile.Win.iss`. Install Inno Setup 6 with `winget install --id JRSoftware.InnoSetup`; `build-installer.ps1` locates ISCC.exe automatically, or pass `-IsccPath`.
 
 ## Layout
 
@@ -100,6 +116,7 @@ No Rust or Android toolchain is needed: the iroh transport reuses the official p
 apps/windows/
 ├── ARCHITECTURE.md / .en.md   # Architecture and security model
 ├── README.md / .en.md         # This document
+├── installer/                 # Inno Setup installer script + Simplified Chinese language file
 ├── DshMobile.Win/             # Client source (WPF + WebView2)
 │   ├── *.cs / *.xaml
 │   ├── icons/                 # 10 selectable icons (multi-size ICO + brand art)
@@ -110,7 +127,7 @@ apps/windows/
 
 ## For maintainers
 
-**Version and release**: the version lives in `<Version>` in `DshMobile.Win.csproj` and is independent of the plugin version and the iroh component pin. To release, push a `windows-v<version>` tag; `.github/workflows/windows-release.yml` checks the tag against the project version, builds, runs the unit tests, packages the zip with a SHA-256, and uploads it as a prerelease.
+**Version and release**: the version lives in `<Version>` in `DshMobile.Win.csproj` and is independent of the plugin version and the iroh component pin. To release, push a `windows-v<version>` tag; `.github/workflows/windows-release.yml` checks the tag against the project version, builds, runs the unit tests, packages the portable zip and compiles the installer with Inno Setup, each with its own SHA-256, and uploads them as a prerelease.
 
 **The iroh component pin exists in three places** and `scripts/check-windows-sidecar-pin.mjs` asserts they agree: `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts` is authoritative, `SidecarProvisioner.cs` hardcodes the same value, and `sidecar/manifest.json` mirrors it. Changing the pin means changing all three.
 

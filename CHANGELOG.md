@@ -5,6 +5,16 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 ## Unreleased
 
 
+## Windows 0.1.1-alpha - 2026-11-25
+
+The client now ships in two forms from the same release: the portable zip it already had, and an installer exe.
+
+- **Installer**: `dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe` walks through a wizard, and the install path is yours to choose — the default is `%LocalAppData%\Programs\DshMobile`, and no administrator rights are needed at any point. It adds a Start Menu shortcut and an optional desktop one, registers itself for uninstalling from Settings › Apps, and **keeps `data\` on uninstall** so paired computers, settings and logs survive. The wizard speaks Chinese and English.
+- **Portable zip unchanged**: unzip and run, no registry writes, and the whole folder can be carried on a stick. Both forms are the same build.
+- The installer is unsigned: there is no code-signing certificate in this project, so Windows SmartScreen may show an "unknown publisher" prompt.
+
+What it still does not do: no single-instance guard, and no acceptance run on real hardware. Reported issues should come with `data\client.log`.
+
 ## Windows 0.1.0-alpha - 2026-11-25
 
 The portable Windows client is published for the first time, as a prerelease on its own `windows-v*` track. It is not part of the plugin or its npm package, and it has not been accepted on real Windows hardware yet.
@@ -16,7 +26,7 @@ The portable Windows client is published for the first time, as a prerelease on 
 - **Survives its own environment**: a read-only folder is reported instead of throwing, a missing WebView2 runtime is named with a download link instead of surfacing as a generic timeout, unhandled exceptions are logged and reported once, the log rotates at 2 MB, and a dropped connection stays visible on the window bar.
 - **Readable in both themes**: the context menu, tooltips and separators follow the theme; keyboard focus is visible on every control; the two pages share one header shape, one measure and a fixed header; the dark caption is set through DWM.
 
-What it does not do yet: it has no in-app installer, no single-instance guard, and no acceptance run on real hardware. Reported issues should come with `data\client.log`.
+At the time of this release it had no installer, no single-instance guard, and no acceptance run on real hardware; the installer arrived in 0.1.1-alpha. Reported issues should come with `data\client.log`.
 
 ## 0.8.16 - 2026-11-24
 

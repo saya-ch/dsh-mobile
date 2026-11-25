@@ -108,6 +108,27 @@ jobs:
           $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
           "$hash  $name.zip" | Out-File -FilePath "$name.zip.sha256" -Encoding ascii
           Get-Content "$name.zip.sha256"
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'choco install innosetup failed' }
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          ./apps/windows/installer/build-installer.ps1 `
+            -Version $version `
+            -PublishDir "portable/DshMobile.Win-$version-win-x64" `
+            -OutputDir "."
+      - name: Checksum the installer
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring("windows-v".Length)
+          $name = "dsh-mobile-windows-v$version-win-x64-setup.exe"
+          $hash = (Get-FileHash "$name" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -FilePath "$name.sha256" -Encoding ascii
+          Get-Content "$name.sha256"
       - name: Create GitHub release
         shell: pwsh
         env:
@@ -120,13 +141,15 @@ jobs:
           # Keep the requirements in step with apps/windows/README.md rather than
           # restating a second copy here that will drift.
           $notes = @"
-          Portable Windows client **$version** — win-x64, self-contained .NET 8, no installer and no registry writes.
+          Windows client **$version** — win-x64, self-contained .NET 8. Download the portable zip or the installer.
 
           **Requirements**: Windows 10 1809+ or Windows 11, **x64 only**; the WebView2 Evergreen Runtime (included with Windows 11, install once on Windows 10).
 
-          Unzip into any writable folder and run ``DshMobile.Win.exe``. Runtime data stays in that folder's ``data\``. Pair it from the DSH "mobile access" panel on the computer.
+          **Portable zip**: unzip into any writable folder and run ``DshMobile.Win.exe``. Runtime data stays in that folder's ``data\``. No registry writes and no administrator rights.
 
-          The archive is about 66 MB and expands to about 149 MB. It has not been accepted on real Windows hardware, so this is a preview: the plugin and the Android app remain the stable surfaces. See ``README.md`` inside the archive for details.
+          **Installer**: run ``dsh-mobile-windows-v$version-win-x64-setup.exe``. It installs per-user without administrator rights, lets you choose the install folder, adds a Start Menu shortcut and an optional desktop shortcut, and can be removed from Settings > Apps. Uninstalling keeps ``data\`` (paired computers, settings and logs) so a reinstall keeps your pairings.
+
+          The portable archive is about 66 MB and expands to about 149 MB. The client has not been accepted on real Windows hardware, so this is a preview: the plugin and the Android app remain the stable surfaces. See ``README.md`` inside the archive for details.
           "@
           # Test the exit status, not the output: `gh release view` prints its
           # "not found" message to stdout, so `if (gh ...)` is true either way and
@@ -137,8 +160,10 @@ jobs:
             exit 1
           }
           $archive = "$name.zip"
-          $checksum = "$name.zip.sha256"
-          gh release create "${{ github.ref_name }}" $archive $checksum `
+          $archiveChecksum = "$name.zip.sha256"
+          $installer = "$name-setup.exe"
+          $installerChecksum = "$name-setup.exe.sha256"
+          gh release create "${{ github.ref_name }}" $archive $archiveChecksum $installer $installerChecksum `
             --repo "${{ github.repository }}" `
             --verify-tag `
             --prerelease `
@@ -155,6 +180,6 @@ jobs:
           if (-not $release.isPrerelease) { Write-Error 'release is not marked prerelease'; exit 1 }
           if ($release.tagName -ne "${{ github.ref_name }}") { Write-Error 'release tag mismatch'; exit 1 }
           $assets = ($release.assets | ForEach-Object { $_.name } | Sort-Object) -join ','
-          $expected = "dsh-mobile-windows-v$version-win-x64.zip,dsh-mobile-windows-v$version-win-x64.zip.sha256"
+          $expected = "dsh-mobile-windows-v$version-win-x64-setup.exe,dsh-mobile-windows-v$version-win-x64-setup.exe.sha256,dsh-mobile-windows-v$version-win-x64.zip,dsh-mobile-windows-v$version-win-x64.zip.sha256"
           if ($assets -ne $expected) { Write-Error "assets were '$assets', expected '$expected'"; exit 1 }
           Write-Output "release verified: $assets"
