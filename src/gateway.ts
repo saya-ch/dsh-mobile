@@ -1615,8 +1615,9 @@ export class MobileAccessGateway {
       this.server = server
       server.maxHeadersCount = 64
       server.maxConnections = this.config.maxConnections
-      server.headersTimeout = 10_000
-      server.requestTimeout = this.config.upstreamTimeoutMs
+      server.requestTimeout = this.config.requestReceiveTimeoutMs
+      // Node expects the header budget not to exceed the whole-request deadline.
+      server.headersTimeout = Math.min(10_000, server.requestTimeout)
       server.keepAliveTimeout = 5_000
       server.on('connection', (socket: Socket) => {
         if (this.connectedSockets.size >= this.config.maxConnections) {
