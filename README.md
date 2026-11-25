@@ -586,6 +586,7 @@ npm run verify
 
 - **打赏支持**：如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 或 [Buy Me a Tokens](https://buymeatokens.com/saya-ch) 支持维护。
 - **商务合作与赞助位**：欢迎云服务、AI API 及开发工具赞助展示，联系邮箱：`2065586050@qq.com`。
+- **定制开发与私有部署**：承接个人/团队私有化部署、AI Agent 工作流及多端集成定制，欢迎来信沟通。
 - **推荐模型 API**：需要稳定调用 DeepSeek 等大模型 API，可以通过 [硅基流动（注册送体验额度）](https://cloud.siliconflow.cn/i/qHBsrZ2i) 开通使用。
 
 [![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
