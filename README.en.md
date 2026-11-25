@@ -43,13 +43,12 @@
 > **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile), synced from this repository.
 
 <p align="center">
-  <b>Android app 0.8.3</b> &nbsp;
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk">compatibility build</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">checksums</a>
+  <b>Android app 0.8.3</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk">compatibility</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full</a>
   <br>
-  <b>Windows client 0.1.1-alpha</b> &nbsp;
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe">installer</a>
+  <b>Windows client 0.1.1-alpha</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe">installer</a>
   · <a href="apps/windows/README.en.md">guide</a>
 </p>
 
