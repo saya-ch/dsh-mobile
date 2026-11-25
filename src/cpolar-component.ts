@@ -109,7 +109,7 @@ export const CPOLAR_COMPONENT_RELEASES: Readonly<Record<string, CpolarArtifact>>
 export const CPOLAR_COMPONENT_RELEASE = CPOLAR_COMPONENT_RELEASES['win32-x64'] as CpolarArtifact
 
 const DOWNLOAD_PAGE = 'https://www.cpolar.com/download'
-const SIGNUP_URL = 'https://dashboard.cpolar.com/signup'
+const SIGNUP_URL = 'https://i.cpolar.com/m/6WmV'
 const DASHBOARD_URL = 'https://dashboard.cpolar.com/auth'
 const TERMS_URL = 'https://www.cpolar.com/tos'
 
