@@ -10,7 +10,7 @@ cpolar 默认分配临时公网地址。账号预留子域名后，可请求使�
 
 ## 前置条件
 
-1. 确认 cpolar 套餐支持保留二级子域名。[官方教程](https://www.cpolar.com/blog/cpolar-quick-start-tutorial-raspberry-pi-series)以基础套餐及以上为例；当前资格、可用地区及命名规则以你的账号控制台为准。
+1. 注册或登录 [cpolar](https://i.cpolar.com/m/6WmV)，并确认套餐支持保留二级子域名。[官方教程](https://www.cpolar.com/blog/cpolar-quick-start-tutorial-raspberry-pi-series)以基础套餐及以上为例；当前资格、可用地区及命名规则以你的账号控制台为准。
 2. 在 [cpolar 控制台](https://dashboard.cpolar.com)的 **预留 → 保留二级子域名** 中保留名字，记录对应地区。
 3. 在 DSH **移动访问 → cpolar** 中安装组件并保存 Authtoken。
 
