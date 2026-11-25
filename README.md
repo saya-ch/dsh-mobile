@@ -43,13 +43,12 @@
 > **国内 AtomGit 托管**：[saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile)，由 GitHub 主仓自动同步。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="40" height="40" style="vertical-align:middle"></a>
-  &nbsp;<b>Android App 0.8.3</b>：
+  <b>Android App 0.8.3</b> &nbsp;
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk">兼容版</a>
   · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64 位完整版</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">校验</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">校验文件</a>
   <br>
-  <b>Windows 客户端 0.1.1-alpha</b>：
+  <b>Windows 客户端 0.1.1-alpha</b> &nbsp;
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe">安装包</a>
   · <a href="apps/windows/README.md">说明</a>
 </p>
