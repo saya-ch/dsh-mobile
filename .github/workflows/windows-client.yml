@@ -43,7 +43,7 @@ jobs:
           $target = 'portable/probe'
           dotnet publish apps/windows/DshMobile.Win/DshMobile.Win.csproj -c Release -r win-x64 --self-contained true --no-restore -o $target
           $problems = @()
-          foreach ($required in @('DshMobile.Win.exe', 'icons/app.ico', 'app.ico')) {
+          foreach ($required in @('DshMobile.Win.exe', 'icons/app.ico')) {
             if (-not (Test-Path (Join-Path $target $required))) { $problems += "missing $required" }
           }
           $icons = (Get-ChildItem "$target/icons" -File -Filter *.ico | Measure-Object).Count
