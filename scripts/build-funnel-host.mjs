@@ -1,6 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -66,5 +66,9 @@ for (const target of targets) {
   if (header !== target.header) {
     throw new Error(`funnel host build did not produce a ${target.header} binary for ${target.goos}/${target.goarch}: ${output}`)
   }
+  // A Windows executable has no POSIX mode. Go still sets the executable bit on POSIX
+  // hosts, so pin it: otherwise building on the Linux runner rewrites the mode and the
+  // reproducibility gate reports a change for byte-identical output.
+  if (target.goos === 'windows') await chmod(output, 0o644)
   console.log(`built ${output}`)
 }
