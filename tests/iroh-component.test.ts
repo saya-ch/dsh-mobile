@@ -21,17 +21,27 @@ async function fixtureCompanion(): Promise<string> {
   roots.push(root)
   const binary = Buffer.alloc(128, 7)
   await mkdir(join(root, 'native'), { recursive: true })
-  await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'dsh-mobile-iroh', version: '0.1.0-alpha.1' }))
-  await writeFile(join(root, 'native', 'dsh-mobile-iroh-host-win32-x64.exe'), binary)
-  await writeFile(join(root, 'native', 'dsh-mobile-iroh-host-linux-x64'), binary)
-  if (process.platform !== 'win32') await chmod(join(root, 'native', 'dsh-mobile-iroh-host-linux-x64'), 0o755)
+  await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'dsh-mobile-iroh', version: '0.1.0-alpha.2' }))
+  // The manifest must inventory every published target; a partial one is an invalid
+  // manifest, not a companion with a platform gap.
+  const files: Record<string, string> = {
+    'win32-x64': 'dsh-mobile-iroh-host-win32-x64.exe',
+    'linux-x64': 'dsh-mobile-iroh-host-linux-x64',
+    'darwin-x64': 'dsh-mobile-iroh-host-darwin-x64',
+    'darwin-arm64': 'dsh-mobile-iroh-host-darwin-arm64',
+  }
+  const digest = createHash('sha256').update(binary).digest('hex')
+  const artifacts: Record<string, unknown> = {}
+  for (const [target, file] of Object.entries(files)) {
+    const path = join(root, 'native', file)
+    await writeFile(path, binary)
+    if (!file.endsWith('.exe') && process.platform !== 'win32') await chmod(path, 0o755)
+    artifacts[target] = { file, bytes: 128, sha256: digest }
+  }
   await writeFile(join(root, 'native', 'manifest.json'), JSON.stringify({
     schemaVersion: 1,
-    packageVersion: '0.1.0-alpha.1',
-    artifacts: {
-      'win32-x64': { file: 'dsh-mobile-iroh-host-win32-x64.exe', bytes: 128, sha256: createHash('sha256').update(binary).digest('hex') },
-      'linux-x64': { file: 'dsh-mobile-iroh-host-linux-x64', bytes: 128, sha256: createHash('sha256').update(binary).digest('hex') },
-    },
+    packageVersion: '0.1.0-alpha.2',
+    artifacts,
   }))
   return root
 }
@@ -101,27 +111,28 @@ describe('iroh component manager', () => {
     await expect(manager.purge()).resolves.toMatchObject({ installed: false })
   })
   it('pins exactly the published sidecar releases', () => {
-    expect(IROH_VERSION).toBe('0.1.0-alpha.1')
-    expect(Object.keys(IROH_COMPONENT_RELEASES).sort()).toEqual(['linux-x64', 'win32-x64'])
+    expect(IROH_VERSION).toBe('0.1.0-alpha.2')
+    expect(Object.keys(IROH_COMPONENT_RELEASES).sort()).toEqual(['darwin-arm64', 'darwin-x64', 'linux-x64', 'win32-x64'])
     for (const [target, release] of Object.entries(IROH_COMPONENT_RELEASES)) {
       const [platform, arch] = target.split('-')
       expect(release.platform).toBe(platform)
       expect(release.arch).toBe(arch)
       expect(release.version).toBe(IROH_VERSION)
-      expect(release.downloadUrl.startsWith('https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.1/native/')).toBe(true)
+      expect(release.downloadUrl.startsWith('https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.2/native/')).toBe(true)
       expect(release.downloadBytes).toBeGreaterThan(1_000_000)
       expect(release.downloadBytes).toBe(release.executableBytes)
       expect(release.downloadSha256).toMatch(/^[a-f0-9]{64}$/)
       expect(release.executableSha256).toBe(release.downloadSha256)
     }
     expect(IROH_COMPONENT_RELEASES['win32-x64']!.executableName).toBe('dsh-mobile-iroh-host-win32-x64.exe')
-    expect(IROH_COMPONENT_RELEASES['win32-x64']!.downloadBytes).toBe(14865920)
+    expect(IROH_COMPONENT_RELEASES['win32-x64']!.downloadBytes).toBe(14861312)
     expect(IROH_COMPONENT_RELEASES['linux-x64']!.executableName).toBe('dsh-mobile-iroh-host-linux-x64')
     expect(IROH_COMPONENT_RELEASES['linux-x64']!.downloadBytes).toBe(24451352)
   })
 
   it('reports unsupported platforms closed', async () => {
-    const manager = new IrohComponentManager({ stateDirectory: tmpdir(), platform: 'darwin', arch: 'arm64' })
+    // darwin is published since 0.1.0-alpha.2; linux-arm64 is still absent.
+    const manager = new IrohComponentManager({ stateDirectory: tmpdir(), platform: 'linux', arch: 'arm64' })
     await manager.initialize()
     expect(manager.status()).toMatchObject({ supported: false, installed: false, errorCode: 'irohPlatformUnsupported' })
     await expect(manager.install()).rejects.toThrow('iroh_platform_unsupported')
@@ -174,7 +185,7 @@ describe('iroh component manager', () => {
     const binary = Buffer.alloc(128, 7)
     const sha256 = createHash('sha256').update(binary).digest('hex')
     const { artifact } = fixtureArtifact({
-      version: '0.1.0-alpha.1',
+      version: '0.1.0-alpha.2',
       downloadBytes: binary.length,
       downloadSha256: sha256,
       executableBytes: binary.length,
@@ -191,7 +202,7 @@ describe('iroh component manager', () => {
       fetchArtifact,
     })
     await manager.initialize()
-    expect(manager.status()).toMatchObject({ installed: true, version: '0.1.0-alpha.1' })
+    expect(manager.status()).toMatchObject({ installed: true, version: '0.1.0-alpha.2' })
     expect(manager.executable).toContain('dsh-mobile-iroh-host-win32-x64.exe')
     const installed = await manager.install()
     expect(installed).toMatchObject({ installed: true })

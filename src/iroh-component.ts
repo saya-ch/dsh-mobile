@@ -11,7 +11,7 @@ import { downloadPinnedArtifact } from './component-download.js'
 import { ensureIrohDirectory, removeIrohTree, renameIrohPath } from './iroh-files.js'
 import { resolveIrohSidecarAt } from './iroh-manifest.js'
 
-export const IROH_VERSION = '0.1.0-alpha.1'
+export const IROH_VERSION = '0.1.0-alpha.2'
 export const IROH_DOWNLOAD_PAGE = 'https://www.npmjs.com/package/dsh-mobile-iroh'
 export const IROH_RELEASE_PAGE = 'https://github.com/saya-ch/dsh-mobile-iroh/releases'
 
@@ -29,22 +29,36 @@ export interface IrohArtifact {
 }
 
 // Only independently verified official assets enter this source-owned catalog.
-// The bytes are the companion 0.1.0-alpha.1 release payloads, served verbatim
+// The bytes are the companion 0.1.0-alpha.2 release payloads, served verbatim
 // by the npm CDN; the SHA-256 pins make the mirror irrelevant to trust.
 export const IROH_COMPONENT_RELEASES: Readonly<Record<string, IrohArtifact>> = Object.freeze({
   'linux-x64': Object.freeze({
     version: IROH_VERSION, platform: 'linux', arch: 'x64', executableName: 'dsh-mobile-iroh-host-linux-x64',
-    downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.1/native/dsh-mobile-iroh-host-linux-x64',
+    downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.2/native/dsh-mobile-iroh-host-linux-x64',
     downloadBytes: 24451352, executableBytes: 24451352,
     downloadSha256: 'be391dfba3f0f1323d4fe9989e56a0554ceaf74e00a44acdf4a3bfd163bdcab5',
     executableSha256: 'be391dfba3f0f1323d4fe9989e56a0554ceaf74e00a44acdf4a3bfd163bdcab5',
   }),
   'win32-x64': Object.freeze({
     version: IROH_VERSION, platform: 'win32', arch: 'x64', executableName: 'dsh-mobile-iroh-host-win32-x64.exe',
-    downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.1/native/dsh-mobile-iroh-host-win32-x64.exe',
-    downloadBytes: 14865920, executableBytes: 14865920,
-    downloadSha256: '883987c636a379dc999a7f15fd1f9addbb7d28f430ed1f952ad5a610c37cc032',
-    executableSha256: '883987c636a379dc999a7f15fd1f9addbb7d28f430ed1f952ad5a610c37cc032',
+    downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.2/native/dsh-mobile-iroh-host-win32-x64.exe',
+    downloadBytes: 14861312, executableBytes: 14861312,
+    downloadSha256: '1e652fea1a0d99cd86d3b338ce0eba94621d0984cd22e417956462fb01ab73f2',
+    executableSha256: '1e652fea1a0d99cd86d3b338ce0eba94621d0984cd22e417956462fb01ab73f2',
+  }),
+  'darwin-x64': Object.freeze({
+    version: IROH_VERSION, platform: 'darwin', arch: 'x64', executableName: 'dsh-mobile-iroh-host-darwin-x64',
+    downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.2/native/dsh-mobile-iroh-host-darwin-x64',
+    downloadBytes: 18084584, executableBytes: 18084584,
+    downloadSha256: '2420851d31239e8a4f875370debc774ac82a89567445d96a64e6725ee15bd596',
+    executableSha256: '2420851d31239e8a4f875370debc774ac82a89567445d96a64e6725ee15bd596',
+  }),
+  'darwin-arm64': Object.freeze({
+    version: IROH_VERSION, platform: 'darwin', arch: 'arm64', executableName: 'dsh-mobile-iroh-host-darwin-arm64',
+    downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.2/native/dsh-mobile-iroh-host-darwin-arm64',
+    downloadBytes: 17632400, executableBytes: 17632400,
+    downloadSha256: 'e6106f481f8a1c1e2cb9d83e6e0bc91aaca1ce6d468556d387fcdc394f36ad29',
+    executableSha256: 'e6106f481f8a1c1e2cb9d83e6e0bc91aaca1ce6d468556d387fcdc394f36ad29',
   }),
 })
 

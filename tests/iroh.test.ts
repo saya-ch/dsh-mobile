@@ -69,7 +69,7 @@ function fakeStore(enabled = false): { load: () => Promise<{ version: 1; enabled
 function fakeComponent(executable: string | null = '/sidecar/host'): IrohComponentManager {
   const status = () => {
     if (executable === null) throw new Error('iroh_companion_missing')
-    return { supported: true, installed: true, version: '0.1.0-alpha.1', downloadBytes: 128, installedBytes: 128, sourceUrl: '', releasePage: '', storagePath: executable }
+    return { supported: true, installed: true, version: '0.1.0-alpha.2', downloadBytes: 128, installedBytes: 128, sourceUrl: '', releasePage: '', storagePath: executable }
   }
   return {
     executable: executable ?? undefined,

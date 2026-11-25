@@ -13,6 +13,8 @@ import { join, resolve } from 'node:path'
 export const IROH_NATIVE_TARGETS = Object.freeze({
   'win32-x64': 'dsh-mobile-iroh-host-win32-x64.exe',
   'linux-x64': 'dsh-mobile-iroh-host-linux-x64',
+  'darwin-x64': 'dsh-mobile-iroh-host-darwin-x64',
+  'darwin-arm64': 'dsh-mobile-iroh-host-darwin-arm64',
 } as const)
 
 export type IrohNativeTarget = keyof typeof IROH_NATIVE_TARGETS

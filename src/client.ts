@@ -3020,7 +3020,8 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
       unavailable: cpolar ? t('remoteUnavailableCpolar')
         : cloudflared ? t('remoteUnavailableCloudflared')
           : frp ? t('remoteUnavailableFrp') : origin ? t('originUnavailable')
-            : iroh ? (irohInstalled ? t('irohInstalledNotReady') : t('irohUnavailable')) : t('remoteUnavailableTailscale'),
+            : iroh ? (irohInstalled ? t('irohInstalledNotReady') : t('irohUnavailable'))
+              : errorCode === 'component_missing' ? t('funnelComponentMissing') : t('remoteUnavailableTailscale'),
       starting: cpolar ? t('remoteStartingCpolar')
         : cloudflared ? t('remoteStartingCloudflared')
           : frp ? t('remoteStartingFrp') : origin ? t('originStarting') : iroh ? t('irohStarting') : t('remoteStartingTailscale'),

@@ -16,26 +16,30 @@ afterEach(async () => {
   }
 })
 
-async function fixtureCompanion(version = '0.1.0-alpha.1', tamper = false, manifestVersion = version): Promise<{ root: string; binary: Buffer }> {
+async function fixtureCompanion(version = '0.1.0-alpha.2', tamper = false, manifestVersion = version): Promise<{ root: string; binary: Buffer }> {
   const root = await mkdtemp(join(tmpdir(), prefix))
   roots.push(root)
   const binary = Buffer.alloc(128, 7)
   await mkdir(join(root, 'native'), { recursive: true })
   await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'dsh-mobile-iroh', version }))
-  const binaryPath = join(root, 'native', 'dsh-mobile-iroh-host-win32-x64.exe')
-  await writeFile(binaryPath, tamper ? Buffer.alloc(128, 8) : binary)
-  const manifest = {
-    schemaVersion: 1,
-    packageVersion: manifestVersion,
-    artifacts: {
-      'win32-x64': { file: 'dsh-mobile-iroh-host-win32-x64.exe', bytes: 128, sha256: createHash('sha256').update(binary).digest('hex') },
-      'linux-x64': { file: 'dsh-mobile-iroh-host-linux-x64', bytes: 128, sha256: createHash('sha256').update(binary).digest('hex') },
-    },
+  const digest = createHash('sha256').update(binary).digest('hex')
+  const files = {
+    'win32-x64': 'dsh-mobile-iroh-host-win32-x64.exe',
+    'linux-x64': 'dsh-mobile-iroh-host-linux-x64',
+    'darwin-x64': 'dsh-mobile-iroh-host-darwin-x64',
+    'darwin-arm64': 'dsh-mobile-iroh-host-darwin-arm64',
   }
+  const artifacts: Record<string, { file: string; bytes: number; sha256: string }> = {}
+  for (const [target, file] of Object.entries(files)) {
+    const targetPath = join(root, 'native', file)
+    // Only the Windows pair carries the tampered bytes, which keeps the "tampered
+    // bytes are refused" case about content rather than about a broken inventory.
+    await writeFile(targetPath, tamper && target === 'win32-x64' ? Buffer.alloc(128, 8) : binary)
+    if (!file.endsWith('.exe') && process.platform !== 'win32') await chmod(targetPath, 0o755)
+    artifacts[target] = { file, bytes: 128, sha256: digest }
+  }
+  const manifest = { schemaVersion: 1, packageVersion: manifestVersion, artifacts }
   await writeFile(join(root, 'native', 'manifest.json'), JSON.stringify(manifest))
-  const linuxPath = join(root, 'native', 'dsh-mobile-iroh-host-linux-x64')
-  await writeFile(linuxPath, binary)
-  if (process.platform !== 'win32') await chmod(linuxPath, 0o755)
   return { root, binary }
 }
 
@@ -49,15 +53,16 @@ describe('iroh native manifest', () => {
 
   it('rejects unsupported platforms and tampered bytes', async () => {
     const { root } = await fixtureCompanion()
-    await expect(resolveIrohSidecarAt(root, 'darwin', 'arm64')).rejects.toThrow('iroh_native_platform_unsupported')
-    const tampered = await fixtureCompanion('0.1.0-alpha.1', true)
+    // darwin is published now; linux-arm64 is the remaining gap.
+    await expect(resolveIrohSidecarAt(root, 'linux', 'arm64')).rejects.toThrow('iroh_native_platform_unsupported')
+    const tampered = await fixtureCompanion('0.1.0-alpha.2', true)
     await expect(resolveIrohSidecarAt(tampered.root, 'win32', 'x64')).rejects.toThrow('iroh_native_hash_mismatch')
   })
 
   it('rejects manifests bound to another package version', async () => {
-    const { root } = await fixtureCompanion('9.9.9', false, '0.1.0-alpha.1')
+    const { root } = await fixtureCompanion('9.9.9', false, '0.1.0-alpha.2')
     await expect(resolveIrohSidecarAt(root, 'win32', 'x64')).rejects.toThrow('iroh_native_manifest_invalid')
-    expect(() => validateIrohNativeManifest({ schemaVersion: 1 }, '0.1.0-alpha.1')).toThrow('iroh_native_manifest_invalid')
+    expect(() => validateIrohNativeManifest({ schemaVersion: 1 }, '0.1.0-alpha.2')).toThrow('iroh_native_manifest_invalid')
   })
 
   it('rejects a missing companion directory', async () => {
