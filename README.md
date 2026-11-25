@@ -16,11 +16,6 @@
   <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin"><img src="https://awesome-dsh-plugin.com/badge.svg" alt="Awesome DSH Plugin"></a>
 </p>
 
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
-
-<p align="center">
-</p>
-
 <p align="center">
   <a href="#能做什么">能做什么</a> ·
   <a href="#快速开始">快速开始</a> ·
@@ -586,10 +581,6 @@ npm run verify
 
 文档快速检查使用 `npm run check:docs`。按改动选择的浏览器测试、隔离 DSH 打包验收、截图和正式发布流程见 [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md)；Android 构建见 [App 手册](apps/mobile/README.zh-CN.md#构建)。不要用真实用户配置或正式 App 数据替代测试资料。
 
-需要稳定调用 DeepSeek 等大模型 API，也可以通过 [硅基流动（注册送体验额度）](https://cloud.siliconflow.cn/i/qHBsrZ2i) 开通使用。
-
-如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 支持维护；商务合作与赞助联系：`2065586050@qq.com`。
-
 ### Code signing policy
 
 Free code signing provided by SignPath.io, certificate by SignPath Foundation.
@@ -597,7 +588,13 @@ Free code signing provided by SignPath.io, certificate by SignPath Foundation.
 - **Authors / Reviewers / Approvers**: `@saya-ch`
 - **Privacy policy**: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+## 赞助与支持
+
+- **打赏支持**：如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 或 [Buy Me a Tokens](https://buymeatokens.com/saya-ch) 支持维护。
+- **商务合作与赞助位**：欢迎云服务、AI API 及开发工具赞助展示，联系邮箱：`2065586050@qq.com`。
+- **推荐模型 API**：需要稳定调用 DeepSeek 等大模型 API，可以通过 [硅基流动（注册送体验额度）](https://cloud.siliconflow.cn/i/qHBsrZ2i) 开通使用。
+
+[![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
 <!-- Verified on DartNode: DNOS-8204844A -->
 
 Apache-2.0，详见 [LICENSE](LICENSE)。
