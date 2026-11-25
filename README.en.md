@@ -582,13 +582,6 @@ npm run verify
 
 Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md) covers behavior-specific browser tests, isolated packed DSH acceptance, captures and release steps; the [Android manual](apps/mobile/README.md#build) covers app builds. Do not substitute real user profiles or official app data for test fixtures.
 
-### Code signing policy
-
-Free code signing provided by SignPath.io, certificate by SignPath Foundation.
-
-- **Authors / Reviewers / Approvers**: `@saya-ch`
-- **Privacy policy**: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
-
 ## Sponsors & Support
 
 - **Support maintenance**: If you find this project helpful, you can support it via [Afdian](https://afdian.com/a/saya-ch) or [Buy Me a Tokens](https://buymeatokens.com/saya-ch).
