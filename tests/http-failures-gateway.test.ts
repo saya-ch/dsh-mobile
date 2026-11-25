@@ -37,7 +37,8 @@ async function close(server: Server): Promise<void> {
   await new Promise<void>(resolve => { server.close(() => resolve()) })
 }
 
-async function fixture(status = 400, observe?: (entry: HttpFailureEntry) => void) {
+async function fixture(status = 400, observe?: (entry: HttpFailureEntry) => void,
+  timeouts?: { upstreamTimeoutMs: number; requestReceiveTimeoutMs: number }) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-mobile-http-failures-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const received: UpstreamRequest[] = []
@@ -62,7 +63,7 @@ async function fixture(status = 400, observe?: (entry: HttpFailureEntry) => void
     listenHost: '127.0.0.1', listenPort: 0,
     upstreamOrigin: `http://127.0.0.1:${String(upstreamPort)}`,
     publicAuthorities: ['127.0.0.1'], allowedCidrs: ['127.0.0.0/8'],
-    stateFile: join(root, 'devices.json'), tls: { mode: 'disabled' },
+    stateFile: join(root, 'devices.json'), tls: { mode: 'disabled' }, ...timeouts,
   })
   const entries: HttpFailureEntry[] = []
   const gateway = new MobileAccessGateway(
@@ -71,6 +72,15 @@ async function fixture(status = 400, observe?: (entry: HttpFailureEntry) => void
     observe ?? (entry => { entries.push(entry) }),
   )
   cleanups.push(() => gateway.close())
+  if (timeouts !== undefined) {
+    // Node starts the parser sweep when the server listens. Keep real deadlines
+    // and sockets, but don't wait for the default 30 s sweep in short tests.
+    const listen = Server.prototype.listen
+    vi.spyOn(Server.prototype, 'listen').mockImplementationOnce(function (this: Server, ...args) {
+      Object.assign(this, { connectionsCheckingInterval: 50 })
+      return Reflect.apply(listen, this, args)
+    })
+  }
   await gateway.start()
   const opened = await gateway.access.openPairing()
   const paired = await gateway.access.pair('fixture', opened.token, 'HTTP diagnostics fixture')
@@ -211,6 +221,45 @@ describe('Gateway HTTP rejection diagnostics', () => {
     expect(JSON.stringify(f.entries)).not.toContain('private')
     expect(f.received).toHaveLength(0)
   })
+
+  it.each([
+    { upstreamTimeoutMs: 10_000, requestReceiveTimeoutMs: 60_000, expected: 200 },
+    { upstreamTimeoutMs: 10_000, requestReceiveTimeoutMs: 1_000, expected: 408 },
+  ])('returns $expected for an active upload with a $requestReceiveTimeoutMs ms receive deadline', async ({ expected, ...timeouts }) => {
+    const f = await fixture(200, undefined, timeouts)
+    const path = '/api/session/uploadFileBinary'
+    // Cross one deadline but not the other: 12 s for success, 2.5 s for expiry.
+    const body = Buffer.from(Array.from({ length: expected === 200 ? 121 : 26 }, (_, i) => 255 - i))
+    const result = await new Promise<number>((resolve, reject) => {
+      const outgoing = requestHttp({ host: '127.0.0.1', port: f.port, method: 'POST', path, agent: false,
+        headers: { ...f.headers, 'content-type': 'application/octet-stream', 'content-length': body.length },
+      }, response => {
+        clearInterval(timer)
+        response.once('error', reject)
+        response.once('end', () => resolve(response.statusCode ?? 0))
+        response.resume()
+      })
+      outgoing.once('error', reject)
+      outgoing.write(body.subarray(0, 1))
+      let offset = 1
+      const timer = setInterval(() => {
+        const chunk = body.subarray(offset, offset + 1)
+        offset++
+        if (offset === body.length) {
+          clearInterval(timer)
+          outgoing.end(chunk)
+        } else outgoing.write(chunk)
+      }, 100)
+      outgoing.once('close', () => clearInterval(timer))
+      cleanups.push(async () => { clearInterval(timer); outgoing.destroy() })
+    })
+    expect(result).toBe(expected)
+    if (expected === 200) expect(f.received).toEqual([{ method: 'POST', url: path, body }])
+    else {
+      expect(f.entries).toContainEqual({ kind: 'parser', status: 408, code: 'ERR_HTTP_REQUEST_TIMEOUT' })
+      expect(f.received).toHaveLength(0)
+    }
+  }, 30_000)
 
   it('records an invalid target without retaining its query or token', async () => {
     const f = await fixture()

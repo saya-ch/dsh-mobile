@@ -113,6 +113,8 @@ export interface PluginConfig {
   maxActiveRequests?: number
   maxWebSockets?: number
   maxBodyBytes?: number
+  /** Total time to receive an inbound HTTP request, including its body. */
+  requestReceiveTimeoutMs?: number
   /** Transport, upload, static-response and WebSocket-handshake idle timeout. */
   upstreamTimeoutMs?: number
   /** Authenticated /api response and established DSH plugin-event stream idle timeout; zero disables it. */
@@ -165,6 +167,7 @@ export interface ResolvedGatewayConfig {
   readonly maxActiveRequests: number
   readonly maxWebSockets: number
   readonly maxBodyBytes: number
+  readonly requestReceiveTimeoutMs: number
   readonly upstreamTimeoutMs: number
   readonly upstreamApiTimeoutMs: number
   readonly catalogCache: boolean
@@ -229,6 +232,7 @@ export const Config: z<PluginConfig> = z.object({
   maxActiveRequests: z.natural(),
   maxWebSockets: z.natural(),
   maxBodyBytes: z.natural(),
+  requestReceiveTimeoutMs: z.natural().min(1_000).max(3_600_000),
   upstreamTimeoutMs: z.natural(),
   upstreamApiTimeoutMs: z.natural(),
   catalogCache: z.boolean(),
@@ -501,6 +505,7 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
     maxActiveRequests: integer(value.maxActiveRequests, 'maxActiveRequests', 32, 1, 1024),
     maxWebSockets: integer(value.maxWebSockets, 'maxWebSockets', 16, 1, 256),
     maxBodyBytes: integer(value.maxBodyBytes, 'maxBodyBytes', 160 * 1024 * 1024, 1024, 256 * 1024 * 1024),
+    requestReceiveTimeoutMs: integer(value.requestReceiveTimeoutMs, 'requestReceiveTimeoutMs', 300_000, 1_000, 3_600_000),
     upstreamTimeoutMs: integer(value.upstreamTimeoutMs, 'upstreamTimeoutMs', 30_000, 1_000, 300_000),
     upstreamApiTimeoutMs: integer(value.upstreamApiTimeoutMs, 'upstreamApiTimeoutMs', 0, 0, 2_147_483_647),
     catalogCache: booleanValue(value.catalogCache, 'catalogCache', true),

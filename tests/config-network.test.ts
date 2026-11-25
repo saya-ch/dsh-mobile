@@ -59,6 +59,19 @@ describe('gateway configuration', () => {
     expect(() => parseGatewayConfig({ ...base, upstreamTimeoutMs: 0 })).toThrow(/upstreamTimeoutMs/u)
   })
 
+  it('keeps the total request receive deadline finite and independent of upstream inactivity', () => {
+    const base = { stateFile, controlFile, initiallyEnabled: false, tls: { mode: 'disabled' as const } }
+    expect(parseGatewayConfig({ ...base, upstreamTimeoutMs: 1_000 }).requestReceiveTimeoutMs).toBe(300_000)
+    for (const requestReceiveTimeoutMs of [1_000, 600_000, 3_600_000]) {
+      expect(parseGatewayConfig(Config({ ...base, requestReceiveTimeoutMs }))).toMatchObject({
+        requestReceiveTimeoutMs, upstreamTimeoutMs: 30_000, upstreamApiTimeoutMs: 0,
+      })
+    }
+    for (const requestReceiveTimeoutMs of [0, 999, 1_000.5, '600000', 3_600_001]) {
+      expect(() => parseGatewayConfig({ ...base, requestReceiveTimeoutMs })).toThrow(/requestReceiveTimeoutMs/u)
+    }
+  })
+
   it('keeps WebSocket compression opt-in and freezes validated paths and budgets', () => {
     const base = { stateFile, controlFile, initiallyEnabled: false, tls: { mode: 'disabled' as const } }
     // The live path is compressed by default; an explicit empty list opts out.
