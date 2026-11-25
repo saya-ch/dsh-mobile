@@ -32,7 +32,7 @@
   <a href="README.md">简体中文</a>
 </p>
 
-> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; the repository also contains an **alpha preview** [portable Windows client](apps/windows/README.en.md) ([downloadable from the `windows-v*` tag on GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases)), not yet accepted on real Windows, so it is not a supported platform.
+> DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; there is also a **Windows client (alpha preview)** for Windows 10 / 11 x64: [download the zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip) · [guide](apps/windows/README.en.md).
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
