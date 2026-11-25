@@ -570,6 +570,8 @@ dsh plugin --profile web remove dsh-mobile
 
 感谢提交 PR、复现问题和提出建议的社区成员。[贡献者名单](CONTRIBUTORS.md)按已合并 PR、后来吸收的 PR 工作和 issue 反馈分别致谢；GitHub 右侧的 Contributors 区域由进入默认分支的提交自动生成，不能手动加入仅反馈问题的成员。
 
+[![Contributors](https://contrib.rocks/image?repo=saya-ch/dsh-mobile)](https://github.com/saya-ch/dsh-mobile/graphs/contributors)
+
 ## 开发
 
 ```powershell
