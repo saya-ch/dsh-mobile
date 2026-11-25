@@ -10,7 +10,9 @@ A portable Windows client for DSH Mobile. It connects through the authenticated 
 
 ## Download
 
-Download `dsh-mobile-windows-v<version>-win-x64.zip` from the `windows-v*` tag in [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases), unzip it into any writable folder, and run `DshMobile.Win.exe`. A `.sha256` file sits beside the archive.
+**[Download `dsh-mobile-windows-v0.1.0-alpha-win-x64.zip`](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip)** (65.8 MB, about 149 MB unzipped) · **[SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip.sha256)** · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
+
+Unzip it into any writable folder and run `DshMobile.Win.exe`. To verify the download, compare `Get-FileHash <zip> -Algorithm SHA256` with the checksum file.
 
 The package is **self-contained**: no .NET install, no registry writes, no administrator rights. The whole folder is portable, but the device token in `devices.json` is sealed with the current Windows account, so moving to another machine or user means pairing again.
 

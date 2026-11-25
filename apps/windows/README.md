@@ -10,7 +10,9 @@
 
 ## 下载
 
-从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases) 的 `windows-v*` 标签下载 `dsh-mobile-windows-v<版本>-win-x64.zip`，解压到任意可写目录，运行 `DshMobile.Win.exe`。同目录附有 `.sha256` 校验文件。
+**[下载 `dsh-mobile-windows-v0.1.0-alpha-win-x64.zip`](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip)**（65.8 MB，解压后约 149 MB）· **[SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip.sha256)** · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
+
+解压到任意可写目录，运行 `DshMobile.Win.exe`。下载后可以用 `Get-FileHash <zip> -Algorithm SHA256` 与校验文件比对。
 
 发布包是**自包含**的：不装 .NET、不写注册表、不需要管理员权限。整个文件夹可以拷走；但 `devices.json` 里的设备令牌用当前 Windows 账户加密，换机或换用户需要重新配对。
 

@@ -46,7 +46,7 @@
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>下载 Android App 0.8.3（兼容版）</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64 位完整版（含实验性 iroh）</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">版本说明与校验文件</a></sub><br>
-  <sub>其他平台：<a href="apps/windows/README.md">便携 Windows 客户端（alpha 预览，尚未提供下载）</a></sub>
+  <sub>其他平台：<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip">便携 Windows 客户端（alpha 预览，直接下载 zip）</a> · <a href="apps/windows/README.md">说明</a></sub>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -137,7 +137,7 @@ dsh plugin --profile web add dshmarket
 
 Windows 上也可以用 DSH Mobile：[便携 Windows 客户端](apps/windows/README.md)是一个 WebView2 外壳，通过与 Android 相同的插件认证 HTTPS 页面连接电脑。
 
-目前还没有提供下载包，需要按 [Windows 客户端说明](apps/windows/README.md) 自行编译：`dotnet publish -c Release -r win-x64 --self-contained true`。产物是自包含目录，解压即用，不需要安装 .NET、不需要管理员权限。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
+[直接下载 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip)（65.8 MB）· [SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)。解压到任意可写目录后运行 `DshMobile.Win.exe`，不需要安装 .NET、不需要管理员权限。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
 
 > 该客户端仍是 **alpha 预览**（当前 `0.1.0-alpha`），以预发布形式单独发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
 

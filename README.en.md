@@ -46,7 +46,7 @@
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="72" height="72"></a><br>
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><strong>Download Android app 0.8.3 (compatibility)</strong></a><br>
   <sub><a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full APK (experimental iroh)</a> · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">Release notes and checksums</a></sub><br>
-  <sub>Other platforms: <a href="https://github.com/saya-ch/dsh-mobile/releases">portable Windows client (alpha preview, windows-v* tag)</a></sub>
+  <sub>Other platforms: <a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip">portable Windows client (alpha preview, direct zip)</a> · <a href="apps/windows/README.en.md">guide</a></sub>
 </p>
 
 DSH Mobile is a DeepSeek Harness plugin that lets a mobile browser or the Android app connect over a protected LAN or an optional Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, or own reverse-proxy remote path. The full Android App also supports experimental iroh encrypted direct connections with relay fallback. The phone reaches the computer's sessions, Workspaces, messages and tools. The computer manages LAN and remote switches and pairing authorizations separately; the Android app lists paired computers together. The plugin does not modify DeepSeek Harness source.
@@ -137,7 +137,7 @@ You can also keep using Safari without installing an icon. The computer, DSH and
 
 DSH Mobile also runs on Windows: the [portable Windows client](apps/windows/README.en.md) is a WebView2 shell that connects through the same plugin-authenticated HTTPS page as the Android app.
 
-Download `dsh-mobile-windows-v<version>-win-x64.zip` from the `windows-v*` tag in [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases), unzip it and run `DshMobile.Win.exe`; no .NET install and no administrator rights are needed. Windows 10 1809+ / Windows 11 **x64** only.
+[Download the zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip) (65.8 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.0-alpha/dsh-mobile-windows-v0.1.0-alpha-win-x64.zip.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases). Unzip into any writable folder and run `DshMobile.Win.exe`; no .NET install and no administrator rights are needed. Windows 10 1809+ / Windows 11 **x64** only.
 
 > This client is still an **alpha preview** (currently `0.1.0-alpha`), published separately as a prerelease. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. It has not been accepted on real Windows hardware, so failures are expected at this stage; attach `data\client.log` when reporting one. See the [Windows client guide](apps/windows/README.en.md).
 
