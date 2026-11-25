@@ -581,6 +581,6 @@ npm run verify
 
 需要稳定调用 DeepSeek 等大模型 API，也可以通过 [硅基流动（注册送体验额度）](https://cloud.siliconflow.cn/i/qHBsrZ2i) 开通使用。
 
-如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 支持维护。
+如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 支持维护；商务合作与赞助联系：`2065586050@qq.com`。
 
 Apache-2.0，详见 [LICENSE](LICENSE)。
