@@ -586,6 +586,7 @@ Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https
 
 - **Support maintenance**: If you find this project helpful, you can support it via [Afdian](https://afdian.com/a/saya-ch) or [Buy Me a Tokens](https://buymeatokens.com/saya-ch).
 - **Sponsorships & business inquiries**: README sponsor slots and partnerships are welcome at `2065586050@qq.com`.
+- **Custom development & deployment**: Available for private deployment, custom AI Agent workflows, and multi-platform integration.
 - **Recommended API provider**: For reliable access to DeepSeek and other models, you can try [SiliconFlow (free starter credits)](https://cloud.siliconflow.cn/i/qHBsrZ2i).
 
 [![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
