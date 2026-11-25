@@ -10,6 +10,8 @@
 
 自建 FRP 适合已有 VPS、希望自己管理公网入口的用户。电脑主动连接 VPS，因此家中即使没有公网入站也可使用；VPS 本身仍须有可达的公网入口、相应防火墙放行和足够的带宽。手机经 VPS 上的 Caddy 进入加密 FRP 隧道，再到达电脑上的 DSH；FRP 只负责传输，仍需完成 DSH 配对才能进入。
 
+> **还没有 VPS？** 可通过 [雨云（注册领首月 5 折券）](https://www.rainyun.com/MTMxNTg1NQ==_?s=dsh-mobile) 开通入门级 Ubuntu/Debian 云主机，再按下方一键部署或手动部署即可（含推广链接，感谢支持项目维护）。
+
 ```text
 手机 App
   -> HTTPS（域名或公网 IPv4）
