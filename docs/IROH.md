@@ -7,7 +7,7 @@ iroh 用加密直连（打不通时走中继）代替公网域名和隧道账号
 
 ## 前提
 
-- Windows x64 或 Linux x64（sidecar 只发布这两个目标）。
+- Windows x64、Linux x64，或 macOS x64/arm64。
 - Android 10+，安装含 iroh 的完整版 `-iroh.apk`，支持 arm64-v8a 和 x86_64。普通 `.apk` 是无原生库的兼容版，保留原有 HTTPS 连接并供旧版自动更新使用；兼容版 APK 不能使用 iroh，手机浏览器同样不能通过 iroh 接入。两个 APK 使用相同包名和正式签名，只需安装一个。
 - 点 **安装官方组件** 一次下好 sidecar：插件从固定的 `dsh-mobile-iroh 0.1.0-alpha.2` 发行版按平台下载（Windows x64 约 15 MB，Linux x64 约 24 MB，macOS 约 18 MB），校验 SHA-256 后放进插件私有目录；已装配套插件且副本校验通过时会直接复用，不再下载。Rust 源码随主仓在 `native/iroh-host`（公共 core 在 `native/iroh-core`）维护，CI 按平台构建校验。
 - DSH Mobile 保持启用；iroh 默认关闭。局域网独立运行，远程通道为单选，切换到 iroh 会停止之前的远程通道。

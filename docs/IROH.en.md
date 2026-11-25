@@ -7,7 +7,7 @@ iroh replaces public domains and tunnel accounts with an encrypted direct connec
 
 ## Prerequisites
 
-- Windows x64 or Linux x64 (the only published sidecar targets).
+- Windows x64, Linux x64, or macOS x64/arm64.
 - Android 10+ with the full `-iroh.apk`, supporting arm64-v8a and x86_64. The ordinary `.apk` is the compatibility build without native libraries: it retains existing HTTPS connections and serves older automatic-update links, but cannot use iroh. Mobile browsers cannot connect directly through iroh either. Both APKs have the same application ID and official signer; install only one.
 - Press **Install official component** once to fetch the sidecar: the plugin downloads the pinned `dsh-mobile-iroh 0.1.0-alpha.2` release per platform (about 15 MB on Windows x64, 24 MB on Linux x64, 18 MB on macOS), verifies its SHA-256, and stores it in the plugin private directory. An installed companion plugin with a verified copy is reused instead, with no download. The Rust source lives with the main repository under `native/iroh-host` (shared core under `native/iroh-core`) and is built per platform in CI.
 - DSH Mobile stays enabled; iroh is off by default. LAN runs independently, but only one remote provider is active: switching to iroh stops the previous remote channel.
