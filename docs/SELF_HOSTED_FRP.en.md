@@ -6,6 +6,8 @@ This page covers a new FRP entry, deployed manually or managed by the plugin ove
 
 Self-hosted FRP suits users who already operate a VPS and want to manage the public entry themselves. The computer connects out to the VPS, so a home-network inbound port is unnecessary; the VPS still needs reachable public ingress, matching firewall rules, and sufficient bandwidth. The phone reaches Caddy on the VPS over HTTPS, crosses the encrypted FRP tunnel, and then reaches DSH on the computer. FRP only transports the request; DSH pairing is still required.
 
+> **Need a VPS?** You can spin up an entry-level Ubuntu/Debian instance via [RainYun (first-month 50% off coupon)](https://www.rainyun.com/MTMxNTg1NQ==_?s=dsh-mobile) and follow the one-click or manual deployment below (referral link supporting project maintenance).
+
 ```text
 Android app
   -> HTTPS (domain or public IPv4)
