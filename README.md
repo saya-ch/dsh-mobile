@@ -585,4 +585,13 @@ npm run verify
 
 如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 支持维护；商务合作与赞助联系：`2065586050@qq.com`。
 
+### Code signing policy
+
+Free code signing provided by SignPath.io, certificate by SignPath Foundation.
+
+- **Authors / Reviewers / Approvers**: `@saya-ch`
+- **Privacy policy**: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+
 Apache-2.0，详见 [LICENSE](LICENSE)。
