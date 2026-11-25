@@ -583,4 +583,13 @@ Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https
 
 If you find this project helpful, you can support its maintenance via [Afdian](https://afdian.com/a/saya-ch) or [Buy Me a Tokens](https://buymeatokens.com/saya-ch). For sponsorships or business inquiries: `2065586050@qq.com`.
 
+### Code signing policy
+
+Free code signing provided by SignPath.io, certificate by SignPath Foundation.
+
+- **Authors / Reviewers / Approvers**: `@saya-ch`
+- **Privacy policy**: This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+
 Licensed under [Apache-2.0](LICENSE).
