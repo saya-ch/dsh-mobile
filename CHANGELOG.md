@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## 0.8.17 - 2026-11-26
+## 0.9.0 - 2026-11-26
 
 - **cpolar works on macOS.** The official component is now pinned for macOS x64 and arm64 as well, so the channel is no longer Windows and Linux only.
 - **iroh works on macOS, and the component moves to 0.1.0-alpha.2.** The host sidecar is published for Windows x64, Linux x64, macOS x64 and macOS arm64. The plugin downloads and verifies the matching binary on demand. Anyone who installed the previous component has to install it again after upgrading: the new release ships different binaries, the old directory is not reused, and it is not removed automatically.
