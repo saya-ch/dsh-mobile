@@ -32,7 +32,7 @@
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe)（推荐）· [使用说明](apps/windows/README.md)。
+> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.1-alpha/dsh-mobile-windows-v0.1.1-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
