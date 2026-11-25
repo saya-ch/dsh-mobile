@@ -16,6 +16,11 @@
   <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin"><img src="https://awesome-dsh-plugin.com/badge.svg" alt="Awesome DSH Plugin"></a>
 </p>
 
+[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+
+<p align="center">
+</p>
+
 <p align="center">
   <a href="#能做什么">能做什么</a> ·
   <a href="#快速开始">快速开始</a> ·
