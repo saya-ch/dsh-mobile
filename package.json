@@ -34,9 +34,6 @@
     "lib/mobile-graph-follower.js",
     "lib/mobile-compat.js",
     "lib/**/*.map",
-    "bin/dsh-mobile-funnel-win32-x64.exe",
-    "bin/dsh-mobile-funnel-linux-x64",
-    "bin/dsh-mobile-funnel-linux-arm64",
     "packages/question-fixes/package.json",
     "packages/question-fixes/lib/**",
     "packages/question-fixes/LICENSE",
@@ -242,6 +239,13 @@
     "react": {
       "optional": true
     }
+  },
+  "optionalDependencies":   {
+    "dsh-mobile-funnel-win32-x64": "0.8.16",
+    "dsh-mobile-funnel-linux-x64": "0.8.16",
+    "dsh-mobile-funnel-linux-arm64": "0.8.16",
+    "dsh-mobile-funnel-darwin-x64": "0.8.16",
+    "dsh-mobile-funnel-darwin-arm64": "0.8.16"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1",

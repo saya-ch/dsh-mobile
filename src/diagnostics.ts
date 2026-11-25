@@ -115,13 +115,13 @@ export function hasCompetingRemoteChannelBoot(rows: readonly { readonly kind: st
 }
 
 const REMOTE_ERROR_GUIDANCE: Readonly<Record<string, string>> = Object.freeze({
-  component_missing: '重新安装完整插件包。',
+  component_missing: '重新安装插件，让 npm 按本机平台补齐组件。',
   funnel_permission_required: '继续完成 Tailscale Funnel 授权。',
   funnel_https_required: '继续完成 Tailscale HTTPS 授权。',
   funnel_start_failed: '重新打开授权页并允许 Funnel。',
   funnel_start_timeout: '检查网络后点击“重新连接”。',
   tailscale_dns_missing: '确认 Tailscale 登录仍有效后重新连接。',
-  sidecar_launch_failed: '重新安装完整插件包后重试。',
+  sidecar_launch_failed: '重新安装插件后重试。',
   sidecar_stopped: '点击“重新连接”。',
   sidecar_exited: '点击“重新连接”；仍失败时复制诊断报告。',
   control_channel_failed: '点击“重新连接”。',

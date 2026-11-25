@@ -250,24 +250,33 @@ async function checkAndroid() {
     checkPng(`apps/mobile/android/app/src/main/res/mipmap-${density}/ic_launcher.png`, size, size, true)))
 }
 
+/** Every Funnel sidecar ships as its own optional package keyed by runtime target. */
+const FUNNEL_TARGETS = [
+  { os: 'win32', cpu: 'x64', header: 'MZ' },
+  { os: 'linux', cpu: 'x64', header: 'ELF' },
+  { os: 'linux', cpu: 'arm64', header: 'ELF' },
+  { os: 'darwin', cpu: 'x64', header: 'Mach-O', cpuType: 0x01000007 },
+  { os: 'darwin', cpu: 'arm64', header: 'Mach-O', cpuType: 0x0100000c },
+]
+
+/**
+ * The main package no longer carries the sidecars: each target is published as
+ * `dsh-mobile-funnel-<os>-<cpu>` and declared as an optional dependency, so npm
+ * installs only the binary this machine can run. Both halves have to agree — a
+ * package that is not declared is unreachable, and a declaration with no package
+ * breaks every install of that platform.
+ */
 async function checkFunnelHost() {
-  const [manifestSource, goModule, goSum, source, windowsExecutable, linuxX64, linuxArm64, thirdPartyLicenses] = await Promise.all([
+  const [manifestSource, goModule, goSum, source, thirdPartyLicenses] = await Promise.all([
     read('package.json', 'utf8'),
     read('native/funnel-host/go.mod', 'utf8'),
     read('native/funnel-host/go.sum', 'utf8'),
     read('native/funnel-host/main.go', 'utf8'),
-    read('bin/dsh-mobile-funnel-win32-x64.exe'),
-    read('bin/dsh-mobile-funnel-linux-x64'),
-    read('bin/dsh-mobile-funnel-linux-arm64'),
     read('FUNNEL_THIRD_PARTY_LICENSES.txt', 'utf8'),
   ])
   const manifest = JSON.parse(manifestSource)
-  for (const file of [
-    'bin/dsh-mobile-funnel-win32-x64.exe',
-    'bin/dsh-mobile-funnel-linux-x64',
-    'bin/dsh-mobile-funnel-linux-arm64',
-  ]) {
-    if (!manifest.files?.includes(file)) fail(`package files must include the Funnel host ${file}`)
+  if (manifest.files?.some(file => file.startsWith('bin/dsh-mobile-funnel-'))) {
+    fail('the main package must not bundle Funnel binaries; they ship as optional packages')
   }
   if (!manifest.files?.includes('THIRD_PARTY_NOTICES.md')) fail('package files must include third-party notices')
   if (!manifest.files?.includes('FUNNEL_THIRD_PARTY_LICENSES.txt')) {
@@ -277,16 +286,48 @@ async function checkFunnelHost() {
     fail('Funnel host must pin Go 1.26.6 and Tailscale 1.102.3')
   }
   if (goSum.length === 0 || !source.includes('tailscale.com/tsnet')) fail('Funnel host source and module checksums are incomplete')
-  if (windowsExecutable.byteLength < 2 || windowsExecutable.subarray(0, 2).toString('ascii') !== 'MZ') {
-    fail('Funnel host must be a Windows executable built from the checked source')
-  }
-  for (const [name, binary] of [['linux-x64', linuxX64], ['linux-arm64', linuxArm64]]) {
-    if (binary.byteLength < 4 || binary[0] !== 0x7f || binary.subarray(1, 4).toString('ascii') !== 'ELF') {
-      fail(`Funnel host must be a Linux executable built from the checked source (${name})`)
+  for (const { os, cpu, header, cpuType } of FUNNEL_TARGETS) {
+    const name = `dsh-mobile-funnel-${os}-${cpu}`
+    const directory = `packages/funnel-${os}-${cpu}`
+    const fileName = os === 'win32' ? `${name}.exe` : name
+    const [source, binary] = await Promise.all([
+      read(`${directory}/package.json`, 'utf8'),
+      read(`${directory}/${fileName}`),
+    ])
+    const metadata = JSON.parse(source)
+    if (metadata.name !== name) fail(`${directory}/package.json must be named ${name}`)
+    if (metadata.version !== manifest.version) {
+      fail(`${name} must carry the main package version ${manifest.version}, found ${metadata.version}`)
+    }
+    if (metadata.private === true) fail(`${name} must be publishable`)
+    const [expectOs] = metadata.os ?? []
+    const [expectCpu] = metadata.cpu ?? []
+    if (expectOs !== os || expectCpu !== cpu) fail(`${name} must declare os [${os}] and cpu [${cpu}]`)
+    if (!Array.isArray(metadata.files) || !metadata.files.includes(fileName)) {
+      fail(`${name} must publish ${fileName}`)
+    }
+    if (manifest.optionalDependencies?.[name] !== manifest.version) {
+      fail(`the main package must declare ${name}@${manifest.version} as an optional dependency`)
+    }
+    if (binary.byteLength >= 40 * 1024 * 1024) fail(`${name} must remain below 40 MiB`)
+    if (binary.byteLength < 8) fail(`${name} is truncated`)
+    if (header === 'MZ') {
+      if (binary.subarray(0, 2).toString('ascii') !== 'MZ') fail(`${name} must be a Windows executable`)
+    } else if (header === 'ELF') {
+      if (binary[0] !== 0x7f || binary.subarray(1, 4).toString('ascii') !== 'ELF') {
+        fail(`${name} must be a Linux executable`)
+      }
+    } else {
+      // A cross-build silently producing the other architecture has to fail here
+      // rather than reach a package whose whole purpose is that architecture.
+      if (binary.readUInt32LE(0) !== 0xfeedfacf) fail(`${name} must be a 64-bit Mach-O executable`)
+      if (binary.readUInt32LE(4) !== cpuType) fail(`${name} must be built for its declared CPU type`)
     }
   }
-  for (const binary of [windowsExecutable, linuxX64, linuxArm64]) {
-    if (binary.byteLength >= 40 * 1024 * 1024) fail('Funnel host must remain below 40 MiB')
+  const declared = Object.keys(manifest.optionalDependencies ?? {}).filter(name => name.startsWith('dsh-mobile-funnel-'))
+  const expected = FUNNEL_TARGETS.map(({ os, cpu }) => `dsh-mobile-funnel-${os}-${cpu}`)
+  if (declared.length !== expected.length || expected.some(name => !declared.includes(name))) {
+    fail(`the main package must declare exactly these optional Funnel packages: ${expected.join(', ')}`)
   }
   if (!thirdPartyLicenses.includes('Go toolchain: go1.26.6')
     || !thirdPartyLicenses.includes('Embedded third-party modules:')

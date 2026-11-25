@@ -46,7 +46,30 @@ For skin conflicts, inspect the attached images as well as the installed package
 
 Keep implementation changes within the plugin; the read-only rule for DSH source and installed artifacts is owned by the [cross-layer decisions](../SKILL.md#cross-layer-decisions). Prefer an existing optional capability or version-independent feature detection to a brittle version allowlist. When the documented DSH seam cannot provide the requested behavior, explain the limitation and retain an isolated upstream reproduction rather than patching private implementation or bundles.
 
-### Client props and the host's React version
+### Bundled binaries and the package they live in
+
+A native helper shipped inside the main tarball costs every user the size of every
+platform: three Funnel helpers made the plugin 74.6 MB unpacked, and adding macOS
+would have taken it past 110 MB. They are now one optional package per target
+(`dsh-mobile-funnel-<platform>-<arch>`) listed in `optionalDependencies`, so npm reads
+`os`/`cpu` and installs only the one this machine runs. Two consequences matter when
+touching this:
+
+- The main package must never name a platform package that is not published yet, so
+  the release publishes all of them before `dsh-mobile` itself; [check-mobile-release.mjs](../../../../scripts/check-mobile-release.mjs) asserts that
+  `optionalDependencies`, each package's `name`/`version`/`os`/`cpu`/`files`, and the
+  binary's executable header all agree, and refuses binaries left in the main tarball.
+- A binary unpacked from a Windows working tree keeps mode 644, which Linux and macOS
+  cannot execute; the POSIX files are committed `100755` and `funnel.ts` restores the
+  bit before spawning, because a package published without it fails only on the
+  platforms whose users cannot easily rebuild it.
+
+Verify a cross-built executable by its header, not by its name: the Funnel build
+rejects a Mach-O whose CPU type is the other architecture, since a swapped pair would
+otherwise publish a package that cannot run on the machine it names. `bin/` is a
+development fallback kept for a checkout that builds there; it is no longer published.
+
+## Client props and the host's React version
 
 Plugin client code renders into DSH's React tree, and `react` is an optional peer dependency: the installed major belongs to the host, not to this repository. A prop whose DOM effect differs between React 18 and 19 must be written in the form both accept.
 

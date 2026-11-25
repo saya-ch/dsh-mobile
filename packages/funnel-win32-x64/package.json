@@ -1,0 +1,20 @@
+{
+  "name": "dsh-mobile-funnel-win32-x64",
+  "version": "0.8.16",
+  "description": "Tailscale Funnel sidecar for win32-x64.",
+  "license": "Apache-2.0",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "dsh-mobile-funnel-win32-x64.exe"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saya-ch/dsh-mobile.git",
+    "directory": "packages/funnel-win32-x64"
+  }
+}

@@ -1,5 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { lstat } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { chmod, lstat } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MobileAccessControlState, MobileAccessControlStore } from './control.js'
@@ -310,6 +312,7 @@ export class FunnelController implements RemoteProviderController {
     }
     this.buffer = ''
     this.publish({ enabled: true, state: 'starting' })
+    await ensureExecutable(this.options.executable)
     const child = spawn(this.options.executable, [
       '--state-dir', resolve(this.options.stateDirectory),
       '--hostname', this.options.hostname,
@@ -452,14 +455,50 @@ export class FunnelController implements RemoteProviderController {
   }
 }
 
-/** Locate the current platform's bundled Funnel executable, with one local development override. */
+/**
+ * Locate this machine's Funnel executable, with one local development override.
+ *
+ * The sidecar ships as an optional per-platform npm package
+ * (`dsh-mobile-funnel-<platform>-<arch>`): npm reads its `os`/`cpu` fields and
+ * installs only the one this machine can run, so an install no longer carries three
+ * ~20 MB binaries it will never spawn. Resolve through the module loader rather than
+ * assuming a directory layout, because the package manager decides where the package
+ * lands and a workspace may link it instead of copying it.
+ */
 export function funnelExecutable(importMetaUrl: string, environment: NodeJS.ProcessEnv = process.env): string {
   const override = environment.DSH_MOBILE_FUNNEL_SIDECAR
   if (override !== undefined) {
     if (!isAbsolute(override)) throw new Error('DSH_MOBILE_FUNNEL_SIDECAR must be an absolute path')
     return resolve(override)
   }
+  const target = `${process.platform}-${process.arch}`
   const suffix = process.platform === 'win32' ? '.exe' : ''
-  const file = `dsh-mobile-funnel-${process.platform}-${process.arch}${suffix}`
+  const file = `dsh-mobile-funnel-${target}${suffix}`
+  const installed = installedFunnelExecutable(importMetaUrl, target, file)
+  if (installed !== undefined) return installed
+  // A checkout that built straight into `bin/` keeps working.
   return resolve(fileURLToPath(new URL(`../bin/${file}`, importMetaUrl)))
+}
+
+/** The binary inside this platform's optional package, when that package is installed. */
+function installedFunnelExecutable(importMetaUrl: string, target: string, file: string): string | undefined {
+  try {
+    const require = createRequire(importMetaUrl)
+    const manifest = require.resolve(`dsh-mobile-funnel-${target}/package.json`)
+    const candidate = resolve(dirname(manifest), file)
+    return existsSync(candidate) ? candidate : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * A package unpacked from a Windows working tree keeps the archive's mode, which is
+ * not executable on Linux or macOS, and the sidecar is spawned directly. Restoring the
+ * bit here covers every install path; a read-only tree keeps whatever the caller can
+ * report from the spawn itself.
+ */
+async function ensureExecutable(path: string): Promise<void> {
+  if (process.platform === 'win32') return
+  await chmod(path, 0o755).catch(() => undefined)
 }

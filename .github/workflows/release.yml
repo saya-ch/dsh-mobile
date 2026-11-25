@@ -41,14 +41,22 @@ jobs:
       - run: npm run build:funnel-host
       - run: npm run check:funnel-licenses:full
       - run: npm run verify
+      - name: Pack the per-platform Funnel packages
+        run: |
+          mkdir -p platform-packages
+          for target in win32-x64 linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            (cd "packages/funnel-$target" && npm pack --pack-destination "$GITHUB_WORKSPACE/platform-packages")
+          done
+          ls -l platform-packages
       - name: Pack plugin and release metadata
         run: |
           npm pack
           sha256sum dsh-mobile-*.tgz > dsh-mobile-plugin.sha256
           npm sbom --sbom-format cyclonedx > dsh-mobile-npm-sbom.cdx.json
-          go version -m bin/dsh-mobile-funnel-win32-x64.exe > dsh-mobile-funnel-go-modules.txt
-          go version -m bin/dsh-mobile-funnel-linux-x64 >> dsh-mobile-funnel-go-modules.txt
-          go version -m bin/dsh-mobile-funnel-linux-arm64 >> dsh-mobile-funnel-go-modules.txt
+          go version -m packages/funnel-win32-x64/dsh-mobile-funnel-win32-x64.exe > dsh-mobile-funnel-go-modules.txt
+          for target in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            go version -m "packages/funnel-$target/dsh-mobile-funnel-$target" >> dsh-mobile-funnel-go-modules.txt
+          done
           cp apps/mobile/release.json dsh-mobile-android-release.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -58,6 +66,7 @@ jobs:
             dsh-mobile-plugin.sha256
             dsh-mobile-npm-sbom.cdx.json
             dsh-mobile-funnel-go-modules.txt
+            platform-packages/*.tgz
             dsh-mobile-android-release.json
           if-no-files-found: error
 
@@ -78,6 +87,34 @@ jobs:
         with:
           name: plugin-package
           path: release-assets
+      - name: Publish Funnel platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # The main package lists these as optional dependencies, so a dsh-mobile
+          # version must never reach the registry before the packages it names: the
+          # install would ask for a version that does not exist.
+          version="$(node -p "require('./package.json').version")"
+          for tarball in platform-packages/*.tgz; do
+            base="$(basename "$tarball" .tgz)"
+            name="${base%-$version}"
+            case "$name" in
+              dsh-mobile-funnel-*) ;;
+              *) echo "unexpected platform package name: $name" >&2; exit 1 ;;
+            esac
+            # Reconcile through the same helper the plugin uses: only a genuine 404
+            # permits publication, and an occupied version must hold these exact bytes.
+            # Asking the registry for a version separately would treat a network error
+            # as absence and publish over an occupied version.
+            publication="$(node scripts/check-npm-release-integrity.mjs "$tarball" "$version" "$name")"
+            if [ "$publication" = "published" ]; then
+              echo "$name@$version is already published with matching tarball integrity."
+              continue
+            fi
+            test "$publication" = "unpublished"
+            npm publish "$tarball" --provenance --access public
+            echo "published $name@$version"
+          done
       - name: Publish npm package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

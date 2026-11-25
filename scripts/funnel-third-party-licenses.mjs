@@ -9,7 +9,7 @@ import { promisify, TextDecoder } from 'node:util'
 const execFile = promisify(execFileCallback)
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const source = resolve(root, 'native/funnel-host')
-const executable = resolve(root, 'bin/dsh-mobile-funnel-win32-x64.exe')
+const executable = resolve(root, 'packages/funnel-win32-x64/dsh-mobile-funnel-win32-x64.exe')
 const output = resolve(root, 'FUNNEL_THIRD_PARTY_LICENSES.txt')
 const workspaceGo = resolve(root, '../go/bin/go.exe')
 const go = process.env.GO_BINARY || (process.platform === 'win32' && existsSync(workspaceGo) ? workspaceGo : 'go')
@@ -134,7 +134,7 @@ async function generate() {
     'DSH Mobile Funnel Host - Third-Party Licenses',
     '',
     'This file is generated from the Go module metadata embedded in',
-    'bin/dsh-mobile-funnel-win32-x64.exe. DSH Mobile itself is licensed under',
+    'packages/funnel-win32-x64/dsh-mobile-funnel-win32-x64.exe. DSH Mobile itself is licensed under',
     'the repository root LICENSE file. Do not edit this generated file by hand.',
     '',
     `Source binary SHA-256: ${executableDigest}`,
