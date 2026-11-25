@@ -33,3 +33,4 @@ native/target/
 
 # Local agent workspace (research notes, memory); not part of the package or docs
 .workbuddy/
+dist/
