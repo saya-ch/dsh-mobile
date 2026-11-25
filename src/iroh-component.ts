@@ -43,8 +43,8 @@ export const IROH_COMPONENT_RELEASES: Readonly<Record<string, IrohArtifact>> = O
     version: IROH_VERSION, platform: 'win32', arch: 'x64', executableName: 'dsh-mobile-iroh-host-win32-x64.exe',
     downloadUrl: 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.2/native/dsh-mobile-iroh-host-win32-x64.exe',
     downloadBytes: 14861312, executableBytes: 14861312,
-    downloadSha256: '1e652fea1a0d99cd86d3b338ce0eba94621d0984cd22e417956462fb01ab73f2',
-    executableSha256: '1e652fea1a0d99cd86d3b338ce0eba94621d0984cd22e417956462fb01ab73f2',
+    downloadSha256: '38d32e37e535ae5c7174008057326fe1afdb1859650871043f02622099fc6cfa',
+    executableSha256: '38d32e37e535ae5c7174008057326fe1afdb1859650871043f02622099fc6cfa',
   }),
   'darwin-x64': Object.freeze({
     version: IROH_VERSION, platform: 'darwin', arch: 'x64', executableName: 'dsh-mobile-iroh-host-darwin-x64',
