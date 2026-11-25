@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertPinnedSslSource } from './android-ssl-release-policy.mjs'
@@ -275,6 +275,7 @@ async function checkFunnelHost() {
     read('FUNNEL_THIRD_PARTY_LICENSES.txt', 'utf8'),
   ])
   const manifest = JSON.parse(manifestSource)
+  const mainFiles = Array.isArray(manifest.files) ? manifest.files : []
   if (manifest.files?.some(file => file.startsWith('bin/dsh-mobile-funnel-'))) {
     fail('the main package must not bundle Funnel binaries; they ship as optional packages')
   }
@@ -300,11 +301,26 @@ async function checkFunnelHost() {
       fail(`${name} must carry the main package version ${manifest.version}, found ${metadata.version}`)
     }
     if (metadata.private === true) fail(`${name} must be publishable`)
-    const [expectOs] = metadata.os ?? []
-    const [expectCpu] = metadata.cpu ?? []
-    if (expectOs !== os || expectCpu !== cpu) fail(`${name} must declare os [${os}] and cpu [${cpu}]`)
+    // Exactly one entry each: npm reads a multi-entry array as "this package serves
+    // all of them", so a stray second value would install the wrong architecture and
+    // fail at exec time instead of being skipped at install time.
+    if (!Array.isArray(metadata.os) || metadata.os.length !== 1 || metadata.os[0] !== os) {
+      fail(`${name} must declare os exactly [${os}], found ${JSON.stringify(metadata.os)}`)
+    }
+    if (!Array.isArray(metadata.cpu) || metadata.cpu.length !== 1 || metadata.cpu[0] !== cpu) {
+      fail(`${name} must declare cpu exactly [${cpu}], found ${JSON.stringify(metadata.cpu)}`)
+    }
+    if (typeof metadata.license !== 'string' || metadata.license.length === 0) {
+      fail(`${name} must declare a licence`)
+    }
     if (!Array.isArray(metadata.files) || !metadata.files.includes(fileName)) {
       fail(`${name} must publish ${fileName}`)
+    }
+    if (!(await stat(`${directory}/LICENSE`).catch(() => undefined))?.isFile()) {
+      fail(`${name} must carry a LICENSE file`)
+    }
+    if (metadata.repository?.directory !== directory) {
+      fail(`${name} must point repository.directory at ${directory}`)
     }
     if (manifest.optionalDependencies?.[name] !== manifest.version) {
       fail(`the main package must declare ${name}@${manifest.version} as an optional dependency`)
@@ -324,11 +340,31 @@ async function checkFunnelHost() {
       if (binary.readUInt32LE(4) !== cpuType) fail(`${name} must be built for its declared CPU type`)
     }
   }
+  for (const entry of mainFiles) {
+    if (entry.startsWith('packages/funnel-')) fail(`the main package must not bundle ${entry}`)
+    if (entry.startsWith('bin/dsh-mobile-funnel-')) fail(`the main package must not bundle ${entry}`)
+  }
   const declared = Object.keys(manifest.optionalDependencies ?? {}).filter(name => name.startsWith('dsh-mobile-funnel-'))
   const expected = FUNNEL_TARGETS.map(({ os, cpu }) => `dsh-mobile-funnel-${os}-${cpu}`)
   if (declared.length !== expected.length || expected.some(name => !declared.includes(name))) {
     fail(`the main package must declare exactly these optional Funnel packages: ${expected.join(', ')}`)
   }
+  const lock = JSON.parse(await read('package-lock.json', 'utf8'))
+  for (const { os, cpu } of FUNNEL_TARGETS) {
+    const name = `dsh-mobile-funnel-${os}-${cpu}`
+    const entry = lock.packages?.[`node_modules/${name}`]
+    if (entry === undefined) fail(`package-lock.json has no entry for ${name}; npm ci will refuse to run`)
+    if (entry.version !== manifest.version) {
+      fail(`package-lock.json pins ${name}@${entry.version}, the package version is ${manifest.version}`)
+    }
+    if (entry.resolved !== `file:packages/funnel-${os}-${cpu}`) {
+      fail(`package-lock.json must resolve ${name} from its source directory, found ${entry.resolved}`)
+    }
+  }
+  if (lock.packages?.['']?.version !== manifest.version) {
+    fail(`package-lock.json root version must be ${manifest.version}`)
+  }
+
   if (!thirdPartyLicenses.includes('Go toolchain: go1.26.6')
     || !thirdPartyLicenses.includes('Embedded third-party modules:')
     || !thirdPartyLicenses.includes('--- BEGIN Go toolchain LICENSE ---')

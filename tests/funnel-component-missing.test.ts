@@ -17,7 +17,10 @@ describe('missing Funnel component copy', () => {
       const text = table(locale).funnelComponentMissing
       expect(text, `locale ${locale}`).toBeTypeOf('string')
       expect(text, `locale ${locale}`).toContain('dsh-mobile-funnel-')
-      expect(text, `locale ${locale}`).toContain('pnpm install')
+      // Expect a mirror hint rather than a package-manager command: reinstalling from
+      // the plugin manager is the action that works, and a stale mirror is the usual
+      // reason the package is missing at all.
+      expect(text, `locale ${locale}`).toMatch(/mirror|镜像|mirror/iu)
     }
   })
 

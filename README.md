@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.17">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.8.16**。宽屏下会话列恢复全宽、左右两侧栏都可拖拽调宽，侧栏打开不再有顿感（#465）；部分 WebView 上文件预览恢复可用（#415）。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.8.17**。macOS 支持补齐：cpolar 与 iroh 组件新增 macOS x64/arm64，Tailscale Funnel 也首次支持 macOS，同时插件包从 74.6 MB 瘦身到 9.2 MB。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.17) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
@@ -198,7 +198,7 @@ Windows 上也可以用 DSH Mobile：[Windows 客户端](apps/windows/README.md)
 
 适合手机离开电脑所在网络后使用。远程访问默认关闭，手机不需要另外安装 Tailscale、cpolar、cloudflared 或 FRP。
 
-**没有域名或公网入站，也可以尝试 iroh（实验性）**：电脑安装固定版本的 iroh 组件，手机安装 **Android App 0.7.0 完整版**，即可通过加密直连、必要时中继连接电脑。电脑端目前支持 Windows/Linux x64；兼容版 APK 和手机浏览器不能使用 iroh。它不是保证连通的加速线路，VPN、代理和两端网络仍可能影响连接。详见 [iroh 使用与排障](docs/IROH.md)。
+**没有域名或公网入站，也可以尝试 iroh（实验性）**：电脑安装固定版本的 iroh 组件，手机安装 **Android App 0.7.0 完整版**，即可通过加密直连、必要时中继连接电脑。电脑端支持 Windows x64、Linux x64 与 macOS x64/arm64；兼容版 APK 和手机浏览器不能使用 iroh。它不是保证连通的加速线路，VPN、代理和两端网络仍可能影响连接。详见 [iroh 使用与排障](docs/IROH.md)。
 
 远程服务可能受带宽和连接限额影响：[cpolar 免费方案](https://svip.cpolar.com/pricing) 当前为 1 Mbps，[Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel#requirements-and-limitations) 也存在不可配置的带宽限制，cloudflared 的 quick tunnel 由 Cloudflare 免费提供、地址随机且有限流。DSH Mobile 使用静态资源 gzip、WebSocket 长连接和顶部按需加载改善体验；会话的历史窗口与分页大小由 DSH 决定，插件无法提高服务商限额。
 
@@ -208,7 +208,7 @@ Windows 上也可以用 DSH Mobile：[Windows 客户端](apps/windows/README.md)
 
 | 连接方式 | 需要准备 | 地址特点与注意事项 | 维护者使用参考 |
 | --- | --- | --- | --- |
-| iroh（实验性） | Windows/Linux x64 电脑组件与 Android 0.7.0 完整版 | 无需域名、端口映射或隧道账号；加密直连、中继兜底；[使用与 VPN 排障](docs/IROH.md) | 可作为没有公网入口时的选择；不作稳定性排名，需在两端实际网络验证，手机浏览器不支持 |
+| iroh（实验性） | Windows/Linux/macOS 电脑组件与 Android 0.7.0 完整版 | 无需域名、端口映射或隧道账号；加密直连、中继兜底；[使用与 VPN 排障](docs/IROH.md) | 可作为没有公网入口时的选择；不作稳定性排名，需在两端实际网络验证，手机浏览器不支持 |
 | cpolar | cpolar 账号与 Authtoken | 免费临时地址可能变化 | 免费方案有带宽与连接数限制，具体以官方套餐为准 |
 | cloudflared 快速隧道 | 无需账号或域名 | 临时随机地址；不支持 SSE，[即时通知存在限制](docs/CLOUDFLARE_TUNNEL.md#快速隧道的功能限制)；[官方仅定位为开发测试用途](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) | 长期使用中经常断连，原因尚未确认；只作临时或测试选择 |
 | cloudflared 命名隧道 | Cloudflare 账号与域名 | 固定域名；[配置指南](docs/CLOUDFLARE_TUNNEL.md) | 已长期使用的通道中最稳定；有账号和域名可优先尝试 |
@@ -470,14 +470,15 @@ flowchart LR
 | 自建 FRP | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） | 支持（按需下载） |
 | 自有反向代理 | 支持（纯配置） | 支持（纯配置） | 支持（纯配置） | 支持（纯配置） |
 | 托管 Caddy | 支持（按需下载） | 支持（按需下载） | 不支持 | 不支持 |
-| iroh（实验性） | 支持（按需下载） | 支持（按需下载） | 不支持 | 不支持 |
+| iroh（实验性） | 支持（按需下载） | 支持（按需下载） | 不支持 | 支持 x64/arm64（按需下载） |
 
-macOS 上局域网、Tailscale Funnel、cpolar、cloudflared、自建 FRP 与自有反向代理都可用，尚缺 iroh 组件。诊断页的防火墙检查目前仅覆盖 Windows，其他系统显示“不适用”。
+macOS 上局域网、Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理与 iroh 都可用。诊断页的防火墙检查目前仅覆盖 Windows，其他系统显示“不适用”。
 
 这张表说的是**电脑端**。手机/平板用 Android App 或手机浏览器访问；Windows 电脑本身也可以用[便携客户端](apps/windows/README.md)，它连接的是同一套网关与配对链接，不改变上表的通道支持。
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.8.17` | macOS 补齐 cpolar、iroh 与 Tailscale Funnel（均为双架构）；Funnel 组件改为按平台安装，插件解包体积 74.6 MB → 9.2 MB；iroh 组件升级到 0.1.0-alpha.2。Android App 为 0.8.3 |
 | `0.8.16` | 宽屏下会话列恢复全宽，左右侧栏均可拖拽调宽，侧栏打开不再顿挫（#465）；opaque-path WebView 上文件预览恢复（#415）。Android App 为 0.8.3 |
 | `0.8.15` | 火狐 Android 端键盘遮挡输入框已修复（#457）；预览文件名支持复制路径 / 分享文件（#459）；DSH 0.2.3-alpha.2 兼容恢复（#462）。Android App 为 0.8.3 |
 | `0.8.14` | Android WebView 低于 Chromium 120 时助手正文整块消失的问题已修复（#450）；侧边栏 footer 入口改用与相邻插件共用的容量契约（#440）；断线时首次续期返回 `transient` 会自动再试一次（#338）。Android App 为 0.8.2 |

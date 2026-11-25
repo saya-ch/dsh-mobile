@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.17">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.8.16**. The wide layout gives the conversation its full column again and both side panels are draggable, while opening the sidebar no longer stutters (#465); file previews work again on WebViews that parse a custom scheme as an opaque path (#415). The plugin and the Android app update independently; Android app 0.8.3 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.16) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.8.17**. macOS support is now complete: cpolar and iroh gain macOS x64/arm64 components, Tailscale Funnel works on macOS for the first time, and the plugin package shrinks from 74.6 MB to 9.2 MB. The plugin and the Android app update independently; Android app 0.8.3 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.8.17) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
@@ -208,7 +208,7 @@ The usage notes below reflect the maintainer's long-term experience on a persona
 
 | Channel | Prerequisites | Address and limitation | Maintainer's usage notes |
 | --- | --- | --- | --- |
-| iroh (experimental) | Windows/Linux x64 computer component and full Android App 0.7.0 | No domain, port forwarding or tunnel account; encrypted direct links with relay fallback; [setup and VPN troubleshooting](docs/IROH.en.md) | An option without public ingress, not a stability ranking; verify on both actual networks. Mobile browsers are unsupported |
+| iroh (experimental) | Windows/Linux/macOS computer component and full Android App 0.7.0 | No domain, port forwarding or tunnel account; encrypted direct links with relay fallback; [setup and VPN troubleshooting](docs/IROH.en.md) | An option without public ingress, not a stability ranking; verify on both actual networks. Mobile browsers are unsupported |
 | cpolar | Account and Authtoken | Free temporary URLs may change | The free plan has bandwidth and connection limits; see the provider's published plan |
 | cloudflared quick tunnel | No account or domain | Random temporary URL; no SSE, with [notification limits](docs/CLOUDFLARE_TUNNEL.en.md#quick-tunnel-feature-limits); [officially intended only for development and testing](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) | Frequent disconnections in long-term use, with the cause still unconfirmed; a temporary or testing choice |
 | cloudflared named tunnel | Cloudflare account and domain | Fixed hostname; [setup guide](docs/CLOUDFLARE_TUNNEL.en.md) | The most stable of the channels used long-term; worth trying first if you have an account and domain |
@@ -470,14 +470,15 @@ This table describes the **computer running the plugin**, not the phone's OS; iP
 | Self-hosted FRP | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) | Yes (on-demand) |
 | Own reverse proxy | Yes (config only) | Yes (config only) | Yes (config only) | Yes (config only) |
 | Managed Caddy | Yes (on-demand) | Yes (on-demand) | No | No |
-| iroh (Experimental) | Yes (on-demand) | Yes (on-demand) | No | No |
+| iroh (Experimental) | Yes (on-demand) | Yes (on-demand) | No | Yes, x64/arm64 (on-demand) |
 
-On macOS, local network, Tailscale Funnel, cpolar, cloudflared, self-hosted FRP and the own reverse proxy all work; the iroh component is still missing. The diagnostics firewall check currently covers Windows only and reports “not applicable” elsewhere.
+On macOS, local network, Tailscale Funnel, cpolar, cloudflared, self-hosted FRP, the own reverse proxy and iroh all work. The diagnostics firewall check currently covers Windows only and reports “not applicable” elsewhere.
 
 This table describes the **computer**. Phones and tablets use the Android app or a mobile browser; a Windows computer can also use the [portable client](apps/windows/README.en.md), which connects through the same gateway and pairing links and does not change the channel support above.
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.8.17` | macOS gains cpolar, iroh and Tailscale Funnel, all on both architectures; Funnel helpers install per platform, shrinking the plugin from 74.6 MB to 9.2 MB unpacked; the iroh component moves to 0.1.0-alpha.2. Android app 0.8.3 |
 | `0.8.16` | The wide conversation column is full width again and both side panels are draggable, and the sidebar no longer stutters when opening (#465); file previews work on opaque-path WebViews (#415). Android app 0.8.3 |
 | `0.8.15` | Firefox for Android no longer hides the composer behind the keyboard (#457); the preview filename offers Copy Path / Share File (#459); DSH 0.2.3-alpha.2 compatibility restored (#462). Android app 0.8.3 |
 | `0.8.14` | Assistant text no longer disappears on Android WebViews below Chromium 120 (#450); the sidebar footer entry shares one capacity contract with its neighbours (#440); a `transient` first renewal during a disconnect retries once (#338). Android app 0.8.2 |

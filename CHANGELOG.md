@@ -2,8 +2,11 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
+## 0.8.17 - 2026-11-26
 
+- **cpolar works on macOS.** The official component is now pinned for macOS x64 and arm64 as well, so the channel is no longer Windows and Linux only.
+- **iroh works on macOS, and the component moves to 0.1.0-alpha.2.** The host sidecar is published for Windows x64, Linux x64, macOS x64 and macOS arm64. The plugin downloads and verifies the matching binary on demand. Anyone who installed the previous component has to install it again after upgrading: the new release ships different binaries, the old directory is not reused, and it is not removed automatically.
+- **A missing Funnel helper now says what is actually wrong.** When this platform's optional package did not install, the panel used to blame a missing runtime component and offer a reconnect that could never help. It now names the package, says to reinstall from the plugin manager, and points out that a registry mirror which has not mirrored the new packages yet is the usual cause.
 - **Tailscale Funnel works on macOS, and the plugin no longer carries three binaries.** The Funnel helper used to ship inside the plugin tarball for Windows x64, Linux x64 and Linux arm64, which made the package 74.6 MB unpacked — and made macOS support impossible, because two more helpers would have added another 40 MB. Each target is now its own optional npm package (`dsh-mobile-funnel-<platform>-<arch>`) that npm selects by `os`/`cpu`, so an install carries exactly one helper; the plugin's unpacked size drops to 9.2 MB, and macOS x64/arm64 are supported for the first time. The helpers are built from the same `native/funnel-host` sources with the same Go toolchain flags, so the existing three are byte-identical to what shipped before. The plugin does not reproduce the binaries itself: it resolves its platform's package, whose binaries live in this repository under `packages/funnel-*`.
 
 

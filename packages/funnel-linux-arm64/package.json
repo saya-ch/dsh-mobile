@@ -1,6 +1,6 @@
 {
   "name": "dsh-mobile-funnel-linux-arm64",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "description": "Tailscale Funnel sidecar for linux-arm64.",
   "license": "Apache-2.0",
   "os": [

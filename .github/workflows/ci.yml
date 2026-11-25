@@ -394,21 +394,29 @@ jobs:
       - run: npm run build:funnel-host
       - name: Record Funnel build metadata
         run: |
-          sha256sum bin/dsh-mobile-funnel-win32-x64.exe bin/dsh-mobile-funnel-linux-x64 bin/dsh-mobile-funnel-linux-arm64
-          go version -m bin/dsh-mobile-funnel-win32-x64.exe | tee dsh-mobile-funnel-build-metadata.txt
-          go version -m bin/dsh-mobile-funnel-linux-x64 | tee -a dsh-mobile-funnel-build-metadata.txt
-          go version -m bin/dsh-mobile-funnel-linux-arm64 | tee -a dsh-mobile-funnel-build-metadata.txt
+          targets="win32-x64 linux-x64 linux-arm64 darwin-x64 darwin-arm64"
+          for target in $targets; do
+            file="packages/funnel-$target/dsh-mobile-funnel-$target"
+            [ "$target" = "win32-x64" ] && file="$file.exe"
+            sha256sum "$file"
+            go version -m "$file" | tee -a dsh-mobile-funnel-build-metadata.txt
+          done
       - run: npm run check:funnel-licenses:full
-      - run: git diff --exit-code -- bin/dsh-mobile-funnel-win32-x64.exe bin/dsh-mobile-funnel-linux-x64 bin/dsh-mobile-funnel-linux-arm64 FUNNEL_THIRD_PARTY_LICENSES.txt
+      - name: Verify the committed binaries reproduce from the checked source
+        run: |
+          # Compare every shipped target, not a leftover directory: a rebuild that
+          # disagrees with the committed binary means the package would ship bytes no
+          # one reviewed.
+          git diff --exit-code -- packages/funnel-win32-x64 packages/funnel-linux-x64 \
+            packages/funnel-linux-arm64 packages/funnel-darwin-x64 packages/funnel-darwin-arm64 \
+            FUNNEL_THIRD_PARTY_LICENSES.txt
       - name: Preserve failed Funnel rebuild for comparison
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: funnel-rebuild-diagnostics
           path: |
-            bin/dsh-mobile-funnel-win32-x64.exe
-            bin/dsh-mobile-funnel-linux-x64
-            bin/dsh-mobile-funnel-linux-arm64
+            packages/funnel-*/
             FUNNEL_THIRD_PARTY_LICENSES.txt
             dsh-mobile-funnel-build-metadata.txt
           if-no-files-found: error
@@ -440,7 +448,11 @@ jobs:
         shell: pwsh
         run: |
           $binary = Join-Path $env:RUNNER_TEMP 'dsh-mobile-iroh-host-pinned.exe'
-          Invoke-WebRequest -Uri 'https://unpkg.com/dsh-mobile-iroh@0.1.0-alpha.1/native/dsh-mobile-iroh-host-win32-x64.exe' -OutFile $binary
+          # Read the version from the pin catalog: a second copy here let CI keep
+          # fetching the previous release while the catalog had moved on.
+          $version = node scripts/iroh-version.mjs
+          if (-not $version) { throw 'could not read IROH_VERSION' }
+          Invoke-WebRequest -Uri "https://unpkg.com/dsh-mobile-iroh@$version/native/dsh-mobile-iroh-host-win32-x64.exe" -OutFile $binary
           $env:DSH_IROH_PINNED_FIRST_USE = $binary
           npx vitest run tests/iroh-pinned-first-use.test.ts
       - run: cargo fmt --all -- --check

@@ -27,20 +27,68 @@ const versionMatch = /export const IROH_VERSION = '([^']+)'/u.exec(source)
 if (versionMatch?.[1] === undefined) throw new Error('cannot read IROH_VERSION')
 const version = requested ?? versionMatch[1]
 
-// Read the pins the plugin ships.
+// The manifest targets this plugin can resolve. Both tables have to agree: a target the
+// catalog lacks is unreachable, and a catalog entry the resolver cannot name never runs.
+const targetSource = readFileSync(resolve(root, 'src/iroh-manifest.ts'), 'utf8')
+const resolvable = new Set(
+  [...targetSource.matchAll(/^\s*'(?<target>[a-z0-9]+-[a-z0-9]+)': '/gmu)].map(entry => entry.groups.target),
+)
+if (resolvable.size === 0) throw new Error('no targets found in src/iroh-manifest.ts')
+
+// Read every field the runtime uses, not only the two the download step compares:
+// `publishBytes` checks the executable pair, and the URL has to name IROH_VERSION or the
+// install fetches a different release than the pins describe.
 const pins = new Map()
 const pinPattern = /'(?<target>[a-z0-9]+-[a-z0-9]+)': Object\.freeze\(\{(?<body>[^}]*)\}\)/gu
 for (const entry of source.matchAll(pinPattern)) {
   const body = entry.groups.body
-  const bytes = /downloadBytes: (?<bytes>\d+)/u.exec(body)?.groups.bytes
-  const sha = /downloadSha256: '(?<sha>[a-f0-9]{64})'/u.exec(body)?.groups.sha
-  const url = /downloadUrl: '(?<url>[^']+)'/u.exec(body)?.groups.url
-  if (bytes && sha && url) {
-    pins.set(entry.groups.target, { bytes: Number(bytes), sha256: sha, url })
+  const field = pattern => pattern.exec(body)?.groups?.value
+  const downloadBytes = field(/downloadBytes: (?<value>\d+)/u)
+  const downloadSha256 = field(/downloadSha256: '(?<value>[a-f0-9]{64})'/u)
+  const executableBytes = field(/executableBytes: (?<value>\d+)/u)
+  const executableSha256 = field(/executableSha256: '(?<value>[a-f0-9]{64})'/u)
+  const url = field(/downloadUrl: '(?<value>[^']+)'/u)
+  const name = field(/executableName: '(?<value>[^']+)'/u)
+  if (downloadBytes && downloadSha256 && executableBytes && executableSha256 && url && name) {
+    pins.set(entry.groups.target, {
+      downloadBytes: Number(downloadBytes),
+      downloadSha256,
+      executableBytes: Number(executableBytes),
+      executableSha256,
+      url,
+      name,
+    })
+  } else {
+    throw new Error(`pin for ${entry.groups.target} is incomplete`)
   }
 }
 
 if (pins.size === 0) throw new Error('no pins found in src/iroh-component.ts')
+
+// Offline contract checks. These are what catch a hand-edited pin, which is the way the
+// Windows digest was wrong: the value described an earlier build, and nothing compared
+// it against the release that was actually being served.
+const offline = []
+for (const [target, pin] of [...pins].sort()) {
+  if (!resolvable.has(target)) offline.push(`${target}: pinned but not resolvable by src/iroh-manifest.ts`)
+  if (pin.downloadBytes !== pin.executableBytes) {
+    offline.push(`${target}: downloadBytes ${pin.downloadBytes} != executableBytes ${pin.executableBytes}`)
+  }
+  if (pin.downloadSha256 !== pin.executableSha256) {
+    offline.push(`${target}: downloadSha256 and executableSha256 disagree`)
+  }
+  const expectedUrl = `https://unpkg.com/dsh-mobile-iroh@${version}/native/${pin.name}`
+  if (pin.url !== expectedUrl) offline.push(`${target}: downloadUrl should be ${expectedUrl}`)
+}
+for (const target of resolvable) {
+  if (!pins.has(target)) offline.push(`${target}: resolvable but has no pin`)
+}
+if (offline.length > 0) {
+  console.error(`iroh pin contract failed (${offline.length} problem(s)):`)
+  for (const problem of offline) console.error(`  ${problem}`)
+  process.exit(1)
+}
+console.log(`iroh pin contract ok: ${pins.size} targets, all six fields agree with IROH_VERSION ${version}`)
 
 const manifestUrl = `https://unpkg.com/dsh-mobile-iroh@${version}/native/manifest.json`
 console.log(`published manifest: ${manifestUrl}`)
@@ -65,15 +113,15 @@ for (const [target, pin] of [...pins].sort()) {
     mismatches += 1
     continue
   }
-  const sameBytes = published.bytes === pin.bytes
-  const sameSha = published.sha256 === pin.sha256
+  const sameBytes = published.bytes === pin.downloadBytes
+  const sameSha = published.sha256 === pin.downloadSha256
   if (sameBytes && sameSha) {
-    console.log(`ok       ${target}: ${pin.bytes} bytes ${pin.sha256.slice(0, 12)}…`)
+    console.log(`ok       ${target}: ${pin.downloadBytes} bytes ${pin.downloadSha256.slice(0, 12)}…`)
     continue
   }
   mismatches += 1
   console.error(`MISMATCH ${target}`)
-  console.error(`  plugin:    ${pin.bytes} bytes ${pin.sha256}`)
+  console.error(`  plugin:    ${pin.downloadBytes} bytes ${pin.downloadSha256}`)
   console.error(`  published: ${published.bytes} bytes ${published.sha256}`)
   corrections.push({ target, ...published })
 }
@@ -98,7 +146,7 @@ console.log(`\nall ${pins.size} pins match dsh-mobile-iroh@${version}`)
 // Cross-check the artifact bytes themselves, not only the manifest's claim about them.
 if (process.argv.includes('--verify-bytes')) {
   for (const [target, pin] of [...pins].sort()) {
-    const url = `https://unpkg.com/dsh-mobile-iroh@${version}/native/${pin.url.split('/native/')[1]}`
+    const url = pin.url
     const artifact = await fetch(url, { redirect: 'follow' })
     if (!artifact.ok) {
       console.error(`DOWNLOAD FAILED ${target}: HTTP ${artifact.status}`)
@@ -106,7 +154,7 @@ if (process.argv.includes('--verify-bytes')) {
     }
     const bytes = Buffer.from(await artifact.arrayBuffer())
     const digest = createHash('sha256').update(bytes).digest('hex')
-    if (bytes.length !== pin.bytes || digest !== pin.sha256) {
+    if (bytes.length !== pin.downloadBytes || digest !== pin.downloadSha256) {
       console.error(`BYTES DISAGREE ${target}: got ${bytes.length} bytes ${digest}`)
       process.exit(1)
     }

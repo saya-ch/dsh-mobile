@@ -95,7 +95,13 @@ jobs:
           # version must never reach the registry before the packages it names: the
           # install would ask for a version that does not exist.
           version="$(node -p "require('./package.json').version")"
-          for tarball in platform-packages/*.tgz; do
+          # Explicit files, not a glob: an unmatched pattern stays literal in bash and
+          # used to turn this loop into a hard failure, while an empty match would have
+          # published the plugin without any platform package.
+          mapfile -t tarballs < <(find release-assets/platform-packages -maxdepth 1 -type f -name '*.tgz' | sort)
+          test "${#tarballs[@]}" -eq 5 || { echo "expected 5 platform tarballs, found ${#tarballs[@]}" >&2; exit 1; }
+          published=0
+          for tarball in "${tarballs[@]}"; do
             base="$(basename "$tarball" .tgz)"
             name="${base%-$version}"
             case "$name" in
@@ -114,7 +120,9 @@ jobs:
             test "$publication" = "unpublished"
             npm publish "$tarball" --provenance --access public
             echo "published $name@$version"
+            published=$((published + 1))
           done
+          echo "platform packages handled: ${#tarballs[@]} tarballs" 
       - name: Publish npm package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -161,7 +169,7 @@ jobs:
           # range, and the Windows client work landed on main under a title that says
           # "publish". Nothing on that track is downloadable, so say so here rather
           # than leaving the list to imply it.
-          windows_note="The portable Windows client under \`apps/windows/\` is **not published**: it has no download, no release, and has not been accepted on real Windows hardware. Commits mentioning it describe code that is in this tree, not a package you can install."
+          windows_note="The Windows client under \`apps/windows/\` is an independent prerelease on its own \`windows-v*\` track. It is still an alpha preview and has not been accepted on real Windows hardware; download it from the Windows client releases, not from this one."
           release_note="$release_note"$'\n\n'"$windows_note"
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists; refusing to replace published assets." >&2
@@ -169,7 +177,11 @@ jobs:
           else
             previous_plugin_tag="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft,isPrerelease --jq '[.[] | select(.isDraft == false and .isPrerelease == false) | .tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))][0] // empty')"
             test -n "$previous_plugin_tag"
-            gh release create "$GITHUB_REF_NAME" release-assets/* \
+            # Only files: the download directory also holds a platform-packages
+          # subdirectory, and gh refuses to upload a directory as a release asset.
+          mapfile -t assets < <(find release-assets -maxdepth 1 -type f -print | sort)
+          test "${#assets[@]}" -gt 0
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
               --generate-notes \

@@ -115,7 +115,7 @@ export function hasCompetingRemoteChannelBoot(rows: readonly { readonly kind: st
 }
 
 const REMOTE_ERROR_GUIDANCE: Readonly<Record<string, string>> = Object.freeze({
-  component_missing: '重新安装插件，让 npm 按本机平台补齐组件。',
+  component_missing: '在插件管理页重新安装插件，让包管理器按本机平台补齐组件。',
   funnel_permission_required: '继续完成 Tailscale Funnel 授权。',
   funnel_https_required: '继续完成 Tailscale HTTPS 授权。',
   funnel_start_failed: '重新打开授权页并允许 Funnel。',

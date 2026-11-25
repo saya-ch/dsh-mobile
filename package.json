@@ -1,6 +1,6 @@
 {
   "name": "dsh-mobile",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "private": false,
   "description": "DeepSeek Harness 移动端适配与安全访问插件，支持局域网、远程连接、Android App 和手机浏览器。",
   "icon": "assets/brand/plugin-icon.png",
@@ -241,11 +241,11 @@
     }
   },
   "optionalDependencies":   {
-    "dsh-mobile-funnel-win32-x64": "0.8.16",
-    "dsh-mobile-funnel-linux-x64": "0.8.16",
-    "dsh-mobile-funnel-linux-arm64": "0.8.16",
-    "dsh-mobile-funnel-darwin-x64": "0.8.16",
-    "dsh-mobile-funnel-darwin-arm64": "0.8.16"
+    "dsh-mobile-funnel-win32-x64": "0.8.17",
+    "dsh-mobile-funnel-linux-x64": "0.8.17",
+    "dsh-mobile-funnel-linux-arm64": "0.8.17",
+    "dsh-mobile-funnel-darwin-x64": "0.8.17",
+    "dsh-mobile-funnel-darwin-arm64": "0.8.17"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.1",

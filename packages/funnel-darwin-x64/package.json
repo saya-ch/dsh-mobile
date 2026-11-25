@@ -1,6 +1,6 @@
 {
   "name": "dsh-mobile-funnel-darwin-x64",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "description": "Tailscale Funnel sidecar for darwin-x64.",
   "license": "Apache-2.0",
   "os": [
