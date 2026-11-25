@@ -3,7 +3,20 @@ namespace DshMobile.Win;
 /// <summary>
 /// A Windows client release published on GitHub.
 /// </summary>
-internal sealed record WindowsRelease(string Tag, string Version, string DownloadUrl, bool Prerelease);
+/// <remarks>
+/// <paramref name="DownloadUrl"/> is the page a user can always open (it prefers the
+/// portable zip for older releases). <paramref name="SetupUrl"/> and
+/// <paramref name="SetupChecksumUrl"/> are the installer and its SHA-256 sidecar: they are
+/// null for a release that only published the portable zip, and the update row falls back
+/// to the release page in that case instead of running something it cannot verify.
+/// </remarks>
+internal sealed record WindowsRelease(
+    string Tag,
+    string Version,
+    string DownloadUrl,
+    bool Prerelease,
+    string? SetupUrl = null,
+    string? SetupChecksumUrl = null);
 
 /// <summary>
 /// Compares release versions and picks the newest <c>windows-v*</c> GitHub release.
@@ -119,8 +132,9 @@ internal static class UpdateCheck
                 if (version is null) continue;
                 var prerelease = release.TryGetProperty("prerelease", out var pre) &&
                                  pre.ValueKind == System.Text.Json.JsonValueKind.True;
-                var url = AssetUrl(release) ?? PageUrl(release) ?? ReleasesPage;
-                var candidate = new WindowsRelease(tag, version, url, prerelease);
+                var links = CollectAssets(release);
+                var url = links.Zip ?? links.Setup ?? PageUrl(release) ?? ReleasesPage;
+                var candidate = new WindowsRelease(tag, version, url, prerelease, links.Setup, links.Checksum);
                 if (best is null || IsNewer(candidate.Version, best.Version)) best = candidate;
             }
         }
@@ -132,12 +146,25 @@ internal static class UpdateCheck
         return best;
     }
 
-    /// <summary>Prefer the portable zip asset; the .sha256 sidecar is not a download target.</summary>
-    private static string? AssetUrl(System.Text.Json.JsonElement release)
+    /// <summary>Download URLs of the assets the updater can use, when the release has them.</summary>
+    private readonly record struct Assets(string? Zip, string? Setup, string? Checksum);
+
+    /// <summary>
+    /// Collect the portable zip, the installer and the installer's checksum sidecar.
+    /// </summary>
+    /// <remarks>
+    /// The Windows release workflow publishes
+    /// <c>dsh-mobile-windows-v&lt;version&gt;-win-x64-setup.exe</c> beside
+    /// <c>…-setup.exe.sha256</c>, so the match is on those suffixes rather than on the
+    /// version number. The portable zip stays the preferred <see cref="DownloadUrl"/>
+    /// because it is the link a user opens by hand; the updater asks for
+    /// <see cref="Assets.Setup"/> explicitly.
+    /// </remarks>
+    private static Assets CollectAssets(System.Text.Json.JsonElement release)
     {
         if (!release.TryGetProperty("assets", out var assets) ||
-            assets.ValueKind != System.Text.Json.JsonValueKind.Array) return null;
-        string? fallback = null;
+            assets.ValueKind != System.Text.Json.JsonValueKind.Array) return default;
+        string? zip = null, setup = null, checksum = null;
         foreach (var asset in assets.EnumerateArray())
         {
             if (asset.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
@@ -148,10 +175,11 @@ internal static class UpdateCheck
             var name = nameElement.GetString() ?? string.Empty;
             var url = urlElement.GetString();
             if (string.IsNullOrEmpty(url)) continue;
-            if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return url;
-            fallback ??= url;
+            if (name.EndsWith(".exe.sha256", StringComparison.OrdinalIgnoreCase)) checksum ??= url;
+            else if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) zip ??= url;
+            else if (name.EndsWith("-setup.exe", StringComparison.OrdinalIgnoreCase)) setup ??= url;
         }
-        return fallback;
+        return new Assets(zip, setup, checksum);
     }
 
     private static string? PageUrl(System.Text.Json.JsonElement release) =>

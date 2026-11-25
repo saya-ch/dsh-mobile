@@ -4,6 +4,15 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Unreleased
 
+- **Tailscale Funnel works on macOS, and the plugin no longer carries three binaries.** The Funnel helper used to ship inside the plugin tarball for Windows x64, Linux x64 and Linux arm64, which made the package 74.6 MB unpacked — and made macOS support impossible, because two more helpers would have added another 40 MB. Each target is now its own optional npm package (`dsh-mobile-funnel-<platform>-<arch>`) that npm selects by `os`/`cpu`, so an install carries exactly one helper; the plugin's unpacked size drops to 9.2 MB, and macOS x64/arm64 are supported for the first time. The helpers are built from the same `native/funnel-host` sources with the same Go toolchain flags, so the existing three are byte-identical to what shipped before. The plugin does not reproduce the binaries itself: it resolves its platform's package, whose binaries live in this repository under `packages/funnel-*`.
+
+
+## Windows 0.1.2-alpha - 2026-11-25
+
+- **Update in place.** "Check for updates" now finishes the job instead of only saying a newer version exists: it downloads that release's installer, shows progress with a cancel button, verifies the SHA-256 against the published checksum, starts the installer, and exits so the files can be replaced. A checksum that does not match deletes the download and never runs it. The installer is told to install into the directory the client is already running from, because letting it use the default path would leave `data\` — and every pairing — behind in the old folder.
+- **Rounded app icons.** All ten icon choices now carry rounded corners, scaled per frame size so the shape reads at 16 px in the taskbar and does not swallow the artwork at 256 px.
+
+Known gaps: the installer is unsigned, so SmartScreen warns on first run, and an update does not relaunch the client — the window says so and asks you to open it again.
 
 ## Windows 0.1.1-alpha - 2026-11-25
 

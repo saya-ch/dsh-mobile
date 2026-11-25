@@ -22,7 +22,8 @@
 | `PortableData.cs` | `data/` 可写性探测（写入再删除试探文件）；放在 Program Files 等不可写目录时给出一条可执行提示 |
 | `ConnectionDiagnosis.cs` | 连接失败分类（凭据失效、协议版本、WebView2 缺失、CA 不符、DNS、HTTP 426/429/5xx）与用户文案 |
 | `WebView2Availability.cs` | 启动前探测 WebView2 Evergreen 运行时；缺失时直接给出安装地址与 x64 提示，而不是等初始化超时 |
-| `UpdateCheck.cs` | `windows-v*` Release 的版本比较与选择（纯逻辑；设置页的「检查更新」尚未接入，见下方「已知差距」） |
+| `UpdateCheck.cs` | `windows-v*` Release 的版本比较与选择，并取出安装包与同名 `.sha256` 资产（纯逻辑） |
+| `UpdateInstaller.cs` | 更新链路：下载安装包（整体/单次读取两层超时 + 取消）、比对 SHA-256、启动 Inno Setup 静默升级；校验不过绝不安装 |
 | `CrashGuard.cs` / `RelativeTime.cs` | 未捕获异常兜底；设备卡片「19 分钟前」这类相对时间文案 |
 | `UrlPairing.cs` | 解析 `https://…/mobile-access/pair#…` 链接（legacy `instance/token` 或 `dsh1`/`dsh2` key），并按同文件的 `RemoteHostPolicy` 区分局域网/远程 |
 | `PairingTrustPolicy.cs` | `ca.cer` 回执的决策（404 是否允许平台信任），对齐 Android `PairingTrust.selectTrustAnchor` / `RemotePairingTrust.decide` |
@@ -100,8 +101,8 @@
 
 ## 已知差距
 
-- **「检查更新」尚未接入**：`UpdateCheck.cs` 的版本比较与 `windows-v*` Release 选择只有单测覆盖，设置页没有对应的行；`ConnectionDiagnosis` 里协议版本不符和 HTTP 426 的文案却提示用户去「设置 → 检查更新」。发版前应补上设置项，或改掉这两条文案（0.1.0-alpha 目前是后者所需的最小改动）。
 - **真机验收未完成**：iroh / 局域网 / 远程三通道与五类 WebView2 策略尚未在维护者的 Windows 机器上完整走查，本文描述的是设计与已入库的自动检查。
+- **更新流程无签名**：安装包未做代码签名，首次运行会触发 SmartScreen；`PrivilegesRequired=lowest` 使其无需管理员权限，但用户若把客户端装在受保护目录，升级会因写权限失败（安装程序的错误对话框是唯一提示）。启动安装程序后当前进程即退出，不请求 Inno 的 Restart Manager 重新拉起客户端，所以升级后需要用户重新打开。
 
 ## 持久化与便携边界
 
@@ -116,5 +117,5 @@
 - 前置：.NET 8 SDK（x64）+ WebView2 Evergreen；构建与运行仅支持 Windows x64（见 README「状态与支持范围」）。
 - 命令：`dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`。
 - CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 上执行同一组 restore/build/test 步骤（restore 测试项目，再以 `--no-restore` 构建主项目并测试）；不产出发布包，也不做 WebView2/真机验收。发布包只由 `.github/workflows/windows-release.yml` 在推送 `windows-v<版本>` 标签时产出（自包含 win-x64 目录 → zip + SHA-256 → 预发布）。
-- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN、固定 origin 前置校验）、`DeviceStore.Validate`（含 `AdoptNewOrigin` 与排序）、`DeviceOrder`、`DeviceStatus`/`DeviceReachability`、`StartupBehavior`、`ClientLog` 轮转、`PortableData`、`ConnectionDiagnosis`、`UpdateCheck`、`WebView2Availability`、`SidecarProvisioner.Verify`、`LanDiscovery`（公告校验、手输归一化、子网推导、UDP 收听）、`SseParser`、`WebViewPolicy`（同源判定）；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
+- 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN、固定 origin 前置校验）、`DeviceStore.Validate`（含 `AdoptNewOrigin` 与排序）、`DeviceOrder`、`DeviceStatus`/`DeviceReachability`、`StartupBehavior`、`ClientLog` 轮转、`PortableData`、`ConnectionDiagnosis`、`UpdateCheck`（含安装包/校验资产选择）、`UpdateInstaller`（校验值解析与比对、中断/超时/取消、校验不过不启动安装程序）、`WebView2Availability`、`SidecarProvisioner.Verify`、`LanDiscovery`（公告校验、手输归一化、子网推导、UDP 收听）、`SseParser`、`WebViewPolicy`（同源判定）；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。
 - 验收状态：iroh / 局域网 / 远程通道与 WebView2 五类策略尚未完成维护者真机验收；需要 Windows 机器按验收清单复核。

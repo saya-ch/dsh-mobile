@@ -211,4 +211,48 @@ public class UpdateCheckTests
         var release = UpdateCheck.SelectLatest(json, "0.1.0");
         Assert.Equal("0.2.0", release!.Version);
     }
+
+    // ---- installer assets (the update flow needs the .exe and its sidecar) ----
+
+    private const string InstallerRelease = """
+        [
+          {
+            "tag_name": "windows-v0.1.2",
+            "draft": false,
+            "prerelease": true,
+            "html_url": "https://example/page",
+            "assets": [
+              { "name": "dsh-mobile-windows-v0.1.2-win-x64.zip",
+                "browser_download_url": "https://example/zip" },
+              { "name": "dsh-mobile-windows-v0.1.2-win-x64.zip.sha256",
+                "browser_download_url": "https://example/zip.sha256" },
+              { "name": "dsh-mobile-windows-v0.1.2-win-x64-setup.exe",
+                "browser_download_url": "https://example/setup.exe" },
+              { "name": "dsh-mobile-windows-v0.1.2-win-x64-setup.exe.sha256",
+                "browser_download_url": "https://example/setup.exe.sha256" }
+            ]
+          }
+        ]
+        """;
+
+    [Fact]
+    public void FindsTheInstallerAndItsChecksumBesideThePortableZip()
+    {
+        var release = UpdateCheck.SelectLatest(InstallerRelease, "0.1.1");
+
+        Assert.Equal("https://example/setup.exe", release!.SetupUrl);
+        Assert.Equal("https://example/setup.exe.sha256", release.SetupChecksumUrl);
+        // The hand-clickable link stays the portable zip.
+        Assert.Equal("https://example/zip", release.DownloadUrl);
+    }
+
+    [Fact]
+    public void AReleaseWithoutAnInstallerLeavesTheSetupAssetsEmpty()
+    {
+        // The updater must not invent a download target, so it can fall back to the page.
+        var release = UpdateCheck.SelectLatest(Releases, "0.1.0");
+
+        Assert.Null(release!.SetupUrl);
+        Assert.Null(release.SetupChecksumUrl);
+    }
 }

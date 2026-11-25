@@ -883,6 +883,46 @@
                         <TextBlock x:Name="UpdateResultText" Margin="18,8,18,0" FontSize="12"
                                    TextWrapping="Wrap" Visibility="Collapsed"
                                    Foreground="{DynamicResource SecondaryTextBrush}" />
+                        <!-- Update transfer row: only visible while a download, checksum or
+                             installer launch is running, so the footer stays quiet at rest.
+                             The bar takes the accent fill and the page's 3 DIP radius
+                             instead of the stock WPF chrome. -->
+                        <StackPanel x:Name="UpdateProgressPanel" Orientation="Horizontal"
+                                    Margin="18,10,18,0" Visibility="Collapsed">
+                            <ProgressBar x:Name="UpdateProgressBar" Width="200" Height="6"
+                                         Minimum="0" Maximum="100" Value="0"
+                                         VerticalAlignment="Center" BorderThickness="0"
+                                         Background="{DynamicResource SurfaceAltBrush}"
+                                         Foreground="{DynamicResource AccentBrush}">
+                                <ProgressBar.Template>
+                                    <ControlTemplate TargetType="ProgressBar">
+                                        <Border CornerRadius="3" ClipToBounds="True"
+                                                Background="{TemplateBinding Background}">
+                                            <Grid>
+                                                <Rectangle x:Name="PART_Track" />
+                                                <Rectangle x:Name="PART_Indicator" RadiusX="3"
+                                                           RadiusY="3" HorizontalAlignment="Left"
+                                                           Fill="{TemplateBinding Foreground}" />
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ProgressBar.Template>
+                            </ProgressBar>
+                            <TextBlock x:Name="UpdateProgressText" Margin="10,0,0,0" FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                            <Button x:Name="CancelUpdateButton" Content="取消" MinWidth="0"
+                                    Style="{StaticResource GhostButton}" Margin="10,0,0,0"
+                                    Click="CancelUpdate_Click"
+                                    ToolTip="取消下载，删除临时文件" />
+                        </StackPanel>
+                        <!-- Escape hatch for every failure path: the messages name this
+                             page so the user is never stuck on a broken download. -->
+                        <Button x:Name="ManualUpdateButton" Content="打开下载页" MinWidth="0"
+                                Style="{StaticResource GhostButton}"
+                                Margin="18,4,18,0" HorizontalAlignment="Left"
+                                Visibility="Collapsed" Click="OpenReleases_Click"
+                                ToolTip="在浏览器中打开 GitHub Releases 手动下载" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

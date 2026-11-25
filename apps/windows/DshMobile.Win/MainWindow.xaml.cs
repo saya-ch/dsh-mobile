@@ -64,6 +64,13 @@ public partial class MainWindow : Window
     /// <summary>Set while the launch-time auto-connect runs, so its failure can say so.</summary>
     private bool _autoConnecting;
 
+    /// <summary>The release the footer row will install; null until a check finds one.</summary>
+    private WindowsRelease? _updateRelease;
+    /// <summary>Cancels a running download or checksum when 取消 or a window close asks.</summary>
+    private CancellationTokenSource? _updateCts;
+    /// <summary>True while download/verify/launch runs, so a second click cannot start one.</summary>
+    private bool _updateRunning;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -94,6 +101,7 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
+            _updateCts?.Cancel();
             DisconnectCore();
             _trayIcon?.Dispose();
             _trayIcon = null;
@@ -159,43 +167,247 @@ public partial class MainWindow : Window
         (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) < 128;
 
     /// <summary>
-    /// Look for a newer Windows client on the release track.
+    /// Look for a newer Windows client on the release track, then run the update.
     /// </summary>
     /// <remarks>
-    /// The failure copy for an incompatible protocol or an HTTP 426 sends the user
-    /// here, so this has to resolve to something real. Only the comparison is local
-    /// logic (<see cref="UpdateCheck"/>); the request itself just needs a
-    /// User-Agent, which the GitHub API requires.
+    /// The footer control is a two-step button: the first click asks the release API, and
+    /// once a release is known the same button reads "更新到 x.y.z" and downloads, verifies
+    /// and starts the installer (<see cref="UpdateInstaller"/>). The SHA-256 comparison is
+    /// the gate - a mismatch deletes the download and nothing runs. The process exits once
+    /// the installer starts, because Inno Setup cannot replace the executable this process
+    /// holds open; the installer is pinned to this folder with <c>/DIR</c> so <c>data\</c>
+    /// (pairings, settings, logs) stays beside the upgraded binary.
+    /// <para>
+    /// The failure copy for an incompatible protocol or an HTTP 426 sends the user here,
+    /// so this has to resolve to something real.
+    /// </para>
     /// </remarks>
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
     {
+        if (_updateRunning) return;
+        if (_updateRelease is { } release)
+        {
+            await RunUpdateAsync(release);
+            return;
+        }
+        await CheckForUpdateAsync();
+    }
+
+    /// <summary>Ask the release API and turn the footer row into the right next action.</summary>
+    private async Task CheckForUpdateAsync()
+    {
         CheckUpdateButton.IsEnabled = false;
-        UpdateResultText.Visibility = Visibility.Visible;
-        UpdateResultText.Text = "正在检查…";
+        CheckUpdateButton.Content = "检查中…";
+        ManualUpdateButton.Visibility = Visibility.Collapsed;
+        ShowUpdateProgress(false);
+        SetUpdateText("正在检查…", error: false);
         try
         {
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("dsh-mobile-windows/" + CurrentVersion);
-            client.Timeout = TimeSpan.FromSeconds(15);
+            using var client = NewGitHubClient(TimeSpan.FromSeconds(15));
             var json = await client.GetStringAsync(UpdateCheck.ReleasesApi);
             var latest = UpdateCheck.SelectLatest(json, CurrentVersion);
             if (latest is null)
             {
-                UpdateResultText.Text = $"已是最新版本（{CurrentVersion}）。";
+                _updateRelease = null;
+                CheckUpdateButton.Content = "检查更新";
+                SetUpdateText($"已是最新版本（{CurrentVersion}）。", error: false);
+            }
+            else if (latest.SetupUrl is null)
+            {
+                // An older release carries only the portable zip: there is nothing this
+                // flow can install and verify, so the row points at the release page.
+                _updateRelease = null;
+                CheckUpdateButton.Content = "检查更新";
+                SetUpdateText(
+                    $"发现新版本 {latest.Version}（当前 {CurrentVersion}），但该版本没有提供安装包，无法自动更新。" +
+                    "请手动下载：" + UpdateCheck.ReleasesPage, error: false);
+                RevealManualDownload();
             }
             else
             {
-                UpdateResultText.Text = $"有新版本 {latest.Version}（当前 {CurrentVersion}）。下载：{latest.DownloadUrl}";
+                _updateRelease = latest;
+                CheckUpdateButton.Content = $"更新到 {latest.Version}";
+                SetUpdateText(
+                    $"发现新版本 {latest.Version}（当前 {CurrentVersion}）。" +
+                    $"点击「更新到 {latest.Version}」开始下载；下载并校验通过后客户端会退出，由安装程序替换文件，" +
+                    @"data\ 中的配对、设置与日志会保留。", error: false);
             }
         }
         catch (Exception error)
         {
             Log("update check failed: " + error);
-            UpdateResultText.Text = "检查失败，可手动打开 " + UpdateCheck.ReleasesPage + " 查看。";
+            _updateRelease = null;
+            CheckUpdateButton.Content = "检查更新";
+            SetUpdateText(
+                "检查失败：" + UpdatePayload.DescribeCheckFailure(error) +
+                "。可以稍后重试，或手动打开 " + UpdateCheck.ReleasesPage + " 查看。", error: true);
+            RevealManualDownload();
         }
         finally
         {
             CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>Download, verify and start the installer; the window exits on success.</summary>
+    private async Task RunUpdateAsync(WindowsRelease release)
+    {
+        _updateRunning = true;
+        _updateCts?.Dispose();
+        _updateCts = new CancellationTokenSource();
+        var token = _updateCts.Token;
+        CheckUpdateButton.IsEnabled = false;
+        CheckUpdateButton.Content = "正在下载…";
+        CancelUpdateButton.IsEnabled = true;
+        ManualUpdateButton.Visibility = Visibility.Collapsed;
+        SetUpdateText(
+            $"正在下载 {release.Version} 的安装包…下载并校验通过后客户端会退出，由安装程序替换文件。",
+            error: false);
+        ShowUpdateProgress(true);
+        SetProgress(UpdateStage.Download, 0, null);
+        try
+        {
+            // The transfer deadlines live in UpdateInstaller, so this client must not add
+            // a shorter fixed timeout: a 49 MB installer over a slow link is legitimate
+            // and would otherwise be aborted mid-transfer.
+            using var client = NewGitHubClient(Timeout.InfiniteTimeSpan);
+            var installer = new UpdateInstaller(client);
+            var progress = new Progress<UpdateProgress>(
+                report => SetProgress(report.Stage, report.Received, report.Total));
+            var outcome = await installer.InstallAsync(release, Root, progress, token);
+            if (!outcome.Ok)
+            {
+                ShowUpdateFailure(outcome.Failure!, release);
+                return;
+            }
+            ShowUpdateProgress(false);
+            SetUpdateText(
+                $"安装程序已启动，客户端正在退出以完成更新。安装完成后请重新打开 DSH Mobile（{release.Version}）。",
+                error: false);
+            Log("update installer started: " + release.Version);
+            // One painted frame so the line above is readable before the window goes.
+            await Task.Delay(700);
+            Application.Current.Shutdown();
+        }
+        catch (OperationCanceledException)
+        {
+            ShowUpdateProgress(false);
+            SetUpdateText("已取消更新，未做任何更改。", error: false);
+            CheckUpdateButton.Content = $"更新到 {release.Version}";
+            CheckUpdateButton.IsEnabled = true;
+        }
+        catch (Exception error)
+        {
+            ShowUpdateFailure(
+                new UpdateFailure(
+                    "更新失败：" + error.Message + "。请重试，或手动下载：" + UpdateCheck.ReleasesPage,
+                    error.Message),
+                release);
+        }
+        finally
+        {
+            _updateRunning = false;
+            CancelUpdateButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Show a failed step in place, keeping both the retry and the manual download link
+    /// reachable - a failed update must never leave the user with no way forward.
+    /// </summary>
+    private void ShowUpdateFailure(UpdateFailure failure, WindowsRelease release)
+    {
+        Log("update failure: " + failure.Message +
+            (string.IsNullOrEmpty(failure.Detail) ? string.Empty : " / " + failure.Detail));
+        ShowUpdateProgress(false);
+        CancelUpdateButton.IsEnabled = true;
+        if (failure.Cancelled)
+        {
+            SetUpdateText("已取消更新，未做任何更改。", error: false);
+        }
+        else
+        {
+            SetUpdateText(
+                failure.Message +
+                (string.IsNullOrEmpty(failure.Detail) ? string.Empty : "\n详细信息：" + failure.Detail),
+                error: true);
+            RevealManualDownload();
+        }
+        CheckUpdateButton.Content = $"更新到 {release.Version}";
+        CheckUpdateButton.IsEnabled = true;
+    }
+
+    /// <summary>A GitHub client tagged with this client's version, which the API requires.</summary>
+    private static HttpClient NewGitHubClient(TimeSpan timeout)
+    {
+        var client = new HttpClient { Timeout = timeout };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("dsh-mobile-windows/" + CurrentVersion);
+        return client;
+    }
+
+    /// <summary>
+    /// Reveal the manual-download escape hatch and scroll it into view.
+    /// </summary>
+    /// <remarks>
+    /// The row is the last thing on a long settings page, so a failure that fills four
+    /// lines would otherwise push its own escape hatch below the fold.
+    /// </remarks>
+    private void RevealManualDownload()
+    {
+        ManualUpdateButton.Visibility = Visibility.Visible;
+        ManualUpdateButton.BringIntoView();
+    }
+
+    /// <summary>Write the update status line; failures take the error colour.</summary>
+    private void SetUpdateText(string text, bool error)
+    {
+        UpdateResultText.Visibility = Visibility.Visible;
+        UpdateResultText.Text = text;
+        UpdateResultText.Foreground = error
+            ? (Brush)FindResource("ErrorBrush")
+            : (Brush)FindResource("SecondaryTextBrush");
+    }
+
+    /// <summary>Show or hide the progress row (bar, byte counter and 取消).</summary>
+    private void ShowUpdateProgress(bool show)
+    {
+        UpdateProgressPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+        // The row sits at the bottom of a long settings page, so a transfer would start
+        // below the fold; bringing it into view is the only thing that makes the bar and
+        // the 取消 button discoverable without scrolling.
+        UpdateProgressPanel.BringIntoView();
+    }
+
+    /// <summary>Paint one progress report onto the bar and its counter.</summary>
+    private void SetProgress(UpdateStage stage, long received, long? total)
+    {
+        var progress = new UpdateProgress(stage, received, total);
+        UpdateProgressBar.Value = progress.Percent ?? 0;
+        UpdateProgressText.Text = UpdatePayload.DescribeProgress(progress);
+    }
+
+    /// <summary>Stop the transfer; the 取消 button and a closing window both come here.</summary>
+    private void CancelUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_updateRunning) return;
+        CancelUpdateButton.IsEnabled = false;
+        UpdateProgressText.Text = "正在取消…";
+        _updateCts?.Cancel();
+    }
+
+    /// <summary>Open the release page in the browser, for every failure that needs it.</summary>
+    private void OpenReleases_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(UpdateCheck.ReleasesPage) { UseShellExecute = true });
+        }
+        catch (Exception error)
+        {
+            Log("open releases page failed: " + error);
+            MessageBox.Show(this, "无法打开浏览器，请手动访问：" + UpdateCheck.ReleasesPage,
+                "打开下载页失败", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
