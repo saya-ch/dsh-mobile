@@ -126,7 +126,11 @@ jobs:
 
           The archive is about 66 MB and expands to about 149 MB. It has not been accepted on real Windows hardware, so this is a preview: the plugin and the Android app remain the stable surfaces. See ``README.md`` inside the archive for details.
           "@
-          if (gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" 2>$null) {
+          # Test the exit status, not the output: `gh release view` prints its
+          # "not found" message to stdout, so `if (gh ...)` is true either way and
+          # the guard fired on a release that did not exist.
+          gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
             Write-Error "Release ${{ github.ref_name }} already exists; refusing to replace published assets."
             exit 1
           }
