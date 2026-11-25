@@ -599,8 +599,5 @@ Free code signing provided by SignPath.io, certificate by SignPath Foundation.
 
 [![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
 <!-- Verified on DartNode: DNOS-8204844A -->
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
-
-<!-- Verified on DartNode: DNOS-8204844A -->
 
 Apache-2.0，详见 [LICENSE](LICENSE)。
