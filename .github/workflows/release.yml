@@ -171,21 +171,29 @@ jobs:
           # than leaving the list to imply it.
           windows_note="The Windows client under \`apps/windows/\` is an independent prerelease on its own \`windows-v*\` track. It is still an alpha preview and has not been accepted on real Windows hardware; download it from the Windows client releases, not from this one."
           release_note="$release_note"$'\n\n'"$windows_note"
+          platform_note="**Platform packages.** This release installs its Funnel helper from one of five optional npm packages (\`dsh-mobile-funnel-<platform>-<arch>\`). npm chooses the right one automatically. If your npm mirror has not mirrored them yet, the plugin will report the missing component; the five \`.tgz\` files attached here are those packages, so you can install the matching one directly instead of waiting for the mirror."
+          release_note="$release_note"$'\n\n'"$platform_note"
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists; refusing to replace published assets." >&2
             exit 1
           else
-            previous_plugin_tag="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft,isPrerelease --jq '[.[] | select(.isDraft == false and .isPrerelease == false) | .tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))][0] // empty')"
+            # The repository already has more releases than the old limit, and the
+            # previous stable plugin tag has to survive the Android and Windows
+            # releases that keep arriving.
+            previous_plugin_tag="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 500 --json tagName,isDraft,isPrerelease --jq '[.[] | select(.isDraft == false and .isPrerelease == false) | .tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))][0] // empty')"
             test -n "$previous_plugin_tag"
-            # Only files: the download directory also holds a platform-packages
-          # subdirectory, and gh refuses to upload a directory as a release asset.
-          mapfile -t assets < <(find release-assets -maxdepth 1 -type f -print | sort)
-          test "${#assets[@]}" -gt 0
-          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              --generate-notes \
-              --notes-start-tag "$previous_plugin_tag" \
-              --notes "$release_note" \
-              --title "$GITHUB_REF_NAME"
+            # Only files at the top level plus the platform tarballs: gh refuses a
+            # directory, and the platform packages are attached on purpose so a reader
+            # whose npm mirror has not mirrored them can still fetch the bytes here.
+            mapfile -t assets < <(find release-assets -maxdepth 1 -type f -print | sort)
+            mapfile -t platform_assets < <(find release-assets/platform-packages -maxdepth 1 -type f -name '*.tgz' -print | sort)
+            test "${#assets[@]}" -gt 0
+            test "${#platform_assets[@]}" -eq 5
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" "${platform_assets[@]}" \
+                --repo "$GITHUB_REPOSITORY" \
+                --verify-tag \
+                --generate-notes \
+                --notes-start-tag "$previous_plugin_tag" \
+                --notes "$release_note" \
+                --title "$GITHUB_REF_NAME"
           fi

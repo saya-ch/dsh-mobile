@@ -9,18 +9,20 @@ function table(locale: (typeof LOCALES)[number]): Record<string, string> {
 }
 
 describe('missing Funnel component copy', () => {
-  it('names the platform package and an action in every locale', () => {
-    // The Funnel helper is an optional per-platform package now, so a missing binary
-    // is an install problem the reader can fix. A generic "unavailable" line would
-    // send them to look for a fault that is not there.
+  it('names the mirror cause and an action that works in every locale', () => {
+    // The Funnel helper is an optional per-platform package now. When it is absent the
+    // usual cause is a registry mirror that has not mirrored the new package names, and
+    // reinstalling alone does not repair that: pnpm skips the unresolved optional
+    // dependency silently and the plugin manager only falls back to the official
+    // registry on a non-zero exit. So the copy has to point at the install source.
     for (const locale of LOCALES) {
       const text = table(locale).funnelComponentMissing
       expect(text, `locale ${locale}`).toBeTypeOf('string')
-      expect(text, `locale ${locale}`).toContain('dsh-mobile-funnel-')
-      // Expect a mirror hint rather than a package-manager command: reinstalling from
-      // the plugin manager is the action that works, and a stale mirror is the usual
-      // reason the package is missing at all.
       expect(text, `locale ${locale}`).toMatch(/mirror|镜像|mirror/iu)
+      expect(text, `locale ${locale}`).toMatch(/registry|源|sorgente/iu)
+      // A package id would appear here as an unsubstituted placeholder.
+      expect(text, `locale ${locale}`).not.toContain('<platform>')
+      expect(text, `locale ${locale}`).not.toContain('dsh-mobile-funnel-')
     }
   })
 
