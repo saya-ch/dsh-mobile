@@ -1,5 +1,7 @@
 # Contributing
 
+Who decides what — merge rights, version numbers, scope and release tracks — is in [GOVERNANCE.md](GOVERNANCE.md).
+
 Keep pull requests focused on observable behavior. Explain the change, cover new failure/rejection paths, and update the relevant English and Chinese guides together. Preserve contributor history and keep real credentials out of fixtures.
 
 Agent-assisted maintainers should start with [AGENTS.md](AGENTS.md) and the [DSH Mobile maintenance skill](.agent/skills/dsh-mobile-maintenance/SKILL.md). Its references cover compatibility/packaging, runtime/ADB, test-fixture reliability and collaboration/releases; load only the route needed for the task. Update demonstrated reusable guidance alongside the owning change, without turning transient release state into permanent instructions.

@@ -608,7 +608,7 @@ npm ci
 npm run verify
 ```
 
-Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md) covers behavior-specific browser tests, isolated packed DSH acceptance, captures and release steps; the [Android manual](apps/mobile/README.md#build) covers app builds. Do not substitute real user profiles or official app data for test fixtures.
+Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md) covers behavior-specific browser tests, isolated packed DSH acceptance, captures and release steps; the [Android manual](apps/mobile/README.md#build) covers app builds. Do not substitute real user profiles or official app data for test fixtures. Merge rights, version numbers, scope decisions and the three release tracks are in [GOVERNANCE.md](https://github.com/saya-ch/dsh-mobile/blob/main/GOVERNANCE.md).
 
 ## Sponsors & Support
 
