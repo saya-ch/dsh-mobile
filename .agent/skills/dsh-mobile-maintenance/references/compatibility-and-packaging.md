@@ -105,6 +105,16 @@ For installation/upgrade fixes, cover hoisted and isolated pnpm, a fresh install
 
 When converting an existing `link:` dependency to an archive, a successful `pnpm add` can update the manifest specifier while retaining the old link resolution. Inspect the lockfile resolution, selected filesystem target and installed manifest together; a targeted `pnpm update` can re-resolve the requested archive without changing unrelated dependencies. A package-manager store-format mismatch is a separate installation failure: preserve recoverable dependencies and align the profile's toolchain rather than changing the global store, clearing user data or granting an incompatibility exemption.
 
+## Native components ship from their own repositories
+
+The iroh host binary is not built from this repository. `native/iroh-host` and `native/iroh-core` here are a copy; the published `dsh-mobile-iroh` package is built from the separate `saya-ch/dsh-mobile-iroh` repository, whose `host/` and `tether-core/` sources are the ones compiled into the binaries the plugin downloads. An edit to `native/iroh-host` therefore changes nothing a user receives until it is also carried into that repository and a new component version is published and re-pinned.
+
+This matters most for release notes. `CHANGELOG.md` for 0.8.15 credited `phone-sim` with reporting the rendezvous path discovery knew, but that change (`bf281bb`) only ever reached this repository's copy; the released alpha.1 and alpha.2 binaries still print the older message. Downloading the pinned artifact and searching it for the new string is what settled it. Before crediting a `native/iroh-host` change as shipped, confirm it is in the bytes the pin names — the pin is verified by size and SHA-256, so a component built from different source is otherwise undetectable.
+
+The Funnel helper does not have this problem: `native/funnel-host` is the source `scripts/build-funnel-host.mjs` compiles into `packages/funnel-*`, and CI rebuilds it to prove the committed binaries reproduce. The distinction is which repository the published artifact is built from, not whether a component is vendored.
+
+When a component changes, reconcile the two copies deliberately: decide which side owns the change, land it there, publish a component version, re-pin, and only then describe the behaviour as released. `scripts/check-iroh-component-pins.mjs` proves the pins match the published bytes but cannot tell which source produced them.
+
 ## Older WebViews
 
 Check the actual WebView engine and missing feature, not only Android's OS version or the vendor's package-version naming. The compatibility entry is `src/mobile-compat.ts`; the helpers it installs live in `src/mobile-abort-signal.ts`, `src/mobile-boot-feedback.ts` and `src/mobile-url-authority.ts`, and the authenticated early-boot injection is served from `src/mobile-compat-bootstrap.ts`. Preserve native implementations, CSP/nonces, cancellation semantics and owned listener cleanup. A getter installed over a captured native getter must not reuse that name for the installed function: a named function expression binds its own name in scope, so `function hostname` would shadow the captured `hostname` and recurse until the stack overflows.
