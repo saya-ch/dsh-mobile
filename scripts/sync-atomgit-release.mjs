@@ -101,6 +101,22 @@ async function createAtomgitRelease(release) {
   return body
 }
 
+/** Remove one attachment so a failed upload can be retried under the same name. */
+async function deleteAsset(asset) {
+  const id = asset.id ?? asset.attach_file_id
+  if (id === undefined) {
+    throw new Error(`${asset.name} has no attachment id, so the empty placeholder cannot be cleared`)
+  }
+  const { status, body } = await api(
+    `/repos/${OWNER}/${REPO}/releases/${encodeURIComponent(tag)}/attach_files/${id}`
+    + `?access_token=${encodeURIComponent(token)}`,
+    { method: 'DELETE' },
+  )
+  if (status !== 200 && status !== 204) {
+    throw new Error(`removing the empty ${asset.name} failed with ${status}: ${JSON.stringify(body)}`)
+  }
+}
+
 /** Ask for a signed object-store target: a URL plus the headers it demands. */
 async function requestUploadTarget(fileName) {
   const { status, body } = await api(
@@ -171,7 +187,7 @@ try {
   let skipped = 0
 
   for (const asset of release.assets) {
-    const present = existing.get(asset.name)
+    let present = existing.get(asset.name)
     // An asset that is already there with the same size is left alone: re-uploading an
     // existing name is documented to answer success while the old bytes keep serving,
     // which is the failure this whole script exists to avoid.
@@ -179,6 +195,17 @@ try {
       console.log(`  ${asset.name}: already mirrored (${asset.size} B)`)
       skipped += 1
       continue
+    }
+    // A zero-byte entry is the leftover of a write whose payload never landed, not a
+    // conflict with real content. Clearing it is what lets a retry succeed at all.
+    if (present !== undefined && Number(present.size) === 0) {
+      if (dryRun) {
+        console.log(`  [dry-run] would clear the empty placeholder for ${asset.name} and upload it`)
+        continue
+      }
+      await deleteAsset(present)
+      console.log(`  ${asset.name}: cleared a 0 B placeholder left by an earlier upload`)
+      present = undefined
     }
     if (present !== undefined) {
       throw new Error(
