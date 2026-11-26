@@ -20,6 +20,7 @@
     "index.mjs",
     "access.md",
     "references",
+    "locale",
     "LICENSE"
   ]
 }

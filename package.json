@@ -7,7 +7,8 @@
   "type": "module",
   "workspaces": [
     "packages/question-fixes",
-    "packages/mobile-graph-follower"
+    "packages/mobile-graph-follower",
+    "packages/mobile-skill"
   ],
   "bin": {
     "dsh-mobile": "lib/cli.js"
@@ -22,7 +23,17 @@
     "./client": {
       "default": "./lib/client.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./question-fixes": {
+      "default": "./packages/question-fixes/lib/index.mjs"
+    },
+    "./question-fixes/locale/en.json": "./packages/question-fixes/locale/en.json",
+    "./question-fixes/locale/zh.json": "./packages/question-fixes/locale/zh.json",
+    "./mobile-skill": {
+      "default": "./packages/mobile-skill/index.mjs"
+    },
+    "./mobile-skill/locale/en.json": "./packages/mobile-skill/locale/en.json",
+    "./mobile-skill/locale/zh.json": "./packages/mobile-skill/locale/zh.json"
   },
   "files": [
     "index.mjs",
@@ -36,11 +47,13 @@
     "lib/**/*.map",
     "packages/question-fixes/package.json",
     "packages/question-fixes/lib/**",
+    "packages/question-fixes/locale",
     "packages/question-fixes/LICENSE",
     "packages/mobile-skill/package.json",
     "packages/mobile-skill/index.mjs",
     "packages/mobile-skill/access.md",
     "packages/mobile-skill/references",
+    "packages/mobile-skill/locale",
     "packages/mobile-skill/LICENSE",
     "apps/mobile/release.json",
     "apps/mobile/README.md",
@@ -246,7 +259,7 @@
       "optional": true
     }
   },
-  "optionalDependencies":   {
+  "optionalDependencies": {
     "dsh-mobile-funnel-win32-x64": "0.9.0",
     "dsh-mobile-funnel-linux-x64": "0.9.0",
     "dsh-mobile-funnel-linux-arm64": "0.9.0",

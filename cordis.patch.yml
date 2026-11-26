@@ -27,12 +27,12 @@
     # The component switch restores the upstream layout immediately.
     # DSH anchors this file entry beside the bundle patch, independent of pnpm's linker.
     - id: dsh-ui-fixes
-      name: ./packages/question-fixes/lib/index.mjs
+      name: dsh-mobile/question-fixes
 
     # Documentation only: registers one skill describing the access channels, where their
     # state lives and what must be left to the user. `inject: [skills]` keeps the row
     # waiting instead of failing when a deployment has no skill service, and its own
     # switch lets the user drop the documentation without touching the gateway.
     - id: dsh-mobile-skill
-      name: ./packages/mobile-skill/index.mjs
+      name: dsh-mobile/mobile-skill
       inject: [skills]
