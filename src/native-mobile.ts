@@ -14,7 +14,7 @@ import { installMobileSidebarScrollMemory } from './mobile-sidebar-scroll.js'
 import { WIDE_LAYOUT_ATTRIBUTE } from './mobile-layout-attributes.js'
 import { installMobilePathCopy, PATH_COPY_TOUCH_QUERY } from './mobile-path-copy.js'
 
-export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:768px)'
+export const NATIVE_MOBILE_OVERLAY_QUERY = '(max-width:720px)'
 
 /** Mobile feature and compatibility rules applied to DSH React surfaces. */
 export const NATIVE_MOBILE_STYLES = `
@@ -293,11 +293,11 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) { box-sizing:border-box !important; width:100% !important; padding:0 0 8px !important; }
   [data-dsh-mobile-center] [class*="_root"]:has(> [class*="_card"] textarea) > [class=""]:last-child { display:none !important; }
 }
-@media (max-width:768px) and (max-height:500px) {
+@media (max-width:720px) and (max-height:500px) {
   /* An open software keyboard leaves less room for the focused draft. */
   html.dsh-native-mobile-active [data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }
 }
-@media (max-width:768px) and (max-height:400px) {
+@media (max-width:720px) and (max-height:400px) {
   [data-dsh-mobile-center] [data-composer-card] { gap:8px !important; }
   html.dsh-native-mobile-active [data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:48px !important; }
 }

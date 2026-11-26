@@ -59,7 +59,7 @@ function fixture() {
     addEventListener: (type: string, listener: EventListener) => { listeners.set(type, listener) },
     removeEventListener: (type: string) => { listeners.delete(type) },
   })
-  // `mobile` is the stock narrow band; the dedicated band is the shell marker.
+  // `mobile` is the stock <=720px band; the dedicated band is the shell marker.
   let mobile = true
   vi.stubGlobal('window', {
     matchMedia: () => ({ get matches() { return mobile }, addEventListener: () => {}, removeEventListener: () => {} }),
@@ -169,8 +169,8 @@ describe('sidebar scroll memory', () => {
     memory.dispose()
   })
 
-  it('keeps scroll memory on a landscape phone drawer whose viewport is wider than the stock band', () => {
-    // 932x430 phone: the stock narrow band is false, but the dedicated layout
+  it('keeps scroll memory on a landscape phone drawer whose viewport is wider than 720px', () => {
+    // 932x430 phone: the stock <=720px band is false, but the dedicated layout
     // renders an overlay drawer because the device short side is 430. A width
     // query would leave the drawer without scroll memory exactly there.
     const f = fixture(), port = f.list(), memory = installMobileSidebarScrollMemory()

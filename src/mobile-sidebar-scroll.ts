@@ -39,7 +39,7 @@ export function captureSidebarScroll(element: HTMLElement): SidebarScrollSnapsho
  */
 export function installMobileSidebarScrollMemory(): { sync: () => void; dispose: () => void } {
   const memories = new Map<string, SidebarScrollSnapshot>()
-  const stockViewport = window.matchMedia('(max-width:768px)')
+  const stockViewport = window.matchMedia('(max-width:720px)')
   /**
    * Whether the dedicated layout currently renders the sidebar as an overlay
    * drawer. That is the layout's own decision on the shell — a landscape phone
