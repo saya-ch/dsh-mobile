@@ -32,14 +32,6 @@
   <a href="README.en.md">English</a>
 </p>
 
-<p align="center">
-  <a href="https://infistar.cc" target="_blank">
-    <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/infistar-sponsor/assets/sponsors/infistar-banner.svg" alt="Infistar 无限星河 - 统一 AI 模型 API 接口" width="82%">
-  </a>
-  <br>
-  <sub>赞助商推荐：<a href="https://infistar.cc"><b>Infistar 无限星河</b></a> — 一站式聚合 Claude / GPT / Gemini / DeepSeek API，高并发低成本接入 DeepSeek Harness</sub>
-</p>
-
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
@@ -69,6 +61,38 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 移动访问使用独立 HTTPS 与设备配对；Android App 固定局域网私有 CA，公开远程通道使用系统信任的证书；自签 FRP 入口还需由 0.4.6 App 在配对时固定远程 CA。
 
 它还能在 DSH 对话里用 `/mobile <需求>` 定制手机端。
+
+### 赞助商 Sponsors（预览方案）
+
+**方案 1：长横幅（文字内置） + 右侧仅名称 / 超链接**
+
+<table>
+  <tr>
+    <td width="640">
+      <a href="https://infistar.cc">
+        <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/infistar-sponsor/assets/sponsors/infistar-banner.svg" alt="Infistar 无限星河" width="100%">
+      </a>
+    </td>
+    <td align="center" width="200">
+      <a href="https://infistar.cc">Infistar</a> <i>(Sponsored)</i>
+    </td>
+  </tr>
+</table>
+
+**方案 2：大图标 + 右侧长文本介绍 / 超链接**
+
+<table>
+  <tr>
+    <td align="center" width="110">
+      <a href="https://infistar.cc">
+        <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/infistar-sponsor/assets/sponsors/infistar-icon.svg" width="72" height="72" alt="Infistar">
+      </a>
+    </td>
+    <td>
+      <a href="https://infistar.cc">Infistar 无限星河</a> — 提供统一的主流 AI 模型接口接入（Claude / GPT / Gemini / DeepSeek 等），高并发多路容灾、兼容 OpenAI 协议，适配 DeepSeek Harness 与自动化工作流，可为 DSH Mobile 用户提供专属体验额度。<i>(Sponsored)</i>
+    </td>
+  </tr>
+</table>
 
 ## 能做什么
 
