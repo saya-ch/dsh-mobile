@@ -617,6 +617,8 @@ Use `npm run check:docs` for quick documentation checks. [CONTRIBUTING.md](https
 - **Custom development & deployment**: Available for private deployment, custom AI Agent workflows, and multi-platform integration.
 - **Recommended API provider**: For reliable access to DeepSeek and other models, you can try [SiliconFlow (free starter credits)](https://cloud.siliconflow.cn/i/qHBsrZ2i).
 
-[![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+[![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source") [![Tencent EdgeOne](https://img.shields.io/badge/CDN%20%26%20Security-Tencent%20EdgeOne-0052D9?style=flat-square)](https://edgeone.ai/?from=github "Tencent EdgeOne - Free CDN & Security for Open Source")
+
+CDN acceleration and security protection for this project are sponsored by [Tencent EdgeOne](https://edgeone.ai/?from=github).
 
 Licensed under [Apache-2.0](LICENSE).
