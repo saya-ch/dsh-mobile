@@ -5323,15 +5323,16 @@ class MainActivity : Activity() {
             toastError(R.string.download_blocked)
             return
         }
-        val safeMime = mimeType?.substringBefore(';')?.trim()?.takeIf { MIME_TYPE.matches(it) }
-            ?: "application/octet-stream"
-        val guessed = android.webkit.URLUtil.guessFileName(url, contentDisposition, safeMime)
+        val filename = sanitizeFilename(downloadFilename(url, contentDisposition))
+        val safeMime = downloadMimeType(filename, mimeType) { extension ->
+            MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+        }
         pendingDownload = PendingDownload(
             origin = origin.serialized,
             url = url,
             userAgent = userAgent?.take(1_024),
             mimeType = safeMime,
-            filename = sanitizeFilename(guessed),
+            filename = filename,
             caCertificate = caCertificate?.copyOf(),
         )
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
