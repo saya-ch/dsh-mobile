@@ -115,6 +115,51 @@ The Funnel helper does not have this problem: `native/funnel-host` is the source
 
 When a component changes, reconcile the two copies deliberately: decide which side owns the change, land it there, publish a component version, re-pin, and only then describe the behaviour as released. `scripts/check-iroh-component-pins.mjs` proves the pins match the published bytes but cannot tell which source produced them.
 
+## Make a change take effect without restarting DSH
+
+The base bundle enables HMR whenever the launcher supplies a profile context, so a stock Desktop profile already has it: `- id: hmr` with `disabled: !!js "!ctx.get('profileContext')"` and `config: { root: [] }`. `root: []` only turns off *source-directory* watching; it does not turn HMR off.
+
+Editing anything in the profile's `cordis.patch.yml` — even appending a comment line — triggers a recomposition. The proof that the plugin reloaded is `logging initialized file=…` in `<state>/logs/dsh-mobile.log`, which is written from the plugin's `apply`. That is the cheapest way to make an installed-file change take effect during development; a real restart is not required.
+
+The reload replaces plugins whose loaded files below the profile directory changed on disk, covering installed packages under `node_modules` and the targets of linked packages, **without** `root` watching. Two boundaries matter:
+
+- A change confined to a `package.json` is not detected, and manifest notifications below `node_modules` are ignored. Altering `exports` or `files` needs the recomposition to be driven by something else, and a genuinely stuck case needs the process restarted.
+- Changes that land in host modules — anything the process entry point imports statically, such as `dsh-app-boot`, the Loader or Cordis from a dsh checkout — stay pending, and Plugin Manager reports `restart-required` until the process restarts.
+
+Configuring `root: ["."]` adds source watching but is not needed for the installed-package case, and a failed replacement stops the previous plugin rather than leaving it running, so a broken build is visible immediately instead of being masked.
+
+## Nested components need a package specifier to show display metadata
+
+The embedded components are inserted by file path and the plugin manager rendered their row titles as `file:///…/index.mjs`. The cause is the first line of `readPluginMeta` in `@deepseek-ai/dsh-app-boot`: `barePackageName(specifier)` returns `undefined` for any specifier beginning with `.`, `/`, `\`, `#` or containing `:`, and the function returns immediately — a file path can never carry package metadata, so the title falls back to the module specifier (`rowText` in `@deepseek-ai/dsh-client-ui-plugin-manager`).
+
+Exporting `name` from the component module does **not** help. That identifier is the Cordis plugin name; the plugin manager never reads it. The bundled providers such as `@deepseek-ai/dsh-skill-badge` export `name` for Cordis, not for display.
+
+The working shape is to reference each component as a package subpath and ship a locale:
+
+1. Main `package.json` exports the entry and **every** locale file (`./question-fixes`, `./question-fixes/locale/en.json`, `./question-fixes/locale/zh.json`, and the same for the other components). `dictionariesOf` reads the whole locale directory with `readdirSync` and resolves each filename individually, so a partially exported locale directory throws and the row loses its metadata entirely.
+2. Each component ships `locale/{en,zh}.json` shaped `{"meta":{"title":…,"description":…}}`. `title` is required: the fallback is `manifest.name`, which is not read for a subpath specifier (`manifestPath` is only read when the specifier equals the package name), so a component without a locale title still shows the specifier.
+3. `cordis.patch.yml` names the subpath, not the file.
+
+The patch `id` is independent of the specifier, so activation keys, configuration and bookmarks survive the change. Verify the result without opening the UI by resolving the subpaths from the profile root (`createRequire` on the profile patch file) and asserting the locale files are reachable — a resolution failure means the panel silently falls back to the path again.
+
+## Configuration stores hold their file in memory
+
+Every settings store (`FrpConfigStore`, `CloudflaredTunnelStore`, `OriginConfigStore`, `CaddyConfigStore`, the control stores) reads its file once in `initialize()` and keeps the parsed value in a private field. `settings()` returns that field; only `configure()` writes the file **and** the field. Editing `settings.json` directly therefore changes nothing observable: the panel keeps reporting `configured: false` (or the previous values) and the channel keeps using the old configuration. This is the plugin's design, not a lost-update bug.
+
+Anything that changes configuration — an agent following the bundled skill, a script, a maintainer testing a fix — must go through the local management API. Those routes are loopback-only plus an `Origin` header equal to the DSH base URL (`assertLocalAdminTrust`); without the header a POST such as `/api/mobile-access/remote/frp/configure` answers `403 forbidden` before the body is examined, which reads like an authorization failure but is only the missing header. `$DSH_WEB_URL` carries the base URL into the agent shell. Verify a write by reading `providers.<channel>.configuration` back from `GET /api/mobile-access/remote/control`.
+
+The bundled skill documents this contract; if a store stops caching, that section and this one are both wrong and must be updated together.
+
+## A component download can fail in the antivirus
+
+A Defender signature update can start flagging an official component binary as a heuristic trojan (`Trojan:Win32/Suschil!rfn`, the `!rfn` suffix marks a failed-report heuristic rather than a specific family). The symptom looks like a plugin bug: the installer reports `tar.exe: Error opening archive: Failed to open '…\frp.zip'`, the archive is present with the right byte count, and `File.ReadAllBytes` fails with "the file contains a virus".
+
+The decisive evidence is *where* it failed: the installer verifies the downloaded SHA-256 before writing the archive and extracting it, so a `tar` or extraction failure means the bytes already matched the pin — the file is the one this repository pins, and the antivirus is rejecting it. Read the log for the stage rather than assuming a download or size mismatch.
+
+Recovery needs an administrator: exclude `<state>/staging` and `<state>/components` in the antivirus, then reinstall from the panel or the management route. Do not treat this as a reason to relax the hash checks.
+
+The related maintenance lesson: **purging a component is destructive and may not be reversible on the spot.** `POST /remote/<channel>/component/purge` deletes the binary and, for FRP, the configuration and the self-signed certificates too. Purging to clear test configuration cost an installed component that could not be reinstalled until the antivirus exclusion was added. Clear test state with a narrower operation where one exists, and confirm the environment can reinstall before removing a working component.
+
 ## Older WebViews
 
 Check the actual WebView engine and missing feature, not only Android's OS version or the vendor's package-version naming. The compatibility entry is `src/mobile-compat.ts`; the helpers it installs live in `src/mobile-abort-signal.ts`, `src/mobile-boot-feedback.ts` and `src/mobile-url-authority.ts`, and the authenticated early-boot injection is served from `src/mobile-compat-bootstrap.ts`. Preserve native implementations, CSP/nonces, cancellation semantics and owned listener cleanup. A getter installed over a captured native getter must not reuse that name for the installed function: a named function expression binds its own name in scope, so `function hostname` would shadow the captured `hostname` and recurse until the stack overflows.

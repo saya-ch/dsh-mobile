@@ -19,7 +19,7 @@ Use [CONTRIBUTING.md](../../../CONTRIBUTING.md) for commands and [package.json](
 
 | Task | Read next |
 | --- | --- |
-| DSH upgrade, startup failure, installation or client discovery | [Compatibility and packaging](references/compatibility-and-packaging.md) |
+| DSH upgrade, hot reload or HMR, startup failure, installation or client discovery | [Compatibility and packaging](references/compatibility-and-packaging.md) |
 | Mobile layout, reconnection, remote providers, Android or ADB | [Runtime, UI and Android](references/runtime-ui-android.md) |
 | Windows client layout, desktop UI review, its settings or packaging | [Windows desktop client](references/windows-client.md) |
 | Test isolation, asynchronous races, fixture teardown or flaky checks | [Test and fixture reliability](references/testing-and-fixtures.md) |
