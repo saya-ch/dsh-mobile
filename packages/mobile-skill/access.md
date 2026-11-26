@@ -13,7 +13,7 @@ Two independent things exist, and confusing them is the most common diagnostic e
 2. **LAN and remote keep separate device stores.** LAN devices are in `<state>/devices.json`; all remote channels share `<state>/remote/devices.json`. Revoking on one side does not touch the other.
 3. **Pairing is the only authorization.** A pairing code authorizes a phone; it does not keep a channel running. Codes live in gateway memory only, are single-use, and expire in **2 minutes** by default (5 minutes on iroh).
 4. **The current channel is whatever `<state>/remote/provider.json` says.** Do not infer it from which directories exist; every channel keeps its configuration whether or not it is selected.
-5. **Secrets never leave the machine.** Pairing codes, `dsh1.`/`dsh2.` keys, iroh descriptors, `deviceToken`, `sessionToken`, `csrfToken`, cookies, `identity.key`, `*-key.pem` and `tls-state.json` must never be printed, pasted into a reply, or written to a log. If the user needs one, they generate it themselves in the panel.
+5. **A pairing secret belongs to the user's own phone and nowhere else.** Hand it to the user when they asked to pair — that is its purpose. Outside that moment, never print it, write it to a log, paste it into an issue, put it in a commit, or leave it in a file that outlives the window. The same applies to `deviceToken`, `sessionToken`, `csrfToken`, cookies, `identity.key`, `*-key.pem` and `tls-state.json`: those are never delivered to anyone, because nothing needs them handed over.
 
 ## Where the state lives
 
@@ -112,6 +112,8 @@ Two token-reuse rules differ and are easy to get wrong:
 - **frp** reuses the stored token only when the address and port are unchanged; changing either while leaving the token empty fails with `frp_token_invalid`.
 
 Full route list: [management-api.md](references/management-api.md)
+
+When the write is what completes a channel, the user's next step is pairing the phone. Open a window and give them the QR and the link — see [pairing.md](references/pairing.md) and the pairing routes in the API reference. The window lasts two minutes, so confirm the phone is at hand first.
 
 ## Reading state without the panel
 

@@ -108,12 +108,26 @@ Empty `secretId` and `secretKey` together keep the stored credentials. Note that
 
 ## Pairing
 
-| Route | Body |
-|---|---|
-| `POST /remote/pairing/open` | `{}` — opens a window on the selected remote channel |
-| `POST /remote/iroh/pairing/begin` | `{}` — iroh's two-stage descriptor instead of a URL |
+Pairing is the step that actually lets a phone in, so when the user asks to pair, finish the job: open a window and hand them the material.
 
-Both answer with a one-time secret. They are the only routes whose response must not be quoted back to the user in full: show the QR or let them generate it, never paste the code or token into a reply.
+| Route | Body | When |
+|---|---|---|
+| `POST /lan/pairing/open` | `{}` | Local network |
+| `POST /remote/pairing/open` | `{}` | The selected remote channel |
+| `POST /remote/iroh/pairing/begin` | `{}` | iroh — a descriptor instead of a URL; requires `state === 'ready'` |
+
+The first two answer `201` with `{token, expiresAt, appKey, pairUrl, appPairUrl, qrSvg}`. iroh answers with the ten descriptor fields plus `qrSvg`.
+
+**The window is short.** 2 minutes by default (`pairingTtlMs`), 5 minutes on iroh. Ask whether the phone is ready *before* opening it; a code generated while the user is still looking for their phone has usually expired by the time they scan it. Say when it expires.
+
+Deliver it as material, not as prose:
+
+- `qrSvg` — write it to a `.svg` file and show it, or open it in a browser on the computer; the user scans the screen with the phone.
+- `pairUrl` — the link a browser opens, after accepting the certificate warning once.
+- `appKey` — what the Android app's pairing field takes.
+- iroh — the descriptor JSON as text, pasted into the full app. It carries both the 6-digit transport code and the gateway token, so it is a single unit.
+
+Only ever hand this to the user in the turn where they asked to pair. Do not write it into the plugin log, an issue, a commit, a README, or a file that survives the window. Opening a new window invalidates the previous code, so do not open one speculatively "to check it works".
 
 ## Error shape
 
