@@ -2,7 +2,7 @@
 
 iroh replaces public domains and tunnel accounts with an encrypted direct connection (relay fallback when direct fails): the phone finds the computer's cryptographic identity first, then traffic returns to the loopback gateway. You need no domain, port mapping, or separate HTTPS tunnel.
 
-> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. This guide corresponds to plugin 0.8.12 and the full Android App 0.8.2 (build 95); iroh has been available since 0.7.0. Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
+> Plugin 0.7.0 and the full App 0.7.0 integrate the computer provider, pinned TLS, pairing UI and Android native transport; the feature is off by default and remains experimental. iroh has been available since 0.7.0; the plugin pins sidecar 0.1.0-alpha.2 (macOS is supported from plugin 0.9.0, and upgrading from an earlier plugin requires installing the component again). Direct connectivity, relay use and speed depend on both networks; availability on every campus, corporate or carrier network is not guaranteed.
 > The design lives in the companion's [integration seam](https://github.com/saya-ch/dsh-mobile-iroh/blob/main/docs/INTEGRATION_SEAM.md).
 
 ## Prerequisites

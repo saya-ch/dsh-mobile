@@ -126,14 +126,14 @@ Restart DSH, then search for **dsh-mobile** under **Settings → Plugin Market**
 
 Download the official Android APK using the link above. Then choose LAN or remote access in the [connection guide](#connection-guide); the phone needs no separate tunnel client. For browser access, including iOS, follow the steps below.
 
-Registry-installed plugins check for updates when the desktop UI loads and show “Update plugin” beside the access-panel title when a newer release is available. Restart DSH after installation. The app download entry shows the latest version; local development packages are not overwritten; Android 0.7.4 does not check for or push app-version updates, and from 0.7.5 the device-list settings offer a manual “Check for updates” entry that only opens the matching release page without downloading or installing anything automatically.
+Registry-installed plugins check for updates when the desktop UI loads and show “Update plugin” beside the access-panel title when a newer release is available. Restart DSH after installation. The app download entry shows the latest version; local development packages are not overwritten; the Android app does not check for or push app-version updates on its own — from 0.7.5 the device-list settings offer a manual “Check for updates”, and from 0.8.3 that entry downloads the build matching the installed variant, verifies it, and hands it to the system installer (allowing “Install unknown apps” once), with a retry by reported reason or a browser download as the fallback.
 
 ### iPhone and iPad: Home Screen web app (PWA)
 
 The plugin runs on the **computer**; Safari loads its mobile interface. There is no native iOS app to install.
 
 1. Install and enable the plugin on the computer as above. In **Mobile Access**, configure your [connection](<#connection-guide>); prefer a stable, trusted HTTPS address for a lasting Home Screen installation.
-2. Stay in that connection's panel: use **Copy pairing link** for LAN, or **Generate remote pairing QR code** then **Copy remote pairing link** for Remote. Open the resulting browser link in **Safari** and complete pairing. Use the dedicated Mobile Access link, not the computer's ordinary DSH page; Android `dsh1.`/`dsh2.` keys are not browser pairing codes.
+2. Stay in that connection's panel: use **Copy pairing link** for LAN, or **Generate pairing QR code** (the same label as LAN; the button sits inside the Remote panel) then **Copy remote pairing link** for Remote. Open the resulting browser link in **Safari** and complete pairing. Use the dedicated Mobile Access link, not the computer's ordinary DSH page; Android `dsh1.`/`dsh2.` keys are not browser pairing codes.
 3. From the paired page, open Safari's **Share** menu → **Add to Home Screen**. Turn on **Open as Web App** if offered, then tap **Add**. Menu layout varies; see [Apple's iPhone instructions](<https://support.apple.com/guide/iphone/bookmark-a-website-iph42ab2f3a7/ios>).
 4. Launch the new Home Screen icon to continue the same DSH sessions and Workspaces. If it shows a **Pairing code** form, follow the [fresh-code recovery steps](<docs/WEB_PUSH.en.md#if-the-home-screen-app-shows-a-pairing-form>); Safari's first code is single-use. A normal reconnect page uses saved pairing instead. Keep existing installations and pairing/site data when troubleshooting.
 
@@ -145,11 +145,11 @@ You can also keep using Safari without installing an icon. The computer, DSH and
 
 DSH Mobile also runs on Windows: the [Windows client](apps/windows/README.en.md) is a WebView2 shell that connects through the same plugin-authenticated HTTPS page as the Android app.
 
-**[Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe)** (49.2 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
+**[Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe)** (49.0 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
 
 Run it, pick the install location in the wizard (the default is `%LocalAppData%\Programs\DshMobile`; **no administrator rights needed**), then launch from the Start Menu. Uninstalling keeps `data\`, so paired computers and settings survive. No separate .NET install. Windows 10 1809+ / Windows 11 **x64** only.
 
-<sub>If you need no registry writes and a folder you can carry on a stick, use the [portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip) instead (65.8 MB, [checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip.sha256)): unzip into any writable folder and run `DshMobile.Win.exe`.</sub>
+<sub>If you need no registry writes and a folder you can carry on a stick, use the [portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip) instead (65.6 MB, [checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip.sha256)): unzip into any writable folder and run `DshMobile.Win.exe`.</sub>
 
 > This client is still an **alpha preview** (currently `0.1.2-alpha`), published separately as a prerelease. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. It has not been accepted on real Windows hardware, so failures are expected at this stage; attach `data\client.log` when reporting one. See the [Windows client guide](apps/windows/README.en.md).
 
@@ -181,7 +181,7 @@ Port note: `dsh web --port` changes the DSH Web upstream port (3080 by default),
 <details>
 <summary>Headless hosts, private proxies and additional source networks</summary>
 
-Headless Linux hosts, and browsers that open DSH Web through a LAN IP or reverse proxy, can use the same **Mobile access** control in the lower-left corner. The admin API still requires a loopback TCP peer (for example a local `socat` or reverse proxy to `127.0.0.1`) so the plugin itself is not LAN-exposed. The browser Host may be `localhost`, RFC1918, or an IPv4 link-local address; public IPs and arbitrary DNS names still return 403. The reverse proxy must be limited to trusted local or LAN callers and must not publicly forward `/api/mobile-access`. The dedicated Mobile HTTPS listener (3443 by default) remains the phone surface and does not become the desktop admin panel.
+Headless Linux hosts, and browsers that open DSH Web through a LAN IP or reverse proxy, can use the same **Mobile access** control in the lower-left corner. The admin API accepts a loopback TCP peer by default (for example a local `socat` or reverse proxy to `127.0.0.1`), so the plugin itself is not LAN-exposed; since 0.6.18, `adminAllowedCidrs` can additionally admit listed direct non-loopback peers, and each such request must also pass DSH's current request authentication ([fields and limits](docs/TRUSTED_NETWORKS.en.md#accessing-the-nas-administration-page)). The browser Host may be `localhost`, RFC1918, or an IPv4 link-local address; public IPs and arbitrary DNS names still return 403. The reverse proxy must be limited to trusted local or LAN callers and must not publicly forward `/api/mobile-access`. The dedicated Mobile HTTPS listener (3443 by default) remains the phone surface and does not become the desktop admin panel.
 
 For a routed network such as WireGuard, 0.6.0 offers [additional trusted networks](docs/TRUSTED_NETWORKS.en.md). It adds explicit source CIDRs only, without creating a VPN or routes or changing Windows firewall rules.
 
@@ -306,7 +306,7 @@ The examples above, applied:
 
 ## Mobile access skill
 
-Since 0.9.0 the plugin includes an optional documentation component, `dsh-mobile-skill` (component name **Mobile access skill**), that supplies the plugin's configuration interface and troubleshooting knowledge to the agent. Once registered, the `mobile-access` skill appears in the session skill catalog and the agent can load it.
+Since 0.9.1 the plugin includes an optional documentation component, `dsh-mobile-skill` (component name **Mobile access skill**), that supplies the plugin's configuration interface and troubleshooting knowledge to the agent. Once registered, the `dsh-mobile-access` skill appears in the session skill catalog and the agent can load it.
 
 **Purpose**: connecting a phone means choosing a channel, preparing an account or a server, filling in parameters, handling certificates and opening a pairing window, and a failed step answers only with an error code. The skill makes those steps doable in a conversation — the agent knows which fields exist, what their ranges are, where state is written and what each error code means, so it can write the configuration, explain a failure, and hand over scannable pairing material without the user filling in fields against the documentation by hand.
 
@@ -323,10 +323,10 @@ What it provides:
 
 - **Configuration fields and validation**: the options, types, defaults and accepted ranges for each of the six remote channels (Tailscale, cpolar, cloudflared, frp, origin, iroh) and for local network access, plus the cause and handling of every error code.
 - **Where state lives**: what each file under `<state>` holds, and which values are on disk rather than only in the plugin's memory. Configuration is held in memory, so editing `settings.json` directly has no effect; it has to be written through the management API.
-- **The local management API**: the `/api/mobile-access/*` routes, request bodies and response shapes. The API requires a loopback peer, and a POST needs an `Origin` header matching `DSH_WEB_URL`.
+- **The local management API**: the `/api/mobile-access/*` routes, request bodies and response shapes. The API accepts loopback peers by default, and `adminAllowedCidrs` can admit additional direct non-loopback peers; a POST needs an `Origin` header matching `DSH_WEB_URL`.
 - **Pairing material**: the QR code and link returned by `pairing/open`, the two-minute window, and how `qrSvg` relates to `pairUrl`.
 
-The credential rule is part of the skill: the agent may write a token on the user's behalf, but must state its purpose in the same turn and never echo, store or carry it across turns. The management API is reachable from loopback only.
+The credential rule is part of the skill: the agent may write a token on the user's behalf, but must state its purpose in the same turn and never echo, store or carry it across turns. The management API is reachable from loopback by default.
 
 The component is documentation only: it registers one entry in the skill catalog, adds no tools or capabilities, and makes no network requests. UI customization is outside its scope and remains with `/mobile` and extensions. It has its own switch in the DSH plugin detail list, and turning it off leaves mobile access unaffected; a deployment without the skill service keeps it inactive.
 
@@ -415,7 +415,7 @@ Selection priority is device choice → computer defaults → plugin configurati
 
 The Android app is a thin Kotlin WebView shell and contains no frontend copy; mobile browsers load the same page. Developers can append `?frontend=stock` to an authenticated mobile URL to diagnose boot and layout behavior. This entry skips dedicated mobile boot rewriting and module selection, but installed client adaptation and authenticated customizations may still apply. It is not a plugin-free control; some API operations may be rejected, so it does not replace normal mobile access. See [skins and mobile layout](docs/SKIN_COMPATIBILITY.en.md).
 
-The dedicated mobile page synchronously loads the authenticated, same-origin `/mobile-access/compat.js` before the first DSH boot script. This bundled compatibility layer supplies missing `Iterator` / Iterator helpers, `Promise.withResolvers` and `AbortSignal.any`, and restores the `dsh-resource:` authority that a WebView parsing a custom scheme as an opaque path would otherwise drop, so file previews can resolve their addresses. It uses feature detection to preserve or repair native implementations, needs no CDN, and does not weaken CSP. The desktop and `?frontend=stock` pages do not load this gateway script. On WebViews that support document-start injection, the Android App also supplies `Promise.withResolvers` early for the paired exact Origin.
+Before the first DSH boot script, the dedicated mobile page synchronously loads the authenticated, same-origin compatibility script; since 0.8.0 the page references it by content hash (`/mobile-access/compat-<sha256>.js`), and the plain `/mobile-access/compat.js` remains only the fallback when the bundle cannot be read. This bundled compatibility layer supplies missing `Iterator` / Iterator helpers, `Promise.withResolvers` and `AbortSignal.any`, and restores the `dsh-resource:` authority that a WebView parsing a custom scheme as an opaque path would otherwise drop, so file previews can resolve their addresses. It uses feature detection to preserve or repair native implementations, needs no CDN, and does not weaken CSP. The desktop and `?frontend=stock` pages do not load this gateway script. On WebViews that support document-start injection, the Android App also supplies `Promise.withResolvers` early for the paired exact Origin.
 
 **Old-engine limits**: API shims cannot repair JavaScript syntax an engine cannot parse. The published **DSH 0.2.1-rc.2** frontend contains class static blocks, which Chromium **92** cannot parse. This syntax became enabled by default in Chrome 94, but that does not establish full DSH compatibility on 94. [V8 announcement](https://v8.dev/blog/v8-release-94). The App's below-100 advisory is not a compatibility guarantee; choosing Continue does not make the current DSH runnable. If system WebView cannot be updated, use a phone browser already confirmed to work with the computer's mobile address, without clearing existing App pairings.
 
@@ -505,7 +505,7 @@ This table describes the **computer**. Phones and tablets use the Android app or
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `0.9.1` | The sidebar follows the mobile font-size setting; the bundled skill component shows a readable name in the plugin list. |
+| `0.9.1` | The sidebar follows the mobile font-size setting, which previously only moved the composer; a new optional component, Mobile access skill, gives the agent each channel's configuration interface and troubleshooting knowledge; bundled components show readable names in the plugin list. |
 | `0.9.0` | macOS gains cpolar, iroh and Tailscale Funnel, all on both architectures; Funnel helpers install per platform, shrinking the plugin from 74.6 MB to 9.2 MB unpacked; the iroh component moves to 0.1.0-alpha.2. Android app 0.8.3 |
 | `0.8.16` | The wide conversation column is full width again and both side panels are draggable, and the sidebar no longer stutters when opening (#465); file previews work on opaque-path WebViews (#415). Android app 0.8.3 |
 | `0.8.15` | Firefox for Android no longer hides the composer behind the keyboard (#457); the preview filename offers Copy Path / Share File (#459); DSH 0.2.3-alpha.2 compatibility restored (#462). Android app 0.8.3 |

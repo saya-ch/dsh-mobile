@@ -29,7 +29,7 @@ With plugin 0.8.3 or later, fill **frpc user (optional)** only if your shared fr
 
 ## Public-CA mode
 
-1. In **Self-hosted FRP**, choose **Attach to my existing frps** and **Public CA certificate**. Enter the VPS address, frps control port, high-entropy shared token, public domain or IPv4 HTTPS origin, and the frps instance's actual `vhostHTTPPort`. Do not assume the managed deployment's default of 7080.
+1. In **Self-hosted FRP**, choose **Use my existing frps (no SSH, no changes)** and **Public-CA certificate (Caddy, recommended)**. Enter the VPS address, frps control port, high-entropy shared token, public domain or IPv4 HTTPS origin, and the frps instance's actual `vhostHTTPPort`. Do not assume the managed deployment's default of 7080.
 2. Copy the attachment plan. Confirm the plaintext vhost is loopback-only, then add the generated Caddy snippet at `/etc/caddy/dsh-mobile-dsh.caddy` and its `import` line at the top of the Caddyfile manually. Caddy manages domain certificates. For public IPv4, the current plan pins Certbot 5.8.0 and uses `--standalone --preferred-profile shortlived --ip-address` for a [roughly six-day Let's Encrypt IP certificate](https://letsencrypt.org/2026/03/11/shorter-certs-certbot). Standalone issuance briefly stops Caddy to free port 80 and may interrupt other sites on the VPS; schedule a maintenance window, choose a domain, or use the self-signed TCP mode in app 0.4.6 or later if that interruption is unacceptable. The attach path only checks an existing `certbot.timer`; it does not install renewal or a certificate-copy/reload hook. Arrange renewal, installation into Caddy, and reload before expiry yourself. Copying the plan does not change the VPS.
 3. Install the pinned official `frpc` on the computer, save and verify the connection, and test `/mobile-access/discovery` from an independent external network with normal certificate validation. Confirm HTTP 200 and this computer's installation identifier before pairing through the app's **Remote access** flow or a phone browser. A local self-check alone does not verify public reachability.
 
@@ -39,7 +39,7 @@ The computer-side gateway terminates TLS with a five-year CA and 397-day public-
 
 > Topology: `phone ──HTTPS(:33080)──▶ frps TCP proxy (passthrough) ──encrypted tunnel──▶ local frpc ──▶ 127.0.0.1:<gateway HTTPS port> ──▶ dsh web 127.0.0.1:3080`
 
-1. In **Self-hosted FRP**, enter the VPS address, frps control port, token, and `https://YOUR_PUBLIC_IPV4`. Choose **Attach to my existing frps**, **Self-signed passthrough**, and the public TCP port (default 33080; not 3080, 3443, or 3444).
+1. In **Self-hosted FRP**, enter the VPS address, frps control port, token, and `https://YOUR_PUBLIC_IPV4`. Choose **Use my existing frps (no SSH, no changes)**, **Self-signed passthrough (no public certificate at all)**, and the public TCP port (default 33080; not 3080, 3443, or 3444).
 2. Copy and review the masked `frpc.toml` and VPS checklist. This is read-only: finish the server checks before selecting **Save and verify connection**.
 3. On the VPS, allow the chosen TCP entry port in its host firewall and cloud security group; the existing frps control port must already be reachable from the computer. Confirm frps is running and the TCP proxy listens on an address reachable from the public network. The plugin does not change the server's frps configuration or firewall.
 

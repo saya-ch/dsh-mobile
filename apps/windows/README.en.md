@@ -57,7 +57,7 @@ To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the c
 
 ### Device list
 
-- **Visible status**: each computer shows whether it is reachable (reachable / checking / unreachable / connected / credential expired / revoked on the computer). Reachability is polled in the background and paused while connecting.
+- **Visible status**: each computer shows whether it is reachable (reachable / checking / unreachable / connected / credential expired / revoked on the computer / address may have changed / checked after connecting); the last one is an iroh computer, which can only be probed once its tunnel is up. Reachability is polled in the background and paused while connecting.
 - **Recency**: shows when the computer was last opened ("19 minutes ago", "2 days ago").
 - **Rename and order**: rename, move up, move to front; the order survives a restart.
 - **Undoable delete**: a delete can be undone within five seconds (it only removes the local record, not the computer's authorisation).
@@ -68,6 +68,10 @@ To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the c
 - **App icon**: 4 mascot poses and 6 whale colourways, the same artwork the phone ships. Frames below 32px use the simplified whale mark so the tray icon stays legible.
 - **Light and dark**: follows Windows, or pin light/dark in settings.
 - **Page zoom, font size, reading mode** stay in the DSH page's own settings, exactly as on the phone.
+
+### Updates
+
+- **Update in place**: the bottom of the settings page checks for a newer `windows-v*` prerelease. When that release ships an installer, the button becomes "Update to x.y.z"; clicking it downloads the installer (with progress and a cancel button), verifies it against the published `.sha256` file, then starts the installer and exits. A mismatch deletes the download and never runs it. The installer is pinned to the current folder so pairings, settings and logs in `data\` stay; reopen the client when it finishes. A release that only ships the portable zip gets a link to the download page instead.
 
 ### Security
 

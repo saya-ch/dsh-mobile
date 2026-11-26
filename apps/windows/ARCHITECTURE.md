@@ -2,9 +2,9 @@
 
 [English](ARCHITECTURE.en.md) · [返回 README](README.md)
 
-本文说明 Windows 客户端的内部结构，便于维护者审阅与后续对齐。功能、构建命令、状态与支持范围见 [README.md](README.md)。
+本文说明 Windows 客户端的内部结构，便于维护者审阅与后续对齐。功能、构建命令、系统要求与发布状态见 [README.md](README.md)。
 
-> 状态：本客户端已合入 `main`，但尚未随任何 Release 发布，也尚未完成维护者真机验收；支持范围与验收状态见 README 的「状态与支持范围」。
+> 状态：本客户端已合入 `main`，并作为预发布发布在 `windows-v*` 轨道（`0.1.0-alpha`～`0.1.2-alpha`）；维护者真机验收仍未完成。支持范围见 README「系统要求」，alpha 预览与真机验收状态见「下载」下方的 alpha 预览说明。
 
 ## 组件职责
 
@@ -12,7 +12,7 @@
 | --- | --- |
 | `App.xaml(.cs)` | 应用启动、系统深浅色跟随与 `DSH_MOBILE_THEME=light\|dark` 覆盖 |
 | `MainWindow.xaml(.cs)` | WPF 外壳：连接页 + 浏览器页、连接/重连编排、WebView2 边界策略、原生 TLS 固定校验（`VerifyPinnedOriginAsync`） |
-| `MainWindow.Devices.cs` / `MainWindow.DevicePage.cs` | 设备列表（卡片渲染、可达状态接线、排序菜单、删除与 5 秒撤销）与设置页的两个分部类 |
+| `MainWindow.Devices.cs` / `MainWindow.DevicePage.cs` | 设备列表页的两个分部类：卡片渲染、可达状态接线、排序菜单、删除与 5 秒撤销（`Devices`），以及品牌标识、空状态的三种配对入口与方法页签（`DevicePage`）；设置页在 `MainWindow.xaml(.cs)` 中 |
 | `AppSettings.cs` | `data/settings.json`：图标、启动方式、主题、任务完成提醒、上次连接的电脑；缺文件或损坏时回退默认值，不报错 |
 | `AppIcons.cs` | 与 Android 同款的 10 种启动图标（4 种吉祥物姿态 + 6 种鲸鱼），标题栏与托盘共用，预览取文件里最大一帧 |
 | `StartupBehavior.cs` | 启动后「显示设备列表」还是「自动连接上次的电脑」的决策；凭据过期或读不出的记录永不自动连接 |
@@ -55,7 +55,7 @@
 - Wire：带 code 走 `Pair`，不带 code 走 `Hello`（已配对设备免扫码重连）。
 - sidecar 使用 `presets::N0`（发现 + 中继）；本地回环只转发**原始 TLS 字节**，TLS 终点仍在远端 Gateway。
 - 客户端连 `127.0.0.1:<LocalPort>`，SNI 用远端 `Hostname`，叶子证书按固定 CA 校验。
-- **sidecar 不进仓库**：pin 的权威值在 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`；`SidecarProvisioner` 硬编码同值，`sidecar/manifest.json` 只是镜像，三处由 `scripts/check-windows-sidecar-pin.mjs` 在 `windows-client.yml` 中机器校验（升级上游 pin 时需同步）。`SidecarProvisioner` 首次使用时按固定 URL 下载、按字节数 + SHA-256 校验，或复用 DSH Mobile 插件已校验的副本（仅默认 `~/.dsh` 布局）；损坏缓存删除重取；`IrohCarrier.StartAsync` 在启动进程前再校验一次，哈希不符拒绝启动。许可文本随 `sidecar/` 附带（仅仓库内，不随 `dotnet publish` 输出）。
+- **sidecar 不进仓库**：pin 的权威值在 `src/iroh-component.ts` 的 `IROH_COMPONENT_RELEASES['win32-x64']`；`SidecarProvisioner` 硬编码同值，`sidecar/manifest.json` 只是镜像，三处由 `scripts/check-windows-sidecar-pin.mjs` 在 `windows-client.yml` 中机器校验（升级上游 pin 时需同步）。`SidecarProvisioner` 首次使用时按固定 URL 下载、按字节数 + SHA-256 校验，或复用 DSH Mobile 插件已校验的副本（仅默认 `~/.dsh` 布局）；损坏缓存删除重取；`IrohCarrier.StartAsync` 在启动进程前再校验一次，哈希不符拒绝启动。许可文本在仓库 `sidecar/` 下；`dotnet publish` 本身不复制它们，由发布流程复制到发布包的 `licenses/`。
 
 ### 局域网 / 远程（直连）
 
@@ -114,7 +114,7 @@
 
 ## 构建与测试
 
-- 前置：.NET 8 SDK（x64）+ WebView2 Evergreen；构建与运行仅支持 Windows x64（见 README「状态与支持范围」）。
+- 前置：.NET 8 SDK（x64）+ WebView2 Evergreen；构建与运行仅支持 Windows x64（见 README「系统要求」）。
 - 命令：`dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`。
 - CI：`.github/workflows/windows-client.yml` 在 `windows-latest` 上执行同一组 restore/build/test 步骤（restore 测试项目，再以 `--no-restore` 构建主项目并测试）；不产出发布包，也不做 WebView2/真机验收。发布包只由 `.github/workflows/windows-release.yml` 在推送 `windows-v<版本>` 标签时产出（自包含 win-x64 目录 → zip + SHA-256 → 预发布）。
 - 单元测试：`DshMobile.Win.Tests/` 覆盖 `UrlPairing`、`PairingDescriptor`、`PairingTrustPolicy`（含 404 的 dsh2 硬失败 / dsh1 回退）、`CertificatePolicy`（`ValidateFetchedCa`、DNS/通配/IP SAN、固定 origin 前置校验）、`DeviceStore.Validate`（含 `AdoptNewOrigin` 与排序）、`DeviceOrder`、`DeviceStatus`/`DeviceReachability`、`StartupBehavior`、`ClientLog` 轮转、`PortableData`、`ConnectionDiagnosis`、`UpdateCheck`（含安装包/校验资产选择）、`UpdateInstaller`（校验值解析与比对、中断/超时/取消、校验不过不启动安装程序）、`WebView2Availability`、`SidecarProvisioner.Verify`、`LanDiscovery`（公告校验、手输归一化、子网推导、UDP 收听）、`SseParser`、`WebViewPolicy`（同源判定）；用例数与结果以实际运行 `dotnet test` 为准，文档不记录一次性本机结果。

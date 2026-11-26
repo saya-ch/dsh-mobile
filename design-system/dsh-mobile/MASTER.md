@@ -10,14 +10,16 @@ The native colors below mirror the [light](../../apps/mobile/android/app/src/mai
 
 | Native role | Light | Dark |
 | --- | --- | --- |
-| Background | `#F7F8FA` | `#0F172A` |
-| Card surface | `#FFFFFF` | `#1E293B` |
-| Primary text | `#111827` | `#F8FAFC` |
-| Secondary text | `#667085` | `#CBD5E1` |
-| Accent | `#2563EB` | `#60A5FA` |
-| Text on primary button | `#FFFFFF` | `#0F172A` |
-| Border | `#E4E7EC` | `#475569` |
-| Error | `#B91C1C` | `#FCA5A5` |
+| Background (`app_background`) | `#F3F6FC` | `#0A1020` |
+| Card surface (`app_card_fill`) | `#FFFFFF` | `#16203A` |
+| Primary text (`app_foreground`) | `#0F172A` | `#F1F5F9` |
+| Secondary text (`app_secondary`) | `#52607A` | `#8FA3C4` |
+| Accent (`app_accent`) | `#2563EB` | `#60A5FA` |
+| Text on primary button (`app_button_text`) | `#1D4ED8` | `#BFDBFE` |
+| Border (`app_border`) | `#E3EAF5` | `#29FFFFFF` (16% white) |
+| Error (`app_error`) | `#C81E1E` | `#F87171` |
+
+The values are the literal entries in those two resources. The card fill is `app_card_fill`: `app_surface` is a translucent wash (`#14FFFFFF` in dark), so it is not the card colour. Sheets use `app_dialog_surface` (`#FFFFFF` / `#1E293B`) and row dividers use `app_divider` (`#D8E2F1` / `#2A3A55`). Error has separate entries: `app_error_container` is the inline failure banner fill (`#FEF2F2` / `#2C1618`), while the destructive button paints `app_danger_fill` (`#C81E1E` / `#B91C1C`) with `app_danger_text` (`#FFFFFF` in both themes). The primary button is a three-stop gradient (`app_button_*`), and its label uses `app_button_text`, contrast-checked against every stop.
 
 Maintain at least 4.5:1 text contrast over cards and artwork scrims. Native screens follow Android's theme; the WebView follows DSH's theme. Plugin surfaces must not force a global theme.
 
@@ -30,13 +32,14 @@ The portable Windows client (`apps/windows/`) keeps the roles above but derives 
 | Page canvas | `#F7F8FA` | `#0A101E` |
 | Navigation rail | `#FDFDFF` | `#080D18` (below the canvas) |
 | Group card | `#FFFFFF` | `#151E2E` (above the canvas) |
-| Card border | `#E6E9F0` | `#263248` (low saturation) |
-| Divider | `#EFF1F5` | `#1E2839` |
+| Card border / divider | `#C6CCD6` | `#33425C` (low saturation) |
 | Accent tint (selection, brand band) | `#E9EFFD` | `#17263F` |
 | Secondary text | `#667085` | `#A9B6CB` |
 | Muted text (eyebrow, footer) | `#5F6A7A` | `#8A97AC` |
 
-The dark column is deliberately **not** `#0F172A / #1E293B / #475569`: at desktop width those three read as one flat blue, and a `#475569` border is brighter than the surface it frames. Keep the three-level order rail < canvas < card, keep borders low-saturation, and keep the shadow soft — depth on dark comes from the border and the rail step, not from a halo.
+`CardBorderBrush` and `DividerBrush` now share one value in each theme, so one row covers both. The old `#E6E9F0` card border measured 1.24:1 on white and the `#EFF1F5` row hairline 1.13:1 — both effectively invisible — so the client replaced them with the values above, which clear the ≥1.6:1 non-text contrast it targets.
+
+The dark column is deliberately **not** the Android dark background, card and border (`#0A1020 / #16203A / #29FFFFFF`): at desktop width those three read as one flat blue, and the 16% white border reads brighter than the surface it frames. Keep the three-level order rail < canvas < card, keep borders low-saturation, and keep the shadow soft — depth on dark comes from the border and the rail step, not from a halo.
 
 Two consequences follow from that order. A raised or floating layer takes one more step above the card (`#1A2436` dark) instead of reusing the card fill or adding a highlight. And the dark shadow must be neutral black at a lower offset: the light theme's navy-tinted shadow (`#0B1220`) lands on a dark canvas as a blue halo, which is the glow this document forbids, and a shadow brighter than the gap it separates reads as a defect rather than elevation.
 

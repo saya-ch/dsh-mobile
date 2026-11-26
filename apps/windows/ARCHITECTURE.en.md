@@ -2,9 +2,9 @@
 
 [简体中文](ARCHITECTURE.md) · [Back to README](README.en.md)
 
-This document describes the Windows client internals for maintainers and follow-up work. Features, build commands, status and support are in [README.en.md](README.en.md).
+This document describes the Windows client internals for maintainers and follow-up work. Features, build commands, requirements and release status are in [README.en.md](README.en.md).
 
-> Status: the client is merged into `main`, but it is not shipped in any Release and has not completed maintainer acceptance on real Windows hardware; see "Status and support" in the README.
+> Status: the client is merged into `main` and published as a prerelease on the `windows-v*` track (`0.1.0-alpha`–`0.1.2-alpha`); maintainer acceptance on real Windows hardware is still incomplete. The support envelope is under "Requirements" in the README, and the alpha-preview note under "Download" carries the acceptance status.
 
 ## Component responsibilities
 
@@ -12,7 +12,7 @@ This document describes the Windows client internals for maintainers and follow-
 | --- | --- |
 | `App.xaml(.cs)` | Application startup, system light/dark following, and the `DSH_MOBILE_THEME=light\|dark` override |
 | `MainWindow.xaml(.cs)` | WPF shell: connect page + browser page, connect/reconnect orchestration, WebView2 boundary policy, and the native TLS pin check (`VerifyPinnedOriginAsync`) |
-| `MainWindow.Devices.cs` / `MainWindow.DevicePage.cs` | Partial classes for the device list (card rendering, reachability wiring, ordering menu, delete with a five-second undo) and the settings page |
+| `MainWindow.Devices.cs` / `MainWindow.DevicePage.cs` | The device list page's two partial classes: card rendering, reachability wiring, ordering menu and delete with a five-second undo (`Devices`), plus the brand mark, the empty state's three pairing entry points and the pairing panel's method tabs (`DevicePage`); the settings page lives in `MainWindow.xaml(.cs)` |
 | `AppSettings.cs` | `data/settings.json`: icon, start behaviour, theme, task-completion notices, last connected computer; a missing or damaged file falls back to defaults instead of failing |
 | `AppIcons.cs` | The ten launcher artworks the Android app ships (four mascot poses, six whale skins), shared by the titlebar and the tray; previews use the largest frame in the file |
 | `StartupBehavior.cs` | Decides between the device list and "reconnect the last computer" on launch; a record whose credential expired or cannot be read is never auto-connected |
@@ -55,7 +55,7 @@ client ──SslStream──▶ 127.0.0.1:<LocalPort> ──sidecar──▶ QUI
 - Wire: with a code the sidecar sends `Pair`; without one it sends `Hello` (reconnect for an already-paired device without a pairing window).
 - The sidecar uses `presets::N0` (discovery + relay); the loopback listener forwards **raw TLS bytes**, and TLS still terminates at the remote Gateway.
 - The client connects to `127.0.0.1:<LocalPort>`, uses the remote `Hostname` as SNI, and validates the leaf against the pinned CA.
-- **The sidecar is not committed**: the authoritative pin is `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts`; `SidecarProvisioner` hardcodes the same values and `sidecar/manifest.json` mirrors them, and `scripts/check-windows-sidecar-pin.mjs` machine-checks all three in `windows-client.yml` (update all three when the upstream pin moves). On first use `SidecarProvisioner` downloads from the pinned URL, verifies byte count + SHA-256, or reuses the copy installed by the DSH Mobile plugin (default `~/.dsh` layout only). A corrupt cache is deleted and re-fetched, and `IrohCarrier.StartAsync` re-verifies before every process start, refusing to launch on a hash mismatch. License texts ship under `sidecar/` (repository only; not copied by `dotnet publish`).
+- **The sidecar is not committed**: the authoritative pin is `IROH_COMPONENT_RELEASES['win32-x64']` in `src/iroh-component.ts`; `SidecarProvisioner` hardcodes the same values and `sidecar/manifest.json` mirrors them, and `scripts/check-windows-sidecar-pin.mjs` machine-checks all three in `windows-client.yml` (update all three when the upstream pin moves). On first use `SidecarProvisioner` downloads from the pinned URL, verifies byte count + SHA-256, or reuses the copy installed by the DSH Mobile plugin (default `~/.dsh` layout only). A corrupt cache is deleted and re-fetched, and `IrohCarrier.StartAsync` re-verifies before every process start, refusing to launch on a hash mismatch. License texts live under `sidecar/` in the repository; `dotnet publish` does not copy them, and the release workflow copies them into the package's `licenses/`.
 
 ### LAN / remote (direct)
 
@@ -110,7 +110,7 @@ Notices are shown at most once per category per session, so permission/download 
 
 ## Build and test
 
-- Prerequisites: .NET 8 SDK (x64) + WebView2 Evergreen; building and running are only supported on Windows x64 (see "Status and support" in the README).
+- Prerequisites: .NET 8 SDK (x64) + WebView2 Evergreen; building and running are only supported on Windows x64 (see "Requirements" in the README).
 - Commands: `dotnet restore` / `dotnet build -c Release` / `dotnet test ../DshMobile.Win.Tests/DshMobile.Win.Tests.csproj -c Release`.
 - CI: `.github/workflows/windows-client.yml` runs the same restore/build/test steps on `windows-latest` (it restores the test project, then builds the main project with `--no-restore` and runs the tests); it does not produce a release package and does not exercise WebView2 or real hardware. Only `.github/workflows/windows-release.yml` produces packages, when a `windows-v<version>` tag is pushed (self-contained win-x64 folder → zip + SHA-256 → prerelease).
 - Unit tests: `DshMobile.Win.Tests/` covers `UrlPairing`, `PairingDescriptor`, `PairingTrustPolicy` (including the dsh2 hard failure and dsh1 fallback on 404), `CertificatePolicy` (`ValidateFetchedCa`, DNS/wildcard/IP SAN, the pinned-origin gate), `DeviceStore.Validate` (including `AdoptNewOrigin` and ordering), `DeviceOrder`, `DeviceStatus`/`DeviceReachability`, `StartupBehavior`, `ClientLog` rotation, `PortableData`, `ConnectionDiagnosis`, `UpdateCheck` (including installer/checksum asset selection), `UpdateInstaller` (digest parsing and comparison, interrupted/stalled/cancelled transfers, no installer launch when the digest does not match), `WebView2Availability`, `SidecarProvisioner.Verify`, `LanDiscovery` (announcement validation, manual normalization, subnet derivation, UDP listen), `SseParser`, and `WebViewPolicy` (same-origin decisions). Case counts and results come from an actual `dotnet test` run; this document does not record one-off local results.

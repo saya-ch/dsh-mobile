@@ -38,7 +38,7 @@ Four public tracks ship independently, and each is identified by its own tag:
 | --- | --- | --- |
 | plugin | `v<version>` | npm package and GitHub release |
 | Android App | `android-v<version>` | signed APK (plus its compatibility build) and the release descriptor |
-| Windows client | `windows-v<version>` | portable win-x64 zip with SHA-256, published as a prerelease |
+| Windows client | `windows-v<version>` | portable win-x64 zip and Inno Setup `setup.exe`, each with its own SHA-256, published as a prerelease; the post-publication check asserts exactly those four assets |
 | optional Caddy component | fixed component tag | non-latest component distribution |
 
 Do not advance one track because another changed: plugin web UI or gateway work does not require an App or client version, and a native App change does not move the client's `<Version>`. Native App changes require an App version and a monotonically increasing versionCode; the embedded component version belongs to the plugin artifact, not the App. The Windows client's version lives in [DshMobile.Win.csproj](../../../../apps/windows/DshMobile.Win/DshMobile.Win.csproj) and is independent of `package.json`, the Android version and the iroh component pin.

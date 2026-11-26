@@ -10,7 +10,7 @@ This guide is for DSH plugin authors, aiming for **usable small screens without 
 
 | Current mobile-page behavior | What the plugin should do |
 | --- | --- |
-| Opening a panel in the `main` slot adds a “Back to conversation” bar above it | Use the container's actual available height. The bar is at least 56px high; safe areas and content can increase it. Do not subtract a fixed 56px from screen height |
+| Opening a panel in the `main` slot adds a “Back to conversation” bar above it in the narrow layout (viewport narrower than 900px, or a device short side below 600px; the wide layout docks the sidebar and has no such bar) | Use the container's actual available height. The bar is at least 56px high; safe areas and content can increase it. Do not subtract a fixed 56px from screen height |
 | The narrow sidebar is a drawer no wider than `min(88vw, 340px)`; a wide layout keeps the sidebar docked at a user-draggable width (220–520px) | Do not assume a fixed 340px sidebar. Let entry labels and buttons shrink |
 | The mobile layout has `.dshm-shell`, `[data-pane="conversation"]` and `[data-pane="sidebar"]` markers | Use these to locate regions while diagnosing. Scope internal styles to the plugin's own root rather than private host CSS class names |
 | The mobile shell gives inputs and editable areas a 16px font floor while retaining larger inherited sizes | Leave room for editing, rather than counteracting user preferences with a smaller fixed font |
@@ -20,10 +20,10 @@ These describe the current layout, not fixed dimensions a plugin should copy. Ov
 
 ## Back, full-screen overlays and safe areas
 
-Android back is not the browser's `popstate`: the App first dispatches a cancelable `dsh-mobile:native-back` event, and only performs its own root behavior (closing the App) when nothing in the page claims it. Therefore:
+Android back is not the browser's `popstate`: the App first dispatches a cancelable `dsh-mobile:native-back` event. When nothing in the page claims it, the App goes back in the WebView history first, then falls back to the current setup screen's own back action (such as returning to the device list), and closes the App only as the last resort. Therefore:
 
 - A plugin that expands its own full-screen panel or overlay must listen for `dsh-mobile:native-back`, collapse while open, and call `preventDefault()`. Listening only for DOM Escape or `popstate` does not claim Android back.
-- Do not assume `env(safe-area-inset-top)` works in an Android WebView: the App normally insets the WebView for system bars, so `env()` is often 0 inside the page. A self-made host with `position:fixed; top:0` sits at the top of the page and its top controls can be hidden by the status bar or cutout; place controls below the page top, or offer a collapse control that does not depend on the top safe area.
+- Do not assume `env(safe-area-inset-top)` works in an Android WebView: the App insets the WebView for system bars and the cutout and consumes those insets, so `env()` is often 0 inside the page. A self-made host with `position:fixed; top:0` therefore lands below the status bar and is not hidden by it or by the cutout. Extra padding is needed by a browser/PWA that carries its own top safe area (`env()` may be non-zero there), or when the host itself stacks another fixed bar at the top of the page; add what the actual environment requires and always offer a collapse control that does not depend on the top safe area.
 - Prefer public slots (`main`, sidebars, right panel or overlay). DSH Mobile provides a return bar for `main` panels and handles back for the details/rightbar; a full-screen host appended directly to `document.body` is not part of the mobile layout and gains none of that behavior.
 - When persisting an expanded state, default to collapsed on narrow screens, or keep the collapse control outside the top safe area.
 

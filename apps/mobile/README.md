@@ -12,7 +12,7 @@ This APK supports Android 10 or later. iPhone and iPad use the [Safari Home Scre
 
 1. Install and enable the plugin using the [project quick start](../../README.en.md#quick-start). Complete LAN setup from the command line or the computer's **Mobile Access** panel.
 2. Install from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4). **The compatibility build is fine for normal use**; you only need the full `-iroh.apk` when the computer side has the experimental iroh channel enabled. Either build installs over the old one and keeps your pairings — **do not uninstall the old app or clear its data**, that loses them.
-3. On the computer, generate a pairing key/link under **Mobile Access → Local network**, or configure a remote provider and generate its remote pairing QR code. In the app, choose the matching connection mode and scan or paste the link.
+3. On the computer, generate a pairing key/link under **Mobile Access → Local network**, or configure a remote provider and generate a pairing QR code in its panel. In the app, choose the matching connection mode and scan or paste the link.
 4. Name the computer. The app stores each LAN or remote pairing as its own record. The phone does not need a cpolar, Cloudflare or Tailscale app.
 
 For LAN, the app also offers a scan and manual `https://IP:port` entry. Discovery cannot bypass firewall rules, campus-network isolation or missing routes; use a reachable address or a remote channel when necessary. Browser pairing has its own [connection instructions](../../README.en.md).

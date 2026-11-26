@@ -30,7 +30,7 @@
 
 ## 手动部署 vs 自动部署
 
-- **手动部署**：先自行安装 frps、Caddy，配置服务和防火墙，再复制面板的受限模板。frps 部分存为 `/etc/dsh-mobile/frps.toml`，Caddy 片段存为 `/etc/caddy/dsh-mobile-dsh.caddy`；主 Caddyfile 只需添加一次 `import /etc/caddy/dsh-mobile-dsh.caddy`，不要覆盖其他站点。复制或保存模板不会自动安装、启动服务。公网 IPv4 按本项目模板使用 Certbot，并需自行维护续期和证书重载；域名证书由 Caddy 管理。
+- **手动部署**：先自行安装 frps、Caddy，配置服务和防火墙，再复制面板的受限模板。frps 部分存为 `/etc/dsh-mobile/frps.toml`，Caddy 片段存为 `/etc/caddy/dsh-mobile-dsh.caddy`；主 Caddyfile 只需添加一次 `import /etc/caddy/dsh-mobile-dsh.caddy`，且必须位于文件**顶部**：公网 IPv4 模板的片段以全局选项块 `{ default_sni … }` 开头，Caddy 要求全局块在所有站点块之前，把 import 追加到已有站点之后会校验失败；不要覆盖其他站点。复制或保存模板不会自动安装、启动服务。公网 IPv4 按本项目模板使用 Certbot，并需自行维护续期和证书重载；域名证书由 Caddy 管理。
 - **自动部署**：填写 SSH 用户、端口和本机私钥路径（留空则用 ssh-agent 或 SSH 配置），点击一键部署。要求 Ubuntu/Debian + systemd，只接受密钥登录，不接受密码。
 
 点部署按钮前，面板会列出自动部署将在 VPS 上做的全部改动：从官方 APT 源安装 Caddy；仅在公网 IPv4 模式安装 Python venv、Certbot 和证书续期定时器；创建 `dsh-mobile` 系统用户、frps 配置与服务、Caddy 片段和主文件里的一行 import；如果 UFW 已启用，则放行 FRP 控制端口与 80/443。已存在的系统用户会复用并在清理时保留，本次部署创建的用户则会在清理时删除。主 Caddyfile 已有 DSH Mobile import 时，只整理该行；已有自定义站点时请手动合并，版本差异见下方说明。

@@ -4,31 +4,61 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
-## 未发布 / Unreleased
+## 0.9.1 贡献 / Contributions in 0.9.1
 
-感谢 [@qzyqmzn](https://github.com/qzyqmzn) 在 [#443](https://github.com/saya-ch/dsh-mobile/pull/443) 补齐便携 Windows 客户端（局域网发现、地址跟随、任务完成提醒、同源下载与麦克风），并在 [#445](https://github.com/saya-ch/dsh-mobile/pull/445) 改写面向用户的文档（App 手册、Windows README 与 docs 指南）。两者已合入 main，尚未随任何版本发布。
+感谢 [@zhiwill](https://github.com/zhiwill) 在 [#466](https://github.com/saya-ch/dsh-mobile/issues/466) 反馈手机端字号问题，促成侧边栏根节点改为读取同一移动端字号偏好。
 
-感谢 [@abworks-dev](https://github.com/abworks-dev) 在 [#452](https://github.com/saya-ch/dsh-mobile/pull/452) 让侧边栏 footer 的座位改用与相邻插件相同的容量契约（42px 标签形态 / 36×36 图标形态），并感谢他此前在 [#440](https://github.com/saya-ch/dsh-mobile/issues/440) 的提案与规范整理。
+Thanks [@zhiwill](https://github.com/zhiwill) for the Mobile font-size report in [#466](https://github.com/saya-ch/dsh-mobile/issues/466), which led the sidebar root to read the same preference.
 
-感谢 [@Astute9108](https://github.com/Astute9108) 在 [#444](https://github.com/saya-ch/dsh-mobile/issues/444) 报告回环隧道接入的问题，并用 curl 日志定位到真正的原因（端口有监听但转发目标不对），据此补齐了自定义隧道端口。
+## 0.9.0 贡献 / Contributions in 0.9.0
 
-感谢 [@NekogamiJam](https://github.com/NekogamiJam) 在 [#449](https://github.com/saya-ch/dsh-mobile/pull/449) 让移动定制在重连后恢复（重试瞬时失败的清单请求，并在可见页面的连接恢复后重新校验）。
+感谢 [@chintoleung](https://github.com/chintoleung) 在 [#469](https://github.com/saya-ch/dsh-mobile/pull/469) 把网关的请求接收期限与上游空闲等待拆开，大文件上传不再因 30 秒默认值在数据仍到达时超时。
 
-感谢 [@novscorhw](https://github.com/novscorhw) 在 [#457](https://github.com/saya-ch/dsh-mobile/pull/457) 让 Android 键盘弹起时不再盖住移动端 composer（Firefox for Android 的 viewport 策略），并补齐单测与冒烟断言。
+Thanks [@chintoleung](https://github.com/chintoleung) for separating the Gateway's request-receive deadline from the upstream idle wait in [#469](https://github.com/saya-ch/dsh-mobile/pull/469), so a large upload no longer times out on the 30-second default while it is still arriving.
 
-感谢 [@chintoleung](https://github.com/chintoleung) 在 [#459](https://github.com/saya-ch/dsh-mobile/pull/459) 实现移动端预览文件名点按复制路径 / 分享文件（含 Android 原生桥接；桥接部分在源码中，尚未随 App 发布）。
+## 0.8.16 贡献 / Contributions in 0.8.16
 
-Thanks [@abworks-dev](https://github.com/abworks-dev) for seating the sidebar footer entry under the same capacity contract as its neighbours in [#452](https://github.com/saya-ch/dsh-mobile/pull/452), and for the proposal and specification work in [#440](https://github.com/saya-ch/dsh-mobile/issues/440).
+感谢 [@liren2272-hue](https://github.com/liren2272-hue) 在 [#464](https://github.com/saya-ch/dsh-mobile/pull/464) 让把自定义 scheme 解析成不透明路径的 WebView 恢复文件预览（按原样还原 `dsh-resource:` 地址的 authority）。
 
-Thanks [@Astute9108](https://github.com/Astute9108) for reporting the loopback tunnel problem in [#444](https://github.com/saya-ch/dsh-mobile/issues/444) and pinning the real cause with curl logs — a listener on the port forwarding to the wrong target — which led to the custom tunnel port.
+Thanks [@liren2272-hue](https://github.com/liren2272-hue) for restoring file previews on WebViews that parse a custom scheme as an opaque path in [#464](https://github.com/saya-ch/dsh-mobile/pull/464), by reporting the `dsh-resource:` authority as written.
 
-Thanks [@NekogamiJam](https://github.com/NekogamiJam) for recovering mobile customization after a reconnect in [#449](https://github.com/saya-ch/dsh-mobile/pull/449).
+## 0.8.15 贡献 / Contributions in 0.8.15
 
-Thanks [@novscorhw](https://github.com/novscorhw) for keeping the Mobile composer visible above the Android keyboard in [#457](https://github.com/saya-ch/dsh-mobile/pull/457), with unit coverage and smoke assertions.
+感谢 [@novscorhw](https://github.com/novscorhw) 在 [#457](https://github.com/saya-ch/dsh-mobile/pull/457) 让 Android 键盘弹起时不再盖住移动端 composer（Firefox for Android 的 viewport 策略），并补齐单测与冒烟断言。感谢 [@chintoleung](https://github.com/chintoleung) 在 [#459](https://github.com/saya-ch/dsh-mobile/pull/459) 实现移动端预览文件名点按复制路径 / 分享文件（`files.share` 原生桥接已随 Android 0.8.3 发布），并在 [#462](https://github.com/saya-ch/dsh-mobile/pull/462) 让 Mobile 在 DSH `0.2.3-alpha.2` 上恢复运行——他在 [#461](https://github.com/saya-ch/dsh-mobile/issues/461) 报告了这次兼容性破损。感谢 [@Anatoly2027](https://github.com/Anatoly2027) 在 [#460](https://github.com/saya-ch/dsh-mobile/issues/460) 提供完整复现，定位到与其它插件争用页面传输的守卫冲突。
 
-Thanks [@chintoleung](https://github.com/chintoleung) for the tap-to-copy / share-file viewer menu in [#459](https://github.com/saya-ch/dsh-mobile/pull/459), including the Android native bridge (in source, not yet shipped in an App release).
+Thanks [@novscorhw](https://github.com/novscorhw) for keeping the Mobile composer visible above the Android keyboard in [#457](https://github.com/saya-ch/dsh-mobile/pull/457), with unit coverage and smoke assertions. Thanks [@chintoleung](https://github.com/chintoleung) for the tap-to-copy / share-file viewer menu in [#459](https://github.com/saya-ch/dsh-mobile/pull/459) (the `files.share` native bridge shipped in Android 0.8.3) and for restoring Mobile on DSH `0.2.3-alpha.2` in [#462](https://github.com/saya-ch/dsh-mobile/pull/462), which also reported the breakage in [#461](https://github.com/saya-ch/dsh-mobile/issues/461). Thanks [@Anatoly2027](https://github.com/Anatoly2027) for the complete reproduction in [#460](https://github.com/saya-ch/dsh-mobile/issues/460) that located the transport guard conflict.
 
-Thanks [@qzyqmzn](https://github.com/qzyqmzn) for completing the portable Windows client in [#443](https://github.com/saya-ch/dsh-mobile/pull/443) (LAN discovery, address following, task-completion notifications, same-origin downloads and the microphone) and for the user-facing documentation rewrite in [#445](https://github.com/saya-ch/dsh-mobile/pull/445) (App manuals, Windows README and docs guides). Both are merged into main and are not part of any published release yet.
+## Android 0.8.4 贡献 / Contributions in Android 0.8.4
+
+感谢 [@LzBsA](https://github.com/LzBsA) 在 [#471](https://github.com/saya-ch/dsh-mobile/pull/471) 让 App 的下载保留真实文件名与扩展名，而不是回退成 `file.bin`。
+
+Thanks [@LzBsA](https://github.com/LzBsA) for keeping a download's real filename and extension in the App instead of falling back to `file.bin` in [#471](https://github.com/saya-ch/dsh-mobile/pull/471).
+
+## Android 0.8.3 贡献 / Contributions in Android 0.8.3
+
+感谢 [@LUgABeEEE](https://github.com/LUgABeEEE) 在 [#447](https://github.com/saya-ch/dsh-mobile/issues/447) 提出在 App 内完成升级的入口，促成下载、校验并交给系统安装器的更新流程。
+
+Thanks [@LUgABeEEE](https://github.com/LUgABeEEE) for proposing the in-App update entry point in [#447](https://github.com/saya-ch/dsh-mobile/issues/447), which became the download-verify-installer flow.
+
+## 0.8.14 贡献 / Contributions in 0.8.14
+
+感谢 [@abworks-dev](https://github.com/abworks-dev) 在 [#452](https://github.com/saya-ch/dsh-mobile/pull/452) 让侧边栏 footer 的座位改用与相邻插件相同的容量契约（42px 标签形态 / 36×36 图标形态），并感谢他在 [#440](https://github.com/saya-ch/dsh-mobile/issues/440) 的提案与规范整理。感谢 [@NekogamiJam](https://github.com/NekogamiJam) 在 [#451](https://github.com/saya-ch/dsh-mobile/pull/451) 让断连后的原生会话自动再续期一次。感谢 [@Againstthewindtofly](https://github.com/Againstthewindtofly) 在 [#450](https://github.com/saya-ch/dsh-mobile/issues/450) 指出缺失的 `URL.canParse` / `URL.parse`，使 Chromium 120 以下的 Android WebView 重新渲染助手正文。
+
+Thanks [@abworks-dev](https://github.com/abworks-dev) for seating the sidebar footer entry under the same capacity contract as its neighbours in [#452](https://github.com/saya-ch/dsh-mobile/pull/452), and for the proposal and specification work in [#440](https://github.com/saya-ch/dsh-mobile/issues/440). Thanks [@NekogamiJam](https://github.com/NekogamiJam) for the second automatic native-session renewal in [#451](https://github.com/saya-ch/dsh-mobile/pull/451). Thanks [@Againstthewindtofly](https://github.com/Againstthewindtofly) for naming the missing `URL.canParse` and `URL.parse` in [#450](https://github.com/saya-ch/dsh-mobile/issues/450), which restored assistant text on Android WebViews below Chromium 120.
+
+## 0.8.13 贡献 / Contributions in 0.8.13
+
+感谢 [@NekogamiJam](https://github.com/NekogamiJam) 在 [#449](https://github.com/saya-ch/dsh-mobile/pull/449) 让移动定制在重连后恢复（重试瞬时失败的清单请求，并在可见页面的连接恢复后重新校验）。感谢 [@Astute9108](https://github.com/Astute9108) 在 [#444](https://github.com/saya-ch/dsh-mobile/issues/444) 报告回环隧道接入的问题，并用 curl 日志定位到真正的原因（端口有监听但转发目标不对），据此补齐了自定义隧道端口。感谢 [@qzyqmzn](https://github.com/qzyqmzn) 在 [#443](https://github.com/saya-ch/dsh-mobile/pull/443) 补齐便携 Windows 客户端的用户可见行为（局域网发现、地址跟随、任务完成提醒、同源下载与麦克风），并在 [#445](https://github.com/saya-ch/dsh-mobile/pull/445) 改写面向用户的文档（App 手册、Windows README 与 docs 指南）。
+
+Thanks [@NekogamiJam](https://github.com/NekogamiJam) for recovering mobile customization after a reconnect in [#449](https://github.com/saya-ch/dsh-mobile/pull/449). Thanks [@Astute9108](https://github.com/Astute9108) for reporting the loopback tunnel problem in [#444](https://github.com/saya-ch/dsh-mobile/issues/444) and pinning the real cause with curl logs — a listener on the port forwarding to the wrong target — which led to the custom tunnel port. Thanks [@qzyqmzn](https://github.com/qzyqmzn) for completing the portable Windows client's user-facing behaviour in [#443](https://github.com/saya-ch/dsh-mobile/pull/443) (LAN discovery, address following, task-completion notifications, same-origin downloads and the microphone) and for the user-facing documentation rewrite in [#445](https://github.com/saya-ch/dsh-mobile/pull/445) (App manuals, Windows README and docs guides).
+
+## 0.8.12 贡献 / Contributions in 0.8.12
+
+本版更新记录未单独致谢社区成员。 / The 0.8.12 release notes carry no individual community credit.
+
+## 0.8.11 贡献 / Contributions in 0.8.11
+
+本版更新记录未单独致谢社区成员。 / The 0.8.11 release notes carry no individual community credit.
 
 ## 0.8.10 贡献 / Contributions in 0.8.10
 
