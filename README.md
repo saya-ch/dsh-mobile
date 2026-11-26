@@ -32,6 +32,14 @@
   <a href="README.en.md">English</a>
 </p>
 
+<p align="center">
+  <a href="https://infistar.cc" target="_blank">
+    <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/infistar-sponsor/assets/sponsors/infistar-banner.svg" alt="Infistar 无限星河 - 统一 AI 模型 API 接口" width="82%">
+  </a>
+  <br>
+  <sub>赞助商推荐：<a href="https://infistar.cc"><b>Infistar 无限星河</b></a> — 一站式聚合 Claude / GPT / Gemini / DeepSeek API，高并发低成本接入 DeepSeek Harness</sub>
+</p>
+
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
@@ -611,6 +619,23 @@ npm run verify
 文档快速检查使用 `npm run check:docs`。按改动选择的浏览器测试、隔离 DSH 打包验收、截图和正式发布流程见 [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md)；Android 构建见 [App 手册](apps/mobile/README.zh-CN.md#构建)。不要用真实用户配置或正式 App 数据替代测试资料。
 
 ## 赞助与支持
+
+<table>
+  <tr>
+    <td align="center" width="90">
+      <a href="https://infistar.cc">
+        <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/infistar-sponsor/assets/sponsors/infistar-icon.svg" width="56" height="56" alt="Infistar"><br>
+        <sub><b>Infistar</b></sub>
+      </a>
+    </td>
+    <td>
+      <b><a href="https://infistar.cc">Infistar 无限星河</a></b>（金牌赞助商）<br>
+      面向开发者提供统一的主流 AI 模型 API 接口（Claude / GPT / Gemini / DeepSeek），高并发多路容灾，兼容 OpenAI 协议，可快速接入 DeepSeek Harness。<br>
+      <sub>🎁 专属福利：<a href="https://infistar.cc">点击前往 Infistar 控制台领取体验额度</a></sub>
+    </td>
+  </tr>
+</table>
+
 
 - **打赏支持**：如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 或 [Buy Me a Tokens](https://buymeatokens.com/saya-ch) 支持维护。
 - **商务合作与赞助位**：欢迎云服务、AI API 及开发工具赞助展示，联系邮箱：`2065586050@qq.com`。
