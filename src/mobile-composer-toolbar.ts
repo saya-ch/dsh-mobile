@@ -14,7 +14,7 @@ export const MOBILE_COMPOSER_TOOLBAR_STYLES = `
 [data-dsh-mobile-composer-controls] > [data-slot] > :not(:where(dialog,[popover],[role="dialog"],[role="menu"],[role="listbox"],[data-trigger-menu])) { min-width:0 !important; max-width:100% !important; }
 [data-dsh-mobile-composer-tools] button:not(:where(dialog *,[popover] *,[role="dialog"] *,[role="menu"] *,[role="listbox"] *,[data-trigger-menu] *)),
 [data-dsh-mobile-composer-controls] button:not(:where(dialog *,[popover] *,[role="dialog"] *,[role="menu"] *,[role="listbox"] *,[data-trigger-menu] *)) { white-space:normal !important; overflow-wrap:anywhere !important; }
-@media (max-width:720px) {
+@media (max-width:768px) {
   [data-dsh-mobile-composer-row] button:not([role="switch"]):not(:where(dialog *,[popover] *,[role="dialog"] *,[role="menu"] *,[role="listbox"] *,[data-trigger-menu] *)) { min-width:44px !important; min-height:44px !important; touch-action:manipulation; }
   /* Public slot icon wrappers must reserve the same space as their enlarged
      child targets. Keep wrapper and tooltip ownership intact; pure switches,

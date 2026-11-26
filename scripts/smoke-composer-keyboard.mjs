@@ -103,7 +103,7 @@ try {
     // an active native surface again when testing its body-level portal rules.
     await page.evaluate(surface => { document.documentElement.classList.toggle('dsh-native-mobile-active', surface === 'native') }, surface)
   }
-  for (const width of [320, 393, 720, 980]) {
+  for (const width of [320, 393, 768, 980]) {
     await withPage({ width }, async page => {
       await mountStyles(page)
       await page.evaluate(() => {
@@ -126,7 +126,7 @@ try {
       })
       const height = () => page.locator('[data-input-scroll]').evaluate(node => node.getBoundingClientRect().height)
       const collapsed = await height()
-      if (width <= 720) assert(collapsed <= 72)
+      if (width <= 768) assert(collapsed <= 72)
       else assert(collapsed > 72)
       await page.locator('#editor').focus()
       assert(await height() > 72)
@@ -135,7 +135,7 @@ try {
       await page.locator('#field').focus()
       assert.equal(await height(), collapsed)
       assert(await page.evaluate(() => document.querySelector('#editor').innerHTML === window.initialDraft))
-      if (width <= 720) {
+      if (width <= 768) {
         for (const selector of ['#stop', '#send']) { const box = await page.locator(selector).boundingBox(); assert(box.width >= 44 && box.height >= 44) }
         await page.locator('#stop').tap()
         assert.equal(await page.evaluate(() => window.stops), 1)
@@ -229,7 +229,7 @@ try {
             assert.equal(await page.locator(selector).evaluate(node => getComputedStyle(node).fontSize), `${Math.max(16, size)}px`)
           }
           const folded = await geometry()
-          assert.equal(folded.height, viewport.width <= 720 ? 72 : expanded.height)
+          assert.equal(folded.height, viewport.width <= 768 ? 72 : expanded.height)
           assert(Math.abs(folded.top - expanded.top) <= 1, `Toolbar anchor moved on portal focus: ${JSON.stringify({ expanded, folded })}`)
           assert.equal(folded.scrollTop, expanded.scrollTop)
           assert.equal(await page.locator('#portal').evaluate(portal => portal.getBoundingClientRect().top), menuTop)
@@ -294,7 +294,7 @@ try {
           if (surface === 'native') {
             const metadataSizes = await page.locator('#editable-hint,#editable-stats').evaluateAll(nodes => nodes.map(node => parseFloat(getComputedStyle(node).fontSize)))
             assert(metadataSizes.every(value => value === Math.max(16, size)), `Native metadata rules overrode editable fonts: ${metadataSizes}`)
-            if (width <= 720) assert.equal(await page.locator('#static-stats').evaluate(node => getComputedStyle(node).fontSize), '10px')
+            if (width <= 768) assert.equal(await page.locator('#static-stats').evaluate(node => getComputedStyle(node).fontSize), '10px')
           }
           assert.equal(await page.locator('#inherited').evaluate(node => getComputedStyle(node).fontSize), '20px')
         }

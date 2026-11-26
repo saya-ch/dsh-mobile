@@ -460,7 +460,7 @@ try {
       continue
     }
     if (frontend === 'dedicated' && !negative) {
-      for (const width of [393, 719, 720, 721, 844, 899, 900, 901]) {
+      for (const width of [393, 767, 768, 769, 844, 899, 900, 901]) {
         await phone.setViewportSize({ width, height: 800 })
         await openDrawer()
         await sidebar().locator('[data-dsh-mobile-toggle]').tap()
@@ -474,10 +474,10 @@ try {
           return { x: rect.x, width: rect.width, railWidth: rail.width, railClip: getComputedStyle(drawer).overflowX,
             obscuresMain: hit !== null && drawer.contains(hit) }
         })
-        const offset = width <= 720 ? 0 : 56
+        const offset = width <= 768 ? 0 : 56
         assert(Math.abs(value.x - offset) < 1 && Math.abs(value.width - (width - offset)) < 1,
           `Closed rail at ${width}px lost content width: ${JSON.stringify(value)}`)
-        if (width > 720) assert(Math.abs(value.railWidth - offset) < 1, `Offset disagrees with the actual rail: ${JSON.stringify(value)}`)
+        if (width > 768) assert(Math.abs(value.railWidth - offset) < 1, `Offset disagrees with the actual rail: ${JSON.stringify(value)}`)
         else assert(value.railWidth <= 56, `Phone drawer left a persistent navigation column: ${JSON.stringify(value)}`)
         assert.equal(value.obscuresMain, false, `Closed navigation intercepted the main column: ${JSON.stringify(value)}`)
         record.checks.push(`dedicated: closed rail ${width}px reserves ${offset}px`)

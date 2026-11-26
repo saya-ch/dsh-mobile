@@ -51,9 +51,9 @@ display:flex!important;flex-direction:column!important;grid-template-rows:none!i
 const views = [
   { width: 375, height: 844 },
   { width: 390, height: 844 },
-  { width: 719, height: 844 },
-  { width: 720, height: 844 },
-  { width: 721, height: 844 },
+  { width: 767, height: 844 },
+  { width: 768, height: 844 },
+  { width: 769, height: 844 },
   { width: 844, height: 390 },
   { width: 899, height: 844 },
   { width: 900, height: 844 },
@@ -463,8 +463,8 @@ try {
           // A wide shell must hand the whole main area to the conversation.
           await assertFullWidthColumn(page, key)
         } else {
-          if (!open && view.width > 720) {
-            // The persistent rail starts above the phone drawer breakpoint.
+          if (!open && view.width > 768) {
+            // The persistent rail starts above the overlay breakpoint, which matches DSH's own.
             assert.equal(boxes['.dshm-main'].x, 56, `${key}: folded icon rail covered the main content`)
             assert.equal(boxes['.dshm-main'].width, view.width - 56, `${key}: main column lost folded-rail width`)
           } else {

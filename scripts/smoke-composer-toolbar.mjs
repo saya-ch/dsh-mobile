@@ -62,7 +62,7 @@ async function wrapperIsolation(page) {
     document.body.append(seat)
     try { return Object.fromEntries(['switch', 'nested', 'dialog', 'popup', 'left', 'right', 'labelled'].map(id => { const n = seat.querySelector(`#isolate-${id}`); const style = getComputedStyle(n); const r = n.getBoundingClientRect(); return [id, { width: r.width, height: r.height, shrink: style.flexShrink }] })) } finally { seat.remove() }
   })
-  const mobile = page.viewportSize().width <= 720
+  const mobile = page.viewportSize().width <= 768
   for (const id of ['switch', 'nested', 'dialog', 'popup']) {
     assert.equal(measurements[id].width, 30, `${id}: wrapper sizing leaked`)
     assert.equal(measurements[id].height, id === 'switch' ? 20 : 30, `${id}: wrapper height changed`)
@@ -87,7 +87,7 @@ async function geometry(page, label) {
   for (const button of buttons) {
     assert(button.x >= -0.5 && button.right <= viewport.width + 0.5 && button.y >= -0.5 && button.bottom <= viewport.height + 0.5, `${label}: offscreen ${JSON.stringify(button)}`)
     assert(button.hit, `${label}: covered ${JSON.stringify({ button, buttons })}`)
-    if (viewport.width <= 720) assert(button.width >= 43.5 && button.height >= 43.5, `${label}: small touch target ${JSON.stringify(button)}`)
+    if (viewport.width <= 768) assert(button.width >= 43.5 && button.height >= 43.5, `${label}: small touch target ${JSON.stringify(button)}`)
   }
   for (let left = 0; left < buttons.length; left++) for (const right of buttons.slice(left + 1)) {
     const a = buttons[left]
@@ -147,7 +147,7 @@ try {
       // Author CSS text enlargement exercises native sizing and the real
       // width observer without changing a user's Host font preference.
       await phone.addStyleTag({ content: `[data-dsh-mobile-composer-row]{font-size:${size}px!important}[data-dsh-mobile-composer-row] button{font-size:${size}px!important}` })
-      for (const viewport of [{ width: 288, height: 812 }, { width: 320, height: 812 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 720, height: 390 }, { width: 844, height: 393 }]) {
+      for (const viewport of [{ width: 288, height: 812 }, { width: 320, height: 812 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 768, height: 390 }, { width: 844, height: 393 }]) {
         await phone.setViewportSize(viewport)
         await wrapperIsolation(phone)
         for (const mode of ['none', 'extensions', 'compact']) {

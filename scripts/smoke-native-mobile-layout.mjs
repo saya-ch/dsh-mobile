@@ -91,7 +91,7 @@ try {
 
   // Match stock row semantics: a passive pinned marker plus a pin/unpin action.
   // Desktop swaps them on hover; mobile keeps actions visible without hover.
-  for (const width of [393, 720, 900]) {
+  for (const width of [393, 768, 900]) {
     for (const native of [true, false]) {
       const context = await browser.newContext({ viewport: { width, height: 844 }, hasTouch: true })
       try {
@@ -112,7 +112,7 @@ try {
           <div class="Rows_fixture_sessionRow"><span id="outside-marker" class="Rows_fixture_pinIndicator">${icon}</span></div>
         </body></html>`)
         await page.addStyleTag({ content: nativeStyles })
-        const mobile = native && width <= 720
+        const mobile = native && width <= 768
         const display = selector => page.locator(selector).evaluate(node => getComputedStyle(node).display)
         assert.equal(await display('#pin-marker'), mobile ? 'none' : 'flex', `${width}/${native}: passive pinned marker`)
         assert.equal(await display('#outside-marker'), 'flex', `${width}/${native}: unrelated row changed`)
@@ -143,7 +143,7 @@ try {
 
   for (const viewport of [
     { width: 320, height: 844 }, { width: 375, height: 812 }, { width: 393, height: 844 },
-    { width: 720, height: 900 }, { width: 900, height: 720 }, { width: 844, height: 393 },
+    { width: 768, height: 900 }, { width: 900, height: 768 }, { width: 844, height: 393 },
   ]) {
     for (const theme of ['light', 'dark']) {
       for (const large of [false, true]) {
@@ -170,7 +170,7 @@ try {
               await page.addStyleTag({ content: nativeStyles })
               if (large) await page.addStyleTag({ content: enlargedTextStyles })
               const result = await geometry()
-              if (viewport.width > 720) {
+              if (viewport.width > 768) {
                 assert.deepEqual(result, stock, `${name}: native styles changed desktop layout`)
                 cases++
                 continue
@@ -232,8 +232,8 @@ try {
   // the plugin's own class: a stock item's classes, an unrelated control and the
   // surrounding menu keep their own styling.
   for (const viewport of [
-    { width: 390, height: 844 }, { width: 719, height: 900 }, { width: 720, height: 900 },
-    { width: 721, height: 900 }, { width: 1200, height: 900 },
+    { width: 390, height: 844 }, { width: 767, height: 900 }, { width: 768, height: 900 },
+    { width: 769, height: 900 }, { width: 1200, height: 900 },
   ]) {
     for (const theme of ['light', 'dark']) {
       const context = await browser.newContext({ viewport, colorScheme: theme, reducedMotion: 'reduce' })

@@ -128,10 +128,10 @@ export const WIDE_LAYOUT_MIN_SHORTER_SIDE_PX = 600
 export { WIDE_LAYOUT_ATTRIBUTE }
 /**
  * Narrow band that still has room for a folded 56px rail beside the
- * conversation: the pre-existing 721-899px phone rule plus any narrow viewport
+ * conversation: the narrow band just above the overlay query plus any narrow viewport
  * that is wide enough for the rail, such as a landscape phone.
  */
-const FOLDED_RAIL_OFFSET_QUERY = '(min-width:721px)'
+const FOLDED_RAIL_OFFSET_QUERY = '(min-width:769px)'
 const RIGHTBAR_MIN_WIDTH_PX = 300
 const RIGHTBAR_MAX_WIDTH_PX = 460
 const RIGHTBAR_CENTER_MIN_WIDTH_PX = 400

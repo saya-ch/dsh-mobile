@@ -684,7 +684,7 @@ describe('dedicated mobile layout boot', () => {
     // (#465), so the wide band hands the conversation its full share again.
     expect(MOBILE_LAYOUT_STYLES).not.toContain('--dshm-content-column-gutter')
     expect(MOBILE_LAYOUT_STYLES).not.toContain('data-dshm-content-column')
-    expect(MOBILE_LAYOUT_STYLES).not.toContain('max-width:720px')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('max-width:768px')
     // No rule may cap the conversation slot inside the owned shell.
     expect(MOBILE_LAYOUT_STYLES).not.toMatch(/\.dshm-mainContent\{[^}]*max-width/u)
   })
@@ -734,7 +734,7 @@ describe('dedicated mobile layout boot', () => {
     // The folded-rail offset is the narrow band plus its pre-existing width floor,
     // gated on the drawer's own folded state so a render path that publishes only
     // `data-open` still keeps the conversation clear of the fixed rail.
-    expect(MOBILE_LAYOUT_STYLES).toContain(`@media(min-width:721px){.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-open=false]`)
+    expect(MOBILE_LAYOUT_STYLES).toContain(`@media(min-width:769px){.dshm-shell:not([${WIDE_LAYOUT_ATTRIBUTE}="1"]):has(.dshm-drawer[data-open=false]`)
     // No viewport-height media query may decide the band: that is what flipped a
     // docked tablet when its keyboard opened.
     expect(MOBILE_LAYOUT_STYLES).not.toContain('min-height:600px')
@@ -744,7 +744,7 @@ describe('dedicated mobile layout boot', () => {
     // (`innerWidth` plus `screen`) might disagree with. The queries that remain
     // are width-only rules with no JS counterpart.
     const preludes = [...MOBILE_LAYOUT_STYLES.matchAll(/@media([^{]+)\{/gu)].map(match => (match[1] ?? '').trim())
-    expect(preludes).toEqual(['(min-width:721px)', '(max-width:420px)', '(max-width:600px)',
+    expect(preludes).toEqual(['(min-width:769px)', '(max-width:420px)', '(max-width:600px)',
       '(prefers-reduced-motion:reduce)', '(pointer:coarse)'])
     for (const prelude of preludes) {
       expect(prelude).not.toContain(`${WIDE_LAYOUT_MIN_WIDTH_PX}px`)

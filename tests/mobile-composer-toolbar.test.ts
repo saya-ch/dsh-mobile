@@ -54,6 +54,6 @@ describe('stock mobile composer toolbar', () => {
     expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('codex-quota')
     expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('background:')
     expect(MOBILE_COMPOSER_TOOLBAR_STYLES).not.toContain('display:none')
-    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('@media (max-width:720px)')
+    expect(MOBILE_COMPOSER_TOOLBAR_STYLES).toContain('@media (max-width:768px)')
   })
 })

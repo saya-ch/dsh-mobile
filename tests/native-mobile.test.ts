@@ -322,9 +322,9 @@ describe('native mobile presentation', () => {
   })
 
   it('caps only the draft scrollport when the narrow focused viewport is short', () => {
-    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-width:720px) and (max-height:500px)')
+    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-width:768px) and (max-height:500px)')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:72px !important; overflow-y:auto !important; }')
-    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-width:720px) and (max-height:400px)')
+    expect(NATIVE_MOBILE_STYLES).toContain('@media (max-width:768px) and (max-height:400px)')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-center] [data-composer-card] { gap:8px !important; }')
     expect(NATIVE_MOBILE_STYLES).toContain('[data-dsh-mobile-center] [data-composer-card] > [data-input-scroll] { max-height:48px !important; }')
     expect(NATIVE_MOBILE_STYLES).not.toContain('[data-dsh-mobile-composer-row] { display:grid')

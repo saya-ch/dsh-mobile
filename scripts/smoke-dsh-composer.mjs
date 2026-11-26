@@ -344,7 +344,7 @@ try {
       await editor.focus()
       await frames(phone)
       const expanded = await expandedHeight()
-      const shortViewport = viewport.width <= 720 && viewport.height <= 500
+      const shortViewport = viewport.width <= 768 && viewport.height <= 500
       const scrollCap = viewport.height <= 400 ? 48 : 72
       if (shortViewport) assert(expanded <= scrollCap + 0.1, 'Short focused viewport did not scroll the held draft')
       else assert(expanded > 72)
@@ -363,7 +363,7 @@ try {
       assert.equal(await search.evaluate(node => node.closest('[data-composer-card]')), null, 'Search is not the actual body portal')
       assert.equal(await search.evaluate(node => getComputedStyle(node).fontSize), `${font}px`, 'Actual model search did not preserve the mobile editable font floor')
       const folded = await expandedHeight()
-      if (viewport.width <= 720) assert(folded <= (shortViewport ? scrollCap : 72) + 0.1, `Inactive real DSH composer remained ${folded}px`)
+      if (viewport.width <= 768) assert(folded <= (shortViewport ? scrollCap : 72) + 0.1, `Inactive real DSH composer remained ${folded}px`)
       else assert.equal(folded, expanded)
       await retained(phone, expected)
       await search.fill('Composer model 2')
@@ -389,7 +389,7 @@ try {
       const actionBounds = await action.boundingBox()
       assert(actionBounds !== null && actionBounds.x >= 0 && actionBounds.x + actionBounds.width <= viewport.width + 0.5,
         'Actual primary action leaves the viewport')
-      if (viewport.width <= 720) {
+      if (viewport.width <= 768) {
         const bounds = await action.boundingBox()
         assert(bounds !== null && bounds.width >= 44 && bounds.height >= 44, 'Real primary action did not retain its 44px touch target')
         assert(bounds.y >= 0 && bounds.y + bounds.height <= viewport.height + 0.5, 'Real primary action leaves the visible viewport vertically')
