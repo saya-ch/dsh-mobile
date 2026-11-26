@@ -44,6 +44,18 @@ describe('native mobile presentation', () => {
     expect(overlay).not.toContain('min-height:220px')
   })
 
+  it('scales the sidebar with the content-font preference instead of a fixed size', () => {
+    const [, overlay] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
+    // DSH's own sidebar CSS sets `font-size: 14px` on the root and every row inherits it,
+    // so the preference only reaches the sidebar if the root reads the variable. The 14px
+    // fallback keeps the stock rendering when no preference is stored.
+    expect(overlay).toContain('[data-dsh-mobile-sidebar-root] { position:fixed !important; z-index:241 !important; inset:max(env(safe-area-inset-top),0px) auto 0 0 !important; height:auto !important; transition:box-shadow 180ms ease !important; font-size:var(--dsh-content-font-size,14px) !important; }')
+    // Row titles set their own size, so they have to be pulled back to the inherited one.
+    expect(overlay).toContain('[data-dsh-mobile-sidebar-root] :is([role="treeitem"], [class*="_sessionRow"]) { font-size:inherit !important; }')
+    // The fixed size must not survive anywhere on the root rule.
+    expect(overlay).not.toContain('[data-dsh-mobile-sidebar-root] { position:fixed !important; z-index:241 !important; inset:max(env(safe-area-inset-top),0px) auto 0 0 !important; height:auto !important; transition:box-shadow 180ms ease !important; }')
+  })
+
   it('lets only the marked stock content columns reclaim frame hit testing', () => {
     const [, overlay] = NATIVE_MOBILE_STYLES.split(`@media ${NATIVE_MOBILE_OVERLAY_QUERY}`)
     expect(overlay).toContain('html.dsh-native-mobile-active [data-dsh-mobile-frame] { pointer-events:none !important; }')

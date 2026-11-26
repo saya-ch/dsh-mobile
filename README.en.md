@@ -308,6 +308,17 @@ The examples above, applied:
 
 Since 0.9.0 the plugin includes an optional documentation component, `dsh-mobile-skill` (component name **Mobile access skill**), that supplies the plugin's configuration interface and troubleshooting knowledge to the agent. Once registered, the `mobile-access` skill appears in the session skill catalog and the agent can load it.
 
+**Purpose**: connecting a phone means choosing a channel, preparing an account or a server, filling in parameters, handling certificates and opening a pairing window, and a failed step answers only with an error code. The skill makes those steps doable in a conversation — the agent knows which fields exist, what their ranges are, where state is written and what each error code means, so it can write the configuration, explain a failure, and hand over scannable pairing material without the user filling in fields against the documentation by hand.
+
+Operations it can perform:
+
+- **Configure and enable a channel**: pick one from the user's constraints (a Tailscale account or not, a public server or not, whether a third-party relay is acceptable), write the configuration through the management API and enable it.
+- **Diagnose a connection failure**: read the log and state files under `<state>`, map the `errorCode` and the diagnostic result to an actual cause, and give the next action instead of restating the code.
+- **Pair a phone**: open a pairing window and deliver the QR and complete link. The window defaults to two minutes, so it confirms the phone is at hand first.
+- **Revoke a lost device**: locate the device in the store and revoke its authorization, dropping its live connections immediately.
+- **Change existing configuration**: after a network change, a channel switch, or a port or hostname edit, write it again and verify.
+- **Approve a blocked third-party WebSocket path**: write the exact path the diagnostic reports into the allow list.
+
 What it provides:
 
 - **Configuration fields and validation**: the options, types, defaults and accepted ranges for each of the six remote channels (Tailscale, cpolar, cloudflared, frp, origin, iroh) and for local network access, plus the cause and handling of every error code.

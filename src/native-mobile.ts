@@ -147,7 +147,10 @@ export const NATIVE_MOBILE_STYLES = `
      subtree — a virtualized session list plus workspace rows — on every frame,
      which is the sluggish opening users report. The width snaps and the shadow
      still eases, so the motion is preserved without the layout cost. */
-  [data-dsh-mobile-sidebar-root] { position:fixed !important; z-index:241 !important; inset:max(env(safe-area-inset-top),0px) auto 0 0 !important; height:auto !important; transition:box-shadow 180ms ease !important; }
+  [data-dsh-mobile-sidebar-root] { position:fixed !important; z-index:241 !important; inset:max(env(safe-area-inset-top),0px) auto 0 0 !important; height:auto !important; transition:box-shadow 180ms ease !important; font-size:var(--dsh-content-font-size,14px) !important; }
+  /* Row titles carry their own size so they survive the brand block's larger type; they
+     have to follow the same preference or the list stays fixed while the rest scales. */
+  [data-dsh-mobile-sidebar-root] :is([role="treeitem"], [class*="_sessionRow"]) { font-size:inherit !important; }
   [data-dsh-mobile-sidebar][data-open="true"] [data-dsh-mobile-sidebar-root] { width:min(88vw,340px) !important; padding-top:0 !important; box-shadow:18px 0 46px rgb(15 23 42 / 18%); }
   /* Extra panel/footer seats may exceed a short drawer. Keep a bounded
      workspace scrollport and let the drawer scroll to the remaining seats. */
