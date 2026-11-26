@@ -2,6 +2,10 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- **The bundled skill describes the configuration interface as it actually behaves.** A full read of the documentation against the source found places where following it would have misconfigured a channel. `POST /remote/frp/configure` replaces the whole record rather than merging it: a missing core field is rejected, and omitting `mode`/`entryTls` silently returns a saved attach or self-signed setup to the `deploy` and `public-ip-cert` defaults while answering 200 — merging belongs to `attach-plan` and `vps/deploy`. The iroh CA the phone pins is `<state>/iroh-tls/ca.pem`, beside `remote/` rather than inside it. `lan/trusted-networks` reports `restartRequired` after every successful write, so re-saving an identical list still answers true; only `lan/loopback-tunnel` compares. `GET /lan/control` carries `configured` and `restartRequired` only before the first restart. The `versions` diagnostic prints the minimum App version and compares nothing, because the computer cannot see the installed one. `<state>/logs/<channel>/` is a purge path, not a log destination — component output is parsed in memory and never persisted. Also: the component is named `dsh-mobile-access` and first shipped in 0.9.1, and the missing-component hint does not name a package.
+
 ## 0.9.1 - 2026-11-26
 
 - **Funnel platform packages no longer have to republish with every plugin release.** The optional per-platform packages carry a compiled Go binary that changes far less often than the plugin, but a check required their version to equal the plugin's, so every release rebuilt and republished roughly 75 MB of unchanged binaries. The plugin resolves the package by name, never by version, so the pin now names each package's own version and the release workflow reads it from the tarball manifest instead of assuming it matches. Nothing changes for users; a release that does touch the Funnel host still bumps the packages it changes.
