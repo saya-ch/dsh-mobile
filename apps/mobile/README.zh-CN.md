@@ -4,14 +4,14 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.8.3**；构建号为 96。插件和 App 各自更新，**升级插件一般不需要重装 App**。此次改进见 [0.8.3 更新](#083-更新)。
+当前正式 App 为 **0.8.4**；构建号为 97。插件和 App 各自更新，**升级插件一般不需要重装 App**。此次改进见 [0.8.4 更新](#084-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
 ## 安装与配对
 
 1. 按[项目快速开始](../../README.md#快速开始)安装并启用插件。局域网配置可通过命令行或电脑端的 **移动访问** 面板完成。
-2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3) 下载安装。**平时用兼容版就行**；只有电脑端开了实验性 iroh 通道，才需要完整版 `-iroh.apk`。两个包装哪个都可以直接覆盖旧版，配对会保留——**不要卸载旧版或清除数据**，那会丢配对。
+2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4) 下载安装。**平时用兼容版就行**；只有电脑端开了实验性 iroh 通道，才需要完整版 `-iroh.apk`。两个包装哪个都可以直接覆盖旧版，配对会保留——**不要卸载旧版或清除数据**，那会丢配对。
 3. 在电脑 **移动访问 → 局域网访问** 中生成密钥／配对链接，或配置远程通道并生成远程配对二维码。在 App 选择对应方式，扫码或粘贴链接。
 4. 为电脑命名。每条局域网或远程配对单独保存；手机无需安装 cpolar、Cloudflare 或 Tailscale App。
 
@@ -37,6 +37,10 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 页面缩放影响整个网页，与按地址保存的文字偏好不同。App 专属操作只在原生 Bridge 支持时显示。原生页面跟随 Android 系统语言，支持简体中文、英文和意大利文；网页跟随 DSH 选择的语言，当前 DSH 尚未提供意大利语。
 
 删除本机记录会移除保存的设备令牌和固定 CA，不等于撤销电脑授权或清除所有 WebView 短期 Cookie。需要立即终止访问时，请在电脑的 **移动访问** 中撤销设备。Android“清除应用数据”会删除全部配对和网页数据，不是普通重连的处理步骤。
+
+## 0.8.4 更新
+
+下载的文件现在会保留真实文件名和扩展名。DSH 通过 `/api/file?path=…` 提供文件，所以地址里最后一段是接口名而不是文件名，原来的取名方式只能退回到 `file.bin`。现在按三步取名：响应头里可用的 `Content-Disposition`、该路由上解码后的 `path` 参数、最后才是地址本身；通用的 `application/octet-stream` 也不会再覆盖保存框里 APK 的扩展名。`inline` 响应同样保留文件名，因为进入下载回调时已经确定要下载了。感谢 @LzBsA 的 [#471](https://github.com/saya-ch/dsh-mobile/pull/471)。
 
 ## 0.8.3 更新
 
@@ -235,11 +239,12 @@ Set-Location apps/mobile/android
 
 当前源码的 Debug 构建使用包名 `io.github.sayach.dshmobile.debug` 与 `-debug` 版本后缀，可与正式 App 并存，存储和配对彼此独立。它不会升级或迁移旧版无后缀 Debug 应用；切换包名时应保留旧应用和数据，不要为此卸载或清除。Release 构建继续使用 `io.github.sayach.dshmobile` 与既定正式签名。
 
-已核验的正式版本为 [Android 0.8.3](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3)，构建 96。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
+已核验的正式版本为 [Android 0.8.4](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4)，构建 97。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
 
 ## 验收与已知限制
 
-- App 0.8.3 的两份公开 APK 在发布后重新下载核验：兼容版 2,003,905 B 且不含原生库，完整版 30,128,200 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 96` / `versionName 0.8.3`，`.sha256` 资产一致。打 tag 的代码树通过 `npm run verify`、`lintDebug`（0 errors）与 615 个 Android 单元测试。本版未做真机安装验证。
+- App 0.8.4 的两份公开 APK 在发布后重新下载核验：兼容版 2,005,773 B 且不含原生库，完整版 30,128,200 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 97` / `versionName 0.8.4`，`.sha256` 资产一致。打 tag 的代码树通过 `npm run verify`、`lintDebug`（0 errors）与所述 Android 单元测试。
+- 文件名修复在真机上验证：同一构建（`0.8.4-debug`、97）在 Android 16 上安装、启动、配对，并对 `/api/file?path=…app-debug.apk` 触发下载；保存对话框预填 `app-debug` 并由系统补上 `.apk`，而不是此前的 `file.bin`。手机当时在移动数据上，通过 `adb reverse` 建立到网关的隧道完成配对。
 - App 0.8.2 的两份公开 APK 在发布后重新下载核验：兼容版 1,975,765 B 且不含原生库，完整版 30,105,416 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 95` / `versionName 0.8.2`，`.sha256` 资产一致。画中画缩放在发版前用移动视口模拟按设备报告的 324 px 宽度实测：尺寸固定的挂件占窗口比例由 0.37 降到 0.11，即整页按 0.3 缩小。本版未在真机上重复升级验证。
 - App 0.8.1 的两份公开 APK 在发布后重新下载核验：兼容版 1,975,321 B 且不含原生库，完整版 30,104,972 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，两者均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 94` / `versionName 0.8.1`，`.sha256` 资产一致。兼容版随后在 PJW110（Android 16）上覆盖安装 0.8.0 而未卸载：四条已存配对全部保留，**设置 → 画中画** 正常出现并持久化，离开 App 后确实进入画中画，任务报告 `mode=pinned` 且浮窗内渲染的是真实 DSH 页面。随后在该设备上验证了后台任务提醒：开关打开后，用同一个包覆盖安装（即包替换，与升级触发的是同一事件）并重新连接，前台通知服务自己恢复，全程没有人再动过那个开关，说明 opt-in 被保留。未做 0.8.0 到 0.8.2 的对照复现。
 - App 0.8.0 的两份公开 APK 在发布后重新下载核验：兼容版 1,970,961 B 且不含原生库，完整版 30,103,008 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库；两者均为 `versionCode 93`/`versionName 0.8.0`，签名指纹 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87`，并附对应 `.sha256`。打 tag 的代码树通过 `npm run verify`、`lintDebug`（0 errors）与 575 个 Android 单元测试。真机验收覆盖浅/深色切换、设置页、添加电脑 sheet 与 iroh 多行配对信息；配对失败、命名 sheet 后台往返、取消与 TalkBack 路径仍只有源码测试证据。

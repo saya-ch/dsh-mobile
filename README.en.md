@@ -36,19 +36,19 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.9.1**. The sidebar now follows the mobile font-size setting, which previously only moved the composer. A new optional component, **Mobile access skill**, gives the agent each channel's configuration fields, where its state lives, what every error code means and the local management API, so configuration and troubleshooting can happen in a conversation; it has its own switch in the component list ([details](#mobile-access-skill)). macOS support is now complete: cpolar and iroh gain macOS x64/arm64 components, Tailscale Funnel works on macOS for the first time, and the plugin package shrinks from 74.6 MB to 9.2 MB. The plugin and the Android app update independently; Android app 0.8.3 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.9.1**. The sidebar now follows the mobile font-size setting, which previously only moved the composer. A new optional component, **Mobile access skill**, gives the agent each channel's configuration fields, where its state lives, what every error code means and the local management API, so configuration and troubleshooting can happen in a conversation; it has its own switch in the component list ([details](#mobile-access-skill)). macOS support is now complete: cpolar and iroh gain macOS x64/arm64 components, Tailscale Funnel works on macOS for the first time, and the plugin package shrinks from 74.6 MB to 9.2 MB. The plugin and the Android app update independently; Android app 0.8.4 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
 > **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile), synced from this repository.
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="64" height="64"></a>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="64" height="64"></a>
   <br>
-  <b>Android app 0.8.3</b>
-  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk">compatibility</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64-bit full</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">release notes</a>
+  <b>Android app 0.8.4</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk">compatibility</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4-iroh.apk">64-bit full</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4">release notes</a>
   <br>
   <b>Windows client 0.1.2-alpha</b>
   &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe">installer</a>

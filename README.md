@@ -36,19 +36,19 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.9.1**。侧边栏现在跟随「移动端字号」设置（此前只影响输入框）。新增可选组件 **移动访问 skill**：向 agent 提供各通道的配置字段、状态位置、错误码含义与本机管理接口，配置和排障可在对话中完成，也可在组件列表中单独关闭（见[说明](#移动访问-skill)）。macOS 支持补齐：cpolar 与 iroh 组件新增 macOS x64/arm64，Tailscale Funnel 也首次支持 macOS，同时插件包从 74.6 MB 瘦身到 9.2 MB。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.9.1**。侧边栏现在跟随「移动端字号」设置（此前只影响输入框）。新增可选组件 **移动访问 skill**：向 agent 提供各通道的配置字段、状态位置、错误码含义与本机管理接口，配置和排障可在对话中完成，也可在组件列表中单独关闭（见[说明](#移动访问-skill)）。macOS 支持补齐：cpolar 与 iroh 组件新增 macOS x64/arm64，Tailscale Funnel 也首次支持 macOS，同时插件包从 74.6 MB 瘦身到 9.2 MB。插件与 Android App 独立更新；Android App 0.8.4 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
 > **国内 AtomGit 托管**：[saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile)，由 GitHub 主仓自动同步。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="64" height="64"></a>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="64" height="64"></a>
   <br>
-  <b>Android App 0.8.3</b>
-  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3.apk">兼容版</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.3/dsh-mobile-android-v0.8.3-iroh.apk">64 位完整版</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.3">版本说明</a>
+  <b>Android App 0.8.4</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk">兼容版</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4-iroh.apk">64 位完整版</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4">版本说明</a>
   <br>
   <b>Windows 客户端 0.1.2-alpha</b>
   &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe">下载安装包</a>
