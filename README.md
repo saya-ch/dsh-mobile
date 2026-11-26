@@ -617,7 +617,9 @@ npm run verify
 - **定制开发与私有部署**：承接个人/团队私有化部署、AI Agent 工作流及多端集成定制，欢迎来信沟通。
 - **推荐模型 API**：需要稳定调用 DeepSeek 等大模型 API，可以通过 [硅基流动（注册送体验额度）](https://cloud.siliconflow.cn/i/qHBsrZ2i) 开通使用。
 
-[![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+[![Powered by DartNode](https://img.shields.io/badge/Powered%20by-DartNode-0ea5e9?style=flat-square)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source") [![Tencent EdgeOne](https://img.shields.io/badge/CDN%20%26%20Security-Tencent%20EdgeOne-0052D9?style=flat-square)](https://edgeone.ai/?from=github "Tencent EdgeOne - Free CDN & Security for Open Source")
+
+本项目 CDN 加速及安全防护由 [Tencent EdgeOne](https://edgeone.ai/?from=github) 赞助。
 <!-- Verified on DartNode: DNOS-8204844A -->
 
 Apache-2.0，详见 [LICENSE](LICENSE)。
