@@ -27,6 +27,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 
 const API = 'https://api.atomgit.com/api/v5'
 const OWNER = 'saya-ch'
@@ -144,6 +146,33 @@ async function downloadAsset(url, destination) {
   return statSync(destination).size
 }
 
+/**
+ * PUT the asset with a timeout sized for the transfer rather than for a page load.
+ * `fetch` abandons a request whose response headers have not arrived after 300 s, and a
+ * 30 MB upload from a CI runner to a domestic object store can take longer than that.
+ */
+function putBytes(url, headers, bytes, name) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url)
+    const send = target.protocol === 'http:' ? httpRequest : httpsRequest
+    const request = send(target, { method: 'PUT', headers }, response => {
+      const chunks = []
+      response.on('data', chunk => chunks.push(chunk))
+      response.on('end', () => {
+        const status = response.statusCode ?? 0
+        if (status < 200 || status >= 300) {
+          reject(new Error(`uploading ${name} failed with ${status}: ${Buffer.concat(chunks).toString().slice(0, 300)}`))
+          return
+        }
+        resolve(status)
+      })
+    })
+    request.setTimeout(900_000, () => request.destroy(new Error(`uploading ${name} timed out after 15 minutes`)))
+    request.on('error', reject)
+    request.end(bytes)
+  })
+}
+
 async function uploadAsset(asset, directory) {
   const { uploadUrl, headers } = await requestUploadTarget(asset.name)
   // Every x-obs-* header is part of the signature; passing them through verbatim is the
@@ -154,13 +183,9 @@ async function uploadAsset(asset, directory) {
   // The signature covers a known length; a chunked stream leaves the store able to
   // accept the write while the callback that publishes the asset never runs.
   const bytes = readFileSync(join(directory, asset.name))
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: signed,
-    body: bytes,
-  })
-  if (!response.ok) {
-    throw new Error(`uploading ${asset.name} failed with ${response.status}: ${await response.text()}`)
+  const status = await putBytes(uploadUrl, { ...signed, 'Content-Length': String(bytes.length) }, bytes, asset.name)
+  if (status < 200 || status >= 300) {
+    throw new Error(`uploading ${asset.name} failed with ${status}`)
   }
   return signed
 }
