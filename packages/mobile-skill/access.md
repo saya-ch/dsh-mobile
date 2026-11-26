@@ -79,6 +79,40 @@ There is **no** `<state>/lan/` directory.
 
 State the trade-off instead of choosing silently: a remote channel puts the desktop behind a public URL, and pairing is what keeps it private.
 
+## Writing configuration
+
+Read state from files. **Change it through the local management API.**
+
+The plugin holds configuration in memory: it reads each settings file once when the plugin activates and only updates that copy when a management route writes it. Editing `<state>/remote/.../settings.json` directly therefore changes nothing — the panel keeps showing the previous value, and the channel keeps using it.
+
+Every local management route needs two things:
+
+- the base URL, available as `$DSH_WEB_URL` in the agent shell;
+- an `Origin` header equal to that same URL. Without it the gateway answers `403 forbidden` before it validates anything.
+
+```bash
+# read the current state of every channel
+curl -s "$DSH_WEB_URL/api/mobile-access/remote/control" -H "Origin: $DSH_WEB_URL"
+
+# write FRP configuration
+curl -s -X POST "$DSH_WEB_URL/api/mobile-access/remote/frp/configure" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $DSH_WEB_URL" \
+  -d '{"serverAddress":"frp.example.com","serverPort":7000,
+       "token":"<token>","publicOrigin":"https://mobile.example.com"}'
+```
+
+A successful write answers `200` with the whole remote payload, and the change is live immediately — there is no reload step and no DSH restart.
+
+**Credentials are allowed through these routes, with a condition.** Before sending a token, key or account secret, state its purpose to the user in that same turn — "I will use the cpolar Authtoken you provided to register the tunnel". Then: never echo it back, never write it to a file or a log, never carry one over from an earlier turn without asking again. If the user has not supplied the credential, stop and ask for it rather than inventing one.
+
+Two token-reuse rules differ and are easy to get wrong:
+
+- **cloudflared** keeps the stored token whenever the field is empty.
+- **frp** reuses the stored token only when the address and port are unchanged; changing either while leaving the token empty fails with `frp_token_invalid`.
+
+Full route list: [management-api.md](references/management-api.md)
+
 ## Reading state without the panel
 
 Read files under `<state>` (all are JSON unless noted):
@@ -116,5 +150,6 @@ Every class is **sampled with a 30-second window** and carries `suppressed` for 
 ## Further detail
 
 - Channel fields, states and every error code: [channels.md](references/channels.md)
+- Every management route, its body and its errors: [management-api.md](references/management-api.md)
 - Pairing internals, device store and cookie attributes: [pairing.md](references/pairing.md)
 - Log line fields and the diagnostic checks: [diagnostics.md](references/diagnostics.md)
