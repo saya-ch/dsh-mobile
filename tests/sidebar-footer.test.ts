@@ -243,7 +243,7 @@ describe('desktop Mobile Access footer', () => {
         viewBox: '0 0 16 16',
         fill: 'none',
         stroke: 'currentColor',
-        strokeWidth: 1.5,
+        strokeWidth: 1.25,
       })
       // The label stays in the tree in both forms; CSS hides it for the icon target.
       expect(children).toHaveLength(2)
