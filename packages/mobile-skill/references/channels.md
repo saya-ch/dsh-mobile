@@ -259,7 +259,7 @@ A damaged component reports `irohSidecarInvalid` / `iroh_sidecar_invalid` instea
 
 `<state>/remote/iroh/sidecar/` holds the transport layer's own files: `host.lock`, `identity.key` (the endpoint secret), `paired.json` (transport peers), `tls.lock`, `tls-state.json` and `tls/`. The path contains **no version**, so a component upgrade keeps the identity and transport pairings.
 
-The certificate the **phone** pins is different: `<state>/remote/iroh-tls/ca.pem`, recorded with `caFingerprint` in `<state>/remote/iroh-identity.json`. Do not confuse the two.
+The certificate the **phone** pins is different: `<state>/iroh-tls/ca.pem` — a sibling of `remote/`, not a child of it — recorded with `caFingerprint` in `<state>/remote/iroh-identity.json`. Do not confuse the two.
 
 ### Pairing
 

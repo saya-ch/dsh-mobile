@@ -28,12 +28,12 @@ mobile-access/
 │   ├── ca.pem  ca-key.pem  server-cert.pem  server-key.pem
 │   └── dsh-mobile-ca.cer      CA DER for the phone
 ├── logs/dsh-mobile.log        plugin log; rotated to .1 at 5 MiB
-├── logs/<channel>/            per-channel component logs (cpolar, frp, cloudflared)
 ├── mobile.css  mobile.js      user customizations
 ├── extensions/                user extension modules
 ├── components/<name>/<ver>/   downloaded components
 ├── staging/                   install scratch space
 ├── caddy/                     managed Caddy config, credentials and data
+├── iroh-tls/                  CA the phone pins for iroh (ca.pem)
 ├── mobile-push/               web-push state
 ├── installation-id            per-installation id, also the FRP proxy suffix
 ├── websocket-paths.json       third-party WebSocket paths the user allowed
@@ -46,10 +46,9 @@ mobile-access/
     ├── tailscale/             tsnet node state
     ├── cpolar/                control.json
     ├── cloudflared/           control.json + tunnel.json (quick/named config)
-    ├── frp/                   control.json + config/settings.json + frpc.toml
+    ├── frp/                   control.json + config/settings.json + config/frpc.toml
     ├── origin/                control.json + config/settings.json + upstream.json
     ├── iroh/                  control.json + sidecar/ (identity, peers, TLS)
-    ├── iroh-tls/              CA the phone pins for iroh
     ├── iroh-identity.json     {"version":1,"endpointId","caFingerprint"}
     └── ingress/               self-signed FRP entry CA and leaf
 ```
@@ -172,7 +171,7 @@ The phone is not the only front end, and their versions are independent of the p
 
 | Client | Version | Notes |
 |---|---|---|
-| Android app | minimum **0.2.2** | The gateway advertises this through `GET /mobile-access/metadata`; the diagnostic `versions` check compares it |
+| Android app | minimum **0.2.2** | The gateway publishes it through `GET /mobile-access/metadata` and the diagnostic `versions` check only prints it — the computer cannot observe the installed App version, so the user has to report that |
 | Android app, iroh | **0.7.0+**, full app | The compatibility APK and mobile browsers cannot use iroh at all |
 | Windows desktop client | own `windows-v*` track, currently 0.1.2-alpha | A WebView2 shell that opens the same authenticated page and the same pairing link; Windows 10 1809+/11 x64, needs Evergreen WebView2 |
 | iOS / iPadOS | Safari, PWA | Add to Home Screen is required for Web Push |

@@ -17,7 +17,7 @@ A successful configuration call answers `200` with the whole remote payload (`pr
 | `GET /diagnostics` | The full connection diagnostic with `checks`, `report` and `coverage` |
 | `GET /remote/frp/self-check` | FRP entry details: certificate, CA fingerprint, reachability, component |
 | `POST /remote/frp/attach-plan` | Attach-mode checklist with the token masked. **POST only** — a GET falls through to the generic `/remote/*` handler and answers 404 |
-| `GET /lan/control` | LAN configured/running state, `restartRequired`, pending origin |
+| `GET /lan/control` | `running`, `rebindSupported`, plus `origin`, `pendingOrigin`, `extensions` and `recoveryRequired` when they apply. `configured` and `restartRequired` appear only while the installation is still unconfigured |
 | `GET /lan/networks` | Candidate LAN interfaces with the recommended one |
 | `GET /lan/status`, `GET /remote/status` | Gateway host/port/origin, pairing window state, device count, live connection counts, discovery status |
 | `GET /lan/devices`, `GET /remote/devices` | Paired devices (never the credentials) |
@@ -45,7 +45,7 @@ A successful configuration call answers `200` with the whole remote payload (`pr
 | `POST /remote/frp/vps/uninstall-script` | `{serverAddress?, serverPort?, certName?}` |
 | `POST /remote/frp/vps/uninstall` | `{confirm:true, …ssh parameters, hostFingerprints, certName?}` |
 
-`configure` merges: an empty or absent core field keeps the stored value, `token` is reused only when the address and port are unchanged, and an absent `mode`/`entryTls` keeps the stored one. Errors: `frp_settings_invalid`, `frp_server_address_invalid`, `frp_server_port_invalid`, `frp_token_invalid`, `frp_public_origin_invalid`, `frp_attach_mode_requires_vhost_port`, `frp_self_signed_requires_public_ipv4`, `frp_user_invalid`, `frp_config_missing`.
+`configure` **replaces** the whole record; only the token has reuse semantics. `serverAddress`, `serverPort`, `token` and `publicOrigin` are required on every call — omitting one is rejected, not carried over. An empty `token` reuses the stored one only when the address and port are unchanged; otherwise it is `frp_token_invalid`. Omitting `mode` or `entryTls` does not keep the saved value: they resolve to the `deploy` and `public-ip-cert` defaults, so a saved attach or self-signed configuration silently changes shape while the request still answers 200. Read the current settings first and resend every field you mean to keep. Merging is the opposite behaviour and belongs to `attach-plan` and `vps/deploy`, which do fill blanks from the saved record. Errors: `frp_settings_invalid`, `frp_server_address_invalid`, `frp_server_port_invalid`, `frp_token_invalid`, `frp_public_origin_invalid`, `frp_attach_mode_requires_vhost_port`, `frp_self_signed_requires_public_ipv4`, `frp_user_invalid`, `frp_config_missing`.
 
 **SSH host keys must be confirmed by the user.** Call `host-keys`, show the fingerprints, and submit them only after the user has matched them against their provider. Never invent `hostFingerprints` to skip that check.
 
@@ -107,7 +107,7 @@ Empty `secretId` and `secretKey` together keep the stored credentials. Note that
 | `POST /remote/devices/revoke` | `{"deviceId":"<32 hex>"}` — the remote store |
 | `POST /remote/devices/reset` | `{"confirm":true}` — remote devices only; the LAN store is untouched |
 
-`lan/trusted-networks` and `lan/loopback-tunnel` answer with a boolean `restartRequired`, which is true only when the saved value actually changed — re-saving the same value answers `false`. When it is true, the change applies after a DSH restart, a LAN rebind, or an off/on cycle.
+`lan/loopback-tunnel` answers with a boolean `restartRequired` that is true only when the saved value actually changed — re-saving the same value answers `false`. `lan/trusted-networks` sets the flag after every successful write, so re-saving an identical list still answers `true`; do not read that as a failed write. In both cases the change applies after a DSH restart, a LAN rebind, or an off/on cycle.
 
 ## Pairing
 

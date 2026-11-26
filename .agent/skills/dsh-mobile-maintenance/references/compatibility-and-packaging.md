@@ -134,13 +134,22 @@ The embedded components are inserted by file path and the plugin manager rendere
 
 Exporting `name` from the component module does **not** help. That identifier is the Cordis plugin name; the plugin manager never reads it. The bundled providers such as `@deepseek-ai/dsh-skill-badge` export `name` for Cordis, not for display.
 
-The working shape is to reference each component as a package subpath and ship a locale:
+**A subpath gives a readable title only to a component that ships no client module.** The client-modules registry keys each entry by the package it resolves to, so a `dsh-mobile/...` subpath resolves to `dsh-mobile` and a component's own `dsh.client` is never discovered — its bundle stops being served while the panel keeps reporting the plugin as running. This is not hypothetical: renaming the question-card entry to a subpath made every browser-boot lane fail with `DSH client discovery did not select the packed question-card component`.
 
-1. Main `package.json` exports the entry and **every** locale file (`./question-fixes`, `./question-fixes/locale/en.json`, `./question-fixes/locale/zh.json`, and the same for the other components). `dictionariesOf` reads the whole locale directory with `readdirSync` and resolves each filename individually, so a partially exported locale directory throws and the row loses its metadata entirely.
-2. Each component ships `locale/{en,zh}.json` shaped `{"meta":{"title":…,"description":…}}`. `title` is required: the fallback is `manifest.name`, which is not read for a subpath specifier (`manifestPath` is only read when the specifier equals the package name), so a component without a locale title still shows the specifier.
-3. `cordis.patch.yml` names the subpath, not the file.
+Two shapes therefore coexist, and the choice is not a style preference:
 
-The patch `id` is independent of the specifier, so activation keys, configuration and bookmarks survive the change. Verify the result without opening the UI by resolving the subpaths from the profile root (`createRequire` on the profile patch file) and asserting the locale files are reachable — a resolution failure means the panel silently falls back to the path again.
+| Component | Entry | Title |
+| --- | --- | --- |
+| Host-only, no `dsh.client` (the bundled skill) | package subpath, e.g. `dsh-mobile/mobile-skill` | readable, from its locale |
+| Ships a client module (the question-card fix) | file path, e.g. `./packages/question-fixes/lib/index.mjs` | the module path |
+
+For the subpath shape:
+
+1. Main `package.json` exports the entry and **every** locale file (`./mobile-skill`, `./mobile-skill/locale/en.json`, `./mobile-skill/locale/zh.json`). `dictionariesOf` reads the whole locale directory with `readdirSync` and resolves each filename individually, so a partially exported locale directory throws and the row loses its metadata entirely.
+2. The component ships `locale/{en,zh}.json` shaped `{"meta":{"title":…,"description":…}}`. `title` is required: the fallback is `manifest.name`, which is not read for a subpath specifier (`manifestPath` is only read when the specifier equals the package name), so a component without a locale title still shows the specifier.
+3. `cordis.patch.yml` names the subpath for that component and the file for the other one.
+
+The patch `id` is independent of the specifier, so activation keys, configuration and bookmarks survive a change of either. Before converting a row, check whether the component declares `dsh.client`; the packed browser-boot smoke is the gate that catches a wrong choice, so run it rather than only opening the panel.
 
 ## Configuration stores hold their file in memory
 
