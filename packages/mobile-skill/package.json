@@ -1,0 +1,25 @@
+{
+  "name": "dsh-mobile-skill",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Bundled DSH Mobile access documentation skill for the agent.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saya-ch/dsh-mobile.git",
+    "directory": "packages/mobile-skill"
+  },
+  "exports": {
+    ".": {
+      "default": "./index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.mjs",
+    "access.md",
+    "references",
+    "LICENSE"
+  ]
+}

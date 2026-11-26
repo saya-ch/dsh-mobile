@@ -2,6 +2,11 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- **The agent can now read how phone access works.** A separate optional component ships a bundled skill describing every channel — local network, Tailscale Funnel, cpolar, cloudflared, frp, an own reverse proxy and iroh — where each keeps its state, what it needs from the user, and what must never be done on the user's behalf. It is documentation only: it registers one entry in the session skill catalog, adds no capability, and has its own switch in the plugin manager, so turning it off leaves phone access untouched. Deployments without the skill service simply leave the row inactive.
+- **The question-card component shows a readable name.** It is inserted by file path, so the loader had no package manifest to read a name from and fell back to the resolved URL — which the plugin manager rendered as a `file:///…` path. It now exports its name, so the row reads `dsh-ui-fixes`.
+
 ## 0.9.0 - 2026-11-26
 
 - **Large uploads no longer time out while they are still arriving.** The gateway used one setting for two different limits: how long the upstream connection could sit idle, and how long the phone had to send the whole request. With the 30-second default, an upload could get `408 ERR_HTTP_REQUEST_TIMEOUT` even while data was still streaming. Request reception now has its own deadline (`requestReceiveTimeoutMs`, default 5 minutes, 1 second to 1 hour), while the upstream idle wait and the 10-second header budget are unchanged. Thanks @chintoleung for [#469](https://github.com/saya-ch/dsh-mobile/pull/469).
