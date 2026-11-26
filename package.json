@@ -24,11 +24,6 @@
       "default": "./lib/client.js"
     },
     "./package.json": "./package.json",
-    "./question-fixes": {
-      "default": "./packages/question-fixes/lib/index.mjs"
-    },
-    "./question-fixes/locale/en.json": "./packages/question-fixes/locale/en.json",
-    "./question-fixes/locale/zh.json": "./packages/question-fixes/locale/zh.json",
     "./mobile-skill": {
       "default": "./packages/mobile-skill/index.mjs"
     },
@@ -47,7 +42,6 @@
     "lib/**/*.map",
     "packages/question-fixes/package.json",
     "packages/question-fixes/lib/**",
-    "packages/question-fixes/locale",
     "packages/question-fixes/LICENSE",
     "packages/mobile-skill/package.json",
     "packages/mobile-skill/index.mjs",

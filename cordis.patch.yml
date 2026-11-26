@@ -26,8 +26,12 @@
     # Keep long question titles and answer options in one card scrollport.
     # The component switch restores the upstream layout immediately.
     # DSH anchors this file entry beside the bundle patch, independent of pnpm's linker.
+    # Point at the file, not at a `dsh-mobile/...` subpath: the client-modules registry
+    # keys an entry by the package it resolves to, and a subpath resolves to `dsh-mobile`,
+    # so this component's own `dsh.client` would never be discovered. The cost is the
+    # plugin manager showing the module path as this row's title.
     - id: dsh-ui-fixes
-      name: dsh-mobile/question-fixes
+      name: ./packages/question-fixes/lib/index.mjs
 
     # Documentation only: registers one skill describing the access channels, where their
     # state lives and what must be left to the user. `inject: [skills]` keeps the row

@@ -21,7 +21,6 @@
   },
   "files": [
     "lib",
-    "locale",
     "LICENSE"
   ],
   "dsh": {
