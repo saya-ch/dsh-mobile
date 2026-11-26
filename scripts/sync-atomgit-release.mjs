@@ -22,7 +22,7 @@
  *              GH_TOKEN or an authenticated `gh` for the GitHub side.
  */
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, statSync, createReadStream, createWriteStream } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, statSync, createWriteStream } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -135,11 +135,13 @@ async function uploadAsset(asset, directory) {
   const signed = Object.fromEntries(
     Object.entries(headers).map(([key, value]) => [key, String(value)]),
   )
+  // The signature covers a known length; a chunked stream leaves the store able to
+  // accept the write while the callback that publishes the asset never runs.
+  const bytes = readFileSync(join(directory, asset.name))
   const response = await fetch(uploadUrl, {
     method: 'PUT',
     headers: signed,
-    body: createReadStream(join(directory, asset.name)),
-    duplex: 'half',
+    body: bytes,
   })
   if (!response.ok) {
     throw new Error(`uploading ${asset.name} failed with ${response.status}: ${await response.text()}`)
