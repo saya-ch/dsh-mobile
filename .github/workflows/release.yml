@@ -91,19 +91,27 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          # The main package lists these as optional dependencies, so a dsh-mobile
-          # version must never reach the registry before the packages it names: the
-          # install would ask for a version that does not exist.
-          version="$(node -p "require('./package.json').version")"
+          # The main package lists these as optional dependencies, so a version the main
+          # package names must never reach the registry after it: the install would ask
+          # for a version that does not exist.
+          #
+          # Each platform package carries its own version, which is usually older than the
+          # plugin's: the Go binary changes far less often, and the plugin resolves the
+          # package by name rather than by version. Read the version from each tarball's
+          # own manifest instead of assuming it matches the plugin.
           # Explicit files, not a glob: an unmatched pattern stays literal in bash and
           # used to turn this loop into a hard failure, while an empty match would have
           # published the plugin without any platform package.
           mapfile -t tarballs < <(find release-assets/platform-packages -maxdepth 1 -type f -name '*.tgz' | sort)
           test "${#tarballs[@]}" -eq 5 || { echo "expected 5 platform tarballs, found ${#tarballs[@]}" >&2; exit 1; }
           published=0
+          staging="$(mktemp -d)"
           for tarball in "${tarballs[@]}"; do
-            base="$(basename "$tarball" .tgz)"
-            name="${base%-$version}"
+            # The manifest inside the tarball is the authority on name and version.
+            rm -rf "$staging/pkg" && mkdir -p "$staging/pkg"
+            tar -xzf "$tarball" -C "$staging/pkg" package/package.json
+            name="$(node -p "require('$staging/pkg/package/package.json').name")"
+            version="$(node -p "require('$staging/pkg/package/package.json').version")"
             case "$name" in
               dsh-mobile-funnel-*) ;;
               *) echo "unexpected platform package name: $name" >&2; exit 1 ;;
@@ -122,7 +130,8 @@ jobs:
             echo "published $name@$version"
             published=$((published + 1))
           done
-          echo "platform packages handled: ${#tarballs[@]} tarballs" 
+          rm -rf "$staging"
+          echo "platform packages handled: ${#tarballs[@]} tarballs"
       - name: Publish npm package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

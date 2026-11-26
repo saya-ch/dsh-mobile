@@ -297,8 +297,11 @@ async function checkFunnelHost() {
     ])
     const metadata = JSON.parse(source)
     if (metadata.name !== name) fail(`${directory}/package.json must be named ${name}`)
-    if (metadata.version !== manifest.version) {
-      fail(`${name} must carry the main package version ${manifest.version}, found ${metadata.version}`)
+    // The version is the platform package's own: these ship a compiled Go binary that
+    // changes far less often than the plugin. The plugin resolves the package by name,
+    // so only the declared pin has to name an existing version, not the main one.
+    if (typeof metadata.version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(metadata.version)) {
+      fail(`${name} must declare a publishable version, found ${JSON.stringify(metadata.version)}`)
     }
     if (metadata.private === true) fail(`${name} must be publishable`)
     // Exactly one entry each: npm reads a multi-entry array as "this package serves
@@ -322,8 +325,8 @@ async function checkFunnelHost() {
     if (metadata.repository?.directory !== directory) {
       fail(`${name} must point repository.directory at ${directory}`)
     }
-    if (manifest.optionalDependencies?.[name] !== manifest.version) {
-      fail(`the main package must declare ${name}@${manifest.version} as an optional dependency`)
+    if (manifest.optionalDependencies?.[name] !== metadata.version) {
+      fail(`the main package must pin ${name}@${metadata.version}, found ${JSON.stringify(manifest.optionalDependencies?.[name])}`)
     }
     if (binary.byteLength >= 40 * 1024 * 1024) fail(`${name} must remain below 40 MiB`)
     if (binary.byteLength < 8) fail(`${name} is truncated`)
@@ -354,8 +357,9 @@ async function checkFunnelHost() {
     const name = `dsh-mobile-funnel-${os}-${cpu}`
     const entry = lock.packages?.[`node_modules/${name}`]
     if (entry === undefined) fail(`package-lock.json has no entry for ${name}; npm ci will refuse to run`)
-    if (entry.version !== manifest.version) {
-      fail(`package-lock.json pins ${name}@${entry.version}, the package version is ${manifest.version}`)
+    const platformManifest = JSON.parse(await read(`packages/funnel-${os}-${cpu}/package.json`, 'utf8'))
+    if (entry.version !== platformManifest.version) {
+      fail(`package-lock.json pins ${name}@${entry.version}, its own manifest declares ${platformManifest.version}`)
     }
     if (entry.resolved !== `file:packages/funnel-${os}-${cpu}`) {
       fail(`package-lock.json must resolve ${name} from its source directory, found ${entry.resolved}`)
