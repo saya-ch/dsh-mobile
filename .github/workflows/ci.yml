@@ -377,13 +377,31 @@ jobs:
       # `fail_ci_if_error: false` is deliberate: a Codecov outage, an expired
       # token or a fork's read-only secret must not turn an honest pull request
       # red. The coverage trend is a signal, not a merge gate.
-      - name: Upload coverage to Codecov
+      # A missing secret used to make this step upload with an empty token, receive
+      # "Token required - not valid tokenless upload", and still report success because
+      # `fail_ci_if_error: false`. Nothing was ever uploaded while the lane looked green.
+      # Detect the absent secret instead of letting the uploader discover it.
+      - name: Check the Codecov token
+        id: codecov
         if: matrix.os == 'ubuntu-latest' && matrix.node == '24.x'
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          if [ -z "${CODECOV_TOKEN}" ]; then
+            echo "CODECOV_TOKEN is not configured; coverage was measured but not uploaded." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload coverage to Codecov
+        if: steps.codecov.outputs.run == 'true'
         uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
         with:
           files: ./coverage/lcov.info
           flags: gateway
           name: gateway-ubuntu-node24
+          # An outage must not redden an honest pull request; a configured token that the
+          # service rejects is a different thing and surfaces in the step log.
           fail_ci_if_error: false
           verbose: true
         env:

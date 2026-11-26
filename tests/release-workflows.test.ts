@@ -18,6 +18,35 @@ async function workflow(name: string): Promise<Workflow> {
   return load(await readFile(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8')) as Workflow
 }
 
+describe('coverage upload', () => {
+  it('skips visibly when the Codecov token is absent instead of uploading nothing', async () => {
+    const ci = load(
+      await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
+    ) as {
+      readonly jobs: Readonly<Record<string, {
+        readonly steps: readonly { readonly name?: string; readonly run?: string; readonly if?: string; readonly id?: string; readonly uses?: string }[]
+      }>>
+    }
+
+    const steps = ci.jobs['gateway']!.steps
+    const gate = steps.find(step => step.name === 'Check the Codecov token')
+    expect(gate).toBeDefined()
+    // Without this gate the uploader runs with an empty token, is refused with
+    // "Token required - not valid tokenless upload", and `fail_ci_if_error: false` turns
+    // that into a green step — which is how the lane reported success while uploading
+    // nothing.
+    expect(gate!.run).toContain('CODECOV_TOKEN')
+    expect(gate!.run).toContain('run=false')
+    expect(gate!.run).toContain('GITHUB_STEP_SUMMARY')
+
+    const upload = steps.find(step => step.name === 'Upload coverage to Codecov')!
+    expect(upload.if).toContain("steps.codecov.outputs.run == 'true'")
+    // The action stays pinned to a commit, like every other action in this repository.
+    // The YAML parser strips the trailing version comment, so match the SHA alone.
+    expect(upload.uses).toMatch(/@[0-9a-f]{40}$/)
+  })
+})
+
 describe('AtomGit release mirror', () => {
   it('mirrors published releases instead of only pushing refs', async () => {
     const mirror = load(
