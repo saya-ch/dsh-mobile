@@ -5753,10 +5753,10 @@ function renderMobileFooterAction(props: {
     viewBox: '0 0 16 16',
     fill: 'none',
     stroke: 'currentColor',
-    strokeWidth: 1.5,
+    strokeWidth: 1.25,
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
-  }, createElement('rect', { x: 4, y: 1, width: 8, height: 14, rx: 2 }), createElement('path', { d: 'M7 12h2' })),
+  }, createElement('rect', { x: 2.5, y: 1.5, width: 11, height: 13, rx: 2.5 }), createElement('path', { d: 'M6.5 12.5h3' })),
   createElement('span', { className: 'dsh-mobile-control__trigger-label' }, t('mobileAccess')))
 }
 
