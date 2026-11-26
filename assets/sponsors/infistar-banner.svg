@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="176" viewBox="0 0 840 176" fill="none">
+  <defs>
+    <linearGradient id="cardBg" x1="0" y1="0" x2="840" y2="176" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#090D1A"/>
+      <stop offset="52%" stop-color="#15193B"/>
+      <stop offset="100%" stop-color="#0B2D48"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+    <linearGradient id="ctaGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="838" height="174" rx="18" fill="url(#cardBg)" stroke="#334155" stroke-width="1.5"/>
+  <circle cx="700" cy="34" r="2" fill="#BAE6FD" opacity="0.7"/>
+  <circle cx="760" cy="60" r="1.5" fill="#C4B5FD" opacity="0.8"/>
+  <circle cx="620" cy="140" r="2" fill="#38BDF8" opacity="0.5"/>
+  <circle cx="510" cy="28" r="1.5" fill="#93C5FD" opacity="0.6"/>
+
+  <!-- Left Icon -->
+  <rect x="28" y="40" width="96" height="96" rx="22" fill="#111827" stroke="#38BDF8" stroke-opacity="0.45" stroke-width="1.5"/>
+  <path d="M76 58L82.8 81.2L106 88L82.8 94.8L76 118L69.2 94.8L46 88L69.2 81.2L76 58Z" fill="url(#accent)"/>
+  <circle cx="76" cy="88" r="5.5" fill="#FFFFFF"/>
+
+  <!-- Text Block -->
+  <rect x="148" y="34" width="138" height="24" rx="12" fill="#1E293B" stroke="#38BDF8" stroke-opacity="0.5"/>
+  <text x="162" y="50" fill="#7DD3FC" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" font-weight="700">✦ 官方赞助伙伴</text>
+
+  <text x="148" y="92" fill="#F8FAFC" font-family="system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="28" font-weight="800">Infistar 无限星河</text>
+  <text x="415" y="92" fill="#38BDF8" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="20" font-weight="700">· 统一大模型 API 接口</text>
+
+  <text x="148" y="124" fill="#CBD5E1" font-family="system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="14.5" font-weight="500">一站式聚合 Claude / GPT / Gemini / DeepSeek 等主流模型 · 高并发稳定低价</text>
+  <text x="148" y="148" fill="#6EE7B7" font-family="system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="13.5" font-weight="600">✓ 兼容 OpenAI 协议 · 适配 DeepSeek Harness · DSH Mobile 用户专享福利</text>
+
+  <!-- Right CTA Button -->
+  <rect x="668" y="64" width="144" height="48" rx="12" fill="url(#ctaGrad)"/>
+  <text x="740" y="93" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="15" font-weight="700">立即接入体验 →</text>
+</svg>
