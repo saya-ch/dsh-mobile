@@ -71,7 +71,7 @@ It also lets you customize the phone from a DSH conversation: `/mobile <what you
 - **Several remote options**: Tailscale, cpolar, cloudflared quick/named tunnels, self-hosted FRP, your own reverse proxy, and experimental iroh without a domain or public port; Windows/Linux x64 can also let the plugin manage Caddy HTTPS and certificates.
 - **Pairing and multi-device**: pair once via QR code, link, or key; the same Origin renews automatically, while an address, certificate or listener change requires pairing again through **Change network** (while LAN access runs) or takes effect the next time you enable it; the app lists LAN and remote paired computers together, checks their reachability periodically, and lets you switch, re-pair, or delete a local record.
 - **One-click diagnostics and approval**: check versions, gateway, network interface, firewall, and the remote path with a redacted report; approve blocked third-party plugin connections per exact path.
-- **Set up and pair by talking to the agent (skill)**: "get my phone connected remotely" is enough — the agent asks what it must, configures the channel, and hands back the QR and pairing link; when it fails it reads the log and tells you what happened instead of leaving you to decode an error code. [Details](#let-the-agent-set-it-up-with-you-skill).
+- **Mobile access skill**: an optional documentation component supplies the agent with each of the six remote channels' configuration fields, where their state lives, what every error code means, and the management API, so configuration and troubleshooting can happen in a conversation. [Details](#mobile-access-skill).
 - **iPhone / iPad Web Push**: add the page to your Home Screen and explicitly enable notifications in DSH General settings. Choose from six categories and receive alerts while the page is closed or the screen is locked; default text never includes conversation content, while custom text sent by a trusted Host plugin through `mobilePush.notify` (since 0.8.6) is supplied by that plugin. [Requirements and setup](docs/WEB_PUSH.en.md).
 - **Android task notifications**: enable completion and pending-input alerts in DSH General settings inside the app, using its separate native notification channel with redacted lock-screen text.
 - **Defense in depth**: a private CA pinned for LAN, trusted HTTPS for public remote paths, and a remote CA pinned by the 0.4.6 app for the self-signed FRP entry. Credentials are Keystore-backed, device tokens go only to their exact Origin, and third-party WebSockets are blocked by default.
@@ -304,36 +304,20 @@ The examples above, applied:
   <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/screenshots/cyberpunk-monitor-1.png" width="22%" style="margin-left:8px" alt="Mobile UI customized into a cyberpunk computer monitor">
 </p>
 
-## Let the agent set it up with you (skill)
+## Mobile access skill
 
-Connecting a phone normally means working through a chain by hand: pick a channel, register an account, fill in a server address and token, open a port, deal with certificates, open a pairing window, scan a code. One step goes wrong and the panel answers with an error code that still has to be looked up.
+Since 0.9.0 the plugin includes an optional documentation component, `dsh-mobile-skill` (component name **Mobile access skill**), that supplies the plugin's configuration interface and troubleshooting knowledge to the agent. Once registered, the `mobile-access` skill appears in the session skill catalog and the agent can load it.
 
-The plugin ships a skill (component name **Mobile access skill**) that hands that to the agent. It can read the plugin's own configuration fields, where each piece of state lives, what every error code means, and the local management API — so a request can start in ordinary words:
+What it provides:
 
-```text
-Get my phone connected remotely, I don't want to create an account
-My phone can't reach the computer, find out why
-I changed routers and local access stopped working
-I lost my phone, revoke it
-```
+- **Configuration fields and validation**: the options, types, defaults and accepted ranges for each of the six remote channels (Tailscale, cpolar, cloudflared, frp, origin, iroh) and for local network access, plus the cause and handling of every error code.
+- **Where state lives**: what each file under `<state>` holds, and which values are on disk rather than only in the plugin's memory. Configuration is held in memory, so editing `settings.json` directly has no effect; it has to be written through the management API.
+- **The local management API**: the `/api/mobile-access/*` routes, request bodies and response shapes. The API requires a loopback peer, and a POST needs an `Origin` header matching `DSH_WEB_URL`.
+- **Pairing material**: the QR code and link returned by `pairing/open`, the two-minute window, and how `qrSvg` relates to `pairUrl`.
 
-**What it does**
+The credential rule is part of the skill: the agent may write a token on the user's behalf, but must state its purpose in the same turn and never echo, store or carry it across turns. The management API is reachable from loopback only.
 
-- **Asks before acting**: choices that belong to the user — which channel, whether they have a Tailscale account, whether they want to use their own VPS — are asked, not assumed. Steps only the user can take, such as signing in to an account, choosing a domain or confirming an SSH host key, are explained rather than performed.
-- **Writes the configuration**: saves and enables the channel through the local management API. Settings live in the plugin's memory, so editing `settings.json` does nothing — the skill says so, which is what stops a "configured but nothing happened" round.
-- **Pairs in one step**: opens a pairing window, renders the QR as a PNG into the reply and gives the complete pairing link. The window lasts two minutes, so it confirms the phone is at hand first.
-- **Turns errors into answers**: reads the log and the diagnostics, and translates an error code into what happened and what to do next instead of echoing it back.
-- **Knows where to stop**: never relaxes authentication or certificate checks, never signs in to an account for the user, never runs the plugin update, never revokes a device unasked.
-
-**What it does not do**
-
-It is documentation only: one entry in the session skill catalog, no new capability, no network access. UI customization is not part of it — that is `/mobile` and extensions.
-
-A token may be filled in on the user's behalf, but its purpose must be stated in that same turn, and it is never echoed, stored or carried across turns. The management API is reachable from loopback only.
-
-**Switch**: its own **Mobile access skill** row in the DSH plugin detail list. Turning it off leaves phone access untouched; a deployment without the skill service leaves it inactive and everything else keeps working.
-
-> Walking the panel yourself still works — the connection guide below remains the complete manual path. The skill just makes that path something you can talk through.
+The component is documentation only: it registers one entry in the skill catalog, adds no tools or capabilities, and makes no network requests. UI customization is outside its scope and remains with `/mobile` and extensions. It has its own switch in the DSH plugin detail list, and turning it off leaves mobile access unaffected; a deployment without the skill service keeps it inactive.
 
 ## Device management
 
