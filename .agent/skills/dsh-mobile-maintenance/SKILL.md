@@ -50,7 +50,7 @@ Use actual npm tarballs for published loading paths and the real DSH loader/clie
 
 For UI, measure visibility, hit targets, overflow, focus and state retention. A selector assertion or synthetic stylesheet alone is insufficient. For long-running operations, inspect cancellation and late results; a timeout does not stop synchronous code or roll back completed effects.
 
-Hand off with the outcome, affected client/Host/App, relevant checks, limitations and publication state. Do not claim no bugs, full device coverage, cross-platform CI, voice recognition, certificate renewal or public-route readiness without the corresponding evidence.
+Hand off with the outcome, affected client/Host/App, relevant checks, limitations and publication state. Do not claim no bugs, full device coverage, cross-platform CI, voice recognition, certificate renewal or public-route readiness without the corresponding evidence. A device check is usually reachable even when the phone and the gateway are on different networks — [loopback forwarding](references/runtime-ui-android.md#android-and-adb) closes that gap — so "the device could not reach it" is a reason to say the check was not made, not a reason to imply it passed.
 
 ## Keep this skill useful
 
