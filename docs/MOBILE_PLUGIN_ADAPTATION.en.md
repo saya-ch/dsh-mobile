@@ -18,6 +18,8 @@ This guide is for DSH plugin authors, aiming for **usable small screens without 
 
 These describe the current layout, not fixed dimensions a plugin should copy. Overlays, sidebars and main panels have different available space; verify the actual mounting location. The narrow drawer stays at `min(88vw, 340px)`, while the docked sidebar's width comes from the user's drag (220–520px). A docked right panel is its own grid column too — about 45% of the viewport by default, draggable between 300px and 760px — and falls back to an overlay when the conversation would get too narrow.
 
+The mobile shell uses the host's own narrow threshold, `768px`: DSH turns the sidebar into an overlay drawer below `SIDEBAR_DRAWER_BREAKPOINT = 768` (`packages/client/ui-layout/src/client/columns.ts`), and the plugin follows the same value so the two never both claim the page between 720 and 768. Third-party styles that branch on viewport width can use `768px` directly instead of guessing at a plugin-specific breakpoint.
+
 ## Back, full-screen overlays and safe areas
 
 Android back is not the browser's `popstate`: the App first dispatches a cancelable `dsh-mobile:native-back` event, and only performs its own root behavior (closing the App) when nothing in the page claims it. Therefore:

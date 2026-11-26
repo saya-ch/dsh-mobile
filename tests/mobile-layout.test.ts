@@ -684,7 +684,7 @@ describe('dedicated mobile layout boot', () => {
     // (#465), so the wide band hands the conversation its full share again.
     expect(MOBILE_LAYOUT_STYLES).not.toContain('--dshm-content-column-gutter')
     expect(MOBILE_LAYOUT_STYLES).not.toContain('data-dshm-content-column')
-    expect(MOBILE_LAYOUT_STYLES).not.toContain('max-width:720px')
+    expect(MOBILE_LAYOUT_STYLES).not.toContain('max-width:768px')
     // No rule may cap the conversation slot inside the owned shell.
     expect(MOBILE_LAYOUT_STYLES).not.toMatch(/\.dshm-mainContent\{[^}]*max-width/u)
   })
