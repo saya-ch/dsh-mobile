@@ -40,7 +40,7 @@
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
-> **国内 AtomGit 托管**：[saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile)，由 GitHub 主仓自动同步。
+> **国内 AtomGit 托管**：[saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile)。代码、标签与发布页（含 APK 等安装包）由 GitHub 主仓自动同步，下载入口见其 Releases。
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="64" height="64"></a>

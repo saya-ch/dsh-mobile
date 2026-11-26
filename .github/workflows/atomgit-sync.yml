@@ -4,7 +4,16 @@ on:
   push:
     branches: [main]
     tags: ['v*', 'android-v*']
+  # A release is mirrored after it is published, not when its tag is pushed: the assets
+  # only exist once the release workflow has finished building them.
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to mirror (for example android-v0.8.4)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -48,3 +57,37 @@ jobs:
             git push "${remote}" "${GITHUB_SHA}:refs/heads/${GITHUB_REF_NAME}"
           fi
           echo "Pushed ${GITHUB_REF_NAME} (${GITHUB_SHA:0:8}) to AtomGit." >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Mirror release assets to AtomGit
+    # A tag push cannot mirror a release that does not exist yet, so this job runs on a
+    # published release, or on demand for a tag that predates the mirror.
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check the mirror token
+        id: gate
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+        run: |
+          if [ -z "${ATOMGIT_TOKEN}" ]; then
+            echo "ATOMGIT_TOKEN is not configured; skipping the release mirror." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.gate.outputs.run == 'true'
+        with:
+          persist-credentials: false
+      - name: Mirror the release and its assets
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          node scripts/sync-atomgit-release.mjs "${TAG}"

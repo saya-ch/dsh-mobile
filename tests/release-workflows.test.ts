@@ -18,6 +18,55 @@ async function workflow(name: string): Promise<Workflow> {
   return load(await readFile(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8')) as Workflow
 }
 
+describe('AtomGit release mirror', () => {
+  it('mirrors published releases instead of only pushing refs', async () => {
+    const mirror = load(
+      await readFile(new URL('../.github/workflows/atomgit-sync.yml', import.meta.url), 'utf8'),
+    ) as {
+      readonly on: {
+        readonly push: { readonly tags: readonly string[] }
+        readonly release?: { readonly types: readonly string[] }
+        readonly workflow_dispatch?: { readonly inputs: Readonly<Record<string, unknown>> }
+      }
+      readonly jobs: Readonly<Record<string, {
+        readonly if?: string
+        readonly steps: readonly { readonly name?: string; readonly run?: string; readonly if?: string; readonly env?: Readonly<Record<string, string>> }[]
+      }>>
+    }
+
+    // A tag push alone cannot mirror a release whose assets are not built yet.
+    expect(mirror.on.release?.types).toEqual(['published'])
+    expect(mirror.jobs['release']).toBeDefined()
+    expect(mirror.jobs['release']!.if).toContain("github.event_name == 'release'")
+
+    const steps = mirror.jobs['release']!.steps
+    const gate = steps.find(step => step.name === 'Check the mirror token')!.run!
+    expect(gate).toContain('ATOMGIT_TOKEN')
+    // Without the token the job must skip visibly rather than fail the whole mirror.
+    expect(gate).toContain('run=false')
+
+    const upload = steps.find(step => step.name === 'Mirror the release and its assets')!.run!
+    expect(upload).toContain('node scripts/sync-atomgit-release.mjs')
+    // The tag comes from the release event, or from a manual dispatch when backfilling.
+    expect(upload).toContain('${TAG}')
+    expect(mirror.on.workflow_dispatch?.inputs).toHaveProperty('tag')
+  })
+
+  it('verifies a mirrored release against the API instead of trusting the upload', async () => {
+    const source = await readFile(new URL('../scripts/sync-atomgit-release.mjs', import.meta.url), 'utf8')
+    // AtomGit accepts an object-store write whose callback never fires, leaving the asset
+    // absent from the release page. Only a re-read can tell the two apart.
+    expect(source).toContain('findAtomgitRelease()')
+    expect(source).toContain('does not show these assets after the upload')
+    // Re-uploading an existing asset name reports success while the old bytes keep
+    // serving, so an existing name with a different size has to stop the run.
+    expect(source).toContain('ignores a re-upload of an existing name')
+    // Authentication is the GitLab header, not a bearer token.
+    expect(source).toContain("'PRIVATE-TOKEN': token")
+    expect(source).not.toContain('Authorization: `Bearer')
+  })
+})
+
 describe('independent plugin and Android release workflows', () => {
   it('checks the current rc.1 candidate without dependency overrides or an ignored compatibility failure', async () => {
     const ci = await workflow('ci')

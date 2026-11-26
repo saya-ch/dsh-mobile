@@ -40,7 +40,7 @@
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
-> **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile), synced from this repository.
+> **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile). Code, tags and releases (including the APK downloads) are mirrored from this repository; download from its Releases page.
 
 <p align="center">
   <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="64" height="64"></a>
