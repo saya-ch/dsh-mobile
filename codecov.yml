@@ -1,0 +1,78 @@
+# Codecov configuration for saya-ch/dsh-mobile.
+#
+# Coverage here is a trend signal, not a gate. The suite is dominated by real
+# sockets, TLS handshakes and child processes rather than by pure functions, so
+# a line percentage moves for reasons that have nothing to do with review
+# quality. A red status check on an honest pull request teaches contributors to
+# ignore the check, which is worse than not having it.
+#
+# Docs: https://docs.codecov.com/docs/codecovyml-reference
+
+codecov:
+  require_ci_to_pass: true
+  # A pull request that only touches docs, tests or workflows cannot move
+  # product coverage meaningfully, and waiting on an upload for it is noise.
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "50...85"
+
+  status:
+    # Project-wide: report the delta, never fail a pull request for it.
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+        if_ci_failed: error
+
+    # Patch: new lines only. This is the one place a real regression shows up,
+    # because it measures the change rather than the whole repository.
+    patch:
+      default:
+        target: 60%
+        threshold: 5%
+        informational: true
+        if_ci_failed: error
+
+# The Android app, the Windows client and the bundled sidecars are built and
+# exercised by their own lanes; they are not covered by the Vitest suite and
+# must not be counted as uncovered product code.
+ignore:
+  - "apps/**"
+  - "native/**"
+  - "scripts/**"
+  - "tests/**"
+  - "design-system/**"
+  - "assets/**"
+  - "docs/**"
+  - "**/*.d.ts"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+  require_base: false
+  require_head: true
+
+flag_management:
+  default_rules:
+    carryforward: false
+
+# Component-level visibility. The gateway is the security-critical surface, so
+# its number is reported separately rather than averaged into a project total
+# that a large, well-covered helper directory can flatter.
+component_management:
+  individual_components:
+    - component_id: gateway
+      name: Gateway
+      paths:
+        - src/gateway.ts
+        - src/gateway-identity.ts
+    - component_id: mobile_push
+      name: Mobile push
+      paths:
+        - src/mobile-push/**

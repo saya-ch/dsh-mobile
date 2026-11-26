@@ -361,6 +361,33 @@ jobs:
         run: npm install --global pnpm@10.10.0
       - run: npm ci
       - run: npm run verify
+      # `verify` runs the suite without coverage, so the report has to be
+      # produced by a second pass on exactly one lane. The duplication is the
+      # price of keeping `verify` as the single source of truth for the checks;
+      # copying its eleven steps into this workflow to save ~80s here would let
+      # the two lists drift, which is the failure mode this repository has
+      # already been bitten by.
+      - name: Collect coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24.x'
+        run: npm run test:coverage
+      # Coverage is uploaded from exactly one lane. The gateway job already runs
+      # the full suite on the canonical OS and Node, so adding a second uploader
+      # would only make the merged report race against itself.
+      #
+      # `fail_ci_if_error: false` is deliberate: a Codecov outage, an expired
+      # token or a fork's read-only secret must not turn an honest pull request
+      # red. The coverage trend is a signal, not a merge gate.
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24.x'
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          files: ./coverage/lcov.info
+          flags: gateway
+          name: gateway-ubuntu-node24
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Verify the published Caddy component through the default installer
         if: matrix.node == '24.x'
         shell: bash

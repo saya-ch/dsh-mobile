@@ -25,8 +25,14 @@ export default defineConfig({
     maxWorkers: 4,
     coverage: {
       provider: 'v8',
+      // Only product source counts. The Android app, the Windows client and the
+      // bundled sidecars have their own lanes and their own build artefacts;
+      // counting them here would report them as uncovered product code forever.
       include: ['src/**/*.ts', 'packages/*/src/**/*.ts'],
-      reporter: ['text', 'json-summary'],
+      // `lcov` is what Codecov ingests; `json-summary` is what a local run or a
+      // script can read without parsing the table. `text` stays for humans.
+      reporter: ['text', 'json-summary', 'lcov'],
+      reportsDirectory: 'coverage',
     },
   },
 })
