@@ -193,12 +193,13 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run check:version && npm run check:docs && npm run check:funnel-licenses && npm run build",
-    "verify": "npm run check:version && npm run check:docs && npm run check:readme-links && npm run check:companion-package && npm run check:funnel-licenses && npm run check:notices && npm run check:mobile-release && npm run check:iroh-pins && npm run typecheck && npm run test && npm run build && npm pack --dry-run",
+    "verify": "npm run check:version && npm run check:docs && npm run check:readme-links && npm run check:companion-package && npm run check:funnel-licenses && npm run check:notices && npm run check:mobile-release && npm run check:iroh-pins && npm run check:mobile-skill && npm run typecheck && npm run test && npm run build && npm pack --dry-run",
     "smoke:plugin-portal-layers": "node ./scripts/smoke-plugin-portal-layers.mjs",
     "smoke:opaque-chrome": "node ./scripts/smoke-opaque-chrome.mjs",
     "smoke:rightbar-fullscreen": "node ./scripts/smoke-rightbar-fullscreen.mjs",
     "smoke:path-copy": "node ./scripts/smoke-path-copy.mjs",
-    "smoke:viewer-identity": "node ./scripts/smoke-viewer-identity.mjs"
+    "smoke:viewer-identity": "node ./scripts/smoke-viewer-identity.mjs",
+    "check:mobile-skill": "node ./scripts/check-mobile-skill.mjs"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
