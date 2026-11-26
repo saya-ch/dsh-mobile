@@ -32,6 +32,14 @@
   <a href="README.en.md">English</a>
 </p>
 
+<p align="center">
+  <a href="#赞助与支持">
+    <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/sponsor-slots-demo/assets/sponsors/sponsor-banner-demo.svg" alt="赞助商横幅展示位示意" width="82%">
+  </a>
+  <br>
+  <sub>赞助商推荐：<a href="#赞助与支持"><b>您的品牌名称（Your Brand）</b></a> — 一句话核心卖点与开发者专属福利链接展示</sub>
+</p>
+
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
@@ -61,6 +69,21 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 移动访问使用独立 HTTPS 与设备配对；Android App 固定局域网私有 CA，公开远程通道使用系统信任的证书；自签 FRP 入口还需由 0.4.6 App 在配对时固定远程 CA。
 
 它还能在 DSH 对话里用 `/mobile <需求>` 定制手机端。
+
+### 赞助商 Sponsors（展示位示意）
+
+<table>
+  <tr>
+    <td width="640">
+      <a href="#赞助与支持">
+        <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/sponsor-slots-demo/assets/sponsors/sponsor-banner-demo.svg" alt="赞助商横幅展示位示意" width="100%">
+      </a>
+    </td>
+    <td align="center" width="200">
+      <a href="#赞助与支持">Your Brand</a> <i>(Sponsored)</i>
+    </td>
+  </tr>
+</table>
 
 ## 能做什么
 
@@ -611,6 +634,20 @@ npm run verify
 文档快速检查使用 `npm run check:docs`。按改动选择的浏览器测试、隔离 DSH 打包验收、截图和正式发布流程见 [CONTRIBUTING.md](https://github.com/saya-ch/dsh-mobile/blob/main/CONTRIBUTING.md)；Android 构建见 [App 手册](apps/mobile/README.zh-CN.md#构建)。不要用真实用户配置或正式 App 数据替代测试资料。
 
 ## 赞助与支持
+
+<table>
+  <tr>
+    <td width="640">
+      <a href="#赞助与支持">
+        <img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/preview/sponsor-slots-demo/assets/sponsors/sponsor-banner-demo.svg" alt="赞助商横幅展示位示意" width="100%">
+      </a>
+    </td>
+    <td align="center" width="200">
+      <a href="#赞助与支持">Your Brand</a> <i>(Sponsored)</i>
+    </td>
+  </tr>
+</table>
+
 
 - **打赏支持**：如果这个项目对你有帮助，欢迎通过 [爱发电](https://afdian.com/a/saya-ch) 或 [Buy Me a Tokens](https://buymeatokens.com/saya-ch) 支持维护。
 - **商务合作与赞助位**：欢迎云服务、AI API 及开发工具赞助展示，联系邮箱：`2065586050@qq.com`。
