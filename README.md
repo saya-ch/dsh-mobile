@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.9.1**。侧边栏现在跟随「移动端字号」设置（此前只影响输入框）；窄屏阈值与 DSH 自身的抽屉断点对齐到 768px。macOS 支持补齐：cpolar 与 iroh 组件新增 macOS x64/arm64，Tailscale Funnel 也首次支持 macOS，同时插件包从 74.6 MB 瘦身到 9.2 MB。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.9.1**。侧边栏现在跟随「移动端字号」设置（此前只影响输入框）。macOS 支持补齐：cpolar 与 iroh 组件新增 macOS x64/arm64，Tailscale Funnel 也首次支持 macOS，同时插件包从 74.6 MB 瘦身到 9.2 MB。插件与 Android App 独立更新；Android App 0.8.3 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
@@ -505,7 +505,7 @@ macOS 上局域网、Tailscale Funnel、cpolar、cloudflared、自建 FRP、自�
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
-| `0.9.1` | 侧边栏跟随移动端字号设置；窄屏阈值对齐 DSH 的 768px 抽屉断点；组件列表显示可读名称。 |
+| `0.9.1` | 侧边栏跟随移动端字号设置；随插件提供的 skill 组件在插件列表显示可读名称。 |
 | `0.9.0` | macOS 补齐 cpolar、iroh 与 Tailscale Funnel（均为双架构）；Funnel 组件改为按平台安装，插件解包体积 74.6 MB → 9.2 MB；iroh 组件升级到 0.1.0-alpha.2。Android App 为 0.8.3 |
 | `0.8.16` | 宽屏下会话列恢复全宽，左右侧栏均可拖拽调宽，侧栏打开不再顿挫（#465）；opaque-path WebView 上文件预览恢复（#415）。Android App 为 0.8.3 |
 | `0.8.15` | 火狐 Android 端键盘遮挡输入框已修复（#457）；预览文件名支持复制路径 / 分享文件（#459）；DSH 0.2.3-alpha.2 兼容恢复（#462）。Android App 为 0.8.3 |
