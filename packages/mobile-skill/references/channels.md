@@ -49,7 +49,9 @@ Run through the profile: `dsh plugin --profile <profile> exec dsh-mobile setup`.
 
 ### What actually runs
 
-A Go `tsnet` sidecar shipped with the plugin for `win32-x64`, `linux-x64`, `linux-arm64`, `darwin-x64` and `darwin-arm64`. **Not** the system `tailscale` binary — the plugin never invokes it. There is no `win32-arm64` package, so Windows on ARM reports `component_missing`.
+A Go `tsnet` sidecar for `win32-x64`, `linux-x64`, `linux-arm64`, `darwin-x64` and `darwin-arm64`. **Not** the system `tailscale` binary — the plugin never invokes it, and it never downloads the sidecar either.
+
+The sidecar does **not** ship inside the plugin tarball. Each target is its own optional npm package (`dsh-mobile-funnel-<platform>-<arch>`) whose `os`/`cpu` fields make the package manager install only the one this machine can run; the plugin resolves it through the module loader. Two consequences: a registry mirror that has not mirrored the new packages leaves a correct install with no sidecar, which reports `component_missing` even though nothing is wrong with the plugin; and there is no `win32-arm64` package, so Windows on ARM reports the same code.
 
 The sidecar listens on port 443 with `FunnelOnly`, meaning it accepts only the public Funnel path — tailnet-internal access is intentionally rejected. This is why the diagnostic reason `remote-tailnet-shadowed` exists.
 
@@ -185,7 +187,9 @@ frpc pinned `0.70.1` for six platforms including `win32-arm64`. Verified by down
 
 ### Error codes
 
-`frp_component_missing`, `frp_component_invalid`, `frp_config_missing`, `frp_vhost_publicly_reachable` (a safety gate — the plugin refuses to start when the plaintext vhost port answers from the internet), `frp_vhost_probe_failed`, `gateway_start_failed`, `frp_attach_cert_unknown`, `frp_ingress_*`, `frp_entry_tls_invalid`, `frp_config_verify_failed`, `frp_launch_failed`, `frp_proxy_name_in_use`, `frp_remote_port_in_use`, `frp_proxy_start_failed`, `frp_discovery_mismatch`, `frp_discovery_invalid`, `frp_start_timeout` (45 s), `frp_stopped`, `frp_exited`, `frp_ingress_renewal_failed`.
+Controller state: `frp_component_missing`, `frp_component_invalid`, `frp_vhost_publicly_reachable` (a safety gate — the plugin refuses to start when the plaintext vhost port answers from the internet), `frp_vhost_probe_failed`, `gateway_start_failed`, `frp_attach_cert_unknown`, `frp_ingress_*`, `frp_config_verify_failed`, `frp_launch_failed`, `frp_proxy_name_in_use`, `frp_remote_port_in_use`, `frp_proxy_start_failed`, `frp_discovery_mismatch`, `frp_discovery_invalid`, `frp_start_timeout` (45 s), `frp_stopped`, `frp_exited`, `frp_ingress_renewal_failed`.
+
+`frp_config_missing` and `frp_entry_tls_invalid` are **save-time** failures, not controller states: the first comes from `mergeSavedFrpSettings` when the required fields are absent, the second from `parseFrpSettings` when the mode and entry-certificate combination is impossible. Both reach the API as `409` because of the `frp_*` mapping, so do not go looking for them in `state`.
 
 Configuration codes live in `providers.frp.configuration.errorCode`: `frp_config_invalid`, plus save-time `frp_settings_invalid`, `frp_server_address_invalid`, `frp_server_port_invalid`, `frp_token_invalid`, `frp_public_origin_invalid`, `frp_attach_mode_requires_vhost_port`, `frp_self_signed_requires_public_ipv4`, `frp_user_invalid`.
 

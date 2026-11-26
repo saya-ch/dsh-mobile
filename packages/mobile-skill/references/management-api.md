@@ -5,9 +5,9 @@ All local management routes live under `/api/mobile-access`. Two requirements ap
 1. **Base URL** from `$DSH_WEB_URL` (the DSH port changes by launch, so never hard-code one).
 2. **`Origin` header equal to that same URL.** Without it the gateway answers `403 {"error":"forbidden"}` before validating the body. With a wrong origin the same 403 appears, so a 403 means the header, not the payload.
 
-`Content-Type: application/json` is required on POST. Bodies are capped per route (4096 or 8192 bytes); an oversized body is rejected.
+`Content-Type: application/json` is required on POST. Body caps differ by route — 4096 or 8192 for configuration, 16384 for pairing and device routes, 1024 for the push reset — and an oversized body is rejected.
 
-A successful call answers `200` with the whole remote payload (`providers`, per-channel state and `configuration`), so the response already confirms the effect.
+A successful configuration call answers `200` with the whole remote payload (`providers`, per-channel state and `configuration`), so the response already confirms the effect. Pairing routes answer `201`, and LAN routes answer with the LAN payload rather than the remote one.
 
 ## Reading state
 
@@ -16,9 +16,10 @@ A successful call answers `200` with the whole remote payload (`providers`, per-
 | `GET /remote/control` | Every channel's switch, runtime state and configuration metadata |
 | `GET /diagnostics` | The full connection diagnostic with `checks`, `report` and `coverage` |
 | `GET /remote/frp/self-check` | FRP entry details: certificate, CA fingerprint, reachability, component |
-| `GET /remote/frp/attach-plan` or `POST` it | Attach-mode checklist with the token masked |
+| `POST /remote/frp/attach-plan` | Attach-mode checklist with the token masked. **POST only** — a GET falls through to the generic `/remote/*` handler and answers 404 |
 | `GET /lan/control` | LAN configured/running state, `restartRequired`, pending origin |
 | `GET /lan/networks` | Candidate LAN interfaces with the recommended one |
+| `GET /lan/status`, `GET /remote/status` | Gateway host/port/origin, pairing window state, device count, live connection counts, discovery status |
 | `GET /lan/devices`, `GET /remote/devices` | Paired devices (never the credentials) |
 
 ## Channels and switching
@@ -100,11 +101,13 @@ Empty `secretId` and `secretKey` together keep the stored credentials. Note that
 | `POST /lan/rebind` | `{"networkInterface":"<name>"}` — reissues the certificate and restarts the listener |
 | `POST /lan/trusted-networks` | `{"extraAllowedCidrs":[…]}` |
 | `POST /lan/loopback-tunnel` | `{"enabled":true\|false,"port"?:…}` |
-| `POST /lan/pairing/open` | `{}` — opens a pairing window, returns the code, URL and QR |
-| `POST /lan/devices/revoke` | `{"deviceId":"<32 hex>"}` |
+| `POST /lan/pairing/open` | `{ttlMs?}` — opens a pairing window and returns the code, URL and QR. `ttlMs` may only shorten it (10 s up to the configured `pairingTtlMs`) |
+| `POST /lan/devices/revoke` | `{"deviceId":"<32 hex>"}` — 404 when the id is unknown |
 | `POST /lan/devices/reset` | `{"confirm":true}` — LAN devices only |
+| `POST /remote/devices/revoke` | `{"deviceId":"<32 hex>"}` — the remote store |
+| `POST /remote/devices/reset` | `{"confirm":true}` — remote devices only; the LAN store is untouched |
 
-`lan/trusted-networks` and `lan/loopback-tunnel` answer `restartRequired: true`; the change applies after a DSH restart, a LAN rebind, or an off/on cycle.
+`lan/trusted-networks` and `lan/loopback-tunnel` answer with a boolean `restartRequired`, which is true only when the saved value actually changed — re-saving the same value answers `false`. When it is true, the change applies after a DSH restart, a LAN rebind, or an off/on cycle.
 
 ## Pairing
 
@@ -113,19 +116,20 @@ Pairing is the step that actually lets a phone in, so when the user asks to pair
 | Route | Body | When |
 |---|---|---|
 | `POST /lan/pairing/open` | `{}` | Local network |
-| `POST /remote/pairing/open` | `{}` | The selected remote channel |
+| `POST /remote/pairing/open` | `{ttlMs?}` | The selected remote channel |
 | `POST /remote/iroh/pairing/begin` | `{}` | iroh — a descriptor instead of a URL; requires `state === 'ready'` |
 
 The first two answer `201` with `{token, expiresAt, appKey, pairUrl, appPairUrl, qrSvg}`. iroh answers with the ten descriptor fields plus `qrSvg`.
 
 **The window is short.** 2 minutes by default (`pairingTtlMs`), 5 minutes on iroh. Ask whether the phone is ready *before* opening it; a code generated while the user is still looking for their phone has usually expired by the time they scan it. Say when it expires.
 
-Deliver it as material, not as prose:
+Deliver it in the reply itself, not as a file path the user has to go find:
 
-- `qrSvg` — write it to a `.svg` file and show it, or open it in a browser on the computer; the user scans the screen with the phone.
-- `pairUrl` — the link a browser opens, after accepting the certificate warning once.
-- `appKey` — what the Android app's pairing field takes.
-- iroh — the descriptor JSON as text, pasted into the full app. It carries both the 6-digit transport code and the gateway token, so it is a single unit.
+1. Write `qrSvg` verbatim to a `.svg` file and embed it in the reply with `![Pairing QR](<absolute path>)`. DSH renders local SVG, and a vector code stays sharp at any size. Keep the file until the user has scanned it, then it is disposable — never leave it somewhere that outlives the window.
+2. Give the **complete** `pairUrl` as text, every character including the token. Never truncate it, elide the middle, or replace the secret with `…`; the user needs to copy or open it. A browser opens it after accepting the certificate warning once.
+3. Android app users paste `appKey`. For iroh, give the descriptor JSON as text — it is the single unit the full app consumes.
+
+A QR the user has to open from a path is not a delivered QR: put it in the message body.
 
 Only ever hand this to the user in the turn where they asked to pair. Do not write it into the plugin log, an issue, a commit, a README, or a file that survives the window. Opening a new window invalidates the previous code, so do not open one speculatively "to check it works".
 
