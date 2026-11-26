@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
+## 0.9.1 - 2026-11-26
 
 - **Funnel platform packages no longer have to republish with every plugin release.** The optional per-platform packages carry a compiled Go binary that changes far less often than the plugin, but a check required their version to equal the plugin's, so every release rebuilt and republished roughly 75 MB of unchanged binaries. The plugin resolves the package by name, never by version, so the pin now names each package's own version and the release workflow reads it from the tarball manifest instead of assuming it matches. Nothing changes for users; a release that does touch the Funnel host still bumps the packages it changes.
 
