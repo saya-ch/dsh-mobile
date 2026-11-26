@@ -123,13 +123,29 @@ The first two answer `201` with `{token, expiresAt, appKey, pairUrl, appPairUrl,
 
 **The window is short.** 2 minutes by default (`pairingTtlMs`), 5 minutes on iroh. Ask whether the phone is ready *before* opening it; a code generated while the user is still looking for their phone has usually expired by the time they scan it. Say when it expires.
 
-Deliver it in the reply itself, not as a file path the user has to go find:
+Deliver it in the reply itself, not as a file path the user has to go find.
 
-1. Write `qrSvg` verbatim to a `.svg` file and embed it in the reply with `![Pairing QR](<absolute path>)`. DSH renders local SVG, and a vector code stays sharp at any size. Keep the file until the user has scanned it, then it is disposable — never leave it somewhere that outlives the window.
-2. Give the **complete** `pairUrl` as text, every character including the token. Never truncate it, elide the middle, or replace the secret with `…`; the user needs to copy or open it. A browser opens it after accepting the certificate warning once.
-3. Android app users paste `appKey`. For iroh, give the descriptor JSON as text — it is the single unit the full app consumes.
+**Render the code as PNG.** The response carries `qrSvg`, but a PNG is what displays reliably in a message, so render one from `pairUrl`. This is not a second encoding of the secret: the plugin itself builds `qrSvg` from `appPairUrl`, and `appPairUrl === pairUrl`, so encoding `pairUrl` produces the identical payload. Use the plugin's own `qrcode` dependency so nothing has to be installed:
 
-A QR the user has to open from a path is not a delivered QR: put it in the message body.
+```bash
+cat > /tmp/qr-pair.mjs <<'JS'
+import { createRequire } from 'node:module'
+import { statSync } from 'node:fs'
+import { join } from 'node:path'
+const pluginRequire = createRequire(join(process.env.DSH_PROFILE_DIR, 'node_modules', 'dsh-mobile', 'index.mjs'))
+const qrcode = pluginRequire('qrcode')
+const [url, out] = process.argv.slice(2)
+await qrcode.toFile(out, url, { type: 'png', width: 360, margin: 2 })
+console.log(`wrote ${out} (${statSync(out).size} bytes)`)
+JS
+node /tmp/qr-pair.mjs '<pairUrl>' ./pair-qr.png
+```
+
+Then embed it with `![Pairing QR](<absolute path>)`. Resolving through the plugin entry is what makes this work from any working directory. If the module cannot be resolved, fall back to writing `qrSvg` to a `.svg` file and embedding that — DSH renders both.
+
+Give the **complete** `pairUrl` as text too, every character including the token. Never truncate it, elide the middle, or replace the secret with `…`; the user needs to copy or open it. A browser opens it after accepting the certificate warning once. Android app users paste `appKey`. For iroh, give the descriptor JSON as text — it is the single unit the full app consumes.
+
+A QR the user has to open from a path is not a delivered QR: put it in the message body. Delete the file once the user has scanned it; never leave it somewhere that outlives the window.
 
 Only ever hand this to the user in the turn where they asked to pair. Do not write it into the plugin log, an issue, a commit, a README, or a file that survives the window. Opening a new window invalidates the previous code, so do not open one speculatively "to check it works".
 

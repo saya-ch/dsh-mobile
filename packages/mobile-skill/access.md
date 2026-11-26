@@ -118,7 +118,7 @@ Two token-reuse rules differ and are easy to get wrong:
 
 Full route list: [management-api.md](references/management-api.md)
 
-When the write is what completes a channel, the user's next step is pairing the phone. Open a window and put the QR **in the reply body** (write `qrSvg` to a `.svg` file, embed it) together with the **complete** `pairUrl` — see [pairing.md](references/pairing.md) and the pairing routes in the API reference. The window lasts two minutes, so confirm the phone is at hand first.
+When the write is what completes a channel, the user's next step is pairing the phone. Open a window and put the QR **in the reply body** as a PNG, rendered from `pairUrl` with the plugin's own `qrcode` — the recipe is in the API reference — together with the **complete** `pairUrl`. The window lasts two minutes, so confirm the phone is at hand first.
 
 ## Reading state without the panel
 
