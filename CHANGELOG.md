@@ -2,7 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
+## 0.9.2 - 2026-11-27
 
 - **The narrow-layout threshold matches DSH's own.** DSH turns the sidebar into an overlay drawer below `SIDEBAR_DRAWER_BREAKPOINT = 768`, while the plugin took the shell over at 720, so between 720 and 768 both layouts claimed the page and neither behaved predictably. The plugin's overlay query, its short-viewport rules, the composer toolbar's touch targets and the sidebar scroll memory now use 768, and the folded-rail offset — which starts one pixel above the overlay band — moves to 769. **Portrait phones are unaffected. A landscape phone or a small tablet in that 48px band now gets the drawer instead of the plugin's overlay**, and the smoke probes that bracket the band edge moved with it. The plugin still owns regions DSH does not provide — the panel back bar, the right-side details drawer and the composer toolbar — so this aligns the thresholds without replacing the layout.
 
