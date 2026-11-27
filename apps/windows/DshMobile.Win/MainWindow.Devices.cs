@@ -243,7 +243,21 @@ public partial class MainWindow
         string text, double minWidth, string tooltip, RoutedEventHandler onClick,
         bool primary = false, bool danger = false)
     {
-        var button = new Button { Content = text, MinWidth = minWidth, ToolTip = tooltip };
+        // A filled button needs a light label, and the label cannot be coloured through the
+        // template: ContentPresenter renders string content as a TextBlock, which picks up the
+        // implicit TextBlock style, and a style setter outranks both inheritance and
+        // TextElement.Foreground. Passing a TextBlock whose Foreground is a local value is the
+        // one form that wins. SetResourceReference rather than FindResource so a resource that
+        // is not loaded yet cannot throw during list construction.
+        object content = text;
+        if (primary)
+        {
+            var label = new TextBlock { Text = text };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "OnAccentBrush");
+            content = label;
+        }
+
+        var button = new Button { Content = content, MinWidth = minWidth, ToolTip = tooltip };
         if (primary) button.Style = (Style)FindResource("PrimaryButton");
         if (danger) button.Style = (Style)FindResource("DangerButton");
         button.Click += onClick;
