@@ -1,0 +1,1202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Korean interface strings for the Windows client. Chinese lives in the neutral
+    Strings.resx; this file only overrides it when the UI culture is ko. A missing
+    key falls back to the neutral value, so a partial translation is safe.
+
+    Placeholders {0}/{1}/... are filled with string.Format by the caller and must be
+    preserved exactly.
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Nav_Devices" xml:space="preserve">
+    <value>기기</value>
+    <comment>Device page header title and navigation rail label</comment>
+  </data>
+  <data name="Nav_DeviceList" xml:space="preserve">
+    <value>기기 목록</value>
+    <comment>"Back to device list" label (browser bar, settings header, rail tooltip/automation name)</comment>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>설정</value>
+    <comment>Settings page header title, rail label, rail tooltip/automation name</comment>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>취소</value>
+    <comment>Cancel buttons (update row, rename dialog)</comment>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>닫기</value>
+    <comment>Close button tooltip / automation name (rename dialog)</comment>
+  </data>
+  <data name="Common_Clear" xml:space="preserve">
+    <value>지우기</value>
+    <comment>"Clear" button on the settings page</comment>
+  </data>
+  <data name="Common_BackToDeviceList" xml:space="preserve">
+    <value>기기 목록으로 돌아가기</value>
+    <comment>Settings page back action tooltip</comment>
+  </data>
+  <data name="DeviceList_Subtitle" xml:space="preserve">
+    <value>페어링된 컴퓨터를 선택해 계속하거나 새 컴퓨터를 추가합니다. 모든 페어링은 이 컴퓨터에만 저장됩니다.</value>
+    <comment>Device page subtitle under the title</comment>
+  </data>
+  <data name="DeviceList_PairedHeader" xml:space="preserve">
+    <value>페어링된 컴퓨터</value>
+    <comment>Section header above the saved-device cards</comment>
+  </data>
+  <data name="DeviceList_AddComputer" xml:space="preserve">
+    <value>새 컴퓨터 추가</value>
+    <comment>Page action and its collapsed-state label</comment>
+  </data>
+  <data name="DeviceList_AddToggleTooltip" xml:space="preserve">
+    <value>페어링 패널을 엽니다. 한 번 더 누르면 접힙니다</value>
+    <comment>Add-computer button tooltip</comment>
+  </data>
+  <data name="DeviceList_Collapse" xml:space="preserve">
+    <value>접기</value>
+    <comment>Add-computer button label while the panel is open</comment>
+  </data>
+  <data name="DeviceList_EmptyTitle" xml:space="preserve">
+    <value>아직 페어링된 컴퓨터가 없습니다</value>
+    <comment>Empty-state heading</comment>
+  </data>
+  <data name="DeviceList_EmptyHint" xml:space="preserve">
+    <value>컴퓨터의 DSH에서 “모바일 액세스”를 열고 페어링 내용이나 링크를 복사해 아래에 붙여 넣으십시오. 페어링은 이때 한 번만 하면 되고, 이후에는 “연결”을 누르면 접속됩니다.</value>
+    <comment>Empty-state explanation</comment>
+  </data>
+  <data name="DeviceList_Connect" xml:space="preserve">
+    <value>연결</value>
+    <comment>Card primary action for a reconnectable device</comment>
+  </data>
+  <data name="DeviceList_Repair" xml:space="preserve">
+    <value>다시 페어링</value>
+    <comment>Card primary action for a device whose credential is unusable</comment>
+  </data>
+  <data name="DeviceList_ConnectTooltip" xml:space="preserve">
+    <value>이 컴퓨터에 연결합니다</value>
+    <comment>Card primary action tooltip</comment>
+  </data>
+  <data name="DeviceList_MenuRename" xml:space="preserve">
+    <value>이름 바꾸기</value>
+    <comment>Row menu item</comment>
+  </data>
+  <data name="DeviceList_MenuCheckNow" xml:space="preserve">
+    <value>지금 확인</value>
+    <comment>Row menu item (reachability re-check)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveUp" xml:space="preserve">
+    <value>한 칸 위로</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveTop" xml:space="preserve">
+    <value>맨 위로 이동</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuDelete" xml:space="preserve">
+    <value>삭제(실행 취소 가능)</value>
+    <comment>Row menu item (destructive)</comment>
+  </data>
+  <data name="DeviceList_MoreActions" xml:space="preserve">
+    <value>작업 더 보기</value>
+    <comment>Row "..." button tooltip and automation name</comment>
+  </data>
+  <data name="DeviceList_UndoDeleted" xml:space="preserve">
+    <value>{0}을(를) 삭제했습니다</value>
+    <comment>Undo strip text after deleting a device</comment>
+  </data>
+  <data name="DeviceList_UndoAction" xml:space="preserve">
+    <value>실행 취소</value>
+    <comment>Undo strip action</comment>
+  </data>
+  <data name="DeviceList_UndoTooltip" xml:space="preserve">
+    <value>이 페어링 기록을 복원합니다(컴퓨터 측의 권한은 복원되지 않습니다)</value>
+    <comment>Undo strip action tooltip</comment>
+  </data>
+  <data name="DeviceList_DefaultComputerName" xml:space="preserve">
+    <value>컴퓨터 {0}</value>
+    <comment>Default display name given to a newly paired computer</comment>
+  </data>
+  <data name="Channel_Lan" xml:space="preserve">
+    <value>로컬 네트워크</value>
+    <comment>LAN channel label</comment>
+  </data>
+  <data name="Channel_Remote" xml:space="preserve">
+    <value>원격</value>
+    <comment>Remote channel label</comment>
+  </data>
+  <data name="Pairing_LanSummary" xml:space="preserve">
+    <value>같은 Wi-Fi에서 가장 빠름</value>
+    <comment>Empty-state LAN chip subtitle</comment>
+  </data>
+  <data name="Pairing_RemoteSummary" xml:space="preserve">
+    <value>공용 도메인 또는 터널 경유</value>
+    <comment>Empty-state remote chip subtitle</comment>
+  </data>
+  <data name="Pairing_IrohSummary" xml:space="preserve">
+    <value>포트를 열지 않는 P2P</value>
+    <comment>Empty-state iroh chip subtitle</comment>
+  </data>
+  <data name="Pairing_LanAutomationName" xml:space="preserve">
+    <value>로컬 네트워크로 페어링</value>
+    <comment>Empty-state LAN chip automation name</comment>
+  </data>
+  <data name="Pairing_RemoteAutomationName" xml:space="preserve">
+    <value>원격 주소로 페어링</value>
+    <comment>Empty-state remote chip automation name</comment>
+  </data>
+  <data name="Pairing_IrohAutomationName" xml:space="preserve">
+    <value>iroh로 페어링</value>
+    <comment>Empty-state iroh chip automation name</comment>
+  </data>
+  <data name="Pairing_PanelTitle" xml:space="preserve">
+    <value>컴퓨터 추가</value>
+    <comment>Add-panel heading (note: differs from the button label 添加新电脑)</comment>
+  </data>
+  <data name="Pairing_PanelHint" xml:space="preserve">
+    <value>페어링 내용은 이번 핸드셰이크에만 사용되며 이 기기에 저장되지 않습니다.</value>
+    <comment>Add-panel hint under the heading</comment>
+  </data>
+  <data name="Pairing_DescriptorTooltip" xml:space="preserve">
+    <value>일회성 페어링 내용이며 페어링 코드나 token은 저장되지 않습니다</value>
+    <comment>Paste box tooltip</comment>
+  </data>
+  <data name="Pairing_ConnectAction" xml:space="preserve">
+    <value>페어링 후 연결</value>
+    <comment>Primary action of the add panel</comment>
+  </data>
+  <data name="Pairing_FindOnThisPc" xml:space="preserve">
+    <value>이 기기에서 컴퓨터 찾기</value>
+    <comment>Discovery toggle label (collapsed state) and its reset copy</comment>
+  </data>
+  <data name="Pairing_FindToggleTooltip" xml:space="preserve">
+    <value>주소를 입력하거나 로컬 네트워크를 검색해 컴퓨터를 찾은 뒤 그 컴퓨터의 페어링 링크를 붙여 넣습니다</value>
+    <comment>Discovery toggle tooltip</comment>
+  </data>
+  <data name="Pairing_HideFinder" xml:space="preserve">
+    <value>검색 접기</value>
+    <comment>Discovery toggle label while the finder is open</comment>
+  </data>
+  <data name="Pairing_FinderHint" xml:space="preserve">
+    <value>컴퓨터 주소를 입력하거나 현재 로컬 네트워크를 검색합니다. 찾은 컴퓨터도 자체 페어링 링크를 붙여 넣어야 합니다.</value>
+    <comment>Hint above the address box</comment>
+  </data>
+  <data name="Pairing_AddressTooltip" xml:space="preserve">
+    <value>컴퓨터의 로컬 네트워크 주소를 입력합니다. 예: 192.168.1.18 또는 https://host:port</value>
+    <comment>Address box tooltip</comment>
+  </data>
+  <data name="Pairing_Probe" xml:space="preserve">
+    <value>찾기</value>
+    <comment>Probe button label</comment>
+  </data>
+  <data name="Pairing_ProbeTooltip" xml:space="preserve">
+    <value>이 주소가 DSH Mobile 게이트웨이인지 확인합니다</value>
+    <comment>Probe button tooltip</comment>
+  </data>
+  <data name="Pairing_Scan" xml:space="preserve">
+    <value>로컬 네트워크 검색</value>
+    <comment>Scan button label and its idle state</comment>
+  </data>
+  <data name="Pairing_ScanTooltip" xml:space="preserve">
+    <value>브로드캐스트로 조회하고 이 기기가 속한 대역을 하나씩 확인합니다</value>
+    <comment>Scan button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanRunning" xml:space="preserve">
+    <value>검색 중…</value>
+    <comment>Scan button label while scanning</comment>
+  </data>
+  <data name="Pairing_ModeRemoteHint" xml:space="preserve">
+    <value>네트워크 간 접속: 컴퓨터의 “모바일 액세스”에서 원격 페어링 링크(https://your-domain/mobile-access/pair#…)를 복사해 아래에 붙여 넣으십시오. 도메인은 이 컴퓨터에서 접속할 수 있어야 합니다.</value>
+    <comment>Guidance under the paste box for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeRemotePlaceholder" xml:space="preserve">
+    <value>원격 페어링 링크 붙여넣기</value>
+    <comment>Placeholder for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohHint" xml:space="preserve">
+    <value>공인 포트가 필요 없습니다: 컴퓨터에서 iroh 페어링 내용(JSON)을 복사해 아래에 붙여 넣으십시오. 첫 연결 시 공식 구성 요소(약 14.8 MB)를 내려받아 검증합니다.</value>
+    <comment>Guidance under the paste box for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohPlaceholder" xml:space="preserve">
+    <value>iroh 페어링 내용(JSON) 붙여넣기</value>
+    <comment>Placeholder for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeLanHint" xml:space="preserve">
+    <value>같은 Wi-Fi나 로컬 네트워크에서 가장 빠릅니다: 컴퓨터의 로컬 네트워크 페어링 링크(https://192.168.x.x:포트/mobile-access/pair#…)를 복사해 아래에 붙여 넣으십시오. 링크를 찾을 수 없으면 이 기기에서 검색할 수 있습니다.</value>
+    <comment>Guidance under the paste box for the LAN tab</comment>
+  </data>
+  <data name="Pairing_ModeLanPlaceholder" xml:space="preserve">
+    <value>로컬 네트워크 페어링 링크 붙여넣기</value>
+    <comment>Placeholder for the LAN tab</comment>
+  </data>
+  <data name="Pairing_SelectFound" xml:space="preserve">
+    <value>선택</value>
+    <comment>"Use this one" button on a discovered gateway card</comment>
+  </data>
+  <data name="Pairing_SelectFoundTooltip" xml:space="preserve">
+    <value>이 컴퓨터를 기억하고 페어링 링크를 붙여 넣을 때 주소가 일치하는지 확인합니다</value>
+    <comment>Discovered gateway button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanNoBroadcast" xml:space="preserve">
+    <value>브로드캐스트 응답이 없어 이 기기가 속한 대역을 하나씩 확인하는 중…</value>
+    <comment>Discovery hint while probing the subnet</comment>
+  </data>
+  <data name="Pairing_ScanNotFound" xml:space="preserve">
+    <value>컴퓨터를 찾지 못했습니다. 컴퓨터 측 게이트웨이가 실행 중이고 이 기기와 같은 네트워크에 있는지 확인하거나, 위에서 주소를 직접 입력해 찾아보십시오.</value>
+    <comment>Discovery hint when nothing was found</comment>
+  </data>
+  <data name="Pairing_ScanTimeout" xml:space="preserve">
+    <value>검색 시간이 초과되었습니다. 주소를 직접 입력해 찾을 수 있습니다.</value>
+    <comment>Discovery hint on scan timeout</comment>
+  </data>
+  <data name="Pairing_ScanFailed" xml:space="preserve">
+    <value>검색 실패: {0}</value>
+    <comment>Discovery hint when the scan throws</comment>
+  </data>
+  <data name="Pairing_SelectedHint" xml:space="preserve">
+    <value>“{0}”({1})을(를) 선택했습니다. 위에 이 컴퓨터의 페어링 링크를 붙여 넣은 뒤 페어링하십시오. 링크 주소가 다르면 확인을 요청합니다.</value>
+    <comment>Discovery hint after picking a result</comment>
+  </data>
+  <data name="Pairing_InvalidAddress" xml:space="preserve">
+    <value>주소가 유효하지 않습니다: {0}</value>
+    <comment>Message box body when the typed address does not parse</comment>
+  </data>
+  <data name="Pairing_FindTitle" xml:space="preserve">
+    <value>컴퓨터 찾기</value>
+    <comment>Message box title for the manual probe flow</comment>
+  </data>
+  <data name="Pairing_GatewayNotFound" xml:space="preserve">
+    <value>게이트웨이를 찾을 수 없습니다: {0}
+
+컴퓨터 측 게이트웨이가 실행 중인지, 주소가 정확한지, 네트워크에 접근할 수 있는지 확인하십시오.</value>
+    <comment>Message box body when the probe fails</comment>
+  </data>
+  <data name="Pairing_InvalidContentTitle" xml:space="preserve">
+    <value>페어링 내용이 유효하지 않습니다</value>
+    <comment>Message box title when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_InvalidContent" xml:space="preserve">
+    <value>페어링 내용이 유효하지 않습니다.
+
+iroh 설명자 오류: {0}
+페어링 링크 오류: {1}</value>
+    <comment>Message box body when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_OriginMismatchTitle" xml:space="preserve">
+    <value>주소가 일치하지 않습니다</value>
+    <comment>Message box title when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_OriginMismatch" xml:space="preserve">
+    <value>페어링 링크가 가리키는 {0}이(가) 선택한 검색 결과 {1}과(와) 일치하지 않습니다.
+
+다른 컴퓨터의 링크를 잘못 붙여 넣었을 수 있습니다. 계속 페어링하시겠습니까?</value>
+    <comment>Message box body when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_UpdateAddressTitle" xml:space="preserve">
+    <value>주소를 업데이트할 수 없습니다</value>
+    <comment>Message box title when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_UpdateAddressNotSame" xml:space="preserve">
+    <value>새 링크가 같은 컴퓨터가 아닙니다(instanceId 불일치). 기존 기록을 유지했습니다.</value>
+    <comment>Message box body when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_ReneedTitle" xml:space="preserve">
+    <value>다시 페어링이 필요합니다</value>
+    <comment>Message box title when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_ReneedBody" xml:space="preserve">
+    <value>이 컴퓨터의 기기 자격 증명이 만료되었거나 읽을 수 없습니다. 이 컴퓨터의 현재 페어링 링크를 붙여 넣으면 주소와 이름이 자동으로 업데이트됩니다.</value>
+    <comment>Message box body when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_NotSameComputer" xml:space="preserve">
+    <value>새 링크가 같은 컴퓨터가 아닙니다(instanceId 불일치)</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_CaDowngradeRejected" xml:space="preserve">
+    <value>새 링크는 CA 고정을 요구하지 않습니다. CA가 고정된 컴퓨터는 다운그레이드할 수 없으므로 해당 컴퓨터의 현재 dsh2 페어링 링크를 사용하십시오</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_UrlEmpty" xml:space="preserve">
+    <value>페어링 링크가 비어 있거나 너무 깁니다</value>
+    <comment>UrlPairing.Parse rejection, shown as 配对链接错误</comment>
+  </data>
+  <data name="Pairing_UrlNotUrl" xml:space="preserve">
+    <value>유효한 URL이 아닙니다</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlMustBeHttps" xml:space="preserve">
+    <value>https:// 페어링 링크만 사용할 수 있습니다</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlUserInfo" xml:space="preserve">
+    <value>페어링 링크에는 사용자 정보나 쿼리 매개변수를 포함할 수 없습니다</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlPath" xml:space="preserve">
+    <value>페어링 링크 경로는 {0}이어야 합니다</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_HostInvalid" xml:space="preserve">
+    <value>호스트 이름 형식이 유효하지 않습니다</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_PortInvalid" xml:space="preserve">
+    <value>포트가 범위를 벗어났습니다</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_UrlNoCredential" xml:space="preserve">
+    <value>페어링 자격 증명이 없습니다(fragment에 instance/token 또는 key=…가 포함되어야 합니다)</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlKeyFormat" xml:space="preserve">
+    <value>key= 페어링 코드 형식이 유효하지 않습니다</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlInstanceFormat" xml:space="preserve">
+    <value>instance/token 페어링 코드 형식이 유효하지 않습니다</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_AddressEmpty" xml:space="preserve">
+    <value>주소가 비어 있거나 너무 깁니다</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection, shown as 地址无效</comment>
+  </data>
+  <data name="Pairing_AddressNotUrl" xml:space="preserve">
+    <value>유효한 주소가 아닙니다</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressMustBeHttps" xml:space="preserve">
+    <value>https 주소 또는 호스트 이름만 사용할 수 있습니다</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressSecret" xml:space="preserve">
+    <value>주소에는 사용자 정보, 쿼리 매개변수 또는 페어링 자격 증명을 포함할 수 없습니다</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryHttpFormat" xml:space="preserve">
+    <value>discovery 응답 형식이 유효하지 않습니다</value>
+    <comment>LanDiscovery.ProbeAsync rejection, shown as 找不到网关</comment>
+  </data>
+  <data name="Pairing_NotGateway" xml:space="preserve">
+    <value>이 주소는 DSH Mobile 게이트웨이가 아닙니다: {0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryNotJson" xml:space="preserve">
+    <value>discovery 응답이 JSON이 아닙니다</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryInvalid" xml:space="preserve">
+    <value>discovery 응답 검증에 실패했습니다: {0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_HostUnresolved" xml:space="preserve">
+    <value>호스트 {0}을(를) 확인할 수 없습니다</value>
+    <comment>LanDiscovery / GatewayAuth DNS failure text</comment>
+  </data>
+  <data name="Connect_BackTooltip" xml:space="preserve">
+    <value>기기 목록으로 돌아가기(연결 유지)</value>
+    <comment>Browser bar back button tooltip</comment>
+  </data>
+  <data name="Connect_StatusAccessibility" xml:space="preserve">
+    <value>연결 상태</value>
+    <comment>Accessible name for the connection status line</comment>
+  </data>
+  <data name="Connect_ProgressAccessibility" xml:space="preserve">
+    <value>연결 진행률</value>
+    <comment>Accessible name for the indeterminate connection progress bar</comment>
+  </data>
+  <data name="Update_ProgressAccessibility" xml:space="preserve">
+    <value>업데이트 진행률</value>
+    <comment>Accessible name for the update download progress bar</comment>
+  </data>
+  <data name="Connect_Disconnect" xml:space="preserve">
+    <value>연결 끊기</value>
+    <comment>Browser bar disconnect button label</comment>
+  </data>
+  <data name="Connect_DisconnectTooltip" xml:space="preserve">
+    <value>연결을 끊고 세션을 지웁니다</value>
+    <comment>Browser bar disconnect button tooltip</comment>
+  </data>
+  <data name="Connect_CancelHint" xml:space="preserve">
+    <value>연결 중에는 언제든지 취소할 수 있으며, 반쯤 열린 연결이 남지 않습니다</value>
+    <comment>Progress panel hint</comment>
+  </data>
+  <data name="Connect_Cancel" xml:space="preserve">
+    <value>연결 취소</value>
+    <comment>Progress panel cancel button</comment>
+  </data>
+  <data name="Connect_CancelTooltip" xml:space="preserve">
+    <value>연결을 중지하고 로컬 프록시를 해제합니다</value>
+    <comment>Progress panel cancel button tooltip</comment>
+  </data>
+  <data name="Connect_ConnectingIroh" xml:space="preserve">
+    <value>iroh에 연결하는 중</value>
+    <comment>Progress status while starting the iroh sidecar</comment>
+  </data>
+  <data name="Connect_Interrupted" xml:space="preserve">
+    <value>연결이 중단되었습니다</value>
+    <comment>Progress status and tray balloon title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_InterruptedTitle" xml:space="preserve">
+    <value>연결이 중단되었습니다 · {0}</value>
+    <comment>Browser bar title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_VerifyingComputer" xml:space="preserve">
+    <value>컴퓨터를 확인하는 중</value>
+    <comment>Progress status while authorizing a direct gateway</comment>
+  </data>
+  <data name="Connect_LoadingPage" xml:space="preserve">
+    <value>페이지를 불러오는 중</value>
+    <comment>Progress status while initialising WebView2</comment>
+  </data>
+  <data name="Connect_Authorizing" xml:space="preserve">
+    <value>인증하는 중</value>
+    <comment>Progress status while pairing/renewing</comment>
+  </data>
+  <data name="Connect_PreparingIroh" xml:space="preserve">
+    <value>iroh 구성 요소를 준비하는 중</value>
+    <comment>Progress status while acquiring the sidecar artifact</comment>
+  </data>
+  <data name="Connect_Retrying" xml:space="preserve">
+    <value>연결을 다시 시도하는 중 ({0}/{1})</value>
+    <comment>Progress status between iroh connect attempts</comment>
+  </data>
+  <data name="Connect_Connected" xml:space="preserve">
+    <value>연결됨 · {0}</value>
+    <comment>Browser bar title and tray context for a live session</comment>
+  </data>
+  <data name="Connect_PinnedCertVerifyFailed" xml:space="preserve">
+    <value>페어링 시 고정한 인증서로 이 컴퓨터를 검증할 수 없습니다. 네트워크가 연결되지 않았거나 인증서가 페어링 당시와 다를 수 있습니다</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_CredentialUnavailable" xml:space="preserve">
+    <value>기기 자격 증명을 사용할 수 없습니다. 페어링 링크를 다시 붙여 넣으십시오</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_FailedTitle" xml:space="preserve">
+    <value>연결 실패</value>
+    <comment>Connect failure dialog title</comment>
+  </data>
+  <data name="Connect_OfferAdopt" xml:space="preserve">
+    <value>{0}
+
+이 컴퓨터의 현재 페어링 링크로 주소를 업데이트하시겠습니까? (같은 컴퓨터여야 하며 이름은 유지됩니다)</value>
+    <comment>Connect failure dialog body when an address update would help</comment>
+  </data>
+  <data name="Connect_InstanceSuffix" xml:space="preserve">
+    <value>
+
+인스턴스: {0}…</value>
+    <comment>Identity detail appended to credential/CA failures</comment>
+  </data>
+  <data name="Connect_AutoStartFailed" xml:space="preserve">
+    <value>시작할 때 “{0}”에 자동 연결하지 못해 기기 목록으로 돌아왔습니다.
+
+{1}</value>
+    <comment>Prefix added to a launch-time auto-connect failure</comment>
+  </data>
+  <data name="Diagnosis_CredentialExpired" xml:space="preserve">
+    <value>이 컴퓨터의 기기 자격 증명이 만료되었거나 컴퓨터 측에서 이 기기를 철회했습니다.
+
+QR 코드를 다시 생성하고 페어링을 한 번 완료하십시오.</value>
+    <comment>Hint for an expired/revoked device credential</comment>
+  </data>
+  <data name="Diagnosis_ProtocolMismatch" xml:space="preserve">
+    <value>클라이언트와 컴퓨터 측의 프로토콜 버전이 일치하지 않아 페어링을 완료할 수 없습니다.
+
+Windows 클라이언트를 최신 버전으로 업데이트하고(설정 → 업데이트 확인), 컴퓨터 측 DSH Mobile 플러그인도 호환 버전으로 업데이트되었는지 확인하십시오.</value>
+    <comment>Hint for a protocol/version mismatch</comment>
+  </data>
+  <data name="Diagnosis_CaMismatch" xml:space="preserve">
+    <value>연결된 컴퓨터가 페어링 시 고정한 컴퓨터와 다릅니다(CA 지문 불일치).
+페어링 링크가 이 컴퓨터에서 발급되었고 중간에 주소 탈취가 없는지 확인하십시오.</value>
+    <comment>Hint for a pinned-CA mismatch</comment>
+  </data>
+  <data name="Diagnosis_CpolarStale" xml:space="preserve">
+    <value>cpolar의 임시 주소가 만료되었습니다.
+
+cpolar 무료 터널은 재시작할 때마다 도메인이 바뀌므로 저장된 주소로는 이 컴퓨터에 연결할 수 없습니다.
+컴퓨터에서 DSH Mobile의 원격 액세스를 열고 새 페어링 링크를 복사해 다시 붙여 넣으십시오.</value>
+    <comment>Hint for a rotated cpolar tunnel address</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolved" xml:space="preserve">
+    <value>컴퓨터 주소 {0}을(를) 확인할 수 없습니다.
+
+{1}</value>
+    <comment>Hint when the name cannot be resolved (second argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedLan" xml:space="preserve">
+    <value>로컬 네트워크 연결: 이 기기와 컴퓨터가 같은 네트워크에 있고 컴퓨터 측 게이트웨이가 실행 중인지 확인하십시오.</value>
+    <comment>LAN advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedRemote" xml:space="preserve">
+    <value>원격 연결: 원격 채널(Tailscale/cpolar/cloudflared 등)이 실행 중이고 도메인에 접속할 수 있는지 확인하십시오.</value>
+    <comment>Remote advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_Http426" xml:space="preserve">
+    <value>컴퓨터 측에서 계속하려면 클라이언트 업그레이드가 필요하다고 응답했습니다(HTTP 426).
+
+Windows 클라이언트를 최신 버전으로 업데이트하십시오(설정 → 업데이트 확인).</value>
+    <comment>Hint for HTTP 426</comment>
+  </data>
+  <data name="Diagnosis_Http429" xml:space="preserve">
+    <value>컴퓨터 측에서 현재 새 연결 요청을 제한하고 있습니다(HTTP 429).
+
+1~2분 후에 다시 시도하십시오. 자주 발생하면 컴퓨터 측에 여러 클라이언트가 동시에 반복 재연결하고 있지 않은지 확인하십시오.</value>
+    <comment>Hint for HTTP 429</comment>
+  </data>
+  <data name="Diagnosis_ServiceUnavailable" xml:space="preserve">
+    <value>컴퓨터 측 DSH 서비스를 일시적으로 사용할 수 없습니다(HTTP {0}).
+
+컴퓨터 측 게이트웨이와 DSH 본체가 모두 실행 중인지 확인한 후 다시 시도하십시오.</value>
+    <comment>Hint for a 5xx answer</comment>
+  </data>
+  <data name="Diagnosis_TlsFailure" xml:space="preserve">
+    <value>컴퓨터와의 보안 연결(TLS)에 실패했습니다.
+
+흔한 원인: 컴퓨터 측 인증서 교체, 프록시 또는 VPN의 TLS 가로채기, 시스템 시간의 큰 오차.
+컴퓨터 측 게이트웨이가 실행 중인지 확인하고 해당 컴퓨터의 현재 페어링 링크를 다시 붙여 넣으십시오.</value>
+    <comment>Hint for a TLS handshake failure</comment>
+  </data>
+  <data name="Diagnosis_NetworkFailure" xml:space="preserve">
+    <value>컴퓨터 측 게이트웨이와의 HTTPS 연결을 설정할 수 없습니다.
+
+{0}</value>
+    <comment>Hint when the gateway is unreachable (argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_NetworkLan" xml:space="preserve">
+    <value>로컬 네트워크 연결: 이 기기와 컴퓨터가 같은 네트워크에 있고, 방화벽이 게이트웨이 포트를 허용하며, 채널이 준비 상태인지 확인하십시오.</value>
+    <comment>LAN advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_NetworkRemote" xml:space="preserve">
+    <value>원격 연결: 원격 채널이 실행 중이고 외부에서 해당 주소에 접속할 수 있는지 확인하십시오.</value>
+    <comment>Remote advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_Timeout" xml:space="preserve">
+    <value>연결 시간이 초과되었습니다. 컴퓨터 측 iroh 채널이 준비 상태이고 양쪽 네트워크에 접근할 수 있는지 확인한 후 다시 시도하십시오.</value>
+    <comment>Hint for a timeout/cancellation</comment>
+  </data>
+  <data name="Diagnosis_IrohNoAddress" xml:space="preserve">
+    <value>iroh가 해당 컴퓨터 측 주소를 찾지 못했습니다(자동 재시도 2회 완료).
+
+EndpointId: {0}
+프록시/VPN에서 dns.iroh.link, iroh.link, relay.iroh.network의 DNS와 UDP를 허용하십시오.</value>
+    <comment>iroh discovery found no addressing information</comment>
+  </data>
+  <data name="Diagnosis_IrohConnectTimeout" xml:space="preserve">
+    <value>iroh가 15초 안에 페어링이 가리키는 컴퓨터 측에 연결하지 못했습니다(자동 재시도 2회 완료).
+
+EndpointId: {0}
+흔한 원인: 컴퓨터 측 채널이 방금 재시작됨, 검색 기록이 아직 전파되지 않음, 프록시/VPN의 UDP 차단.
+채널이 준비된 것을 확인한 후 다시 시도하십시오. 자세한 진단은 data\client.log를 참조하십시오.</value>
+    <comment>iroh could not reach the paired endpoint in time</comment>
+  </data>
+  <data name="Diagnosis_CaFetchFailed" xml:space="preserve">
+    <value>페어링 CA를 가져오지 못했습니다: {0}</value>
+    <comment>GatewayAuth: ca.cer returned a rejection the trust policy will not accept</comment>
+  </data>
+  <data name="Diagnosis_CaResponseEmpty" xml:space="preserve">
+    <value>ca.cer 응답이 비어 있습니다</value>
+    <comment>GatewayAuth: empty ca.cer body</comment>
+  </data>
+  <data name="Diagnosis_CaFingerprintMismatch" xml:space="preserve">
+    <value>페어링 CA가 QR 코드 지문과 일치하지 않습니다. 연결된 컴퓨터가 QR 코드가 가리키는 컴퓨터가 아닐 수 있습니다</value>
+    <comment>GatewayAuth: fetched CA does not match the pairing fingerprint</comment>
+  </data>
+  <data name="Diagnosis_NoTrustAnchor" xml:space="preserve">
+    <value>신뢰 앵커가 없습니다: 페어링 CA가 없고 플랫폼 신뢰도 허용되지 않습니다</value>
+    <comment>GatewayAuth: no trust anchor for the connection</comment>
+  </data>
+  <data name="DeviceStatus_Current" xml:space="preserve">
+    <value>현재 연결</value>
+    <comment>Status label: live session</comment>
+  </data>
+  <data name="DeviceStatus_Reachable" xml:space="preserve">
+    <value>접근 가능</value>
+    <comment>Status label: probe succeeded</comment>
+  </data>
+  <data name="DeviceStatus_Checking" xml:space="preserve">
+    <value>확인 중…</value>
+    <comment>Status label: no result yet (also the fallback)</comment>
+  </data>
+  <data name="DeviceStatus_Unreachable" xml:space="preserve">
+    <value>현재 접근 불가</value>
+    <comment>Status label: probe failed</comment>
+  </data>
+  <data name="DeviceStatus_Revoked" xml:space="preserve">
+    <value>컴퓨터 측에서 제거됨</value>
+    <comment>Status label: computer revoked the credential</comment>
+  </data>
+  <data name="DeviceStatus_Expired" xml:space="preserve">
+    <value>페어링 만료됨</value>
+    <comment>Status label: local credential expired</comment>
+  </data>
+  <data name="DeviceStatus_AddressChanged" xml:space="preserve">
+    <value>주소가 변경되었을 수 있습니다</value>
+    <comment>Status label: a different gateway answered</comment>
+  </data>
+  <data name="DeviceStatus_ConnectToCheck" xml:space="preserve">
+    <value>연결 후 확인 가능</value>
+    <comment>Status label: iroh row that cannot be probed yet</comment>
+  </data>
+  <data name="DeviceCard_Identity" xml:space="preserve">
+    <value>{0} · {1}…</value>
+    <comment>Card detail line: channel and short endpoint id</comment>
+  </data>
+  <data name="DeviceCard_Expiry" xml:space="preserve">
+    <value>자격 증명 만료일 {0}</value>
+    <comment>Card detail line: credential expiry date</comment>
+  </data>
+  <data name="DeviceCard_LastConnected" xml:space="preserve">
+    <value>최근 연결 {0}</value>
+    <comment>Card status line: relative last-connected wording</comment>
+  </data>
+  <data name="DeviceCard_StatusLine" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card status line: status label and recency</comment>
+  </data>
+  <data name="DeviceCard_Detail" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card detail line: identity and optional expiry</comment>
+  </data>
+  <data name="DeviceCard_RepairHint" xml:space="preserve">
+    <value>자격 증명이 만료되었거나 읽을 수 없습니다. 해당 컴퓨터의 현재 링크를 붙여 넣으면 업데이트됩니다</value>
+    <comment>Card warning line for an unusable record</comment>
+  </data>
+  <data name="RelativeTime_Never" xml:space="preserve">
+    <value>연결한 적 없음</value>
+    <comment>Relative time: no timestamp</comment>
+  </data>
+  <data name="RelativeTime_JustNow" xml:space="preserve">
+    <value>방금</value>
+    <comment>Relative time: under a minute</comment>
+  </data>
+  <data name="RelativeTime_MinutesAgo" xml:space="preserve">
+    <value>{0}분 전</value>
+    <comment>Relative time: N minutes</comment>
+  </data>
+  <data name="RelativeTime_HoursAgo" xml:space="preserve">
+    <value>{0}시간 전</value>
+    <comment>Relative time: N hours</comment>
+  </data>
+  <data name="RelativeTime_DaysAgo" xml:space="preserve">
+    <value>{0}일 전</value>
+    <comment>Relative time: N days</comment>
+  </data>
+  <data name="Settings_Subtitle" xml:space="preserve">
+    <value>모양, 시작 방식과 이 기기의 데이터를 설정합니다. 모든 설정은 이 컴퓨터에만 저장됩니다.</value>
+    <comment>Settings page subtitle</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>모양</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_AppIcon" xml:space="preserve">
+    <value>앱 아이콘</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_AppIconHint" xml:space="preserve">
+    <value>휴대폰 앱과 동일한 10가지 아이콘</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_AppIconCycle" xml:space="preserve">
+    <value>전환</value>
+    <comment>Settings row action (next icon)</comment>
+  </data>
+  <data name="Settings_AppIconCycleTooltip" xml:space="preserve">
+    <value>다음 아이콘으로 전환합니다</value>
+    <comment>Settings row action tooltip</comment>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>테마</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_ThemeHint" xml:space="preserve">
+    <value>기본적으로 Windows의 밝은/어두운 설정을 따릅니다</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>시스템 설정 따르기</value>
+    <comment>Theme segment: follow Windows</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>밝게</value>
+    <comment>Theme segment: light</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>어둡게</value>
+    <comment>Theme segment: dark</comment>
+  </data>
+  <data name="Settings_StartupGroup" xml:space="preserve">
+    <value>시작 및 연결</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_Startup" xml:space="preserve">
+    <value>시작 시</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_StartupHint" xml:space="preserve">
+    <value>자동 연결은 마지막으로 사용한 컴퓨터로 바로 접속합니다</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_StartPageDevices" xml:space="preserve">
+    <value>기기 목록 표시</value>
+    <comment>Start-page segment: show the device list</comment>
+  </data>
+  <data name="Settings_StartPageLastDevice" xml:space="preserve">
+    <value>마지막 컴퓨터에 자동 연결</value>
+    <comment>Start-page segment: reconnect the last computer</comment>
+  </data>
+  <data name="Settings_Notify" xml:space="preserve">
+    <value>작업 완료 알림</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_NotifyHint" xml:space="preserve">
+    <value>연결 중 트레이에 작업 완료 알림을 표시합니다</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_NotifyAutomationName" xml:space="preserve">
+    <value>작업 완료 알림</value>
+    <comment>Switch automation name</comment>
+  </data>
+  <data name="Settings_Data" xml:space="preserve">
+    <value>데이터</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_ClearSiteData" xml:space="preserve">
+    <value>사이트 데이터 지우기</value>
+    <comment>Settings row title / dialog title shared by the clear-site-data flow</comment>
+  </data>
+  <data name="Settings_ClearSiteDataHint" xml:space="preserve">
+    <value>WebView의 캐시와 Cookie를 지웁니다. 페어링된 컴퓨터에는 영향을 주지 않습니다</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ClearTooltip" xml:space="preserve">
+    <value>캐시, Cookie와 로컬 저장소를 지웁니다</value>
+    <comment>"Clear" button tooltip</comment>
+  </data>
+  <data name="Settings_ClearNeedConnect" xml:space="preserve">
+    <value>한 번 연결해야 WebView 데이터에 지울 내용이 생깁니다.</value>
+    <comment>Dialog body when WebView2 has not started yet</comment>
+  </data>
+  <data name="Settings_ClearConfirm" xml:space="preserve">
+    <value>WebView의 캐시, Cookie와 로컬 저장소를 지우시겠습니까?
+페어링된 컴퓨터와 자격 증명에는 영향을 주지 않습니다.</value>
+    <comment>Confirmation dialog body</comment>
+  </data>
+  <data name="Settings_ClearDone" xml:space="preserve">
+    <value>지웠습니다. 다시 연결하면 페이지를 새로 불러옵니다.</value>
+    <comment>Dialog body after a successful clear</comment>
+  </data>
+  <data name="Settings_ClearFailed" xml:space="preserve">
+    <value>지우지 못했습니다: {0}</value>
+    <comment>Dialog body when the clear throws</comment>
+  </data>
+  <data name="Settings_PortableHint" xml:space="preserve">
+    <value>포터블 버전: 레지스트리에 쓰지 않으며 실행 데이터는 프로그램 폴더의 data\ 아래에 저장됩니다</value>
+    <comment>Footer hint beside the version</comment>
+  </data>
+  <data name="Update_Check" xml:space="preserve">
+    <value>업데이트 확인</value>
+    <comment>Check-update button label (idle and after a check)</comment>
+  </data>
+  <data name="Update_CheckingButton" xml:space="preserve">
+    <value>확인 중…</value>
+    <comment>Check-update button label while checking</comment>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>확인하는 중…</value>
+    <comment>Footer status line while checking</comment>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>최신 버전입니다({0}).</value>
+    <comment>Footer status line: no newer release</comment>
+  </data>
+  <data name="Update_FoundNoInstaller" xml:space="preserve">
+    <value>새 버전 {0}(현재 {1})이 있지만 이 버전에는 설치 패키지가 없어 자동 업데이트할 수 없습니다. 직접 내려받으십시오: {2}</value>
+    <comment>Footer status line: newer release without an installer asset</comment>
+  </data>
+  <data name="Update_Found" xml:space="preserve">
+    <value>새 버전 {0}(현재 {1})이 있습니다. “{0}(으)로 업데이트”를 눌러 다운로드를 시작하십시오. 다운로드와 검증이 끝나면 클라이언트가 종료되고 설치 프로그램이 파일을 교체하며, data\ 의 페어링, 설정, 로그는 유지됩니다.</value>
+    <comment>Footer status line: newer release ready to install</comment>
+  </data>
+  <data name="Update_To" xml:space="preserve">
+    <value>{0}(으)로 업데이트</value>
+    <comment>Footer button label once a release is known</comment>
+  </data>
+  <data name="Update_CheckFailed" xml:space="preserve">
+    <value>확인 실패: {0}. 나중에 다시 시도하거나 {1}을(를) 직접 열어 확인할 수 있습니다.</value>
+    <comment>Footer status line when the check throws</comment>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>내려받는 중…</value>
+    <comment>Footer button label while downloading</comment>
+  </data>
+  <data name="Update_DownloadingDetail" xml:space="preserve">
+    <value>{0}의 설치 패키지를 내려받는 중… 다운로드와 검증이 끝나면 클라이언트가 종료되고 설치 프로그램이 파일을 교체합니다.</value>
+    <comment>Footer status line while downloading</comment>
+  </data>
+  <data name="Update_InstallerStarted" xml:space="preserve">
+    <value>설치 프로그램이 시작되었습니다. 업데이트를 마치기 위해 클라이언트가 종료됩니다. 설치가 끝나면 DSH Mobile을 다시 실행하십시오({0}).</value>
+    <comment>Footer status line once the installer starts</comment>
+  </data>
+  <data name="Update_Cancelled" xml:space="preserve">
+    <value>업데이트를 취소했으며 아무것도 변경되지 않았습니다.</value>
+    <comment>Footer status line after a cancellation</comment>
+  </data>
+  <data name="Update_Failed" xml:space="preserve">
+    <value>업데이트 실패: {0}. 다시 시도하거나 직접 내려받으십시오: {1}</value>
+    <comment>Footer status line when the update throws</comment>
+  </data>
+  <data name="Update_Detail" xml:space="preserve">
+    <value>
+자세한 정보: {0}</value>
+    <comment>Detail line appended to a failure message</comment>
+  </data>
+  <data name="Update_Cancelling" xml:space="preserve">
+    <value>취소하는 중…</value>
+    <comment>Progress text while cancelling</comment>
+  </data>
+  <data name="Update_OpenBrowserFailed" xml:space="preserve">
+    <value>브라우저를 열 수 없습니다. 직접 접속하십시오: {0}</value>
+    <comment>Dialog body when the browser cannot be started</comment>
+  </data>
+  <data name="Update_OpenDownloadPageFailedTitle" xml:space="preserve">
+    <value>다운로드 페이지를 열지 못했습니다</value>
+    <comment>Dialog title for the manual-download escape hatch</comment>
+  </data>
+  <data name="Update_OpenDownloadPage" xml:space="preserve">
+    <value>다운로드 페이지 열기</value>
+    <comment>Manual-download button label</comment>
+  </data>
+  <data name="Update_OpenDownloadPageTooltip" xml:space="preserve">
+    <value>브라우저에서 GitHub Releases를 열어 직접 내려받습니다</value>
+    <comment>Manual-download button tooltip</comment>
+  </data>
+  <data name="Update_CheckTooltip" xml:space="preserve">
+    <value>새 Windows 클라이언트 버전이 있는지 확인합니다</value>
+    <comment>Check-update button tooltip</comment>
+  </data>
+  <data name="Update_CancelDownloadTooltip" xml:space="preserve">
+    <value>다운로드를 취소하고 임시 파일을 삭제합니다</value>
+    <comment>Cancel-download button tooltip</comment>
+  </data>
+  <data name="Update_SizeUnknown" xml:space="preserve">
+    <value>크기 알 수 없음</value>
+    <comment>Size text when the server declared no length</comment>
+  </data>
+  <data name="Update_ProgressPercent" xml:space="preserve">
+    <value>{0} / {1} ({2}%)</value>
+    <comment>Progress text with a known total</comment>
+  </data>
+  <data name="Update_ProgressDownloaded" xml:space="preserve">
+    <value>{0} 내려받음</value>
+    <comment>Progress text without a known total</comment>
+  </data>
+  <data name="Update_ProgressVerifying" xml:space="preserve">
+    <value>SHA-256 검증 중…</value>
+    <comment>Progress text while verifying</comment>
+  </data>
+  <data name="Update_ProgressLaunching" xml:space="preserve">
+    <value>설치 프로그램을 시작하는 중…</value>
+    <comment>Progress text while launching the installer</comment>
+  </data>
+  <data name="Update_TimeoutCheck" xml:space="preserve">
+    <value>요청 시간 초과(15초 안에 응답이 없음)</value>
+    <comment>Check-update failure reason for a timeout</comment>
+  </data>
+  <data name="Update_CannotReachGitHub" xml:space="preserve">
+    <value>GitHub에 연결할 수 없습니다</value>
+    <comment>Check-update failure reason for a transport error</comment>
+  </data>
+  <data name="Update_UnknownError" xml:space="preserve">
+    <value>알 수 없는 오류</value>
+    <comment>Fallback failure reason</comment>
+  </data>
+  <data name="Update_InstallMissingSetup" xml:space="preserve">
+    <value>버전 {0}에는 설치 패키지가 없어 자동 업데이트할 수 없습니다. 직접 내려받으십시오: {1}</value>
+    <comment>Install failure: release has no setup asset</comment>
+  </data>
+  <data name="Update_InvalidSetupUrl" xml:space="preserve">
+    <value>버전 {0}의 설치 패키지 주소가 유효하지 않습니다. 직접 내려받으십시오: {1}</value>
+    <comment>Install failure: setup URL does not parse</comment>
+  </data>
+  <data name="Update_ChecksumFileMissing" xml:space="preserve">
+    <value>버전 {0}에 SHA-256 검증 파일이 없어 설치 패키지의 무결성을 확인할 수 없으므로 설치를 취소했습니다. 직접 내려받으십시오: {1}</value>
+    <comment>Install failure: release has no checksum asset</comment>
+  </data>
+  <data name="Update_TempDirFailed" xml:space="preserve">
+    <value>임시 다운로드 폴더를 만들 수 없습니다: {0}</value>
+    <comment>Install failure: temp folder cannot be created</comment>
+  </data>
+  <data name="Update_StepDownload" xml:space="preserve">
+    <value>다운로드</value>
+    <comment>Timeout step name for the payload download</comment>
+  </data>
+  <data name="Update_StepChecksumDownload" xml:space="preserve">
+    <value>검증 파일 다운로드</value>
+    <comment>Timeout step name for the checksum download</comment>
+  </data>
+  <data name="Update_StepVerify" xml:space="preserve">
+    <value>검증</value>
+    <comment>Timeout step name for the verification</comment>
+  </data>
+  <data name="Update_StepTimeout" xml:space="preserve">
+    <value>{0} 시간 초과(네트워크가 오랫동안 응답하지 않음). 네트워크를 확인한 후 다시 시도하거나 직접 내려받으십시오: {1}</value>
+    <comment>Failure message for a step deadline</comment>
+  </data>
+  <data name="Update_LaunchProcessFailed" xml:space="preserve">
+    <value>설치 프로그램 프로세스를 시작하지 못했습니다.</value>
+    <comment>Exception text when Process.Start returns null</comment>
+  </data>
+  <data name="Update_LaunchFailed" xml:space="preserve">
+    <value>설치 프로그램을 시작할 수 없습니다. 설치 패키지는 내려받아 검증을 통과했으므로 직접 실행할 수 있습니다: {0}</value>
+    <comment>Install failure: the installer cannot be started</comment>
+  </data>
+  <data name="Update_ChecksumUnparsable" xml:space="preserve">
+    <value>검증 실패: 검증 파일에 해석 가능한 SHA-256 값이 없어 설치를 취소했습니다. 직접 내려받으십시오: {0}</value>
+    <comment>Verify failure: no digest in the sidecar</comment>
+  </data>
+  <data name="Update_PackageUnreadable" xml:space="preserve">
+    <value>검증 실패: 내려받은 설치 패키지를 읽을 수 없어 설치를 취소했습니다.</value>
+    <comment>Verify failure: the download cannot be read</comment>
+  </data>
+  <data name="Update_ChecksumMismatch" xml:space="preserve">
+    <value>검증 실패: 설치 패키지의 SHA-256이 게시된 값과 일치하지 않아 내려받은 파일을 삭제했고 설치하지 않았습니다.
+게시된 값: {0}
+실제 값: {1}
+다시 시도하십시오. 계속 일치하지 않으면 직접 내려받으십시오: {2}</value>
+    <comment>Verify failure: digest mismatch</comment>
+  </data>
+  <data name="Update_ChecksumOversized" xml:space="preserve">
+    <value>검증 실패: 검증 파일 크기가 비정상입니다(SHA-256 파일로 보이지 않음). 설치를 취소했습니다. 직접 내려받으십시오: {0}</value>
+    <comment>Verify failure: the sidecar is implausibly large</comment>
+  </data>
+  <data name="Update_HttpNotFound" xml:space="preserve">
+    <value>릴리스 자산이 없습니다(HTTP 404)</value>
+    <comment>HTTP failure reason: 404</comment>
+  </data>
+  <data name="Update_HttpForbidden" xml:space="preserve">
+    <value>GitHub이 이번 요청을 거부했습니다(HTTP {0}). 잠시 후 다시 시도하십시오</value>
+    <comment>HTTP failure reason: 403/429</comment>
+  </data>
+  <data name="Update_HttpRedirect" xml:space="preserve">
+    <value>다운로드 주소가 변경되었습니다(HTTP {0})</value>
+    <comment>HTTP failure reason: redirect</comment>
+  </data>
+  <data name="Update_HttpStatus" xml:space="preserve">
+    <value>서버가 HTTP {0}을(를) 반환했습니다</value>
+    <comment>HTTP failure reason: any other status</comment>
+  </data>
+  <data name="Update_DownloadFailed" xml:space="preserve">
+    <value>다운로드 실패: {0}. 네트워크를 확인한 후 다시 시도하거나 직접 내려받으십시오: {1}</value>
+    <comment>Download failure wrapper</comment>
+  </data>
+  <data name="Update_NetworkFailed" xml:space="preserve">
+    <value>다운로드 실패: 네트워크 연결이 끊겼거나 GitHub에 접근할 수 없습니다. 네트워크(또는 프록시)를 확인한 후 다시 시도하거나 직접 내려받으십시오: {0}</value>
+    <comment>Download failure: transport error</comment>
+  </data>
+  <data name="Update_DownloadInterrupted" xml:space="preserve">
+    <value>다운로드 중단: {1} 중 {0}만 받았습니다. 다시 시도하거나 직접 내려받으십시오: {2}</value>
+    <comment>Download failure: truncated body</comment>
+  </data>
+  <data name="Update_WriteTempFailed" xml:space="preserve">
+    <value>다운로드 실패: 임시 폴더 {0}에 쓸 수 없습니다. 디스크 공간과 권한을 확인하거나 직접 내려받으십시오: {1}</value>
+    <comment>Download failure: the temp file cannot be written</comment>
+  </data>
+  <data name="WebView_RuntimeMissingTitle" xml:space="preserve">
+    <value>WebView2 런타임이 없습니다</value>
+    <comment>Dialog title when the WebView2 runtime is absent</comment>
+  </data>
+  <data name="WebView_RuntimeMissingMessage" xml:space="preserve">
+    <value>이 컴퓨터에 Microsoft Edge WebView2 런타임이 설치되어 있지 않아 클라이언트가 DSH 페이지를 표시할 수 없습니다.
+
+설치한 후 클라이언트를 다시 실행하십시오:
+{0}
+
+Windows 11에는 보통 기본 포함되어 있으며, Windows 10에서는 Evergreen Runtime을 한 번 설치해야 합니다.
+이미 설치했는데도 없다는 메시지가 나오면 x64 버전을 설치했는지 확인하십시오.</value>
+    <comment>Dialog body when the WebView2 runtime is absent (argument is the download URL)</comment>
+  </data>
+  <data name="WebView_BlockedNavigation" xml:space="preserve">
+    <value>게이트웨이가 아닌 주소로의 이동을 차단했습니다.</value>
+    <comment>One-time notice when a non-gateway navigation is blocked</comment>
+  </data>
+  <data name="WebView_BlockedPopup" xml:space="preserve">
+    <value>팝업 창을 차단했습니다.</value>
+    <comment>One-time notice when a pop-up is blocked</comment>
+  </data>
+  <data name="WebView_BlockedDownload" xml:space="preserve">
+    <value>게이트웨이가 아닌 주소에서의 다운로드를 차단했습니다.</value>
+    <comment>One-time notice when an off-origin download is blocked</comment>
+  </data>
+  <data name="WebView_BrowserExited" xml:space="preserve">
+    <value>브라우저 프로세스가 종료되었습니다. 연결을 끊고 다시 연결하십시오.</value>
+    <comment>One-time notice when the browser process exits</comment>
+  </data>
+  <data name="WebView_RendererReloading" xml:space="preserve">
+    <value>페이지 프로세스에 문제가 있어 다시 불러오는 중입니다.</value>
+    <comment>One-time notice when the renderer crashes</comment>
+  </data>
+  <data name="WebView_NoticeTitle" xml:space="preserve">
+    <value>Windows 클라이언트</value>
+    <comment>Title of the one-time WebView policy notices</comment>
+  </data>
+  <data name="Notify_TaskComplete" xml:space="preserve">
+    <value>작업 완료</value>
+    <comment>Tray balloon title fallback for a task notification</comment>
+  </data>
+  <data name="Notify_TaskUpdate" xml:space="preserve">
+    <value>컴퓨터 측 작업이 업데이트되었습니다. 눌러서 확인하십시오.</value>
+    <comment>Tray balloon body fallback for a task notification</comment>
+  </data>
+  <data name="Notify_DeviceRevokedTitle" xml:space="preserve">
+    <value>기기가 만료되었습니다</value>
+    <comment>Tray balloon title when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_DeviceRevokedBody" xml:space="preserve">
+    <value>{0}. 해당 컴퓨터의 현재 페어링 링크를 붙여 넣어 업데이트하십시오.</value>
+    <comment>Tray balloon body when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_RevokedByComputer" xml:space="preserve">
+    <value>컴퓨터 측에서 이 기기를 철회했습니다</value>
+    <comment>Revocation reason reported by the background event stream</comment>
+  </data>
+  <data name="Notify_TrayWatcher" xml:space="preserve">
+    <value>DeepSeek Harness — 작업 완료를 감시하는 중</value>
+    <comment>Tray icon tooltip while the task watcher runs</comment>
+  </data>
+  <data name="AppData_UnwritableTitle" xml:space="preserve">
+    <value>프로그램 폴더에 쓸 수 없습니다</value>
+    <comment>Dialog title when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_UnwritableMessage" xml:space="preserve">
+    <value>프로그램 폴더에 쓸 수 없어 설정, 페어링된 컴퓨터와 로그를 저장할 수 없습니다.
+
+프로그램 폴더 전체를 쓸 수 있는 위치(예: 바탕 화면, 문서, USB 드라이브)로 옮긴 후 다시 실행하십시오. Program Files처럼 관리자 권한이 필요한 위치에는 두지 마십시오.
+
+이번 실행에서는 컴퓨터에 연결할 수 있지만 종료 후에는 어떤 설정도 유지되지 않습니다.</value>
+    <comment>Dialog body when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_DetailError" xml:space="preserve">
+    <value>
+
+자세한 오류: {0}</value>
+    <comment>Detail appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_DataDirectory" xml:space="preserve">
+    <value>
+
+데이터 폴더: {0}</value>
+    <comment>Data folder path appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_Unknown" xml:space="preserve">
+    <value>알 수 없음</value>
+    <comment>Placeholder when the underlying error text is missing</comment>
+  </data>
+  <data name="Crash_Title" xml:space="preserve">
+    <value>프로그램에 예기치 않은 문제가 발생했습니다</value>
+    <comment>Title of the last-resort crash dialog</comment>
+  </data>
+  <data name="Crash_BodyLead" xml:space="preserve">
+    <value>프로그램에 예기치 않은 문제가 발생했지만 바로 종료되지는 않았습니다.
+
+{0}</value>
+    <comment>Crash dialog lead plus the exception type name</comment>
+  </data>
+  <data name="Crash_BodyMessage" xml:space="preserve">
+    <value>: {0}</value>
+    <comment>Exception message appended to the type name</comment>
+  </data>
+  <data name="Crash_BodyLogPath" xml:space="preserve">
+    <value>
+
+자세한 정보가 다음에 기록되었습니다:
+{0}</value>
+    <comment>Crash dialog: where the log was written</comment>
+  </data>
+  <data name="Crash_BodyFooter" xml:space="preserve">
+    <value>
+
+문제가 반복되면 이 로그를 issue에 첨부하십시오.</value>
+    <comment>Crash dialog closing advice</comment>
+  </data>
+  <data name="Rename_Title" xml:space="preserve">
+    <value>이름 바꾸기</value>
+    <comment>Rename dialog window title and heading</comment>
+  </data>
+  <data name="Rename_Prompt" xml:space="preserve">
+    <value>이 컴퓨터의 이름을 입력하십시오</value>
+    <comment>Rename dialog prompt</comment>
+  </data>
+  <data name="Rename_InputTooltip" xml:space="preserve">
+    <value>1–32자, 이 기기에서만 표시됩니다</value>
+    <comment>Name box tooltip</comment>
+  </data>
+  <data name="Rename_Note" xml:space="preserve">
+    <value>이름은 이 기기에만 저장되며 페어링과 연결에 영향을 주지 않습니다</value>
+    <comment>Rename dialog note</comment>
+  </data>
+  <data name="Rename_Save" xml:space="preserve">
+    <value>저장</value>
+    <comment>Rename dialog primary action</comment>
+  </data>
+  <data name="Rename_InvalidTitle" xml:space="preserve">
+    <value>이름이 유효하지 않습니다</value>
+    <comment>Rename validation dialog title</comment>
+  </data>
+  <data name="Rename_InvalidName" xml:space="preserve">
+    <value>이름은 1–32자여야 하며 제어 문자를 포함할 수 없습니다.</value>
+    <comment>Rename validation dialog body</comment>
+  </data>
+  <data name="AppIcon_Default" xml:space="preserve">
+    <value>기본(눈을 깜빡이며 휴대폰을 가리킴)</value>
+    <comment>Icon choice label: default mascot (currently preview-only, see report)</comment>
+  </data>
+  <data name="AppIcon_Classic" xml:space="preserve">
+    <value>클래식(눈을 뜨고 휴대폰을 가리킴)</value>
+    <comment>Icon choice label: classic mascot</comment>
+  </data>
+  <data name="AppIcon_Cheer" xml:space="preserve">
+    <value>환호(눈을 감음)</value>
+    <comment>Icon choice label: cheering mascot</comment>
+  </data>
+  <data name="AppIcon_Quiet" xml:space="preserve">
+    <value>조용히(손가락을 입술에 댐)</value>
+    <comment>Icon choice label: quiet mascot</comment>
+  </data>
+  <data name="AppIcon_Whale" xml:space="preserve">
+    <value>고래</value>
+    <comment>Icon choice label: whale</comment>
+  </data>
+  <data name="AppIcon_WhaleBlack" xml:space="preserve">
+    <value>고래 · 검정</value>
+    <comment>Icon choice label: black whale</comment>
+  </data>
+  <data name="AppIcon_WhaleDark" xml:space="preserve">
+    <value>고래 · 어두운색</value>
+    <comment>Icon choice label: dark whale</comment>
+  </data>
+  <data name="AppIcon_WhaleMono" xml:space="preserve">
+    <value>고래 · 모노</value>
+    <comment>Icon choice label: mono whale</comment>
+  </data>
+  <data name="AppIcon_WhaleTeal" xml:space="preserve">
+    <value>고래 · 청록</value>
+    <comment>Icon choice label: teal whale</comment>
+  </data>
+  <data name="AppIcon_WhaleWhite" xml:space="preserve">
+    <value>고래 · 흰색</value>
+    <comment>Icon choice label: white whale</comment>
+  </data>
+</root>

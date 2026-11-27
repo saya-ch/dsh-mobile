@@ -1,0 +1,1202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Spanish interface strings for the Windows client. Chinese lives in the neutral
+    Strings.resx; this file only overrides it when the UI culture is es. A missing
+    key falls back to the neutral value, so a partial translation is safe.
+
+    Placeholders {0}/{1}/... are filled with string.Format by the caller and must be
+    preserved exactly.
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Nav_Devices" xml:space="preserve">
+    <value>Dispositivos</value>
+    <comment>Device page header title and navigation rail label</comment>
+  </data>
+  <data name="Nav_DeviceList" xml:space="preserve">
+    <value>Lista de dispositivos</value>
+    <comment>"Back to device list" label (browser bar, settings header, rail tooltip/automation name)</comment>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>Configuración</value>
+    <comment>Settings page header title, rail label, rail tooltip/automation name</comment>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancelar</value>
+    <comment>Cancel buttons (update row, rename dialog)</comment>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Cerrar</value>
+    <comment>Close button tooltip / automation name (rename dialog)</comment>
+  </data>
+  <data name="Common_Clear" xml:space="preserve">
+    <value>Borrar</value>
+    <comment>"Clear" button on the settings page</comment>
+  </data>
+  <data name="Common_BackToDeviceList" xml:space="preserve">
+    <value>Volver a la lista de dispositivos</value>
+    <comment>Settings page back action tooltip</comment>
+  </data>
+  <data name="DeviceList_Subtitle" xml:space="preserve">
+    <value>Elige una computadora ya emparejada para continuar, o añade una nueva. Todos los emparejamientos se guardan solo en esta computadora.</value>
+    <comment>Device page subtitle under the title</comment>
+  </data>
+  <data name="DeviceList_PairedHeader" xml:space="preserve">
+    <value>Computadoras emparejadas</value>
+    <comment>Section header above the saved-device cards</comment>
+  </data>
+  <data name="DeviceList_AddComputer" xml:space="preserve">
+    <value>Añadir una computadora</value>
+    <comment>Page action and its collapsed-state label</comment>
+  </data>
+  <data name="DeviceList_AddToggleTooltip" xml:space="preserve">
+    <value>Abre el panel de emparejamiento; haz clic otra vez para contraerlo</value>
+    <comment>Add-computer button tooltip</comment>
+  </data>
+  <data name="DeviceList_Collapse" xml:space="preserve">
+    <value>Contraer</value>
+    <comment>Add-computer button label while the panel is open</comment>
+  </data>
+  <data name="DeviceList_EmptyTitle" xml:space="preserve">
+    <value>Aún no hay computadoras emparejadas</value>
+    <comment>Empty-state heading</comment>
+  </data>
+  <data name="DeviceList_EmptyHint" xml:space="preserve">
+    <value>En la computadora, abre «Acceso móvil» en DSH y pega debajo el contenido o el enlace de emparejamiento. Solo hay que emparejar una vez; después basta con pulsar «Conectar».</value>
+    <comment>Empty-state explanation</comment>
+  </data>
+  <data name="DeviceList_Connect" xml:space="preserve">
+    <value>Conectar</value>
+    <comment>Card primary action for a reconnectable device</comment>
+  </data>
+  <data name="DeviceList_Repair" xml:space="preserve">
+    <value>Volver a emparejar</value>
+    <comment>Card primary action for a device whose credential is unusable</comment>
+  </data>
+  <data name="DeviceList_ConnectTooltip" xml:space="preserve">
+    <value>Conectar esta computadora</value>
+    <comment>Card primary action tooltip</comment>
+  </data>
+  <data name="DeviceList_MenuRename" xml:space="preserve">
+    <value>Cambiar nombre</value>
+    <comment>Row menu item</comment>
+  </data>
+  <data name="DeviceList_MenuCheckNow" xml:space="preserve">
+    <value>Comprobar ahora</value>
+    <comment>Row menu item (reachability re-check)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveUp" xml:space="preserve">
+    <value>Subir una posición</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveTop" xml:space="preserve">
+    <value>Mover al principio</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuDelete" xml:space="preserve">
+    <value>Eliminar (se puede deshacer)</value>
+    <comment>Row menu item (destructive)</comment>
+  </data>
+  <data name="DeviceList_MoreActions" xml:space="preserve">
+    <value>Más acciones</value>
+    <comment>Row "..." button tooltip and automation name</comment>
+  </data>
+  <data name="DeviceList_UndoDeleted" xml:space="preserve">
+    <value>Se eliminó {0}</value>
+    <comment>Undo strip text after deleting a device</comment>
+  </data>
+  <data name="DeviceList_UndoAction" xml:space="preserve">
+    <value>Deshacer</value>
+    <comment>Undo strip action</comment>
+  </data>
+  <data name="DeviceList_UndoTooltip" xml:space="preserve">
+    <value>Restaura este registro de emparejamiento (no restaura la autorización en la computadora)</value>
+    <comment>Undo strip action tooltip</comment>
+  </data>
+  <data name="DeviceList_DefaultComputerName" xml:space="preserve">
+    <value>Computadora {0}</value>
+    <comment>Default display name given to a newly paired computer</comment>
+  </data>
+  <data name="Channel_Lan" xml:space="preserve">
+    <value>Red local</value>
+    <comment>LAN channel label</comment>
+  </data>
+  <data name="Channel_Remote" xml:space="preserve">
+    <value>Remoto</value>
+    <comment>Remote channel label</comment>
+  </data>
+  <data name="Pairing_LanSummary" xml:space="preserve">
+    <value>Lo más rápido en la misma Wi-Fi</value>
+    <comment>Empty-state LAN chip subtitle</comment>
+  </data>
+  <data name="Pairing_RemoteSummary" xml:space="preserve">
+    <value>Usa un dominio público o un túnel</value>
+    <comment>Empty-state remote chip subtitle</comment>
+  </data>
+  <data name="Pairing_IrohSummary" xml:space="preserve">
+    <value>Punto a punto, sin abrir puertos</value>
+    <comment>Empty-state iroh chip subtitle</comment>
+  </data>
+  <data name="Pairing_LanAutomationName" xml:space="preserve">
+    <value>Emparejar por red local</value>
+    <comment>Empty-state LAN chip automation name</comment>
+  </data>
+  <data name="Pairing_RemoteAutomationName" xml:space="preserve">
+    <value>Emparejar con una dirección remota</value>
+    <comment>Empty-state remote chip automation name</comment>
+  </data>
+  <data name="Pairing_IrohAutomationName" xml:space="preserve">
+    <value>Emparejar con iroh</value>
+    <comment>Empty-state iroh chip automation name</comment>
+  </data>
+  <data name="Pairing_PanelTitle" xml:space="preserve">
+    <value>Añadir una computadora</value>
+    <comment>Add-panel heading (note: differs from the button label 添加新电脑)</comment>
+  </data>
+  <data name="Pairing_PanelHint" xml:space="preserve">
+    <value>El contenido de emparejamiento solo se usa para este intercambio y no se guarda en este equipo.</value>
+    <comment>Add-panel hint under the heading</comment>
+  </data>
+  <data name="Pairing_DescriptorTooltip" xml:space="preserve">
+    <value>Contenido de emparejamiento de un solo uso; no se guarda el código ni el token</value>
+    <comment>Paste box tooltip</comment>
+  </data>
+  <data name="Pairing_ConnectAction" xml:space="preserve">
+    <value>Emparejar y conectar</value>
+    <comment>Primary action of the add panel</comment>
+  </data>
+  <data name="Pairing_FindOnThisPc" xml:space="preserve">
+    <value>Buscar la computadora desde este equipo</value>
+    <comment>Discovery toggle label (collapsed state) and its reset copy</comment>
+  </data>
+  <data name="Pairing_FindToggleTooltip" xml:space="preserve">
+    <value>Introduce una dirección o escanea la red local; cuando encuentres la computadora, pega su enlace de emparejamiento</value>
+    <comment>Discovery toggle tooltip</comment>
+  </data>
+  <data name="Pairing_HideFinder" xml:space="preserve">
+    <value>Ocultar la búsqueda</value>
+    <comment>Discovery toggle label while the finder is open</comment>
+  </data>
+  <data name="Pairing_FinderHint" xml:space="preserve">
+    <value>Introduce la dirección de la computadora o escanea la red local actual. Aunque la encuentres, deberás pegar su propio enlace de emparejamiento.</value>
+    <comment>Hint above the address box</comment>
+  </data>
+  <data name="Pairing_AddressTooltip" xml:space="preserve">
+    <value>Introduce la dirección de red local de la computadora, por ejemplo 192.168.1.18 o https://host:port</value>
+    <comment>Address box tooltip</comment>
+  </data>
+  <data name="Pairing_Probe" xml:space="preserve">
+    <value>Buscar</value>
+    <comment>Probe button label</comment>
+  </data>
+  <data name="Pairing_ProbeTooltip" xml:space="preserve">
+    <value>Comprueba si esa dirección es una puerta de enlace de DSH Mobile</value>
+    <comment>Probe button tooltip</comment>
+  </data>
+  <data name="Pairing_Scan" xml:space="preserve">
+    <value>Escanear la red local</value>
+    <comment>Scan button label and its idle state</comment>
+  </data>
+  <data name="Pairing_ScanTooltip" xml:space="preserve">
+    <value>Consulta por difusión y prueba una por una las direcciones de la subred de este equipo</value>
+    <comment>Scan button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanRunning" xml:space="preserve">
+    <value>Escaneando…</value>
+    <comment>Scan button label while scanning</comment>
+  </data>
+  <data name="Pairing_ModeRemoteHint" xml:space="preserve">
+    <value>Acceso entre redes: en la computadora, abre «Acceso móvil» y copia el enlace de emparejamiento remoto (https://tu-dominio/mobile-access/pair#…); luego pégalo aquí debajo. El dominio debe ser accesible desde esta computadora.</value>
+    <comment>Guidance under the paste box for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeRemotePlaceholder" xml:space="preserve">
+    <value>Pega el enlace de emparejamiento remoto</value>
+    <comment>Placeholder for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohHint" xml:space="preserve">
+    <value>No necesita un puerto público: en la computadora, copia el contenido de emparejamiento de iroh (JSON) y pégalo aquí debajo. La primera conexión descarga y verifica el componente oficial (unos 14.8 MB).</value>
+    <comment>Guidance under the paste box for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohPlaceholder" xml:space="preserve">
+    <value>Pega el contenido de emparejamiento de iroh (JSON)</value>
+    <comment>Placeholder for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeLanHint" xml:space="preserve">
+    <value>Lo más rápido en la misma Wi-Fi o red local: copia el enlace de emparejamiento de red local de la computadora (https://192.168.x.x:puerto/mobile-access/pair#…) y pégalo aquí debajo. Si no encuentras el enlace, puedes escanear desde este equipo.</value>
+    <comment>Guidance under the paste box for the LAN tab</comment>
+  </data>
+  <data name="Pairing_ModeLanPlaceholder" xml:space="preserve">
+    <value>Pega el enlace de emparejamiento de red local</value>
+    <comment>Placeholder for the LAN tab</comment>
+  </data>
+  <data name="Pairing_SelectFound" xml:space="preserve">
+    <value>Usar</value>
+    <comment>"Use this one" button on a discovered gateway card</comment>
+  </data>
+  <data name="Pairing_SelectFoundTooltip" xml:space="preserve">
+    <value>Recuerda esta computadora y comprueba que la dirección coincida al pegar el enlace de emparejamiento</value>
+    <comment>Discovered gateway button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanNoBroadcast" xml:space="preserve">
+    <value>No hubo respuesta a la difusión; probando una por una las direcciones de la subred de este equipo…</value>
+    <comment>Discovery hint while probing the subnet</comment>
+  </data>
+  <data name="Pairing_ScanNotFound" xml:space="preserve">
+    <value>No se encontró ninguna computadora: confirma que la puerta de enlace de la computadora esté en ejecución y en la misma red que este equipo, o introduce una dirección arriba para buscarla manualmente.</value>
+    <comment>Discovery hint when nothing was found</comment>
+  </data>
+  <data name="Pairing_ScanTimeout" xml:space="preserve">
+    <value>El escaneo agotó el tiempo de espera; aún puedes introducir una dirección para buscar manualmente.</value>
+    <comment>Discovery hint on scan timeout</comment>
+  </data>
+  <data name="Pairing_ScanFailed" xml:space="preserve">
+    <value>Error al escanear: {0}</value>
+    <comment>Discovery hint when the scan throws</comment>
+  </data>
+  <data name="Pairing_SelectedHint" xml:space="preserve">
+    <value>Seleccionaste «{0}» ({1}). Pega arriba el enlace de emparejamiento de esta computadora para emparejar; si la dirección del enlace no coincide, se te pedirá confirmación.</value>
+    <comment>Discovery hint after picking a result</comment>
+  </data>
+  <data name="Pairing_InvalidAddress" xml:space="preserve">
+    <value>Dirección no válida: {0}</value>
+    <comment>Message box body when the typed address does not parse</comment>
+  </data>
+  <data name="Pairing_FindTitle" xml:space="preserve">
+    <value>Buscar computadora</value>
+    <comment>Message box title for the manual probe flow</comment>
+  </data>
+  <data name="Pairing_GatewayNotFound" xml:space="preserve">
+    <value>No se encontró la puerta de enlace: {0}
+
+Confirma que la puerta de enlace de la computadora esté en ejecución, que la dirección sea correcta y que la red sea accesible.</value>
+    <comment>Message box body when the probe fails</comment>
+  </data>
+  <data name="Pairing_InvalidContentTitle" xml:space="preserve">
+    <value>Contenido de emparejamiento no válido</value>
+    <comment>Message box title when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_InvalidContent" xml:space="preserve">
+    <value>El contenido de emparejamiento no es válido.
+
+Error del descriptor de iroh: {0}
+Error del enlace de emparejamiento: {1}</value>
+    <comment>Message box body when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_OriginMismatchTitle" xml:space="preserve">
+    <value>La dirección no coincide</value>
+    <comment>Message box title when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_OriginMismatch" xml:space="preserve">
+    <value>El enlace de emparejamiento apunta a {0}, que no coincide con el resultado de búsqueda seleccionado {1}.
+
+Es posible que hayas pegado el enlace de otra computadora. ¿Quieres continuar con el emparejamiento?</value>
+    <comment>Message box body when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_UpdateAddressTitle" xml:space="preserve">
+    <value>No se pudo actualizar la dirección</value>
+    <comment>Message box title when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_UpdateAddressNotSame" xml:space="preserve">
+    <value>El enlace nuevo no corresponde a la misma computadora (instanceId no coincide); se conservó el registro original.</value>
+    <comment>Message box body when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_ReneedTitle" xml:space="preserve">
+    <value>Hay que volver a emparejar</value>
+    <comment>Message box title when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_ReneedBody" xml:space="preserve">
+    <value>Las credenciales del dispositivo para esta computadora caducaron o no se pueden leer. Pega el enlace de emparejamiento actual de esta computadora; la dirección y el nombre se actualizarán automáticamente.</value>
+    <comment>Message box body when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_NotSameComputer" xml:space="preserve">
+    <value>El enlace nuevo no corresponde a la misma computadora (instanceId no coincide)</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_CaDowngradeRejected" xml:space="preserve">
+    <value>El enlace nuevo no exige fijar la CA y una computadora con CA fijada no puede degradarse; usa el enlace de emparejamiento dsh2 actual de esa computadora</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_UrlEmpty" xml:space="preserve">
+    <value>El enlace de emparejamiento está vacío o es demasiado largo</value>
+    <comment>UrlPairing.Parse rejection, shown as 配对链接错误</comment>
+  </data>
+  <data name="Pairing_UrlNotUrl" xml:space="preserve">
+    <value>No es una URL válida</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlMustBeHttps" xml:space="preserve">
+    <value>Solo se aceptan enlaces de emparejamiento https://</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlUserInfo" xml:space="preserve">
+    <value>El enlace de emparejamiento no puede contener información de usuario ni parámetros de consulta</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlPath" xml:space="preserve">
+    <value>La ruta del enlace de emparejamiento debe ser {0}</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_HostInvalid" xml:space="preserve">
+    <value>El formato del nombre de host no es válido</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_PortInvalid" xml:space="preserve">
+    <value>El puerto está fuera de rango</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_UrlNoCredential" xml:space="preserve">
+    <value>Faltan las credenciales de emparejamiento (el fragmento debe incluir instance/token o key=…)</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlKeyFormat" xml:space="preserve">
+    <value>El formato del código de emparejamiento key= no es válido</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlInstanceFormat" xml:space="preserve">
+    <value>El formato del código de emparejamiento instance/token no es válido</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_AddressEmpty" xml:space="preserve">
+    <value>La dirección está vacía o es demasiado larga</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection, shown as 地址无效</comment>
+  </data>
+  <data name="Pairing_AddressNotUrl" xml:space="preserve">
+    <value>No es una dirección válida</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressMustBeHttps" xml:space="preserve">
+    <value>Solo se aceptan direcciones https o nombres de host sin esquema</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressSecret" xml:space="preserve">
+    <value>La dirección no puede contener información de usuario, parámetros de consulta ni credenciales de emparejamiento</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryHttpFormat" xml:space="preserve">
+    <value>El formato de la respuesta de discovery no es válido</value>
+    <comment>LanDiscovery.ProbeAsync rejection, shown as 找不到网关</comment>
+  </data>
+  <data name="Pairing_NotGateway" xml:space="preserve">
+    <value>Esa dirección no es una puerta de enlace de DSH Mobile: {0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryNotJson" xml:space="preserve">
+    <value>La respuesta de discovery no es JSON</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryInvalid" xml:space="preserve">
+    <value>Falló la validación de la respuesta de discovery: {0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_HostUnresolved" xml:space="preserve">
+    <value>No se pudo resolver el host {0}</value>
+    <comment>LanDiscovery / GatewayAuth DNS failure text</comment>
+  </data>
+  <data name="Connect_BackTooltip" xml:space="preserve">
+    <value>Volver a la lista de dispositivos (mantiene la conexión)</value>
+    <comment>Browser bar back button tooltip</comment>
+  </data>
+  <data name="Connect_StatusAccessibility" xml:space="preserve">
+    <value>Estado de la conexión</value>
+    <comment>Accessible name for the connection status line</comment>
+  </data>
+  <data name="Connect_ProgressAccessibility" xml:space="preserve">
+    <value>Progreso de la conexión</value>
+    <comment>Accessible name for the indeterminate connection progress bar</comment>
+  </data>
+  <data name="Update_ProgressAccessibility" xml:space="preserve">
+    <value>Progreso de la actualización</value>
+    <comment>Accessible name for the update download progress bar</comment>
+  </data>
+  <data name="Connect_Disconnect" xml:space="preserve">
+    <value>Desconectar</value>
+    <comment>Browser bar disconnect button label</comment>
+  </data>
+  <data name="Connect_DisconnectTooltip" xml:space="preserve">
+    <value>Desconecta y borra la sesión</value>
+    <comment>Browser bar disconnect button tooltip</comment>
+  </data>
+  <data name="Connect_CancelHint" xml:space="preserve">
+    <value>Puedes cancelar en cualquier momento durante la conexión; no quedará ninguna conexión a medias</value>
+    <comment>Progress panel hint</comment>
+  </data>
+  <data name="Connect_Cancel" xml:space="preserve">
+    <value>Cancelar la conexión</value>
+    <comment>Progress panel cancel button</comment>
+  </data>
+  <data name="Connect_CancelTooltip" xml:space="preserve">
+    <value>Detiene la conexión y libera el proxy local</value>
+    <comment>Progress panel cancel button tooltip</comment>
+  </data>
+  <data name="Connect_ConnectingIroh" xml:space="preserve">
+    <value>Conectando con iroh</value>
+    <comment>Progress status while starting the iroh sidecar</comment>
+  </data>
+  <data name="Connect_Interrupted" xml:space="preserve">
+    <value>La conexión se interrumpió</value>
+    <comment>Progress status and tray balloon title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_InterruptedTitle" xml:space="preserve">
+    <value>Conexión interrumpida · {0}</value>
+    <comment>Browser bar title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_VerifyingComputer" xml:space="preserve">
+    <value>Verificando la computadora</value>
+    <comment>Progress status while authorizing a direct gateway</comment>
+  </data>
+  <data name="Connect_LoadingPage" xml:space="preserve">
+    <value>Cargando la página</value>
+    <comment>Progress status while initialising WebView2</comment>
+  </data>
+  <data name="Connect_Authorizing" xml:space="preserve">
+    <value>Autorizando</value>
+    <comment>Progress status while pairing/renewing</comment>
+  </data>
+  <data name="Connect_PreparingIroh" xml:space="preserve">
+    <value>Preparando el componente de iroh</value>
+    <comment>Progress status while acquiring the sidecar artifact</comment>
+  </data>
+  <data name="Connect_Retrying" xml:space="preserve">
+    <value>Reintentando la conexión ({0}/{1})</value>
+    <comment>Progress status between iroh connect attempts</comment>
+  </data>
+  <data name="Connect_Connected" xml:space="preserve">
+    <value>Conectado · {0}</value>
+    <comment>Browser bar title and tray context for a live session</comment>
+  </data>
+  <data name="Connect_PinnedCertVerifyFailed" xml:space="preserve">
+    <value>No se pudo verificar esta computadora con el certificado fijado durante el emparejamiento: puede que la red no funcione o que el certificado no coincida con el del emparejamiento</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_CredentialUnavailable" xml:space="preserve">
+    <value>Las credenciales del dispositivo no están disponibles; vuelve a pegar el enlace de emparejamiento</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_FailedTitle" xml:space="preserve">
+    <value>Error de conexión</value>
+    <comment>Connect failure dialog title</comment>
+  </data>
+  <data name="Connect_OfferAdopt" xml:space="preserve">
+    <value>{0}
+
+¿Quieres actualizar la dirección con el enlace de emparejamiento actual de esta computadora? (debe ser la misma computadora; se conserva el nombre)</value>
+    <comment>Connect failure dialog body when an address update would help</comment>
+  </data>
+  <data name="Connect_InstanceSuffix" xml:space="preserve">
+    <value>
+
+Instancia: {0}…</value>
+    <comment>Identity detail appended to credential/CA failures</comment>
+  </data>
+  <data name="Connect_AutoStartFailed" xml:space="preserve">
+    <value>Falló la conexión automática con «{0}» al iniciar; se volvió a la lista de dispositivos.
+
+{1}</value>
+    <comment>Prefix added to a launch-time auto-connect failure</comment>
+  </data>
+  <data name="Diagnosis_CredentialExpired" xml:space="preserve">
+    <value>Las credenciales del dispositivo para esta computadora ya no son válidas, o el dispositivo se revocó en la computadora.
+
+Vuelve a generar el código QR y completa un emparejamiento.</value>
+    <comment>Hint for an expired/revoked device credential</comment>
+  </data>
+  <data name="Diagnosis_ProtocolMismatch" xml:space="preserve">
+    <value>La versión del protocolo del cliente y la de la computadora no coinciden, por lo que no se puede completar el emparejamiento.
+
+Actualiza el cliente de Windows a la última versión (Configuración → Buscar actualizaciones) y confirma que el plugin DSH Mobile de la computadora también esté actualizado a una versión compatible.</value>
+    <comment>Hint for a protocol/version mismatch</comment>
+  </data>
+  <data name="Diagnosis_CaMismatch" xml:space="preserve">
+    <value>La computadora a la que se conectó no es la misma que se fijó durante el emparejamiento (la huella de la CA no coincide).
+Confirma que el enlace de emparejamiento provenga de esta computadora y que no haya un secuestro de dirección de por medio.</value>
+    <comment>Hint for a pinned-CA mismatch</comment>
+  </data>
+  <data name="Diagnosis_CpolarStale" xml:space="preserve">
+    <value>La dirección temporal de cpolar ya no es válida.
+
+El túnel gratuito de cpolar cambia de dominio cada vez que se reinicia, así que la dirección guardada ya no puede conectar con esta computadora.
+Abre el acceso remoto de DSH Mobile en la computadora, copia el nuevo enlace de emparejamiento y pégalo de nuevo.</value>
+    <comment>Hint for a rotated cpolar tunnel address</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolved" xml:space="preserve">
+    <value>No se pudo resolver la dirección de la computadora {0}.
+
+{1}</value>
+    <comment>Hint when the name cannot be resolved (second argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedLan" xml:space="preserve">
+    <value>Conexión por red local: confirma que este equipo y la computadora estén en la misma red y que la puerta de enlace de la computadora esté en ejecución.</value>
+    <comment>LAN advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedRemote" xml:space="preserve">
+    <value>Conexión remota: confirma que el canal remoto (Tailscale/cpolar/cloudflared, etc.) esté en ejecución y que el dominio sea accesible.</value>
+    <comment>Remote advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_Http426" xml:space="preserve">
+    <value>La computadora exige actualizar el cliente para continuar (HTTP 426).
+
+Actualiza el cliente de Windows a la última versión (Configuración → Buscar actualizaciones).</value>
+    <comment>Hint for HTTP 426</comment>
+  </data>
+  <data name="Diagnosis_Http429" xml:space="preserve">
+    <value>La computadora está limitando nuevas solicitudes de conexión (HTTP 429).
+
+Espera uno o dos minutos y vuelve a intentarlo. Si ocurre a menudo, comprueba si hay varios clientes reconectándose a la vez en la computadora.</value>
+    <comment>Hint for HTTP 429</comment>
+  </data>
+  <data name="Diagnosis_ServiceUnavailable" xml:space="preserve">
+    <value>El servicio DSH de la computadora no está disponible por el momento (HTTP {0}).
+
+Confirma que la puerta de enlace y el propio DSH estén en ejecución en la computadora y vuelve a intentarlo.</value>
+    <comment>Hint for a 5xx answer</comment>
+  </data>
+  <data name="Diagnosis_TlsFailure" xml:space="preserve">
+    <value>No se pudo establecer una conexión segura (TLS) con la computadora.
+
+Causas habituales: el certificado de la computadora cambió, un proxy o una VPN están interceptando TLS, o el reloj del sistema está muy desviado.
+Confirma que la puerta de enlace de la computadora esté en ejecución y vuelve a pegar el enlace de emparejamiento actual de esa computadora.</value>
+    <comment>Hint for a TLS handshake failure</comment>
+  </data>
+  <data name="Diagnosis_NetworkFailure" xml:space="preserve">
+    <value>No se pudo establecer la conexión HTTPS con la puerta de enlace de la computadora.
+
+{0}</value>
+    <comment>Hint when the gateway is unreachable (argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_NetworkLan" xml:space="preserve">
+    <value>Conexión por red local: confirma que este equipo y la computadora estén en la misma red, que el firewall permita el puerto de la puerta de enlace y que el canal esté listo.</value>
+    <comment>LAN advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_NetworkRemote" xml:space="preserve">
+    <value>Conexión remota: confirma que el canal remoto esté en ejecución y que esa dirección sea accesible desde internet.</value>
+    <comment>Remote advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_Timeout" xml:space="preserve">
+    <value>Se agotó el tiempo de espera de la conexión. Confirma que el canal de iroh de la computadora esté listo y que las redes de ambos lados sean accesibles, y vuelve a intentarlo.</value>
+    <comment>Hint for a timeout/cancellation</comment>
+  </data>
+  <data name="Diagnosis_IrohNoAddress" xml:space="preserve">
+    <value>iroh no encontró la dirección de esa computadora (se reintentó automáticamente 2 veces).
+
+EndpointId: {0}
+Permite el DNS y el UDP de dns.iroh.link, iroh.link y relay.iroh.network en el proxy/VPN.</value>
+    <comment>iroh discovery found no addressing information</comment>
+  </data>
+  <data name="Diagnosis_IrohConnectTimeout" xml:space="preserve">
+    <value>iroh no logró conectar con la computadora indicada por el emparejamiento en 15 segundos (se reintentó automáticamente 2 veces).
+
+EndpointId: {0}
+Causas habituales: el canal de la computadora se acaba de reiniciar, el registro de descubrimiento aún no se ha propagado, o el proxy/VPN bloquea el UDP.
+Confirma que el canal esté listo y vuelve a intentarlo; para un diagnóstico detallado, consulta data\client.log.</value>
+    <comment>iroh could not reach the paired endpoint in time</comment>
+  </data>
+  <data name="Diagnosis_CaFetchFailed" xml:space="preserve">
+    <value>Error al obtener la CA de emparejamiento: {0}</value>
+    <comment>GatewayAuth: ca.cer returned a rejection the trust policy will not accept</comment>
+  </data>
+  <data name="Diagnosis_CaResponseEmpty" xml:space="preserve">
+    <value>La respuesta de ca.cer está vacía</value>
+    <comment>GatewayAuth: empty ca.cer body</comment>
+  </data>
+  <data name="Diagnosis_CaFingerprintMismatch" xml:space="preserve">
+    <value>La CA de emparejamiento no coincide con la huella del código QR; es posible que la computadora conectada no sea la indicada por el código QR</value>
+    <comment>GatewayAuth: fetched CA does not match the pairing fingerprint</comment>
+  </data>
+  <data name="Diagnosis_NoTrustAnchor" xml:space="preserve">
+    <value>No hay ancla de confianza: falta la CA de emparejamiento y no se permite confiar en la plataforma</value>
+    <comment>GatewayAuth: no trust anchor for the connection</comment>
+  </data>
+  <data name="DeviceStatus_Current" xml:space="preserve">
+    <value>Conexión actual</value>
+    <comment>Status label: live session</comment>
+  </data>
+  <data name="DeviceStatus_Reachable" xml:space="preserve">
+    <value>Accesible</value>
+    <comment>Status label: probe succeeded</comment>
+  </data>
+  <data name="DeviceStatus_Checking" xml:space="preserve">
+    <value>Comprobando…</value>
+    <comment>Status label: no result yet (also the fallback)</comment>
+  </data>
+  <data name="DeviceStatus_Unreachable" xml:space="preserve">
+    <value>No accesible por ahora</value>
+    <comment>Status label: probe failed</comment>
+  </data>
+  <data name="DeviceStatus_Revoked" xml:space="preserve">
+    <value>Eliminada desde la computadora</value>
+    <comment>Status label: computer revoked the credential</comment>
+  </data>
+  <data name="DeviceStatus_Expired" xml:space="preserve">
+    <value>El emparejamiento caducó</value>
+    <comment>Status label: local credential expired</comment>
+  </data>
+  <data name="DeviceStatus_AddressChanged" xml:space="preserve">
+    <value>La dirección puede haber cambiado</value>
+    <comment>Status label: a different gateway answered</comment>
+  </data>
+  <data name="DeviceStatus_ConnectToCheck" xml:space="preserve">
+    <value>Se puede comprobar tras conectar</value>
+    <comment>Status label: iroh row that cannot be probed yet</comment>
+  </data>
+  <data name="DeviceCard_Identity" xml:space="preserve">
+    <value>{0} · {1}…</value>
+    <comment>Card detail line: channel and short endpoint id</comment>
+  </data>
+  <data name="DeviceCard_Expiry" xml:space="preserve">
+    <value>Credenciales hasta {0}</value>
+    <comment>Card detail line: credential expiry date</comment>
+  </data>
+  <data name="DeviceCard_LastConnected" xml:space="preserve">
+    <value>Última conexión: {0}</value>
+    <comment>Card status line: relative last-connected wording</comment>
+  </data>
+  <data name="DeviceCard_StatusLine" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card status line: status label and recency</comment>
+  </data>
+  <data name="DeviceCard_Detail" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card detail line: identity and optional expiry</comment>
+  </data>
+  <data name="DeviceCard_RepairHint" xml:space="preserve">
+    <value>Las credenciales caducaron o no se pueden leer; pega el enlace actual de esa computadora para actualizarlas</value>
+    <comment>Card warning line for an unusable record</comment>
+  </data>
+  <data name="RelativeTime_Never" xml:space="preserve">
+    <value>Nunca se conectó</value>
+    <comment>Relative time: no timestamp</comment>
+  </data>
+  <data name="RelativeTime_JustNow" xml:space="preserve">
+    <value>ahora mismo</value>
+    <comment>Relative time: under a minute</comment>
+  </data>
+  <data name="RelativeTime_MinutesAgo" xml:space="preserve">
+    <value>hace {0} minutos</value>
+    <comment>Relative time: N minutes</comment>
+  </data>
+  <data name="RelativeTime_HoursAgo" xml:space="preserve">
+    <value>hace {0} horas</value>
+    <comment>Relative time: N hours</comment>
+  </data>
+  <data name="RelativeTime_DaysAgo" xml:space="preserve">
+    <value>hace {0} días</value>
+    <comment>Relative time: N days</comment>
+  </data>
+  <data name="Settings_Subtitle" xml:space="preserve">
+    <value>Apariencia, forma de inicio y datos de este equipo; todos los ajustes se guardan solo en esta computadora.</value>
+    <comment>Settings page subtitle</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>Apariencia</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_AppIcon" xml:space="preserve">
+    <value>Icono de la aplicación</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_AppIconHint" xml:space="preserve">
+    <value>Los mismos 10 iconos que la app del teléfono</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_AppIconCycle" xml:space="preserve">
+    <value>Cambiar</value>
+    <comment>Settings row action (next icon)</comment>
+  </data>
+  <data name="Settings_AppIconCycleTooltip" xml:space="preserve">
+    <value>Cambia al siguiente icono</value>
+    <comment>Settings row action tooltip</comment>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Tema</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_ThemeHint" xml:space="preserve">
+    <value>De forma predeterminada sigue el modo claro/oscuro de Windows</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>Seguir el sistema</value>
+    <comment>Theme segment: follow Windows</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Claro</value>
+    <comment>Theme segment: light</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Oscuro</value>
+    <comment>Theme segment: dark</comment>
+  </data>
+  <data name="Settings_StartupGroup" xml:space="preserve">
+    <value>Inicio y conexión</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_Startup" xml:space="preserve">
+    <value>Al iniciar</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_StartupHint" xml:space="preserve">
+    <value>La conexión automática entra directamente en la última computadora usada</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_StartPageDevices" xml:space="preserve">
+    <value>Mostrar la lista de dispositivos</value>
+    <comment>Start-page segment: show the device list</comment>
+  </data>
+  <data name="Settings_StartPageLastDevice" xml:space="preserve">
+    <value>Conectar automáticamente con la última computadora</value>
+    <comment>Start-page segment: reconnect the last computer</comment>
+  </data>
+  <data name="Settings_Notify" xml:space="preserve">
+    <value>Aviso de tarea completada</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_NotifyHint" xml:space="preserve">
+    <value>Muestra una notificación de tarea completada en la bandeja durante la conexión</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_NotifyAutomationName" xml:space="preserve">
+    <value>Notificación de tarea completada</value>
+    <comment>Switch automation name</comment>
+  </data>
+  <data name="Settings_Data" xml:space="preserve">
+    <value>Datos</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_ClearSiteData" xml:space="preserve">
+    <value>Borrar los datos del sitio</value>
+    <comment>Settings row title / dialog title shared by the clear-site-data flow</comment>
+  </data>
+  <data name="Settings_ClearSiteDataHint" xml:space="preserve">
+    <value>Borra la caché y las cookies de WebView; las computadoras emparejadas no se ven afectadas</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ClearTooltip" xml:space="preserve">
+    <value>Borra la caché, las cookies y el almacenamiento local</value>
+    <comment>"Clear" button tooltip</comment>
+  </data>
+  <data name="Settings_ClearNeedConnect" xml:space="preserve">
+    <value>Conéctate una vez primero para que haya datos de WebView que borrar.</value>
+    <comment>Dialog body when WebView2 has not started yet</comment>
+  </data>
+  <data name="Settings_ClearConfirm" xml:space="preserve">
+    <value>¿Borrar la caché, las cookies y el almacenamiento local de WebView?
+Las computadoras emparejadas y las credenciales no se verán afectadas.</value>
+    <comment>Confirmation dialog body</comment>
+  </data>
+  <data name="Settings_ClearDone" xml:space="preserve">
+    <value>Borrado. La página se volverá a cargar al reconectar.</value>
+    <comment>Dialog body after a successful clear</comment>
+  </data>
+  <data name="Settings_ClearFailed" xml:space="preserve">
+    <value>Error al borrar: {0}</value>
+    <comment>Dialog body when the clear throws</comment>
+  </data>
+  <data name="Settings_PortableHint" xml:space="preserve">
+    <value>Versión portable: no escribe en el registro; los datos de ejecución se guardan en data\ dentro de la carpeta del programa</value>
+    <comment>Footer hint beside the version</comment>
+  </data>
+  <data name="Update_Check" xml:space="preserve">
+    <value>Buscar actualizaciones</value>
+    <comment>Check-update button label (idle and after a check)</comment>
+  </data>
+  <data name="Update_CheckingButton" xml:space="preserve">
+    <value>Buscando…</value>
+    <comment>Check-update button label while checking</comment>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>Buscando…</value>
+    <comment>Footer status line while checking</comment>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>La versión está actualizada ({0}).</value>
+    <comment>Footer status line: no newer release</comment>
+  </data>
+  <data name="Update_FoundNoInstaller" xml:space="preserve">
+    <value>Hay una nueva versión {0} (actual {1}), pero esa versión no incluye instalador, así que no se puede actualizar automáticamente. Descárgala manualmente: {2}</value>
+    <comment>Footer status line: newer release without an installer asset</comment>
+  </data>
+  <data name="Update_Found" xml:space="preserve">
+    <value>Hay una nueva versión {0} (actual {1}). Pulsa «Actualizar a {0}» para empezar la descarga; cuando la descarga y la verificación terminen, el cliente se cerrará y el instalador reemplazará los archivos. Los emparejamientos, los ajustes y los registros de data\ se conservarán.</value>
+    <comment>Footer status line: newer release ready to install</comment>
+  </data>
+  <data name="Update_To" xml:space="preserve">
+    <value>Actualizar a {0}</value>
+    <comment>Footer button label once a release is known</comment>
+  </data>
+  <data name="Update_CheckFailed" xml:space="preserve">
+    <value>Error al buscar actualizaciones: {0}. Puedes volver a intentarlo más tarde o abrir {1} manualmente para consultarlo.</value>
+    <comment>Footer status line when the check throws</comment>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>Descargando…</value>
+    <comment>Footer button label while downloading</comment>
+  </data>
+  <data name="Update_DownloadingDetail" xml:space="preserve">
+    <value>Descargando el instalador de {0}… Cuando la descarga y la verificación terminen, el cliente se cerrará y el instalador reemplazará los archivos.</value>
+    <comment>Footer status line while downloading</comment>
+  </data>
+  <data name="Update_InstallerStarted" xml:space="preserve">
+    <value>El instalador se inició y el cliente se está cerrando para completar la actualización. Cuando termine la instalación, vuelve a abrir DSH Mobile ({0}).</value>
+    <comment>Footer status line once the installer starts</comment>
+  </data>
+  <data name="Update_Cancelled" xml:space="preserve">
+    <value>Actualización cancelada; no se hizo ningún cambio.</value>
+    <comment>Footer status line after a cancellation</comment>
+  </data>
+  <data name="Update_Failed" xml:space="preserve">
+    <value>Error de actualización: {0}. Vuelve a intentarlo o descarga manualmente: {1}</value>
+    <comment>Footer status line when the update throws</comment>
+  </data>
+  <data name="Update_Detail" xml:space="preserve">
+    <value>
+Detalles: {0}</value>
+    <comment>Detail line appended to a failure message</comment>
+  </data>
+  <data name="Update_Cancelling" xml:space="preserve">
+    <value>Cancelando…</value>
+    <comment>Progress text while cancelling</comment>
+  </data>
+  <data name="Update_OpenBrowserFailed" xml:space="preserve">
+    <value>No se pudo abrir el navegador; visita manualmente: {0}</value>
+    <comment>Dialog body when the browser cannot be started</comment>
+  </data>
+  <data name="Update_OpenDownloadPageFailedTitle" xml:space="preserve">
+    <value>No se pudo abrir la página de descarga</value>
+    <comment>Dialog title for the manual-download escape hatch</comment>
+  </data>
+  <data name="Update_OpenDownloadPage" xml:space="preserve">
+    <value>Abrir la página de descarga</value>
+    <comment>Manual-download button label</comment>
+  </data>
+  <data name="Update_OpenDownloadPageTooltip" xml:space="preserve">
+    <value>Abre GitHub Releases en el navegador para descargar manualmente</value>
+    <comment>Manual-download button tooltip</comment>
+  </data>
+  <data name="Update_CheckTooltip" xml:space="preserve">
+    <value>Comprueba si hay una nueva versión del cliente de Windows</value>
+    <comment>Check-update button tooltip</comment>
+  </data>
+  <data name="Update_CancelDownloadTooltip" xml:space="preserve">
+    <value>Cancela la descarga y elimina los archivos temporales</value>
+    <comment>Cancel-download button tooltip</comment>
+  </data>
+  <data name="Update_SizeUnknown" xml:space="preserve">
+    <value>Tamaño desconocido</value>
+    <comment>Size text when the server declared no length</comment>
+  </data>
+  <data name="Update_ProgressPercent" xml:space="preserve">
+    <value>{0} / {1} ({2} %)</value>
+    <comment>Progress text with a known total</comment>
+  </data>
+  <data name="Update_ProgressDownloaded" xml:space="preserve">
+    <value>Descargado {0}</value>
+    <comment>Progress text without a known total</comment>
+  </data>
+  <data name="Update_ProgressVerifying" xml:space="preserve">
+    <value>Verificando SHA-256…</value>
+    <comment>Progress text while verifying</comment>
+  </data>
+  <data name="Update_ProgressLaunching" xml:space="preserve">
+    <value>Iniciando el instalador…</value>
+    <comment>Progress text while launching the installer</comment>
+  </data>
+  <data name="Update_TimeoutCheck" xml:space="preserve">
+    <value>Se agotó el tiempo de espera de la solicitud (sin respuesta en 15 segundos)</value>
+    <comment>Check-update failure reason for a timeout</comment>
+  </data>
+  <data name="Update_CannotReachGitHub" xml:space="preserve">
+    <value>No se puede conectar con GitHub</value>
+    <comment>Check-update failure reason for a transport error</comment>
+  </data>
+  <data name="Update_UnknownError" xml:space="preserve">
+    <value>Error desconocido</value>
+    <comment>Fallback failure reason</comment>
+  </data>
+  <data name="Update_InstallMissingSetup" xml:space="preserve">
+    <value>La versión {0} no incluye instalador, así que no se puede actualizar automáticamente. Descárgala manualmente: {1}</value>
+    <comment>Install failure: release has no setup asset</comment>
+  </data>
+  <data name="Update_InvalidSetupUrl" xml:space="preserve">
+    <value>La dirección del instalador de la versión {0} no es válida; descárgala manualmente: {1}</value>
+    <comment>Install failure: setup URL does not parse</comment>
+  </data>
+  <data name="Update_ChecksumFileMissing" xml:space="preserve">
+    <value>La versión {0} no incluye archivo de verificación SHA-256, así que no se puede confirmar la integridad del instalador; se canceló la instalación. Descárgala manualmente: {1}</value>
+    <comment>Install failure: release has no checksum asset</comment>
+  </data>
+  <data name="Update_TempDirFailed" xml:space="preserve">
+    <value>No se pudo crear el directorio temporal de descarga: {0}</value>
+    <comment>Install failure: temp folder cannot be created</comment>
+  </data>
+  <data name="Update_StepDownload" xml:space="preserve">
+    <value>Descarga</value>
+    <comment>Timeout step name for the payload download</comment>
+  </data>
+  <data name="Update_StepChecksumDownload" xml:space="preserve">
+    <value>Descarga del archivo de verificación</value>
+    <comment>Timeout step name for the checksum download</comment>
+  </data>
+  <data name="Update_StepVerify" xml:space="preserve">
+    <value>Verificación</value>
+    <comment>Timeout step name for the verification</comment>
+  </data>
+  <data name="Update_StepTimeout" xml:space="preserve">
+    <value>Se agotó el tiempo de espera de {0} (la red no respondió durante mucho tiempo); revisa la red y vuelve a intentarlo, o descarga manualmente: {1}</value>
+    <comment>Failure message for a step deadline</comment>
+  </data>
+  <data name="Update_LaunchProcessFailed" xml:space="preserve">
+    <value>No se pudo iniciar el proceso del instalador.</value>
+    <comment>Exception text when Process.Start returns null</comment>
+  </data>
+  <data name="Update_LaunchFailed" xml:space="preserve">
+    <value>No se pudo iniciar el instalador. El instalador ya se descargó y se verificó correctamente; puedes ejecutarlo manualmente: {0}</value>
+    <comment>Install failure: the installer cannot be started</comment>
+  </data>
+  <data name="Update_ChecksumUnparsable" xml:space="preserve">
+    <value>Error de verificación: el archivo de verificación no contiene un valor SHA-256 legible; se canceló la instalación. Descárgala manualmente: {0}</value>
+    <comment>Verify failure: no digest in the sidecar</comment>
+  </data>
+  <data name="Update_PackageUnreadable" xml:space="preserve">
+    <value>Error de verificación: no se pudo leer el instalador descargado; se canceló la instalación.</value>
+    <comment>Verify failure: the download cannot be read</comment>
+  </data>
+  <data name="Update_ChecksumMismatch" xml:space="preserve">
+    <value>Error de verificación: el SHA-256 del instalador no coincide con el valor publicado; se eliminó el archivo descargado y no se instaló nada.
+Valor publicado: {0}
+Valor real: {1}
+Vuelve a intentarlo; si sigue sin coincidir, descárgalo manualmente: {2}</value>
+    <comment>Verify failure: digest mismatch</comment>
+  </data>
+  <data name="Update_ChecksumOversized" xml:space="preserve">
+    <value>Error de verificación: el tamaño del archivo de verificación es anómalo (no parece un archivo SHA-256); se canceló la instalación. Descárgala manualmente: {0}</value>
+    <comment>Verify failure: the sidecar is implausibly large</comment>
+  </data>
+  <data name="Update_HttpNotFound" xml:space="preserve">
+    <value>El recurso publicado no existe (HTTP 404)</value>
+    <comment>HTTP failure reason: 404</comment>
+  </data>
+  <data name="Update_HttpForbidden" xml:space="preserve">
+    <value>GitHub rechazó esta solicitud (HTTP {0}); vuelve a intentarlo más tarde</value>
+    <comment>HTTP failure reason: 403/429</comment>
+  </data>
+  <data name="Update_HttpRedirect" xml:space="preserve">
+    <value>La dirección de descarga cambió (HTTP {0})</value>
+    <comment>HTTP failure reason: redirect</comment>
+  </data>
+  <data name="Update_HttpStatus" xml:space="preserve">
+    <value>El servidor devolvió HTTP {0}</value>
+    <comment>HTTP failure reason: any other status</comment>
+  </data>
+  <data name="Update_DownloadFailed" xml:space="preserve">
+    <value>Error de descarga: {0}. Revisa la red y vuelve a intentarlo, o descarga manualmente: {1}</value>
+    <comment>Download failure wrapper</comment>
+  </data>
+  <data name="Update_NetworkFailed" xml:space="preserve">
+    <value>Error de descarga: la conexión de red se interrumpió o no se puede acceder a GitHub. Revisa la red (o el proxy) y vuelve a intentarlo, o descarga manualmente: {0}</value>
+    <comment>Download failure: transport error</comment>
+  </data>
+  <data name="Update_DownloadInterrupted" xml:space="preserve">
+    <value>Descarga interrumpida: solo se recibieron {0} de {1}. Vuelve a intentarlo o descarga manualmente: {2}</value>
+    <comment>Download failure: truncated body</comment>
+  </data>
+  <data name="Update_WriteTempFailed" xml:space="preserve">
+    <value>Error de descarga: no se pudo escribir en el directorio temporal {0}. Revisa el espacio en disco y los permisos, o descarga manualmente: {1}</value>
+    <comment>Download failure: the temp file cannot be written</comment>
+  </data>
+  <data name="WebView_RuntimeMissingTitle" xml:space="preserve">
+    <value>Falta el entorno de ejecución de WebView2</value>
+    <comment>Dialog title when the WebView2 runtime is absent</comment>
+  </data>
+  <data name="WebView_RuntimeMissingMessage" xml:space="preserve">
+    <value>Esta computadora no tiene instalado el entorno de ejecución de Microsoft Edge WebView2, por lo que el cliente no puede mostrar las páginas de DSH.
+
+Instálalo y vuelve a abrir el cliente:
+{0}
+
+Windows 11 suele incluirlo; en Windows 10 hay que instalar una vez Evergreen Runtime.
+Si ya está instalado y el aviso sigue apareciendo, confirma que instalaste la versión x64.</value>
+    <comment>Dialog body when the WebView2 runtime is absent (argument is the download URL)</comment>
+  </data>
+  <data name="WebView_BlockedNavigation" xml:space="preserve">
+    <value>Se bloqueó la navegación a una dirección que no es de la puerta de enlace.</value>
+    <comment>One-time notice when a non-gateway navigation is blocked</comment>
+  </data>
+  <data name="WebView_BlockedPopup" xml:space="preserve">
+    <value>Se bloqueó una ventana emergente.</value>
+    <comment>One-time notice when a pop-up is blocked</comment>
+  </data>
+  <data name="WebView_BlockedDownload" xml:space="preserve">
+    <value>Se bloqueó una descarga de una dirección que no es de la puerta de enlace.</value>
+    <comment>One-time notice when an off-origin download is blocked</comment>
+  </data>
+  <data name="WebView_BrowserExited" xml:space="preserve">
+    <value>El proceso del navegador se cerró; desconecta y vuelve a conectar.</value>
+    <comment>One-time notice when the browser process exits</comment>
+  </data>
+  <data name="WebView_RendererReloading" xml:space="preserve">
+    <value>El proceso de la página falló; se está volviendo a cargar.</value>
+    <comment>One-time notice when the renderer crashes</comment>
+  </data>
+  <data name="WebView_NoticeTitle" xml:space="preserve">
+    <value>Cliente de Windows</value>
+    <comment>Title of the one-time WebView policy notices</comment>
+  </data>
+  <data name="Notify_TaskComplete" xml:space="preserve">
+    <value>Tarea completada</value>
+    <comment>Tray balloon title fallback for a task notification</comment>
+  </data>
+  <data name="Notify_TaskUpdate" xml:space="preserve">
+    <value>Hay novedades en las tareas de la computadora; haz clic para verlas.</value>
+    <comment>Tray balloon body fallback for a task notification</comment>
+  </data>
+  <data name="Notify_DeviceRevokedTitle" xml:space="preserve">
+    <value>El dispositivo ya no es válido</value>
+    <comment>Tray balloon title when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_DeviceRevokedBody" xml:space="preserve">
+    <value>{0}. Pega el enlace de emparejamiento actual de esa computadora para actualizarlo.</value>
+    <comment>Tray balloon body when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_RevokedByComputer" xml:space="preserve">
+    <value>Este dispositivo se revocó desde la computadora</value>
+    <comment>Revocation reason reported by the background event stream</comment>
+  </data>
+  <data name="Notify_TrayWatcher" xml:space="preserve">
+    <value>DeepSeek Harness — esperando a que se completen tareas</value>
+    <comment>Tray icon tooltip while the task watcher runs</comment>
+  </data>
+  <data name="AppData_UnwritableTitle" xml:space="preserve">
+    <value>No se puede escribir en la carpeta del programa</value>
+    <comment>Dialog title when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_UnwritableMessage" xml:space="preserve">
+    <value>No se puede escribir en la carpeta del programa, así que no se pueden guardar los ajustes, las computadoras emparejadas ni los registros.
+
+Mueve toda la carpeta del programa a una ubicación con permisos de escritura (por ejemplo, el escritorio, Documentos o una unidad USB) y vuelve a ejecutarlo; no la coloques en Program Files ni en otras ubicaciones que requieran permisos de administrador.
+
+En esta ejecución todavía puedes conectarte a la computadora, pero no se conservará ningún ajuste al salir.</value>
+    <comment>Dialog body when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_DetailError" xml:space="preserve">
+    <value>
+
+Detalle del error: {0}</value>
+    <comment>Detail appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_DataDirectory" xml:space="preserve">
+    <value>
+
+Directorio de datos: {0}</value>
+    <comment>Data folder path appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_Unknown" xml:space="preserve">
+    <value>Desconocido</value>
+    <comment>Placeholder when the underlying error text is missing</comment>
+  </data>
+  <data name="Crash_Title" xml:space="preserve">
+    <value>El programa encontró un problema inesperado</value>
+    <comment>Title of the last-resort crash dialog</comment>
+  </data>
+  <data name="Crash_BodyLead" xml:space="preserve">
+    <value>El programa encontró un problema inesperado, pero se evitó que se cerrara de inmediato.
+
+{0}</value>
+    <comment>Crash dialog lead plus the exception type name</comment>
+  </data>
+  <data name="Crash_BodyMessage" xml:space="preserve">
+    <value>: {0}</value>
+    <comment>Exception message appended to the type name</comment>
+  </data>
+  <data name="Crash_BodyLogPath" xml:space="preserve">
+    <value>
+
+Los detalles se escribieron en:
+{0}</value>
+    <comment>Crash dialog: where the log was written</comment>
+  </data>
+  <data name="Crash_BodyFooter" xml:space="preserve">
+    <value>
+
+Si el problema se repite, adjunta ese registro en el issue.</value>
+    <comment>Crash dialog closing advice</comment>
+  </data>
+  <data name="Rename_Title" xml:space="preserve">
+    <value>Cambiar nombre</value>
+    <comment>Rename dialog window title and heading</comment>
+  </data>
+  <data name="Rename_Prompt" xml:space="preserve">
+    <value>Ponle un nombre a esta computadora</value>
+    <comment>Rename dialog prompt</comment>
+  </data>
+  <data name="Rename_InputTooltip" xml:space="preserve">
+    <value>De 1 a 32 caracteres; solo se muestra en este equipo</value>
+    <comment>Name box tooltip</comment>
+  </data>
+  <data name="Rename_Note" xml:space="preserve">
+    <value>El nombre se guarda solo en este equipo y no afecta al emparejamiento ni a la conexión</value>
+    <comment>Rename dialog note</comment>
+  </data>
+  <data name="Rename_Save" xml:space="preserve">
+    <value>Guardar</value>
+    <comment>Rename dialog primary action</comment>
+  </data>
+  <data name="Rename_InvalidTitle" xml:space="preserve">
+    <value>Nombre no válido</value>
+    <comment>Rename validation dialog title</comment>
+  </data>
+  <data name="Rename_InvalidName" xml:space="preserve">
+    <value>El nombre debe tener entre 1 y 32 caracteres y no puede contener caracteres de control.</value>
+    <comment>Rename validation dialog body</comment>
+  </data>
+  <data name="AppIcon_Default" xml:space="preserve">
+    <value>Predeterminado (guiño señalando el teléfono)</value>
+    <comment>Icon choice label: default mascot (currently preview-only, see report)</comment>
+  </data>
+  <data name="AppIcon_Classic" xml:space="preserve">
+    <value>Clásico (ojos abiertos señalando el teléfono)</value>
+    <comment>Icon choice label: classic mascot</comment>
+  </data>
+  <data name="AppIcon_Cheer" xml:space="preserve">
+    <value>Alegre (ojos cerrados)</value>
+    <comment>Icon choice label: cheering mascot</comment>
+  </data>
+  <data name="AppIcon_Quiet" xml:space="preserve">
+    <value>Silencioso (dedo en los labios)</value>
+    <comment>Icon choice label: quiet mascot</comment>
+  </data>
+  <data name="AppIcon_Whale" xml:space="preserve">
+    <value>Ballena</value>
+    <comment>Icon choice label: whale</comment>
+  </data>
+  <data name="AppIcon_WhaleBlack" xml:space="preserve">
+    <value>Ballena · negra</value>
+    <comment>Icon choice label: black whale</comment>
+  </data>
+  <data name="AppIcon_WhaleDark" xml:space="preserve">
+    <value>Ballena · oscura</value>
+    <comment>Icon choice label: dark whale</comment>
+  </data>
+  <data name="AppIcon_WhaleMono" xml:space="preserve">
+    <value>Ballena · monocroma</value>
+    <comment>Icon choice label: mono whale</comment>
+  </data>
+  <data name="AppIcon_WhaleTeal" xml:space="preserve">
+    <value>Ballena · verde azulada</value>
+    <comment>Icon choice label: teal whale</comment>
+  </data>
+  <data name="AppIcon_WhaleWhite" xml:space="preserve">
+    <value>Ballena · blanca</value>
+    <comment>Icon choice label: white whale</comment>
+  </data>
+</root>

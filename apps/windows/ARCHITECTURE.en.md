@@ -98,7 +98,19 @@ Notices are shown at most once per category per session, so permission/download 
 ## Known gaps
 
 - **Real-hardware acceptance is incomplete**: the iroh, LAN and remote channels and the five WebView2 policies have not been walked through on the maintainer's Windows machine; this document describes the design and the checks that are in the repository.
-- **The update path is unsigned**: the installer has no code signature, so the first run triggers SmartScreen. `PrivilegesRequired=lowest` means no administrator rights are needed, but an install in a protected folder cannot be upgraded in place (Inno's error dialog is the only signal). The client exits once the installer starts and does not ask Inno's Restart Manager to relaunch it, so the user reopens the client after the upgrade.
+- **The update path is unsigned**: the installer has no code signature, so the first run triggers SmartScreen. It is per-machine (`PrivilegesRequired=admin`) and the client raises it through the shell with `runas`, so an install under a protected directory can be written after the UAC prompt; `UsePreviousAppDir=yes` upgrades an existing per-user install in place. After a silent install the `[Run]` entry relaunches the client with `runasoriginaluser`, so an upgrade no longer needs the user to find the icon again.
+
+## Interface languages
+
+Every user-visible string lives in `Resources/Strings.resx`, where Chinese is the neutral
+resource. Seven more languages ship as `Strings.<culture>.resx`, which the SDK compiles into
+`<culture>/DshMobile.Win.resources.dll`; the running culture picks one, and a missing key
+falls back to Chinese, so a partial translation is safe.
+
+XAML binds through `{x:Static res:Strings.Key}`, so a wrong key fails the build. The cost is
+that `x:Static` evaluates once when the element loads: switching language at runtime means
+rebuilding the window, which this client already does for the device list. Adding a language
+means adding one `Strings.<culture>.resx`; no code changes.
 
 ## Persistence and portability
 

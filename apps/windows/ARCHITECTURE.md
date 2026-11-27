@@ -102,7 +102,17 @@
 ## 已知差距
 
 - **真机验收未完成**：iroh / 局域网 / 远程三通道与五类 WebView2 策略尚未在维护者的 Windows 机器上完整走查，本文描述的是设计与已入库的自动检查。
-- **更新流程无签名**：安装包未做代码签名，首次运行会触发 SmartScreen；`PrivilegesRequired=lowest` 使其无需管理员权限，但用户若把客户端装在受保护目录，升级会因写权限失败（安装程序的错误对话框是唯一提示）。启动安装程序后当前进程即退出，不请求 Inno 的 Restart Manager 重新拉起客户端，所以升级后需要用户重新打开。
+- **更新流程无签名**：安装包未做代码签名，首次运行会触发 SmartScreen。安装程序是 per-machine（`PrivilegesRequired=admin`），客户端通过 shell 以 `runas` 拉起它以获得 UAC 提权，因此受保护目录也能写入；`UsePreviousAppDir=yes` 让已装在用户目录的旧版原地升级。静默安装结束后 `[Run]` 段以 `runasoriginaluser` 重新打开客户端，升级不再需要用户手动找图标。需要用户重新打开。
+
+## 界面语言
+
+用户可见文案全部位于 `Resources/Strings.resx`（中文为 neutral），另七种语言各有一个
+`Strings.<culture>.resx`，由 SDK 编译成 `<culture>/DshMobile.Win.resources.dll`。运行时按
+`CultureInfo.CurrentUICulture` 选择，缺键回退中文，因此部分翻译是安全的。
+
+XAML 用 `{x:Static res:Strings.Key}` 绑定：键写错会导致编译失败。代价是 `x:Static` 只在
+元素加载时求值一次，切换语言需要重建窗口（本客户端只有两个窗口，设备列表本来就每次变更重建）。
+加入新语言只需新增一个 `Strings.<culture>.resx`，不必改代码。
 
 ## 持久化与便携边界
 

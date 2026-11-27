@@ -1,0 +1,1202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    Japanese interface strings for the Windows client. Chinese lives in the neutral
+    Strings.resx; this file only overrides it when the UI culture is ja. A missing
+    key falls back to the neutral value, so a partial translation is safe.
+
+    Placeholders {0}/{1}/... are filled with string.Format by the caller and must be
+    preserved exactly.
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Nav_Devices" xml:space="preserve">
+    <value>デバイス</value>
+    <comment>Device page header title and navigation rail label</comment>
+  </data>
+  <data name="Nav_DeviceList" xml:space="preserve">
+    <value>デバイス一覧</value>
+    <comment>"Back to device list" label (browser bar, settings header, rail tooltip/automation name)</comment>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>設定</value>
+    <comment>Settings page header title, rail label, rail tooltip/automation name</comment>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>キャンセル</value>
+    <comment>Cancel buttons (update row, rename dialog)</comment>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>閉じる</value>
+    <comment>Close button tooltip / automation name (rename dialog)</comment>
+  </data>
+  <data name="Common_Clear" xml:space="preserve">
+    <value>クリア</value>
+    <comment>"Clear" button on the settings page</comment>
+  </data>
+  <data name="Common_BackToDeviceList" xml:space="preserve">
+    <value>デバイス一覧に戻る</value>
+    <comment>Settings page back action tooltip</comment>
+  </data>
+  <data name="DeviceList_Subtitle" xml:space="preserve">
+    <value>ペアリング済みのコンピューターを選んで続行するか、新しいコンピューターを追加します。ペアリングはこのコンピューターにのみ保存されます。</value>
+    <comment>Device page subtitle under the title</comment>
+  </data>
+  <data name="DeviceList_PairedHeader" xml:space="preserve">
+    <value>ペアリング済みのコンピューター</value>
+    <comment>Section header above the saved-device cards</comment>
+  </data>
+  <data name="DeviceList_AddComputer" xml:space="preserve">
+    <value>新しいコンピューターを追加</value>
+    <comment>Page action and its collapsed-state label</comment>
+  </data>
+  <data name="DeviceList_AddToggleTooltip" xml:space="preserve">
+    <value>ペアリングパネルを開きます。もう一度クリックすると折りたたみます</value>
+    <comment>Add-computer button tooltip</comment>
+  </data>
+  <data name="DeviceList_Collapse" xml:space="preserve">
+    <value>折りたたむ</value>
+    <comment>Add-computer button label while the panel is open</comment>
+  </data>
+  <data name="DeviceList_EmptyTitle" xml:space="preserve">
+    <value>ペアリング済みのコンピューターはまだありません</value>
+    <comment>Empty-state heading</comment>
+  </data>
+  <data name="DeviceList_EmptyHint" xml:space="preserve">
+    <value>コンピューター側の DSH で「モバイルアクセス」を開き、ペアリング情報またはリンクをコピーして下に貼り付けます。ペアリングはこの一度だけで、以降は「接続」をクリックするだけで接続できます。</value>
+    <comment>Empty-state explanation</comment>
+  </data>
+  <data name="DeviceList_Connect" xml:space="preserve">
+    <value>接続</value>
+    <comment>Card primary action for a reconnectable device</comment>
+  </data>
+  <data name="DeviceList_Repair" xml:space="preserve">
+    <value>再ペアリング</value>
+    <comment>Card primary action for a device whose credential is unusable</comment>
+  </data>
+  <data name="DeviceList_ConnectTooltip" xml:space="preserve">
+    <value>このコンピューターに接続します</value>
+    <comment>Card primary action tooltip</comment>
+  </data>
+  <data name="DeviceList_MenuRename" xml:space="preserve">
+    <value>名前を変更</value>
+    <comment>Row menu item</comment>
+  </data>
+  <data name="DeviceList_MenuCheckNow" xml:space="preserve">
+    <value>今すぐ確認</value>
+    <comment>Row menu item (reachability re-check)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveUp" xml:space="preserve">
+    <value>1 つ上へ移動</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveTop" xml:space="preserve">
+    <value>先頭へ移動</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuDelete" xml:space="preserve">
+    <value>削除（元に戻せます）</value>
+    <comment>Row menu item (destructive)</comment>
+  </data>
+  <data name="DeviceList_MoreActions" xml:space="preserve">
+    <value>その他の操作</value>
+    <comment>Row "..." button tooltip and automation name</comment>
+  </data>
+  <data name="DeviceList_UndoDeleted" xml:space="preserve">
+    <value>{0} を削除しました</value>
+    <comment>Undo strip text after deleting a device</comment>
+  </data>
+  <data name="DeviceList_UndoAction" xml:space="preserve">
+    <value>元に戻す</value>
+    <comment>Undo strip action</comment>
+  </data>
+  <data name="DeviceList_UndoTooltip" xml:space="preserve">
+    <value>このペアリング記録を復元します（コンピューター側の認可は復元されません）</value>
+    <comment>Undo strip action tooltip</comment>
+  </data>
+  <data name="DeviceList_DefaultComputerName" xml:space="preserve">
+    <value>コンピューター {0}</value>
+    <comment>Default display name given to a newly paired computer</comment>
+  </data>
+  <data name="Channel_Lan" xml:space="preserve">
+    <value>ローカルネットワーク</value>
+    <comment>LAN channel label</comment>
+  </data>
+  <data name="Channel_Remote" xml:space="preserve">
+    <value>リモート</value>
+    <comment>Remote channel label</comment>
+  </data>
+  <data name="Pairing_LanSummary" xml:space="preserve">
+    <value>同じ Wi-Fi 内で最も高速</value>
+    <comment>Empty-state LAN chip subtitle</comment>
+  </data>
+  <data name="Pairing_RemoteSummary" xml:space="preserve">
+    <value>パブリックドメインまたはトンネル経由</value>
+    <comment>Empty-state remote chip subtitle</comment>
+  </data>
+  <data name="Pairing_IrohSummary" xml:space="preserve">
+    <value>ピアツーピア、ポート開放なし</value>
+    <comment>Empty-state iroh chip subtitle</comment>
+  </data>
+  <data name="Pairing_LanAutomationName" xml:space="preserve">
+    <value>ローカルネットワークでペアリング</value>
+    <comment>Empty-state LAN chip automation name</comment>
+  </data>
+  <data name="Pairing_RemoteAutomationName" xml:space="preserve">
+    <value>リモートアドレスでペアリング</value>
+    <comment>Empty-state remote chip automation name</comment>
+  </data>
+  <data name="Pairing_IrohAutomationName" xml:space="preserve">
+    <value>iroh でペアリング</value>
+    <comment>Empty-state iroh chip automation name</comment>
+  </data>
+  <data name="Pairing_PanelTitle" xml:space="preserve">
+    <value>コンピューターを追加</value>
+    <comment>Add-panel heading (note: differs from the button label 添加新电脑)</comment>
+  </data>
+  <data name="Pairing_PanelHint" xml:space="preserve">
+    <value>ペアリング情報はこのハンドシェイクにのみ使用され、このコンピューターには保存されません。</value>
+    <comment>Add-panel hint under the heading</comment>
+  </data>
+  <data name="Pairing_DescriptorTooltip" xml:space="preserve">
+    <value>1 回限りのペアリング情報です。ペアリングコードや token は保存されません</value>
+    <comment>Paste box tooltip</comment>
+  </data>
+  <data name="Pairing_ConnectAction" xml:space="preserve">
+    <value>ペアリングして接続</value>
+    <comment>Primary action of the add panel</comment>
+  </data>
+  <data name="Pairing_FindOnThisPc" xml:space="preserve">
+    <value>このコンピューターから検索</value>
+    <comment>Discovery toggle label (collapsed state) and its reset copy</comment>
+  </data>
+  <data name="Pairing_FindToggleTooltip" xml:space="preserve">
+    <value>アドレスを入力するかローカルネットワークをスキャンし、見つかったコンピューターのペアリングリンクを貼り付けます</value>
+    <comment>Discovery toggle tooltip</comment>
+  </data>
+  <data name="Pairing_HideFinder" xml:space="preserve">
+    <value>検索を閉じる</value>
+    <comment>Discovery toggle label while the finder is open</comment>
+  </data>
+  <data name="Pairing_FinderHint" xml:space="preserve">
+    <value>コンピューターのアドレスを入力するか、現在のローカルネットワークをスキャンします。見つかったコンピューターでも、そのコンピューター自身のペアリングリンクを貼り付ける必要があります。</value>
+    <comment>Hint above the address box</comment>
+  </data>
+  <data name="Pairing_AddressTooltip" xml:space="preserve">
+    <value>コンピューターのローカルネットワークアドレスを入力します（例：192.168.1.18 または https://host:port）</value>
+    <comment>Address box tooltip</comment>
+  </data>
+  <data name="Pairing_Probe" xml:space="preserve">
+    <value>検索</value>
+    <comment>Probe button label</comment>
+  </data>
+  <data name="Pairing_ProbeTooltip" xml:space="preserve">
+    <value>このアドレスが DSH Mobile ゲートウェイかどうかを確認します</value>
+    <comment>Probe button tooltip</comment>
+  </data>
+  <data name="Pairing_Scan" xml:space="preserve">
+    <value>ローカルネットワークをスキャン</value>
+    <comment>Scan button label and its idle state</comment>
+  </data>
+  <data name="Pairing_ScanTooltip" xml:space="preserve">
+    <value>ブロードキャストで問い合わせ、このコンピューターが属するセグメントを順に確認します</value>
+    <comment>Scan button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanRunning" xml:space="preserve">
+    <value>スキャンしています…</value>
+    <comment>Scan button label while scanning</comment>
+  </data>
+  <data name="Pairing_ModeRemoteHint" xml:space="preserve">
+    <value>ネットワークをまたぐアクセス：コンピューター側の「モバイルアクセス」でリモートペアリングリンク（https://your-domain/mobile-access/pair#…）をコピーし、下に貼り付けます。ドメインにはこのコンピューターからアクセスできる必要があります。</value>
+    <comment>Guidance under the paste box for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeRemotePlaceholder" xml:space="preserve">
+    <value>リモートペアリングリンクを貼り付け</value>
+    <comment>Placeholder for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohHint" xml:space="preserve">
+    <value>パブリックポートは不要です：コンピューター側で iroh ペアリング情報（JSON）をコピーし、下に貼り付けます。初回接続時に公式コンポーネント（約 14.8 MB）をダウンロードして検証します。</value>
+    <comment>Guidance under the paste box for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohPlaceholder" xml:space="preserve">
+    <value>iroh ペアリング情報（JSON）を貼り付け</value>
+    <comment>Placeholder for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeLanHint" xml:space="preserve">
+    <value>同じ Wi-Fi またはローカルネットワーク内で最も高速です：コンピューター側のローカルネットワークペアリングリンク（https://192.168.x.x:port/mobile-access/pair#…）をコピーして下に貼り付けます。リンクが見つからない場合は、このコンピューターからスキャンできます。</value>
+    <comment>Guidance under the paste box for the LAN tab</comment>
+  </data>
+  <data name="Pairing_ModeLanPlaceholder" xml:space="preserve">
+    <value>ローカルネットワークのペアリングリンクを貼り付け</value>
+    <comment>Placeholder for the LAN tab</comment>
+  </data>
+  <data name="Pairing_SelectFound" xml:space="preserve">
+    <value>選択</value>
+    <comment>"Use this one" button on a discovered gateway card</comment>
+  </data>
+  <data name="Pairing_SelectFoundTooltip" xml:space="preserve">
+    <value>このコンピューターを記憶し、ペアリングリンクを貼り付けるときにアドレスの一致を確認します</value>
+    <comment>Discovered gateway button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanNoBroadcast" xml:space="preserve">
+    <value>ブロードキャストの応答がないため、このコンピューターが属するセグメントを順に確認しています…</value>
+    <comment>Discovery hint while probing the subnet</comment>
+  </data>
+  <data name="Pairing_ScanNotFound" xml:space="preserve">
+    <value>コンピューターが見つかりませんでした：コンピューター側のゲートウェイが実行中で、このコンピューターと同じネットワークにあることを確認するか、上でアドレスを手入力して検索してください。</value>
+    <comment>Discovery hint when nothing was found</comment>
+  </data>
+  <data name="Pairing_ScanTimeout" xml:space="preserve">
+    <value>スキャンがタイムアウトしました。アドレスを手入力して検索することもできます。</value>
+    <comment>Discovery hint on scan timeout</comment>
+  </data>
+  <data name="Pairing_ScanFailed" xml:space="preserve">
+    <value>スキャンに失敗しました：{0}</value>
+    <comment>Discovery hint when the scan throws</comment>
+  </data>
+  <data name="Pairing_SelectedHint" xml:space="preserve">
+    <value>「{0}」（{1}）を選択しました。上にこのコンピューターのペアリングリンクを貼り付けてからペアリングしてください。リンクのアドレスが一致しない場合は確認を求めます。</value>
+    <comment>Discovery hint after picking a result</comment>
+  </data>
+  <data name="Pairing_InvalidAddress" xml:space="preserve">
+    <value>アドレスが無効です：{0}</value>
+    <comment>Message box body when the typed address does not parse</comment>
+  </data>
+  <data name="Pairing_FindTitle" xml:space="preserve">
+    <value>コンピューターを検索</value>
+    <comment>Message box title for the manual probe flow</comment>
+  </data>
+  <data name="Pairing_GatewayNotFound" xml:space="preserve">
+    <value>ゲートウェイが見つかりません：{0}
+
+コンピューター側のゲートウェイが実行中で、アドレスが正しく、ネットワークに到達できることを確認してください。</value>
+    <comment>Message box body when the probe fails</comment>
+  </data>
+  <data name="Pairing_InvalidContentTitle" xml:space="preserve">
+    <value>ペアリング情報が無効です</value>
+    <comment>Message box title when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_InvalidContent" xml:space="preserve">
+    <value>ペアリング情報が無効です。
+
+iroh 記述子のエラー：{0}
+ペアリングリンクのエラー：{1}</value>
+    <comment>Message box body when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_OriginMismatchTitle" xml:space="preserve">
+    <value>アドレスが一致しません</value>
+    <comment>Message box title when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_OriginMismatch" xml:space="preserve">
+    <value>ペアリングリンクは {0} を指していますが、選択済みの検出結果 {1} と一致しません。
+
+別のコンピューターのリンクを貼り間違えた可能性があります。ペアリングを続行しますか？</value>
+    <comment>Message box body when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_UpdateAddressTitle" xml:space="preserve">
+    <value>アドレスを更新できません</value>
+    <comment>Message box title when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_UpdateAddressNotSame" xml:space="preserve">
+    <value>新しいリンクは同じコンピューターではありません（instanceId が一致しません）。元の記録を保持しました。</value>
+    <comment>Message box body when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_ReneedTitle" xml:space="preserve">
+    <value>再ペアリングが必要です</value>
+    <comment>Message box title when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_ReneedBody" xml:space="preserve">
+    <value>このコンピューターのデバイス資格情報は期限切れか、読み取れません。このコンピューターの現在のペアリングリンクを貼り付けてください。アドレスと名前は自動的に更新されます。</value>
+    <comment>Message box body when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_NotSameComputer" xml:space="preserve">
+    <value>新しいリンクは同じコンピューターではありません（instanceId が一致しません）</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_CaDowngradeRejected" xml:space="preserve">
+    <value>新しいリンクは CA の固定を要求していません。CA を固定したコンピューターはダウングレードできません。そのコンピューターの現在の dsh2 ペアリングリンクを使用してください</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_UrlEmpty" xml:space="preserve">
+    <value>ペアリングリンクが空か、長すぎます</value>
+    <comment>UrlPairing.Parse rejection, shown as 配对链接错误</comment>
+  </data>
+  <data name="Pairing_UrlNotUrl" xml:space="preserve">
+    <value>有効な URL ではありません</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlMustBeHttps" xml:space="preserve">
+    <value>https:// のペアリングリンクのみ受け付けます</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlUserInfo" xml:space="preserve">
+    <value>ペアリングリンクにユーザー情報やクエリパラメーターを含めることはできません</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlPath" xml:space="preserve">
+    <value>ペアリングリンクのパスは {0} である必要があります</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_HostInvalid" xml:space="preserve">
+    <value>ホスト名の形式が無効です</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_PortInvalid" xml:space="preserve">
+    <value>ポートが範囲外です</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_UrlNoCredential" xml:space="preserve">
+    <value>ペアリング資格情報がありません（fragment に instance/token または key=… が必要です）</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlKeyFormat" xml:space="preserve">
+    <value>key= のペアリングコード形式が無効です</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlInstanceFormat" xml:space="preserve">
+    <value>instance/token のペアリングコード形式が無効です</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_AddressEmpty" xml:space="preserve">
+    <value>アドレスが空か、長すぎます</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection, shown as 地址无效</comment>
+  </data>
+  <data name="Pairing_AddressNotUrl" xml:space="preserve">
+    <value>有効なアドレスではありません</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressMustBeHttps" xml:space="preserve">
+    <value>https アドレスまたはスキームなしのホスト名のみ受け付けます</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressSecret" xml:space="preserve">
+    <value>アドレスにユーザー情報、クエリパラメーター、ペアリング資格情報を含めることはできません</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryHttpFormat" xml:space="preserve">
+    <value>discovery レスポンスの形式が無効です</value>
+    <comment>LanDiscovery.ProbeAsync rejection, shown as 找不到网关</comment>
+  </data>
+  <data name="Pairing_NotGateway" xml:space="preserve">
+    <value>このアドレスは DSH Mobile ゲートウェイではありません：{0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryNotJson" xml:space="preserve">
+    <value>discovery レスポンスが JSON ではありません</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryInvalid" xml:space="preserve">
+    <value>discovery レスポンスの検証に失敗しました：{0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_HostUnresolved" xml:space="preserve">
+    <value>ホスト {0} を解決できません</value>
+    <comment>LanDiscovery / GatewayAuth DNS failure text</comment>
+  </data>
+  <data name="Connect_BackTooltip" xml:space="preserve">
+    <value>デバイス一覧に戻る（接続は維持）</value>
+    <comment>Browser bar back button tooltip</comment>
+  </data>
+  <data name="Connect_StatusAccessibility" xml:space="preserve">
+    <value>接続状態</value>
+    <comment>Accessible name for the connection status line</comment>
+  </data>
+  <data name="Connect_ProgressAccessibility" xml:space="preserve">
+    <value>接続の進行状況</value>
+    <comment>Accessible name for the indeterminate connection progress bar</comment>
+  </data>
+  <data name="Update_ProgressAccessibility" xml:space="preserve">
+    <value>アップデートの進行状況</value>
+    <comment>Accessible name for the update download progress bar</comment>
+  </data>
+  <data name="Connect_Disconnect" xml:space="preserve">
+    <value>切断</value>
+    <comment>Browser bar disconnect button label</comment>
+  </data>
+  <data name="Connect_DisconnectTooltip" xml:space="preserve">
+    <value>接続を切断し、セッションをクリアします</value>
+    <comment>Browser bar disconnect button tooltip</comment>
+  </data>
+  <data name="Connect_CancelHint" xml:space="preserve">
+    <value>接続中はいつでもキャンセルできます。中途半端な接続が残ることはありません</value>
+    <comment>Progress panel hint</comment>
+  </data>
+  <data name="Connect_Cancel" xml:space="preserve">
+    <value>接続をキャンセル</value>
+    <comment>Progress panel cancel button</comment>
+  </data>
+  <data name="Connect_CancelTooltip" xml:space="preserve">
+    <value>接続を停止し、ローカルプロキシを解放します</value>
+    <comment>Progress panel cancel button tooltip</comment>
+  </data>
+  <data name="Connect_ConnectingIroh" xml:space="preserve">
+    <value>iroh に接続しています</value>
+    <comment>Progress status while starting the iroh sidecar</comment>
+  </data>
+  <data name="Connect_Interrupted" xml:space="preserve">
+    <value>接続が中断されました</value>
+    <comment>Progress status and tray balloon title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_InterruptedTitle" xml:space="preserve">
+    <value>接続が中断されました · {0}</value>
+    <comment>Browser bar title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_VerifyingComputer" xml:space="preserve">
+    <value>コンピューターを検証しています</value>
+    <comment>Progress status while authorizing a direct gateway</comment>
+  </data>
+  <data name="Connect_LoadingPage" xml:space="preserve">
+    <value>ページを読み込んでいます</value>
+    <comment>Progress status while initialising WebView2</comment>
+  </data>
+  <data name="Connect_Authorizing" xml:space="preserve">
+    <value>認可しています</value>
+    <comment>Progress status while pairing/renewing</comment>
+  </data>
+  <data name="Connect_PreparingIroh" xml:space="preserve">
+    <value>iroh コンポーネントを準備しています</value>
+    <comment>Progress status while acquiring the sidecar artifact</comment>
+  </data>
+  <data name="Connect_Retrying" xml:space="preserve">
+    <value>接続を再試行しています（{0}/{1}）</value>
+    <comment>Progress status between iroh connect attempts</comment>
+  </data>
+  <data name="Connect_Connected" xml:space="preserve">
+    <value>接続済み · {0}</value>
+    <comment>Browser bar title and tray context for a live session</comment>
+  </data>
+  <data name="Connect_PinnedCertVerifyFailed" xml:space="preserve">
+    <value>ペアリング時に固定した証明書でこのコンピューターを検証できません。ネットワークに到達できないか、証明書がペアリング時と異なる可能性があります</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_CredentialUnavailable" xml:space="preserve">
+    <value>デバイス資格情報が使用できません。ペアリングリンクを貼り直してください</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_FailedTitle" xml:space="preserve">
+    <value>接続に失敗しました</value>
+    <comment>Connect failure dialog title</comment>
+  </data>
+  <data name="Connect_OfferAdopt" xml:space="preserve">
+    <value>{0}
+
+このコンピューターの現在のペアリングリンクでアドレスを更新しますか？（同じコンピューターである必要があります。名前は保持されます）</value>
+    <comment>Connect failure dialog body when an address update would help</comment>
+  </data>
+  <data name="Connect_InstanceSuffix" xml:space="preserve">
+    <value>
+
+インスタンス：{0}…</value>
+    <comment>Identity detail appended to credential/CA failures</comment>
+  </data>
+  <data name="Connect_AutoStartFailed" xml:space="preserve">
+    <value>起動時の「{0}」への自動接続に失敗しました。デバイス一覧に戻りました。
+
+{1}</value>
+    <comment>Prefix added to a launch-time auto-connect failure</comment>
+  </data>
+  <data name="Diagnosis_CredentialExpired" xml:space="preserve">
+    <value>このコンピューターのデバイス資格情報が無効になったか、コンピューター側でこのデバイスが取り消されました。
+
+QR コードを再生成し、もう一度ペアリングを完了してください。</value>
+    <comment>Hint for an expired/revoked device credential</comment>
+  </data>
+  <data name="Diagnosis_ProtocolMismatch" xml:space="preserve">
+    <value>クライアントとコンピューター側のプロトコルバージョンが一致しないため、ペアリングを完了できません。
+
+Windows クライアントを最新バージョンにアップデートし（設定 → アップデートを確認）、コンピューター側の DSH Mobile プラグインも互換バージョンに更新されていることを確認してください。</value>
+    <comment>Hint for a protocol/version mismatch</comment>
+  </data>
+  <data name="Diagnosis_CaMismatch" xml:space="preserve">
+    <value>接続先のコンピューターが、ペアリング時に固定したものと一致しません（CA フィンガープリントが一致しません）。
+ペアリングリンクがこのコンピューターのものであり、途中でアドレスが乗っ取られていないことを確認してください。</value>
+    <comment>Hint for a pinned-CA mismatch</comment>
+  </data>
+  <data name="Diagnosis_CpolarStale" xml:space="preserve">
+    <value>cpolar の一時アドレスは無効になりました。
+
+cpolar の無料トンネルは再起動のたびにドメインが変わるため、保存されたアドレスではこのコンピューターに接続できません。
+コンピューター側で DSH Mobile のリモートアクセスを開き、新しいペアリングリンクをコピーして貼り直してください。</value>
+    <comment>Hint for a rotated cpolar tunnel address</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolved" xml:space="preserve">
+    <value>コンピューターのアドレス {0} を解決できません。
+
+{1}</value>
+    <comment>Hint when the name cannot be resolved (second argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedLan" xml:space="preserve">
+    <value>ローカルネットワーク接続：このコンピューターと接続先のコンピューターが同じネットワークにあり、コンピューター側のゲートウェイが実行中であることを確認してください。</value>
+    <comment>LAN advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedRemote" xml:space="preserve">
+    <value>リモート接続：リモートチャネル（Tailscale/cpolar/cloudflared など）が実行中で、ドメインにアクセスできることを確認してください。</value>
+    <comment>Remote advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_Http426" xml:space="preserve">
+    <value>コンピューター側は続行するためにクライアントのアップデートを要求しています（HTTP 426）。
+
+Windows クライアントを最新バージョンにアップデートしてください（設定 → アップデートを確認）。</value>
+    <comment>Hint for HTTP 426</comment>
+  </data>
+  <data name="Diagnosis_Http429" xml:space="preserve">
+    <value>コンピューター側が現在、新規の接続要求を制限しています（HTTP 429）。
+
+1〜2 分待ってから再試行してください。頻繁に発生する場合は、コンピューター側に複数のクライアントが同時に何度も再接続していないか確認してください。</value>
+    <comment>Hint for HTTP 429</comment>
+  </data>
+  <data name="Diagnosis_ServiceUnavailable" xml:space="preserve">
+    <value>コンピューター側の DSH サービスが一時的に利用できません（HTTP {0}）。
+
+コンピューター側のゲートウェイと DSH 本体の両方が実行中であることを確認してから、再試行してください。</value>
+    <comment>Hint for a 5xx answer</comment>
+  </data>
+  <data name="Diagnosis_TlsFailure" xml:space="preserve">
+    <value>コンピューターとの安全な接続（TLS）に失敗しました。
+
+よくある原因：コンピューター側の証明書が変更された、プロキシまたは VPN が TLS を傍受している、システム時刻のずれが大きい。
+コンピューター側のゲートウェイが実行中であることを確認し、そのコンピューターの現在のペアリングリンクを貼り直してください。</value>
+    <comment>Hint for a TLS handshake failure</comment>
+  </data>
+  <data name="Diagnosis_NetworkFailure" xml:space="preserve">
+    <value>コンピューター側のゲートウェイへの HTTPS 接続を確立できません。
+
+{0}</value>
+    <comment>Hint when the gateway is unreachable (argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_NetworkLan" xml:space="preserve">
+    <value>ローカルネットワーク接続：このコンピューターと接続先のコンピューターが同じネットワークにあり、ファイアウォールがゲートウェイのポートを許可し、チャネルが準備完了であることを確認してください。</value>
+    <comment>LAN advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_NetworkRemote" xml:space="preserve">
+    <value>リモート接続：リモートチャネルが実行中で、パブリックネットワークからそのアドレスにアクセスできることを確認してください。</value>
+    <comment>Remote advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_Timeout" xml:space="preserve">
+    <value>接続がタイムアウトしました。コンピューター側の iroh チャネルが準備完了で、両端のネットワークに到達できることを確認してから、再試行してください。</value>
+    <comment>Hint for a timeout/cancellation</comment>
+  </data>
+  <data name="Diagnosis_IrohNoAddress" xml:space="preserve">
+    <value>iroh はこのコンピューター側のアドレスを見つけられませんでした（2 回自動再試行済み）。
+
+EndpointId：{0}
+プロキシ/VPN で dns.iroh.link、iroh.link、relay.iroh.network の DNS と UDP を許可してください。</value>
+    <comment>iroh discovery found no addressing information</comment>
+  </data>
+  <data name="Diagnosis_IrohConnectTimeout" xml:space="preserve">
+    <value>iroh は 15 秒以内にペアリング先のコンピューターに接続できませんでした（2 回自動再試行済み）。
+
+EndpointId：{0}
+よくある原因：コンピューター側のチャネルが再起動したばかり、検出記録がまだ伝播していない、プロキシ/VPN が UDP を遮断している。
+チャネルが準備完了になってから再試行してください。詳細な診断は data\client.log を参照してください。</value>
+    <comment>iroh could not reach the paired endpoint in time</comment>
+  </data>
+  <data name="Diagnosis_CaFetchFailed" xml:space="preserve">
+    <value>ペアリング CA の取得に失敗しました：{0}</value>
+    <comment>GatewayAuth: ca.cer returned a rejection the trust policy will not accept</comment>
+  </data>
+  <data name="Diagnosis_CaResponseEmpty" xml:space="preserve">
+    <value>ca.cer のレスポンスが空です</value>
+    <comment>GatewayAuth: empty ca.cer body</comment>
+  </data>
+  <data name="Diagnosis_CaFingerprintMismatch" xml:space="preserve">
+    <value>ペアリング CA が QR コードのフィンガープリントと一致しません。接続先のコンピューターが QR コードの指すコンピューターではない可能性があります</value>
+    <comment>GatewayAuth: fetched CA does not match the pairing fingerprint</comment>
+  </data>
+  <data name="Diagnosis_NoTrustAnchor" xml:space="preserve">
+    <value>トラストアンカーがありません：ペアリング CA がなく、プラットフォームの信頼も許可されていません</value>
+    <comment>GatewayAuth: no trust anchor for the connection</comment>
+  </data>
+  <data name="DeviceStatus_Current" xml:space="preserve">
+    <value>現在の接続</value>
+    <comment>Status label: live session</comment>
+  </data>
+  <data name="DeviceStatus_Reachable" xml:space="preserve">
+    <value>到達可能</value>
+    <comment>Status label: probe succeeded</comment>
+  </data>
+  <data name="DeviceStatus_Checking" xml:space="preserve">
+    <value>確認しています…</value>
+    <comment>Status label: no result yet (also the fallback)</comment>
+  </data>
+  <data name="DeviceStatus_Unreachable" xml:space="preserve">
+    <value>一時的に到達できません</value>
+    <comment>Status label: probe failed</comment>
+  </data>
+  <data name="DeviceStatus_Revoked" xml:space="preserve">
+    <value>コンピューター側で削除済み</value>
+    <comment>Status label: computer revoked the credential</comment>
+  </data>
+  <data name="DeviceStatus_Expired" xml:space="preserve">
+    <value>ペアリングの有効期限切れ</value>
+    <comment>Status label: local credential expired</comment>
+  </data>
+  <data name="DeviceStatus_AddressChanged" xml:space="preserve">
+    <value>アドレスが変更された可能性があります</value>
+    <comment>Status label: a different gateway answered</comment>
+  </data>
+  <data name="DeviceStatus_ConnectToCheck" xml:space="preserve">
+    <value>接続すると確認できます</value>
+    <comment>Status label: iroh row that cannot be probed yet</comment>
+  </data>
+  <data name="DeviceCard_Identity" xml:space="preserve">
+    <value>{0} · {1}…</value>
+    <comment>Card detail line: channel and short endpoint id</comment>
+  </data>
+  <data name="DeviceCard_Expiry" xml:space="preserve">
+    <value>資格情報の有効期限 {0}</value>
+    <comment>Card detail line: credential expiry date</comment>
+  </data>
+  <data name="DeviceCard_LastConnected" xml:space="preserve">
+    <value>最終接続 {0}</value>
+    <comment>Card status line: relative last-connected wording</comment>
+  </data>
+  <data name="DeviceCard_StatusLine" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card status line: status label and recency</comment>
+  </data>
+  <data name="DeviceCard_Detail" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card detail line: identity and optional expiry</comment>
+  </data>
+  <data name="DeviceCard_RepairHint" xml:space="preserve">
+    <value>資格情報の有効期限が切れているか読み取れません。このコンピューターの現在のリンクを貼り付けると更新できます</value>
+    <comment>Card warning line for an unusable record</comment>
+  </data>
+  <data name="RelativeTime_Never" xml:space="preserve">
+    <value>未接続</value>
+    <comment>Relative time: no timestamp</comment>
+  </data>
+  <data name="RelativeTime_JustNow" xml:space="preserve">
+    <value>たった今</value>
+    <comment>Relative time: under a minute</comment>
+  </data>
+  <data name="RelativeTime_MinutesAgo" xml:space="preserve">
+    <value>{0} 分前</value>
+    <comment>Relative time: N minutes</comment>
+  </data>
+  <data name="RelativeTime_HoursAgo" xml:space="preserve">
+    <value>{0} 時間前</value>
+    <comment>Relative time: N hours</comment>
+  </data>
+  <data name="RelativeTime_DaysAgo" xml:space="preserve">
+    <value>{0} 日前</value>
+    <comment>Relative time: N days</comment>
+  </data>
+  <data name="Settings_Subtitle" xml:space="preserve">
+    <value>外観、起動方法、このコンピューターのデータ。設定はすべてこのコンピューターにのみ保存されます。</value>
+    <comment>Settings page subtitle</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>外観</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_AppIcon" xml:space="preserve">
+    <value>アプリアイコン</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_AppIconHint" xml:space="preserve">
+    <value>スマートフォンアプリと同じ 10 種類のアイコン</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_AppIconCycle" xml:space="preserve">
+    <value>切り替え</value>
+    <comment>Settings row action (next icon)</comment>
+  </data>
+  <data name="Settings_AppIconCycleTooltip" xml:space="preserve">
+    <value>次のアイコンに切り替えます</value>
+    <comment>Settings row action tooltip</comment>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>テーマ</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_ThemeHint" xml:space="preserve">
+    <value>既定では Windows のライト/ダーク設定に従います</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>システムに従う</value>
+    <comment>Theme segment: follow Windows</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>ライト</value>
+    <comment>Theme segment: light</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>ダーク</value>
+    <comment>Theme segment: dark</comment>
+  </data>
+  <data name="Settings_StartupGroup" xml:space="preserve">
+    <value>起動と接続</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_Startup" xml:space="preserve">
+    <value>起動時</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_StartupHint" xml:space="preserve">
+    <value>自動接続すると前回使用したコンピューターに直接入ります</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_StartPageDevices" xml:space="preserve">
+    <value>デバイス一覧を表示</value>
+    <comment>Start-page segment: show the device list</comment>
+  </data>
+  <data name="Settings_StartPageLastDevice" xml:space="preserve">
+    <value>前回のコンピューターに自動接続</value>
+    <comment>Start-page segment: reconnect the last computer</comment>
+  </data>
+  <data name="Settings_Notify" xml:space="preserve">
+    <value>タスク完了の通知</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_NotifyHint" xml:space="preserve">
+    <value>接続中はタスクトレイにタスク完了の通知を表示します</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_NotifyAutomationName" xml:space="preserve">
+    <value>タスク完了の通知</value>
+    <comment>Switch automation name</comment>
+  </data>
+  <data name="Settings_Data" xml:space="preserve">
+    <value>データ</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_ClearSiteData" xml:space="preserve">
+    <value>サイトデータをクリア</value>
+    <comment>Settings row title / dialog title shared by the clear-site-data flow</comment>
+  </data>
+  <data name="Settings_ClearSiteDataHint" xml:space="preserve">
+    <value>WebView のキャッシュと Cookie をクリアします。ペアリング済みのコンピューターには影響しません</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ClearTooltip" xml:space="preserve">
+    <value>キャッシュ、Cookie、ローカルストレージをクリアします</value>
+    <comment>"Clear" button tooltip</comment>
+  </data>
+  <data name="Settings_ClearNeedConnect" xml:space="preserve">
+    <value>一度接続すると、クリアできる WebView データができます。</value>
+    <comment>Dialog body when WebView2 has not started yet</comment>
+  </data>
+  <data name="Settings_ClearConfirm" xml:space="preserve">
+    <value>WebView のキャッシュ、Cookie、ローカルストレージをクリアしますか？
+ペアリング済みのコンピューターと資格情報には影響しません。</value>
+    <comment>Confirmation dialog body</comment>
+  </data>
+  <data name="Settings_ClearDone" xml:space="preserve">
+    <value>クリアしました。再接続するとページが再読み込みされます。</value>
+    <comment>Dialog body after a successful clear</comment>
+  </data>
+  <data name="Settings_ClearFailed" xml:space="preserve">
+    <value>クリアに失敗しました：{0}</value>
+    <comment>Dialog body when the clear throws</comment>
+  </data>
+  <data name="Settings_PortableHint" xml:space="preserve">
+    <value>ポータブル版：レジストリには書き込まず、実行時のデータはプログラムディレクトリの data\ に保存されます</value>
+    <comment>Footer hint beside the version</comment>
+  </data>
+  <data name="Update_Check" xml:space="preserve">
+    <value>アップデートを確認</value>
+    <comment>Check-update button label (idle and after a check)</comment>
+  </data>
+  <data name="Update_CheckingButton" xml:space="preserve">
+    <value>確認しています…</value>
+    <comment>Check-update button label while checking</comment>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>確認しています…</value>
+    <comment>Footer status line while checking</comment>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>最新バージョンです（{0}）。</value>
+    <comment>Footer status line: no newer release</comment>
+  </data>
+  <data name="Update_FoundNoInstaller" xml:space="preserve">
+    <value>新しいバージョン {0} が見つかりました（現在 {1}）が、このバージョンにはインストーラーが用意されておらず、自動アップデートできません。手動でダウンロードしてください：{2}</value>
+    <comment>Footer status line: newer release without an installer asset</comment>
+  </data>
+  <data name="Update_Found" xml:space="preserve">
+    <value>新しいバージョン {0} が見つかりました（現在 {1}）。「{0} にアップデート」をクリックするとダウンロードを開始します。ダウンロードと検証が完了するとクライアントは終了し、インストーラーがファイルを置き換えます。data\ 内のペアリング、設定、ログは保持されます。</value>
+    <comment>Footer status line: newer release ready to install</comment>
+  </data>
+  <data name="Update_To" xml:space="preserve">
+    <value>{0} にアップデート</value>
+    <comment>Footer button label once a release is known</comment>
+  </data>
+  <data name="Update_CheckFailed" xml:space="preserve">
+    <value>確認に失敗しました：{0}。後で再試行するか、手動で {1} を開いて確認してください。</value>
+    <comment>Footer status line when the check throws</comment>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>ダウンロードしています…</value>
+    <comment>Footer button label while downloading</comment>
+  </data>
+  <data name="Update_DownloadingDetail" xml:space="preserve">
+    <value>{0} のインストーラーをダウンロードしています…ダウンロードと検証が完了するとクライアントは終了し、インストーラーがファイルを置き換えます。</value>
+    <comment>Footer status line while downloading</comment>
+  </data>
+  <data name="Update_InstallerStarted" xml:space="preserve">
+    <value>インストーラーを起動しました。アップデートを完了するためクライアントを終了します。インストール完了後、DSH Mobile を再度開いてください（{0}）。</value>
+    <comment>Footer status line once the installer starts</comment>
+  </data>
+  <data name="Update_Cancelled" xml:space="preserve">
+    <value>アップデートをキャンセルしました。変更は行われていません。</value>
+    <comment>Footer status line after a cancellation</comment>
+  </data>
+  <data name="Update_Failed" xml:space="preserve">
+    <value>アップデートに失敗しました：{0}。再試行するか、手動でダウンロードしてください：{1}</value>
+    <comment>Footer status line when the update throws</comment>
+  </data>
+  <data name="Update_Detail" xml:space="preserve">
+    <value>
+詳細情報：{0}</value>
+    <comment>Detail line appended to a failure message</comment>
+  </data>
+  <data name="Update_Cancelling" xml:space="preserve">
+    <value>キャンセルしています…</value>
+    <comment>Progress text while cancelling</comment>
+  </data>
+  <data name="Update_OpenBrowserFailed" xml:space="preserve">
+    <value>ブラウザーを開けませんでした。手動でアクセスしてください：{0}</value>
+    <comment>Dialog body when the browser cannot be started</comment>
+  </data>
+  <data name="Update_OpenDownloadPageFailedTitle" xml:space="preserve">
+    <value>ダウンロードページを開けませんでした</value>
+    <comment>Dialog title for the manual-download escape hatch</comment>
+  </data>
+  <data name="Update_OpenDownloadPage" xml:space="preserve">
+    <value>ダウンロードページを開く</value>
+    <comment>Manual-download button label</comment>
+  </data>
+  <data name="Update_OpenDownloadPageTooltip" xml:space="preserve">
+    <value>ブラウザーで GitHub Releases を開いて手動ダウンロードします</value>
+    <comment>Manual-download button tooltip</comment>
+  </data>
+  <data name="Update_CheckTooltip" xml:space="preserve">
+    <value>新しい Windows クライアントのバージョンがあるか確認します</value>
+    <comment>Check-update button tooltip</comment>
+  </data>
+  <data name="Update_CancelDownloadTooltip" xml:space="preserve">
+    <value>ダウンロードをキャンセルし、一時ファイルを削除します</value>
+    <comment>Cancel-download button tooltip</comment>
+  </data>
+  <data name="Update_SizeUnknown" xml:space="preserve">
+    <value>サイズ不明</value>
+    <comment>Size text when the server declared no length</comment>
+  </data>
+  <data name="Update_ProgressPercent" xml:space="preserve">
+    <value>{0} / {1}（{2}%）</value>
+    <comment>Progress text with a known total</comment>
+  </data>
+  <data name="Update_ProgressDownloaded" xml:space="preserve">
+    <value>{0} をダウンロード済み</value>
+    <comment>Progress text without a known total</comment>
+  </data>
+  <data name="Update_ProgressVerifying" xml:space="preserve">
+    <value>SHA-256 を検証しています…</value>
+    <comment>Progress text while verifying</comment>
+  </data>
+  <data name="Update_ProgressLaunching" xml:space="preserve">
+    <value>インストーラーを起動しています…</value>
+    <comment>Progress text while launching the installer</comment>
+  </data>
+  <data name="Update_TimeoutCheck" xml:space="preserve">
+    <value>リクエストがタイムアウトしました（15 秒以内に応答がありません）</value>
+    <comment>Check-update failure reason for a timeout</comment>
+  </data>
+  <data name="Update_CannotReachGitHub" xml:space="preserve">
+    <value>GitHub に接続できません</value>
+    <comment>Check-update failure reason for a transport error</comment>
+  </data>
+  <data name="Update_UnknownError" xml:space="preserve">
+    <value>不明なエラー</value>
+    <comment>Fallback failure reason</comment>
+  </data>
+  <data name="Update_InstallMissingSetup" xml:space="preserve">
+    <value>バージョン {0} にはインストーラーが用意されておらず、自動アップデートできません。手動でダウンロードしてください：{1}</value>
+    <comment>Install failure: release has no setup asset</comment>
+  </data>
+  <data name="Update_InvalidSetupUrl" xml:space="preserve">
+    <value>バージョン {0} のインストーラーのアドレスが無効です。手動でダウンロードしてください：{1}</value>
+    <comment>Install failure: setup URL does not parse</comment>
+  </data>
+  <data name="Update_ChecksumFileMissing" xml:space="preserve">
+    <value>バージョン {0} には SHA-256 検証ファイルがないため、インストーラーの整合性を確認できず、インストールを中止しました。手動でダウンロードしてください：{1}</value>
+    <comment>Install failure: release has no checksum asset</comment>
+  </data>
+  <data name="Update_TempDirFailed" xml:space="preserve">
+    <value>一時ダウンロードディレクトリを作成できません：{0}</value>
+    <comment>Install failure: temp folder cannot be created</comment>
+  </data>
+  <data name="Update_StepDownload" xml:space="preserve">
+    <value>ダウンロード</value>
+    <comment>Timeout step name for the payload download</comment>
+  </data>
+  <data name="Update_StepChecksumDownload" xml:space="preserve">
+    <value>検証ファイルのダウンロード</value>
+    <comment>Timeout step name for the checksum download</comment>
+  </data>
+  <data name="Update_StepVerify" xml:space="preserve">
+    <value>検証</value>
+    <comment>Timeout step name for the verification</comment>
+  </data>
+  <data name="Update_StepTimeout" xml:space="preserve">
+    <value>{0}がタイムアウトしました（ネットワークが長時間応答していません）。ネットワークを確認して再試行するか、手動でダウンロードしてください：{1}</value>
+    <comment>Failure message for a step deadline</comment>
+  </data>
+  <data name="Update_LaunchProcessFailed" xml:space="preserve">
+    <value>インストーラーのプロセスを起動できませんでした。</value>
+    <comment>Exception text when Process.Start returns null</comment>
+  </data>
+  <data name="Update_LaunchFailed" xml:space="preserve">
+    <value>インストーラーを起動できませんでした。インストーラーはダウンロードと検証が完了しているため、手動で実行できます：{0}</value>
+    <comment>Install failure: the installer cannot be started</comment>
+  </data>
+  <data name="Update_ChecksumUnparsable" xml:space="preserve">
+    <value>検証に失敗しました：検証ファイルに解析可能な SHA-256 値がありません。インストールを中止しました。手動でダウンロードしてください：{0}</value>
+    <comment>Verify failure: no digest in the sidecar</comment>
+  </data>
+  <data name="Update_PackageUnreadable" xml:space="preserve">
+    <value>検証に失敗しました：ダウンロード済みのインストーラーを読み取れません。インストールを中止しました。</value>
+    <comment>Verify failure: the download cannot be read</comment>
+  </data>
+  <data name="Update_ChecksumMismatch" xml:space="preserve">
+    <value>検証に失敗しました：インストーラーの SHA-256 が公開値と一致しません。ダウンロードしたファイルを削除し、インストールは行っていません。
+公開値：{0}
+実際の値：{1}
+再試行してください。それでも一致しない場合は、手動でダウンロードしてください：{2}</value>
+    <comment>Verify failure: digest mismatch</comment>
+  </data>
+  <data name="Update_ChecksumOversized" xml:space="preserve">
+    <value>検証に失敗しました：検証ファイルのサイズが異常です（SHA-256 ファイルではないようです）。インストールを中止しました。手動でダウンロードしてください：{0}</value>
+    <comment>Verify failure: the sidecar is implausibly large</comment>
+  </data>
+  <data name="Update_HttpNotFound" xml:space="preserve">
+    <value>リリースのアセットが存在しません（HTTP 404）</value>
+    <comment>HTTP failure reason: 404</comment>
+  </data>
+  <data name="Update_HttpForbidden" xml:space="preserve">
+    <value>GitHub がこのリクエストを拒否しました（HTTP {0}）。しばらくしてから再試行してください</value>
+    <comment>HTTP failure reason: 403/429</comment>
+  </data>
+  <data name="Update_HttpRedirect" xml:space="preserve">
+    <value>ダウンロードアドレスが変更されました（HTTP {0}）</value>
+    <comment>HTTP failure reason: redirect</comment>
+  </data>
+  <data name="Update_HttpStatus" xml:space="preserve">
+    <value>サーバーが HTTP {0} を返しました</value>
+    <comment>HTTP failure reason: any other status</comment>
+  </data>
+  <data name="Update_DownloadFailed" xml:space="preserve">
+    <value>ダウンロードに失敗しました：{0}。ネットワークを確認して再試行するか、手動でダウンロードしてください：{1}</value>
+    <comment>Download failure wrapper</comment>
+  </data>
+  <data name="Update_NetworkFailed" xml:space="preserve">
+    <value>ダウンロードに失敗しました：ネットワーク接続が中断したか、GitHub にアクセスできません。ネットワーク（またはプロキシ）を確認して再試行するか、手動でダウンロードしてください：{0}</value>
+    <comment>Download failure: transport error</comment>
+  </data>
+  <data name="Update_DownloadInterrupted" xml:space="preserve">
+    <value>ダウンロードが中断しました：{0} しか受信できませんでした（{1} のはずです）。再試行するか、手動でダウンロードしてください：{2}</value>
+    <comment>Download failure: truncated body</comment>
+  </data>
+  <data name="Update_WriteTempFailed" xml:space="preserve">
+    <value>ダウンロードに失敗しました：一時ディレクトリ {0} に書き込めません。ディスク容量とアクセス権を確認するか、手動でダウンロードしてください：{1}</value>
+    <comment>Download failure: the temp file cannot be written</comment>
+  </data>
+  <data name="WebView_RuntimeMissingTitle" xml:space="preserve">
+    <value>WebView2 ランタイムがありません</value>
+    <comment>Dialog title when the WebView2 runtime is absent</comment>
+  </data>
+  <data name="WebView_RuntimeMissingMessage" xml:space="preserve">
+    <value>このコンピューターには Microsoft Edge WebView2 ランタイムがインストールされていないため、クライアントは DSH ページを表示できません。
+
+インストール後にクライアントを再度開いてください：
+{0}
+
+Windows 11 には通常最初から入っています。Windows 10 では Evergreen Runtime を一度インストールする必要があります。
+インストール済みなのに不足と表示される場合は、x64 版をインストールしたか確認してください。</value>
+    <comment>Dialog body when the WebView2 runtime is absent (argument is the download URL)</comment>
+  </data>
+  <data name="WebView_BlockedNavigation" xml:space="preserve">
+    <value>ゲートウェイ以外のアドレスへのナビゲーションをブロックしました。</value>
+    <comment>One-time notice when a non-gateway navigation is blocked</comment>
+  </data>
+  <data name="WebView_BlockedPopup" xml:space="preserve">
+    <value>ポップアップウィンドウをブロックしました。</value>
+    <comment>One-time notice when a pop-up is blocked</comment>
+  </data>
+  <data name="WebView_BlockedDownload" xml:space="preserve">
+    <value>ゲートウェイ以外のアドレスからのダウンロードをブロックしました。</value>
+    <comment>One-time notice when an off-origin download is blocked</comment>
+  </data>
+  <data name="WebView_BrowserExited" xml:space="preserve">
+    <value>ブラウザープロセスが終了しました。切断してから再接続してください。</value>
+    <comment>One-time notice when the browser process exits</comment>
+  </data>
+  <data name="WebView_RendererReloading" xml:space="preserve">
+    <value>ページプロセスに異常が発生したため、再読み込みしています。</value>
+    <comment>One-time notice when the renderer crashes</comment>
+  </data>
+  <data name="WebView_NoticeTitle" xml:space="preserve">
+    <value>Windows クライアント</value>
+    <comment>Title of the one-time WebView policy notices</comment>
+  </data>
+  <data name="Notify_TaskComplete" xml:space="preserve">
+    <value>タスク完了</value>
+    <comment>Tray balloon title fallback for a task notification</comment>
+  </data>
+  <data name="Notify_TaskUpdate" xml:space="preserve">
+    <value>コンピューター側のタスクに更新があります。クリックして確認してください。</value>
+    <comment>Tray balloon body fallback for a task notification</comment>
+  </data>
+  <data name="Notify_DeviceRevokedTitle" xml:space="preserve">
+    <value>デバイスが無効になりました</value>
+    <comment>Tray balloon title when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_DeviceRevokedBody" xml:space="preserve">
+    <value>{0}。そのコンピューターの現在のペアリングリンクを貼り付けて更新してください。</value>
+    <comment>Tray balloon body when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_RevokedByComputer" xml:space="preserve">
+    <value>コンピューター側でこのデバイスが取り消されました</value>
+    <comment>Revocation reason reported by the background event stream</comment>
+  </data>
+  <data name="Notify_TrayWatcher" xml:space="preserve">
+    <value>DeepSeek Harness — タスク完了を監視中</value>
+    <comment>Tray icon tooltip while the task watcher runs</comment>
+  </data>
+  <data name="AppData_UnwritableTitle" xml:space="preserve">
+    <value>プログラムディレクトリに書き込めません</value>
+    <comment>Dialog title when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_UnwritableMessage" xml:space="preserve">
+    <value>プログラムディレクトリに書き込めないため、設定、ペアリング済みのコンピューター、ログを保存できません。
+
+プログラムフォルダー全体を書き込み可能な場所（デスクトップ、ドキュメント、USB メモリなど）に移動してから再実行してください。Program Files など管理者権限が必要な場所には置かないでください。
+
+今回の実行では引き続きコンピューターに接続できますが、終了後に設定は一切保存されません。</value>
+    <comment>Dialog body when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_DetailError" xml:space="preserve">
+    <value>
+
+詳細エラー：{0}</value>
+    <comment>Detail appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_DataDirectory" xml:space="preserve">
+    <value>
+
+データディレクトリ：{0}</value>
+    <comment>Data folder path appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_Unknown" xml:space="preserve">
+    <value>不明</value>
+    <comment>Placeholder when the underlying error text is missing</comment>
+  </data>
+  <data name="Crash_Title" xml:space="preserve">
+    <value>予期しない問題が発生しました</value>
+    <comment>Title of the last-resort crash dialog</comment>
+  </data>
+  <data name="Crash_BodyLead" xml:space="preserve">
+    <value>予期しない問題が発生しましたが、そのまま終了することを防ぎました。
+
+{0}</value>
+    <comment>Crash dialog lead plus the exception type name</comment>
+  </data>
+  <data name="Crash_BodyMessage" xml:space="preserve">
+    <value>：{0}</value>
+    <comment>Exception message appended to the type name</comment>
+  </data>
+  <data name="Crash_BodyLogPath" xml:space="preserve">
+    <value>
+
+詳細情報の書き込み先：
+{0}</value>
+    <comment>Crash dialog: where the log was written</comment>
+  </data>
+  <data name="Crash_BodyFooter" xml:space="preserve">
+    <value>
+
+問題が繰り返し発生する場合は、このログを issue に添付してください。</value>
+    <comment>Crash dialog closing advice</comment>
+  </data>
+  <data name="Rename_Title" xml:space="preserve">
+    <value>名前の変更</value>
+    <comment>Rename dialog window title and heading</comment>
+  </data>
+  <data name="Rename_Prompt" xml:space="preserve">
+    <value>このコンピューターに名前を付けます</value>
+    <comment>Rename dialog prompt</comment>
+  </data>
+  <data name="Rename_InputTooltip" xml:space="preserve">
+    <value>1〜32 文字、このコンピューターでの表示にのみ使用されます</value>
+    <comment>Name box tooltip</comment>
+  </data>
+  <data name="Rename_Note" xml:space="preserve">
+    <value>名前はこのコンピューターにのみ保存され、ペアリングや接続には影響しません</value>
+    <comment>Rename dialog note</comment>
+  </data>
+  <data name="Rename_Save" xml:space="preserve">
+    <value>保存</value>
+    <comment>Rename dialog primary action</comment>
+  </data>
+  <data name="Rename_InvalidTitle" xml:space="preserve">
+    <value>名前が無効です</value>
+    <comment>Rename validation dialog title</comment>
+  </data>
+  <data name="Rename_InvalidName" xml:space="preserve">
+    <value>名前は 1〜32 文字で、制御文字を含めることはできません。</value>
+    <comment>Rename validation dialog body</comment>
+  </data>
+  <data name="AppIcon_Default" xml:space="preserve">
+    <value>デフォルト（ウインクしてスマートフォンを指す）</value>
+    <comment>Icon choice label: default mascot (currently preview-only, see report)</comment>
+  </data>
+  <data name="AppIcon_Classic" xml:space="preserve">
+    <value>クラシック（目を開けてスマートフォンを指す）</value>
+    <comment>Icon choice label: classic mascot</comment>
+  </data>
+  <data name="AppIcon_Cheer" xml:space="preserve">
+    <value>歓声（目を閉じる）</value>
+    <comment>Icon choice label: cheering mascot</comment>
+  </data>
+  <data name="AppIcon_Quiet" xml:space="preserve">
+    <value>静か（唇に指を当てる）</value>
+    <comment>Icon choice label: quiet mascot</comment>
+  </data>
+  <data name="AppIcon_Whale" xml:space="preserve">
+    <value>クジラ</value>
+    <comment>Icon choice label: whale</comment>
+  </data>
+  <data name="AppIcon_WhaleBlack" xml:space="preserve">
+    <value>クジラ · ブラック</value>
+    <comment>Icon choice label: black whale</comment>
+  </data>
+  <data name="AppIcon_WhaleDark" xml:space="preserve">
+    <value>クジラ · ダーク</value>
+    <comment>Icon choice label: dark whale</comment>
+  </data>
+  <data name="AppIcon_WhaleMono" xml:space="preserve">
+    <value>クジラ · モノクロ</value>
+    <comment>Icon choice label: mono whale</comment>
+  </data>
+  <data name="AppIcon_WhaleTeal" xml:space="preserve">
+    <value>クジラ · ティール</value>
+    <comment>Icon choice label: teal whale</comment>
+  </data>
+  <data name="AppIcon_WhaleWhite" xml:space="preserve">
+    <value>クジラ · ホワイト</value>
+    <comment>Icon choice label: white whale</comment>
+  </data>
+</root>
