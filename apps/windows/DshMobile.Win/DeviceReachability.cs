@@ -217,13 +217,17 @@ internal sealed class DeviceReachability : IDisposable
             // deadline we created above uses the same exception type — a probe that timed out
             // against a black-holed host must be recorded as unreachable, not silently kept
             // as "checking" or, worse, as the last known "reachable".
-            lock (_gate) _inFlight.Remove(device.EndpointId);
-            if (!token.IsCancellationRequested)
+            //
+            // Only the cancelled case clears the in-flight marker here. The timeout case
+            // falls through to the common path, which removes it once; removing it twice
+            // would let a probe that started in between lose its marker.
+            if (token.IsCancellationRequested)
             {
-                _log($"reachability probe timed out for {device.ShortId}");
-                kind = DeviceStatusKind.Unreachable;
+                lock (_gate) _inFlight.Remove(device.EndpointId);
+                return;
             }
-            else return;
+            _log($"reachability probe timed out for {device.ShortId}");
+            kind = DeviceStatusKind.Unreachable;
         }
         catch (Exception error)
         {

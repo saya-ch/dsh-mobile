@@ -31,7 +31,7 @@ const messages: Readonly<Record<PushLocale, Readonly<Record<PushCategory, readon
   },
   ja: {
     question: ['入力が必要です', '返答にご確認が必要です。'],
-    plan: ['プランの確認が必要です', 'プランの確認が必要です。'],
+    plan: ['プランの確認が必要です', 'プランの内容を確認してください。'],
     approval: ['権限が必要です', '権限リクエストにご確認が必要です。'],
     response: ['返答が準備できました', '表示できる返答があります。'],
     goal: ['目標の更新', '目標に重要な更新があります。'],

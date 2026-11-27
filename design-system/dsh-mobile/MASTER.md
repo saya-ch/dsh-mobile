@@ -48,7 +48,7 @@ The dark column is deliberately **not** the Android dark background, card and bo
 
 Two consequences follow from that order. A raised or floating layer takes one more step above the card (`#26262B` dark) instead of reusing the card fill or adding a highlight. And the dark shadow must be neutral black at a lower offset: the light theme's navy-tinted shadow (`#0B1220`) lands on a dark canvas as a blue halo, which is the glow this document forbids, and a shadow brighter than the gap it separates reads as a defect rather than elevation.
 
-`MutedTextBrush` is for **decoration only** (roughly 3.7:1 on the light card). It is not body text: use `SecondaryTextBrush` (5.07:1) for anything that must be read. The earlier ≥5:1 rule was retired when the neutral palette split the roles; `#98A2B3` failed at 2.5:1 and was replaced. `SuccessBrush`/`WarningBrush` exist for connection-state chips (`#15803D`/`#4ADE80`, `#B45309`/`#FBBF24`).
+`MutedTextBrush` is for **decoration only** (roughly 3.7:1 on the light card) — rules, backgrounds, hairline fills. Any text a user is expected to read uses `SecondaryTextBrush` (5.07:1); that is why `RowHint` takes the secondary colour even though it is the smallest text in a settings row: a hint explains what the setting does. The earlier ≥5:1 rule applied to both roles and was retired when the neutral palette split them; `#98A2B3` failed at 2.5:1 and was replaced. `SuccessBrush`/`WarningBrush` exist for connection-state chips (`#15803D`/`#4ADE80`, `#B45309`/`#FBBF24`).
 
 ## Typography
 

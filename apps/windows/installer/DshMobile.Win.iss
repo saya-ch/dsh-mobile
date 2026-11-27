@@ -13,9 +13,15 @@
 ;   - uninstall deliberately keeps <install>\data (paired computers, settings,
 ;     logs) unless the user explicitly chooses to delete it.
 ;
-; Elevation is required rather than optional: the in-app updater launches this
-; installer with Verb=runas, and an unelevated installer silently fails to write a
-; directory the current user does not own.
+; Elevation is required rather than optional: the client stores its data under
+; <install>\data, and an unelevated installer silently fails to write a directory
+; the current user does not own.
+;
+; How the elevation happens matters. Inno's setup loader is always asInvoker and
+; raises the UAC prompt itself when PrivilegesRequired=admin, so the in-app
+; updater starts the installer WITHOUT Verb=runas on purpose: a setup started
+; from an already-elevated process cannot use [Run]'s runasoriginaluser, and the
+; relaunched client would then run as administrator.
 
 #ifndef MyAppVersion
   #error MyAppVersion is required. Pass /DMyAppVersion=<version> (read from DshMobile.Win.csproj).
@@ -50,10 +56,9 @@ VersionInfoDescription=DSH Mobile Windows client installer
 VersionInfoCompany=DSH Mobile contributors
 VersionInfoCopyright=Copyright (c) DSH Mobile contributors
 
-; User-level installation: no administrator rights and no UAC prompt. {autopf}
-; is %LocalAppData%\Programs under this mode, which is writable by the account
-; that runs the client (the app stores its data beside the executable).
-; The directory page remains enabled so the user can pick another writable path.
+; Per-machine installation: {autopf} resolves to %ProgramFiles% and the user
+; sees one UAC prompt, which the setup raises itself (see the note above). The
+; directory page remains enabled so the user can pick another path.
 DefaultDirName={autopf}\DshMobile
 DefaultGroupName=DSH Mobile
 DisableDirPage=no

@@ -16,7 +16,7 @@
              ===================================================================== -->
 
         <!-- Surfaces -->
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F7F8FA" />
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F5F5F7" />
         <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
         <SolidColorBrush x:Key="CardElevatedBrush" Color="#FFFFFF" />
         <!-- These are design-time defaults; App.xaml.cs installs the runtime palette at
@@ -34,15 +34,15 @@
         <SolidColorBrush x:Key="DividerBrush" Color="#EDEDF0" />
 
         <!-- Text -->
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#667085" />
-        <SolidColorBrush x:Key="MutedTextBrush" Color="#5F6A7A" />
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1D1D1F" />
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#6E6E73" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#85858B" />
 
         <!-- Accent -->
         <SolidColorBrush x:Key="AccentBrush" Color="#2563EB" />
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#1D4ED8" />
         <SolidColorBrush x:Key="AccentPressedBrush" Color="#1E40AF" />
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#E9EFFD" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#EAF1FF" />
         <SolidColorBrush x:Key="AccentSoftBorderBrush" Color="#D6E2FB" />
         <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
 
@@ -157,11 +157,14 @@
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+        <!-- Secondary, not muted: a row hint explains what the setting does ("the same 10
+             icons as the phone app"), so it has to be readable. MutedBrush measures about
+             3.7:1 and is reserved for decoration. -->
         <Style x:Key="RowHint" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12.5" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
         </Style>
 
         <!-- =====================================================================
@@ -490,7 +493,7 @@
                                          black one: it is theme-aware and already tuned for
                                          the surface scale (MASTER.md: restrained shadows). -->
                                     <Border.Effect>
-                                        <StaticResource ResourceKey="CardShadow" />
+                                        <DynamicResource ResourceKey="CardShadow" />
                                     </Border.Effect>
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False"
                                                   MaxHeight="300">

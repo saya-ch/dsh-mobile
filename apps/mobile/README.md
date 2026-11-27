@@ -24,6 +24,7 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 | Location | Setting or action |
 | --- | --- |
 | Device list → Settings → Startup behavior | **Open DSH directly** (default) selects the last-used eligible pairing, even when several computers are saved. **Show device list** asks you to choose at each launch. |
+| Device list → Settings → Interface language | **Follow system** (default), Italiano, English, 简体中文, 日本語, 한국어, Español, Français or Deutsch. The screen rebuilds and returns to Settings so the whole App changes at once. Language names are written in their own language. |
 | Device list → Settings → Appearance | **Follow system** (default), **Light** or **Dark**. The screen repaints immediately and returns to the settings page; an explicit choice keeps the same palette when the system switches at night. |
 | Device list → Settings → App icon | The default is the DSH whale-girl mascot holding a phone; the Whale girl A, B, C and D poses plus six whale-mark colors are also selectable. Switching only changes the launcher entry — package identity and paired data stay untouched. |
 | Device list → Settings → Automatic same-computer connection | App 0.6.7+ with plugin 0.6.16+: keep **Manual** (default), choose **Detect and ask**, or enable **Automatic switch and notify**. Pair LAN and remote independently; [switching rules](#automatic-same-computer-connection) explain draft handling. |
@@ -34,7 +35,7 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 | DSH page → Settings → General → Mobile page modules → Manage | Choose optional frontend modules for this paired device. This neither uninstalls computer plugins nor revokes their authorization; [module rules](../../docs/CLIENT_MODULES.en.md) describe dependencies and applying changes. |
 | DSH page → Settings → General → Task notifications | Request Android notification access or open the app's system notification settings. See [notification limits](#notifications-and-extensions). |
 
-Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in Simplified Chinese, English, Italian, Japanese, Korean, Spanish, French or German; webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
+Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in the App's interface language, which follows the Android system language until you pick one in Settings (Simplified Chinese, English, Italian, Japanese, Korean, Spanish, French or German); webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
 

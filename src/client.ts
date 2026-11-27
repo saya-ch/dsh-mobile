@@ -287,7 +287,7 @@ if (typeof window !== 'undefined' && window.dshMobile === undefined) {
   }
 }
 
-export /**
+/**
  * The BCP-47 tag for a shipped locale, used for Intl number and date formatting.
  *
  * Without this the diagnostics panel formatted every locale with the US pattern, so a

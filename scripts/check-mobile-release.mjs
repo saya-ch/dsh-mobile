@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises'
+import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { assertPinnedSslSource } from './android-ssl-release-policy.mjs'
@@ -45,15 +45,46 @@ function requireSameResourceNames(referenceSource, candidateSource, element, can
  * the precision all have to match between locales: a changed token renders wrong content
  * without raising anything.
  */
+/**
+ * Extract Android format tokens from one string body.
+ *
+ * Shapes that must be seen: %1$s, %2$d, %1$.1f, %1$02d and the plain %s / %d. A percent that
+ * is not followed directly by a conversion character ("100% ready", "50%off") produces no
+ * token, and "%1$s" / "%s" normalise to different keys on purpose: the position is part of
+ * what the translation has to line up.
+ */
+function formatTokens(body) {
+  const tokens = []
+  // A conversion is % + optional position + optional width/precision + a conversion char,
+  // with no spaces anywhere: "100% ready" is copy, not a format.
+  for (const match of body.matchAll(/%(\d+\$)?[-#+0,(]*\d*(?:\.(\d+))?([a-zA-Z])/gu)) {
+    // The precision is part of the identity: %1$.1f and %1$.2f print different numbers, so a
+    // language that changes one changes what the user reads. Leaving it out made that
+    // mutation invisible.
+    const precision = match[2] === undefined ? '' : `.${match[2]}`
+    tokens.push(`${match[1] ?? ''}${precision}${match[3]}`)
+  }
+  return tokens.sort()
+}
+
 function androidFormatTokens(source, name) {
   const pattern = new RegExp(
-    `<string\\s+name="${name}"[^>]*>([\\s\\S]*?)</string>`, 'u')
+    `<string\\b[^>]*\\bname="${name}"[^>]*>([\\s\\S]*?)</string>`, 'u')
   const match = pattern.exec(source)
   if (match === null) return null
-  // Android format tokens: %1$s, %2$d, %1$.1f, and the plain %s form.
-  const tokens = [...match[1].matchAll(/%(\d+)?\$?([a-zA-Z])/gu)]
-    .map(token => `${token[1] ?? ''}$${token[2]}`)
-  return tokens.sort()
+  return formatTokens(match[1])
+}
+
+/** The format tokens of every quantity of a plurals resource, keyed by quantity. */
+function androidPluralTokens(source, name) {
+  const pattern = new RegExp(`<plurals\\s+name="${name}"[^>]*>([\\s\\S]*?)</plurals>`, 'u')
+  const match = pattern.exec(source)
+  if (match === null) return null
+  const result = {}
+  for (const item of match[1].matchAll(/<item\s+quantity="([^"]+)"[^>]*>([\s\S]*?)<\/item>/gu)) {
+    result[item[1]] = formatTokens(item[2])
+  }
+  return result
 }
 
 /** The quantity keys a plurals resource declares, e.g. ["one", "other"]. */
@@ -76,16 +107,51 @@ function requireSameFormatTokens(referenceSource, candidateSource, candidateLabe
   }
 }
 
-function requireSamePluralQuantities(referenceSource, candidateSource, candidateLabel) {
+/**
+ * The plural quantities each language must provide.
+ *
+ * Android resolves a missing quantity through the same locale's "other" and then the default
+ * locale, so a dropped "one" is not a crash: the plural renders with the wrong grammar
+ * ("Trovate 1 installazioni"). That is still a defect, so the forms each language needs are
+ * required explicitly. CLDR differs per language, which is why this is a per-language list
+ * rather than an exact set match — Italian also has "many", and requiring it everywhere would
+ * reject correct translations.
+ */
+const REQUIRED_PLURAL_FORMS = {
+  'values': ['one', 'other'],
+  'values-de': ['one', 'other'],
+  'values-es': ['one', 'other'],
+  'values-fr': ['one', 'other'],
+  'values-it': ['one', 'other'],
+  'values-ja': ['other'],
+  'values-ko': ['other'],
+  'values-zh-rCN': ['other'],
+}
+
+function requireSamePluralQuantities(referenceSource, candidateSource, candidateLabel, folder) {
+  const required = REQUIRED_PLURAL_FORMS[folder] ?? ['other']
   for (const name of androidResourceNames(referenceSource, 'plurals')) {
     const reference = androidPluralQuantities(referenceSource, name)
     const candidate = androidPluralQuantities(candidateSource, name)
     if (reference === null || candidate === null) continue
-    // Every language needs "other"; a missing one leaves Android with no string at all.
-    // Beyond that, the CLDR rules differ: Chinese and Japanese have only "other", Italian
-    // adds "many", so an exact set comparison would reject correct translations.
-    if (!candidate.includes('other')) {
-      fail(`${candidateLabel} is missing the "other" plural form for "${name}"`)
+    for (const form of required) {
+      if (!candidate.includes(form)) {
+        fail(`${candidateLabel} is missing the "${form}" plural form for "${name}"`)
+      }
+    }
+    // A plural item's own format tokens matter as much as a string's: getQuantityString
+    // throws IllegalFormatConversionException when a quantity changes %d to %1$s.
+    const referenceTokens = androidPluralTokens(referenceSource, name)
+    const candidateTokens = androidPluralTokens(candidateSource, name)
+    if (referenceTokens === null || candidateTokens === null) continue
+    for (const quantity of Object.keys(referenceTokens)) {
+      const expected = referenceTokens[quantity]
+      const actual = candidateTokens[quantity]
+      if (actual === undefined) continue
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        fail(`${candidateLabel} must use the same format tokens as the default locale `
+          + `for the "${quantity}" form of "${name}"`)
+      }
     }
   }
 }
@@ -142,8 +208,55 @@ async function checkBrandAndStoreIcon() {
   await checkPng('apps/mobile/store/android/icon-512.png', 512, 512, true)
 }
 
+/**
+ * Every non-default Android locale, read from the resource directory.
+ *
+ * The list used to be hardcoded, so a new values-xx folder would have been skipped by every
+ * check below — the gate would have passed while the app showed untranslated strings. The
+ * count is asserted as well, so adding a language has to be a deliberate act.
+ */
+const ANDROID_LOCALE_LABEL = {
+  'values-de': 'German',
+  'values-es': 'Spanish',
+  'values-fr': 'French',
+  'values-it': 'Italian',
+  'values-ja': 'Japanese',
+  'values-ko': 'Korean',
+  'values-zh-rCN': 'Chinese',
+}
+
+async function readAndroidLocales() {
+  const directory = resolve(root, 'apps/mobile/android/app/src/main/res')
+  const entries = await readdir(directory, { withFileTypes: true })
+  const folders = entries
+    .filter(entry => entry.isDirectory() && /^values-[A-Za-z-]+$/u.test(entry.name))
+    .map(entry => entry.name)
+    .sort()
+  const locales = []
+  for (const folder of folders) {
+    const path = resolve(directory, folder, 'strings.xml')
+    try {
+      await stat(path)
+    } catch {
+      // A values-night or values-v21 folder carries no strings of its own.
+      continue
+    }
+    locales.push({
+      folder,
+      label: ANDROID_LOCALE_LABEL[folder] ?? folder,
+      source: await readFile(path, 'utf8'),
+    })
+  }
+  return locales
+}
+
 async function checkAndroid() {
-  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, taskNotificationPublisher, backgroundNotificationService, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, japaneseStrings, koreanStrings, spanishStrings, frenchStrings, germanStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
+  const discovered = await readAndroidLocales()
+  if (discovered.length !== Object.keys(ANDROID_LOCALE_LABEL).length) {
+    fail(`the Android app must ship exactly ${Object.keys(ANDROID_LOCALE_LABEL).length} translated locales, `
+      + `found ${discovered.length}: ${discovered.map(locale => locale.folder).join(', ')}`)
+  }
+  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, taskNotificationPublisher, backgroundNotificationService, nativeBridgePolicy, mainActivity, defaultStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
     read('apps/mobile/android/app/build.gradle.kts', 'utf8'),
     read('apps/mobile/android/app/src/main/AndroidManifest.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/xml/network_security_config.xml', 'utf8'),
@@ -162,13 +275,6 @@ async function checkAndroid() {
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/NativeBridgePolicy.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/java/io/github/sayach/dshmobile/MainActivity.kt', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-zh-rCN/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-it/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-ja/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-ko/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-es/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-fr/strings.xml', 'utf8'),
-    read('apps/mobile/android/app/src/main/res/values-de/strings.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values/colors.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values-night/colors.xml', 'utf8'),
     read('src/client.ts', 'utf8'),
@@ -290,15 +396,11 @@ async function checkAndroid() {
   // Every non-default locale must declare the same resources. A language added here
   // without this list would drift silently: the checks would pass while the app showed
   // untranslated strings.
-  for (const [source, label] of [
-    [chineseStrings, 'Chinese'], [italianStrings, 'Italian'],
-    [japaneseStrings, 'Japanese'], [koreanStrings, 'Korean'],
-    [spanishStrings, 'Spanish'], [frenchStrings, 'French'], [germanStrings, 'German'],
-  ]) {
+  for (const { folder, label, source } of discovered) {
     requireSameResourceNames(defaultStrings, source, 'string', label)
     requireSameResourceNames(defaultStrings, source, 'plurals', label)
     requireSameFormatTokens(defaultStrings, source, label)
-    requireSamePluralQuantities(defaultStrings, source, label)
+    requireSamePluralQuantities(defaultStrings, source, label, folder)
   }
   if (![clientSource, mobileLayoutSource, nativeMobileSource].every(source => !source.includes('dsh-mobile-control-locale'))) {
     fail('Web plugin language must follow DSH and must not persist an independent locale preference')

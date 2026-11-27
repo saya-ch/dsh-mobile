@@ -79,49 +79,38 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Read the theme preference the settings page stores.
+    /// Read one string setting from the file the settings page writes.
     /// </summary>
     /// <remarks>
-    /// The file is read directly rather than through MainWindow so the palette is
-    /// correct before the first window paints. A missing or unreadable file means
-    /// "system", which is also the default the settings page writes.
+    /// The file is read directly rather than through MainWindow so the theme and the
+    /// language are in place before the first window paints. A missing or unreadable file
+    /// means "system", which is also the default the settings page writes.
     /// </remarks>
-    /// <summary>The stored interface language, or "system" when unset or unreadable.</summary>
-    private static string ReadLanguagePreference()
+    private static string ReadSetting(string propertyName, string fallback)
     {
         try
         {
             var path = System.IO.Path.Combine(AppContext.BaseDirectory, "data", "settings.json");
-            if (!System.IO.File.Exists(path)) return AppSettings.LanguageSystem;
+            if (!System.IO.File.Exists(path)) return fallback;
             using var stream = System.IO.File.OpenRead(path);
             using var document = System.Text.Json.JsonDocument.Parse(stream);
-            return document.RootElement.TryGetProperty("Language", out var language)
-                && language.ValueKind == System.Text.Json.JsonValueKind.String
-                ? language.GetString() ?? AppSettings.LanguageSystem : AppSettings.LanguageSystem;
+            return document.RootElement.TryGetProperty(propertyName, out var value)
+                && value.ValueKind == System.Text.Json.JsonValueKind.String
+                ? value.GetString() ?? fallback : fallback;
         }
         catch
         {
-            return AppSettings.LanguageSystem;
+            return fallback;
         }
     }
 
-    private static string ReadThemePreference()
-    {
-        try
-        {
-            var path = System.IO.Path.Combine(AppContext.BaseDirectory, "data", "settings.json");
-            if (!System.IO.File.Exists(path)) return "system";
-            using var stream = System.IO.File.OpenRead(path);
-            using var document = System.Text.Json.JsonDocument.Parse(stream);
-            return document.RootElement.TryGetProperty("Theme", out var theme)
-                && theme.ValueKind == System.Text.Json.JsonValueKind.String
-                ? theme.GetString() ?? "system" : "system";
-        }
-        catch
-        {
-            return "system";
-        }
-    }
+    /// <summary>The stored interface language, or "system" when unset or unreadable.</summary>
+    private static string ReadLanguagePreference() =>
+        ReadSetting("Language", AppSettings.LanguageSystem);
+
+    /// <summary>The stored theme, or "system" when unset or unreadable.</summary>
+    private static string ReadThemePreference() =>
+        ReadSetting("Theme", "system");
 
     /// <summary>
     /// Re-apply the palette after the user changes the preference at runtime.

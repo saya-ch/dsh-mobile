@@ -7,6 +7,11 @@ describe('declarative Web Push payloads', () => {
       ['en', 'Input requested', 'A response needs your attention.'],
       ['zh-CN', '需要输入', '有一项回复需要您关注。'],
       ['it', 'Input richiesto', 'Una risposta richiede la tua attenzione.'],
+      ['ja', '入力が必要です', '返答にご確認が必要です。'],
+      ['ko', '입력이 필요합니다', '응답을 확인해 주십시오.'],
+      ['es', 'Se necesita tu entrada', 'Hay una respuesta que requiere tu atención.'],
+      ['fr', 'Saisie nécessaire', 'Une réponse attend votre attention.'],
+      ['de', 'Eingabe erforderlich', 'Eine Antwort benötigt Ihre Aufmerksamkeit.'],
     ] as const
     for (const [locale, title, body] of expectations) {
       const payload = JSON.parse(buildDeclarativePayload('question', locale, '/?mobile-push=opaque-123', 'push-tag-1'))
@@ -21,6 +26,31 @@ describe('declarative Web Push payloads', () => {
       expect(payload.notification).not.toHaveProperty('silent')
       expect(JSON.stringify(payload)).not.toMatch(/transcript|excerpt|private conversation/i)
       expect(Buffer.byteLength(JSON.stringify(payload), 'utf8')).toBeLessThanOrEqual(3072)
+    }
+  })
+
+  it('has a distinct title and body for every category in all eight locales', () => {
+    // A locale added to PushLocale without a complete message table would otherwise fall
+    // back to English, or throw while the notification is being built.
+    const locales = ['en', 'zh-CN', 'it', 'ja', 'ko', 'es', 'fr', 'de'] as const
+    const categories = ['question', 'plan', 'approval', 'response', 'goal', 'failure', 'test'] as const
+    for (const locale of locales) {
+      const titles = new Set<string>()
+      for (const category of categories) {
+        const payload = JSON.parse(
+          buildDeclarativePayload(category, locale, '/?mobile-push=opaque-123', 'push-tag-1'))
+        expect(payload.notification.lang, `${locale}/${category} lang`).toBe(locale)
+        expect(payload.notification.title, `${locale}/${category} title`).toBeTruthy()
+        expect(payload.notification.body, `${locale}/${category} body`).toBeTruthy()
+        // A missing translation would surface as the English string in a non-English locale.
+        if (locale !== 'en') {
+          expect(payload.notification.title, `${locale}/${category} must not fall back to en`)
+            .not.toBe('Input requested')
+        }
+        titles.add(payload.notification.title)
+      }
+      // Seven categories should not all share one title.
+      expect(titles.size, `${locale} shares titles across categories`).toBeGreaterThan(1)
     }
   })
 

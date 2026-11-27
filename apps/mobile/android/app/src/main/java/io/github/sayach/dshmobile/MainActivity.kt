@@ -277,8 +277,10 @@ class MainActivity : Activity() {
         val preferences = newBase.getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
         val theme = preferences.getString(ThemePreference.KEY, null)
         val language = preferences.getString(LocalePreference.KEY, null)
-        // The locale has to be applied before the theme: ThemePreference reads strings from
-        // resources, and resolving those under the chosen language is the point of the setting.
+        // Both wrappers derive from the configuration of the context they are given, so
+        // nesting is safe and the order does not matter for correctness: each copies the
+        // configuration, changes one dimension (uiMode, then locale) and derives a new
+        // context. The locale is applied last only so it is the outermost override.
         val themed = ThemePreference.wrap(newBase, ThemePreference.sanitize(theme))
         super.attachBaseContext(LocalePreference.wrap(themed, language))
     }
