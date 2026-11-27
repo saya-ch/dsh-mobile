@@ -84,7 +84,7 @@ DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App
 
 ### 官方 DSH Desktop
 
-在应用的 **插件** 页面安装并启用 `dsh-mobile`，再打开 **移动访问** 配置局域网或远程通道。Desktop 的 profile 由应用管理，不适用下面的 `--profile web` 命令。
+在应用的 **插件** 页面安装并启用 `dsh-mobile`，再打开 **移动访问** 配置局域网或远程通道。安装请走插件管理器或 `npm install dsh-mobile`，不必指定版本号：仓库顶部写的正式版本可能与注册表相差几分钟——发布流程会先宣布版本再产出包，`npm view dsh-mobile version` 返回的就是此刻能装到的最新版。Desktop 的 profile 由应用管理，不适用下面的 `--profile web` 命令。
 
 安装或更新后，请从应用菜单正常退出并重新打开 Desktop，无需清除会话或配对数据。若仍提示 `dsh-mobile-question-fixes: failed to import`，请检查安装日志；这也可能是组件解析问题，单纯重启不一定能解决。
 

@@ -84,7 +84,7 @@ Install the plugin on the computer, then pair the Android app or a mobile browse
 
 ### Official DSH Desktop
 
-Install and enable `dsh-mobile` from the app's **Plugins** page, then open **Mobile Access** to configure LAN or a remote channel. The app manages its Desktop profile; the `--profile web` commands below do not apply to it.
+Install and enable `dsh-mobile` from the app's **Plugins** page, then open **Mobile Access** to configure LAN or a remote channel. The app manages its Desktop profile; the `--profile web` commands below do not apply to it. Install through the plugin manager or `npm install dsh-mobile` without pinning a version: the release version named at the top of this file can lead the registry by a few minutes, because the procedure announces the version before it produces the package. `npm view dsh-mobile version` reports what is installable right now.
 
 After installing or updating, quit Desktop from the application menu and reopen it without clearing sessions or pairing data. If it still reports `dsh-mobile-question-fixes: failed to import`, check the installation log; a component-resolution failure may not be fixed by restarting alone.
 
