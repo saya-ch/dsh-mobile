@@ -19,15 +19,19 @@
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F7F8FA" />
         <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
         <SolidColorBrush x:Key="CardElevatedBrush" Color="#FFFFFF" />
-        <!-- Border/divider tokens are set for >=1.6:1 against the surface they
-             sit on (WCAG 1.4.11 non-text): the old #E6E9F0 on white measured
-             1.24:1 and the #EFF1F5 row hairline 1.13:1, i.e. invisible. -->
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#C6CCD6" />
+        <!-- These are design-time defaults; App.xaml.cs installs the runtime palette at
+             startup and its values win.
+             Border and divider tokens are deliberately hairlines (about 1.2:1 on white), not
+             the >=1.6:1 used before the neutral redesign: grouping is carried by the canvas
+             step, the way Apple's settings panels do it, and a card that needs more
+             separation should raise its shadow rather than darken its outline. The old
+             #C6CCD6 frame read as a drawn box. See design-system/dsh-mobile/MASTER.md. -->
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#E8E8ED" />
         <SolidColorBrush x:Key="RailBrush" Color="#FDFDFF" />
         <SolidColorBrush x:Key="RailBorderBrush" Color="#E8EBF2" />
         <SolidColorBrush x:Key="SurfaceAltBrush" Color="#EDF1F7" />
-        <SolidColorBrush x:Key="OutlineBrush" Color="#C6CCD6" />
-        <SolidColorBrush x:Key="DividerBrush" Color="#C6CCD6" />
+        <SolidColorBrush x:Key="OutlineBrush" Color="#D9D9DE" />
+        <SolidColorBrush x:Key="DividerBrush" Color="#EDEDF0" />
 
         <!-- Text -->
         <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
@@ -109,9 +113,12 @@
             </Setter>
         </Style>
 
+        <!-- Font only. The default colour is set on each window's root via
+             TextElement.Foreground: a Foreground setter here outranks inheritance, which
+             silently defeated every control template that colours its own label (the
+             primary button, the segmented choice, the danger menu item). -->
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
         </Style>
 
         <!-- =====================================================================
@@ -169,7 +176,9 @@
             <Setter Property="BorderBrush" Value="{DynamicResource CardBorderGradientBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Effect" Value="{StaticResource CardShadow}" />
+            <!-- DynamicResource: App.xaml.cs replaces CardShadow when the theme changes, and
+                 a StaticResource would keep the shadow from the first palette. -->
+            <Setter Property="Effect" Value="{DynamicResource CardShadow}" />
         </Style>
         <Style x:Key="RowDivider" TargetType="Border">
             <Setter Property="Height" Value="1" />

@@ -6,6 +6,7 @@
         Title="DeepSeek Harness" Height="760" Width="1280"
         MinHeight="520" MinWidth="520"
         Icon="/app.ico"
+        TextElement.Foreground="{DynamicResource PrimaryTextBrush}"
         Background="{DynamicResource AppBackgroundBrush}">
     <Window.Resources>
         <!-- Vector icons. MASTER.md forbids emoji in product controls: they depend on

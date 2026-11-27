@@ -4,6 +4,7 @@
         xmlns:res="clr-namespace:DshMobile.Win.Resources"
         Title="{x:Static res:Strings.Rename_Title}" Height="300" Width="400"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        TextElement.Foreground="{DynamicResource PrimaryTextBrush}"
         ResizeMode="NoResize" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
     <Border Margin="6" Background="{DynamicResource CardElevatedBrush}"
