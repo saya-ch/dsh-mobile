@@ -253,4 +253,14 @@
     <string name="iroh_status_connect_to_check">Conéctate para comprobar</string>
     <string name="session_storage_failed">No se pudo actualizar la sesión web de esta computadora en el dispositivo. Vuelve a abrir la computadora desde la lista de dispositivos; no elimines el emparejamiento.</string>
     <string name="settings_row_accessibility">%1$s: %2$s</string>
+    <string name="language_title">Idioma de la interfaz</string>
+    <string name="language_follow_system">Seguir el sistema</string>
+    <string name="language_italian">Italiano</string>
+    <string name="language_english">English</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_japanese">日本語</string>
+    <string name="language_korean">한국어</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
 </resources>

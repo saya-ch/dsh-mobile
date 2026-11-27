@@ -25,7 +25,7 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 | --- | --- |
 | Device list → Settings → Startup behavior | **Open DSH directly** (default) selects the last-used eligible pairing, even when several computers are saved. **Show device list** asks you to choose at each launch. |
 | Device list → Settings → Appearance | **Follow system** (default), **Light** or **Dark**. The screen repaints immediately and returns to the settings page; an explicit choice keeps the same palette when the system switches at night. |
-| Device list → Settings → App icon | The default is the DSH whale-girl mascot holding a phone; the classic, cheer and quiet poses plus six whale-mark colors are also selectable. Switching only changes the launcher entry — package identity and paired data stay untouched. |
+| Device list → Settings → App icon | The default is the DSH whale-girl mascot holding a phone; the Whale girl A, B, C and D poses plus six whale-mark colors are also selectable. Switching only changes the launcher entry — package identity and paired data stay untouched. |
 | Device list → Settings → Automatic same-computer connection | App 0.6.7+ with plugin 0.6.16+: keep **Manual** (default), choose **Detect and ask**, or enable **Automatic switch and notify**. Pair LAN and remote independently; [switching rules](#automatic-same-computer-connection) explain draft handling. |
 | Device list → Settings → Picture-in-picture | App 0.8.1+: **On** keeps the current DSH page in a floating window when you leave the app; only a screen that really shows a DSH page floats, never the device list or the settings pages. Since App 0.8.2 the window holds a proportionally shrunken copy of the whole page, so a fixed-size widget keeps its share instead of filling it. **Off** restores the ordinary move to the background. |
 | DSH page → Settings → General → Switch computer | Return to the paired-computer list. Holding the top-left drawer toggle provides another entry. These actions belong inside the app's webpage, not the device-list settings. |
@@ -34,7 +34,7 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 | DSH page → Settings → General → Mobile page modules → Manage | Choose optional frontend modules for this paired device. This neither uninstalls computer plugins nor revokes their authorization; [module rules](../../docs/CLIENT_MODULES.en.md) describe dependencies and applying changes. |
 | DSH page → Settings → General → Task notifications | Request Android notification access or open the app's system notification settings. See [notification limits](#notifications-and-extensions). |
 
-Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in Simplified Chinese, English or Italian; webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
+Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in Simplified Chinese, English, Italian, Japanese, Korean, Spanish, French or German; webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
 
@@ -67,7 +67,7 @@ Both APKs keep the same package identity and the established signer.
 
 ## 0.7.6 update
 
-A new default app icon: the DSH whale-girl mascot holding a phone. **Device list → Settings → App icon** also offers the classic, cheer and quiet poses next to the six whale-mark colors; switching only changes the launcher alias, so the package identity, paired data and background service stay untouched, and a launcher may take a moment to redraw.
+A new default app icon: the DSH whale-girl mascot holding a phone. **Device list → Settings → App icon** also offers the Whale girl A, B, C and D poses next to the six whale-mark colors; switching only changes the launcher alias, so the package identity, paired data and background service stay untouched, and a launcher may take a moment to redraw.
 
 The Tailscale pairing failure now names the same-tailnet case: when a `.ts.net` address stays unreachable, the message explains that a phone on the same tailnet cannot pair through the Funnel entry (closed to tailnet-internal traffic by design) and points at turning Tailscale off, using mobile data, or pairing over the LAN address; a phone outside the tailnet keeps the existing VPN/proxy/DNS guidance.
 

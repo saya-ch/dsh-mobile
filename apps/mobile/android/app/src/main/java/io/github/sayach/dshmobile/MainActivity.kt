@@ -274,9 +274,13 @@ class MainActivity : Activity() {
      * overrides the system configuration, and following the system needs no wrapper.
      */
     override fun attachBaseContext(newBase: Context) {
-        val stored = newBase.getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
-            .getString(ThemePreference.KEY, null)
-        super.attachBaseContext(ThemePreference.wrap(newBase, ThemePreference.sanitize(stored)))
+        val preferences = newBase.getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+        val theme = preferences.getString(ThemePreference.KEY, null)
+        val language = preferences.getString(LocalePreference.KEY, null)
+        // The locale has to be applied before the theme: ThemePreference reads strings from
+        // resources, and resolving those under the chosen language is the point of the setting.
+        val themed = ThemePreference.wrap(newBase, ThemePreference.sanitize(theme))
+        super.attachBaseContext(LocalePreference.wrap(themed, language))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -1216,6 +1220,12 @@ class MainActivity : Activity() {
             },
         )
         divider()
+        group.addView(
+            settingsRow(R.drawable.ic_language, R.string.language_title, getString(languageLabelResource(interfaceLanguage()))) {
+                showLanguageSettings()
+            },
+        )
+        divider()
         group.addView(settingsRow(R.drawable.ic_palette, R.string.icon_settings, iconValue) { showIconSettings() })
         divider()
         group.addView(settingsRow(R.drawable.ic_sync, R.string.same_host_title, sameHostValue) { showSameHostSettings() })
@@ -1271,6 +1281,22 @@ class MainActivity : Activity() {
     /** The palette currently in force: an explicit choice, otherwise the system's. */
     private fun themeMode(): String = ThemePreference.sanitize(preferences.getString(ThemePreference.KEY, null))
 
+    private fun interfaceLanguage(): String =
+        LocalePreference.sanitize(preferences.getString(LocalePreference.KEY, null))
+
+    private fun languageLabelResource(mode: String): Int = when (mode) {
+        LocalePreference.SYSTEM -> R.string.language_follow_system
+        LocalePreference.ITALIAN -> R.string.language_italian
+        LocalePreference.ENGLISH -> R.string.language_english
+        LocalePreference.CHINESE -> R.string.language_chinese
+        LocalePreference.JAPANESE -> R.string.language_japanese
+        LocalePreference.KOREAN -> R.string.language_korean
+        LocalePreference.SPANISH -> R.string.language_spanish
+        LocalePreference.FRENCH -> R.string.language_french
+        LocalePreference.GERMAN -> R.string.language_german
+        else -> R.string.language_follow_system
+    }
+
     private fun themeLabelResource(mode: String): Int = when (ThemePreference.sanitize(mode)) {
         ThemePreference.LIGHT -> R.string.theme_light
         ThemePreference.DARK -> R.string.theme_dark
@@ -1295,6 +1321,28 @@ class MainActivity : Activity() {
         val sanitized = ThemePreference.sanitize(mode)
         if (sanitized == themeMode()) return
         preferences.edit().putString(ThemePreference.KEY, sanitized).apply()
+        intent.putExtra(EXTRA_REOPEN_SETTINGS, true)
+        recreate()
+    }
+
+    /**
+     * Language selection mirrors the theme sheet. The labels are written in each language
+     * itself, so the user does not have to recognise a foreign word for their own language.
+     */
+    private fun showLanguageSettings() {
+        val modes = LocalePreference.ALL
+        showChoiceSheet(
+            getString(R.string.language_title),
+            modes.map { getString(languageLabelResource(it)) },
+            modes.indexOf(interfaceLanguage()).coerceAtLeast(0),
+        ) { which -> applyInterfaceLanguage(modes[which]) }
+    }
+
+    /** A locale change needs the same recreate-and-return as the theme change. */
+    private fun applyInterfaceLanguage(mode: String) {
+        val sanitized = LocalePreference.sanitize(mode)
+        if (sanitized == interfaceLanguage()) return
+        preferences.edit().putString(LocalePreference.KEY, sanitized).apply()
         intent.putExtra(EXTRA_REOPEN_SETTINGS, true)
         recreate()
     }

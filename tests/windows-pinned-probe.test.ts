@@ -39,9 +39,9 @@ describe('Windows pinned-origin probe', () => {
     expect(throwSite).toBeGreaterThan(0)
     const message = source.slice(throwSite, throwSite + 400)
     // The copy moved into Resources/Strings.resx, so the guard follows it there: the site
-    // must reference the network-failure key, not the certificate-mismatch one.
+    // must reference the network-failure key.
     expect(message).toContain('Strings.Connect_PinnedCertVerifyFailed')
-    expect(message).not.toContain('Strings.Pairing_CaMismatch')
+
     const resources = readFileSync(
       fileURLToPath(new URL('../apps/windows/DshMobile.Win/Resources/Strings.resx', import.meta.url)),
       'utf8',

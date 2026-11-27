@@ -3,7 +3,7 @@ name: AtomGit mirror
 on:
   push:
     branches: [main]
-    tags: ['v*', 'android-v*']
+    tags: ['v*', 'android-v*', 'windows-v*']
   # A release is mirrored after it is published, not when its tag is pushed: the assets
   # only exist once the release workflow has finished building them.
   #
@@ -14,7 +14,9 @@ on:
   # release existed, and the event that would have mirrored it afterwards never arrived.
   # Chaining on the workflows that create the release is what actually runs.
   workflow_run:
-    workflows: [Release, Android Release, Windows client release]
+    # The Android Release workflow mirrors to AtomGit itself (its atomgit-release job), so
+    # chaining the mirror onto it would publish the same tag twice.
+    workflows: [Release, Windows client release]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -34,6 +36,9 @@ jobs:
   push:
     name: Push ref to AtomGit
     runs-on: ubuntu-latest
+    # Only a real push should mirror a ref. Under workflow_run, GITHUB_REF is the default
+    # branch, so every completed release workflow re-pushed main to AtomGit.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Check the mirror token
         id: gate

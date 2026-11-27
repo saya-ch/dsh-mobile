@@ -30,8 +30,10 @@ public sealed partial class MainWindow
             LanguagePicker.ItemsSource = InterfaceLanguages.All
                 .Select(option => new LanguagePickerItem(option.Culture, option.NativeName))
                 .ToList();
-            var stored = AppSettings.Load(AppContext.BaseDirectory).Language;
-            var selection = InterfaceLanguages.CurrentSelection(stored);
+            // Read through _settings, which the window loaded from <root>/data/settings.json.
+            // Using AppContext.BaseDirectory here would write a second, conflicting copy at
+            // the program root — and fail silently in a per-machine install under Program Files.
+            var selection = InterfaceLanguages.CurrentSelection(_settings.Language);
             LanguagePicker.SelectedItem = ((System.Collections.IEnumerable)LanguagePicker.ItemsSource!)
                 .Cast<LanguagePickerItem>()
                 .FirstOrDefault(item => item.Culture == selection);
@@ -46,11 +48,10 @@ public sealed partial class MainWindow
     {
         if (_suppressLanguageEvent) return;
         if (LanguagePicker.SelectedItem is not LanguagePickerItem item) return;
-        if (item.Culture == AppSettings.Load(AppContext.BaseDirectory).Language) return;
+        if (item.Culture == _settings.Language) return;
 
-        var settings = AppSettings.Load(AppContext.BaseDirectory);
-        settings.Language = item.Culture;
-        settings.Save(AppContext.BaseDirectory);
+        _settings.Language = item.Culture;
+        _settings.Save(DataRoot);
 
         // Apply now, so the rebuilt window comes up in the new language without a restart.
         InterfaceLanguages.Apply(item.Culture);

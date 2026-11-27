@@ -2,7 +2,16 @@ import type { ZodType } from 'zod'
 
 export type PushCategory = 'question' | 'plan' | 'approval' | 'response' | 'goal' | 'failure' | 'test'
 export type PushPreferences = Readonly<Record<Exclude<PushCategory, 'test'>, boolean>>
-export type PushLocale = 'en' | 'zh-CN' | 'it'
+export type PushLocale = 'en' | 'zh-CN' | 'it' | 'ja' | 'ko' | 'es' | 'fr' | 'de'
+
+export const PUSH_LOCALES = new Set<string>([
+  'en', 'zh-CN', 'it', 'ja', 'ko', 'es', 'fr', 'de',
+])
+
+export function isPushLocale(value: unknown): value is PushLocale {
+  return typeof value === 'string' && PUSH_LOCALES.has(value)
+}
+
 export interface VapidKeys { readonly publicKey: string; readonly privateKey: string }
 export interface PushMutationGuard { readonly ownerGeneration: number; readonly registrationGeneration: number }
 export interface PushSource {

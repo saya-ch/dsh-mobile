@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Globe: a circle with two meridians, drawn as strokes to match the other settings icons. -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,3.2a8.8,8.8 0 1,0 0,17.6a8.8,8.8 0 0,0 0,-17.6zM3.4,12h17.2M12,3.2c2.3,2.4 3.5,5.5 3.5,8.8s-1.2,6.4 -3.5,8.8c-2.3,-2.4 -3.5,-5.5 -3.5,-8.8s1.2,-6.4 3.5,-8.8z" />
+</vector>

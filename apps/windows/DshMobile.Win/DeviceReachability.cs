@@ -213,9 +213,17 @@ internal sealed class DeviceReachability : IDisposable
         catch (OperationCanceledException)
         {
             // Cancellation is not an observation: leaving the state as it was avoids
-            // painting a healthy computer as unreachable because the window closed.
+            // painting a healthy computer as unreachable because the window closed. But the
+            // deadline we created above uses the same exception type — a probe that timed out
+            // against a black-holed host must be recorded as unreachable, not silently kept
+            // as "checking" or, worse, as the last known "reachable".
             lock (_gate) _inFlight.Remove(device.EndpointId);
-            return;
+            if (!token.IsCancellationRequested)
+            {
+                _log($"reachability probe timed out for {device.ShortId}");
+                kind = DeviceStatusKind.Unreachable;
+            }
+            else return;
         }
         catch (Exception error)
         {

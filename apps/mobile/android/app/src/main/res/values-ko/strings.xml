@@ -252,4 +252,14 @@
     <string name="iroh_status_connect_to_check">연결 후 확인</string>
     <string name="session_storage_failed">기기에서 이 컴퓨터의 웹 세션을 업데이트하지 못했습니다. 기기 목록에서 이 컴퓨터를 다시 여십시오. 페어링을 삭제할 필요는 없습니다.</string>
     <string name="settings_row_accessibility">%1$s: %2$s</string>
+    <string name="language_title">인터페이스 언어</string>
+    <string name="language_follow_system">시스템 설정 따르기</string>
+    <string name="language_italian">Italiano</string>
+    <string name="language_english">English</string>
+    <string name="language_chinese">简体中文</string>
+    <string name="language_japanese">日本語</string>
+    <string name="language_korean">한국어</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_german">Deutsch</string>
 </resources>

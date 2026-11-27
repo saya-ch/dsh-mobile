@@ -34,7 +34,7 @@ class LauncherIconLabelTest {
     }
 
     @Test
-    fun everyCaptionExistsInAllThreeLocales() {
+    fun everyCaptionExistsInEveryLocale() {
         val source = sourceFile("java/io/github/sayach/dshmobile/MainActivity.kt").readText()
         val mapping = source.substringAfter("private fun iconLabelResource(key: String): Int")
             .substringBefore("private fun showIconSettings(")
@@ -42,7 +42,7 @@ class LauncherIconLabelTest {
             .map { it.groupValues[1] }
             .toSet()
         assertTrue(names.isNotEmpty())
-        for (locale in listOf("values", "values-zh-rCN", "values-it")) {
+        for (locale in listOf("values", "values-zh-rCN", "values-it", "values-ja", "values-ko", "values-es", "values-fr", "values-de")) {
             val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
                 .parse(sourceFile("res/$locale/strings.xml"))
             val nodes = document.getElementsByTagName("string")
@@ -71,7 +71,7 @@ class LauncherIconLabelTest {
             .toSet()
         assertEquals("one short caption per icon", LauncherIconPolicy.icons.size, names.size)
 
-        for (locale in listOf("values", "values-zh-rCN", "values-it")) {
+        for (locale in listOf("values", "values-zh-rCN", "values-it", "values-ja", "values-ko", "values-es", "values-fr", "values-de")) {
             val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
                 .parse(sourceFile("res/$locale/strings.xml"))
             val nodes = document.getElementsByTagName("string")

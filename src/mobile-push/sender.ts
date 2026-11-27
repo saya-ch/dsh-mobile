@@ -4,7 +4,7 @@ import type { ClientRequest, IncomingMessage } from 'node:http'
 import type { LookupFunction } from 'node:net'
 import webPush from 'web-push'
 import type { RequestOptions as WebPushOptions } from 'web-push'
-import { ATTEMPT_TIMEOUT_MS, MAX_PAYLOAD_BYTES, type PushRegistration, type VapidKeys } from './contracts.js'
+import { ATTEMPT_TIMEOUT_MS, MAX_PAYLOAD_BYTES, type PushRegistration, type VapidKeys, isPushLocale } from './contracts.js'
 import { isLoopbackAddress } from '../network.js'
 import { resolveAppleEndpoint, validatePushSubscription, type AppleEndpointResolver } from './endpoint.js'
 
@@ -40,7 +40,7 @@ function validatePayload(payload: unknown): payload is string {
     const notification = parsed.notification
     return typeof notification.title === 'string' && notification.title.length > 0
       && typeof notification.body === 'string' && notification.body.length > 0
-      && (notification.lang === 'en' || notification.lang === 'zh-CN' || notification.lang === 'it')
+      && isPushLocale(notification.lang)
       && typeof notification.navigate === 'string'
       && (notification.navigate === '/' || /^\/\?mobile-push=[A-Za-z0-9_-]{1,256}$/u.test(notification.navigate))
       && typeof notification.tag === 'string' && /^[A-Za-z0-9._:-]{1,128}$/u.test(notification.tag)

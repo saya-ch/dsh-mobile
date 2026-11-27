@@ -624,10 +624,10 @@ describe('native mobile presentation', () => {
     expect(source).toContain('active.isContentEditable')
     // Match the call by its arguments: the quote style depends on the transpiler, and
     // the call now carries eight language arguments.
-    expect(source).toMatch(/label\([^)]*Scatta foto[^)]*Take photo[^)]*拍照/)
+    expect(source).toMatch(/label\(\s*['\"]Scatta foto['\"]\s*,\s*['\"]Take photo['\"]\s*,\s*['\"]拍照['\"]/)
     expect(source).toContain('button.setAttribute("role", "option")')
     expect(source).toContain('mediaActionClassName(nativeItem)')
-    expect(source).toMatch(/label\([^)]*Galleria[^)]*Gallery[^)]*相册/)
+    expect(source).toMatch(/label\(\s*['\"]Galleria['\"]\s*,\s*['\"]Gallery['\"]\s*,\s*['\"]相册['\"]/)
     expect(source).toContain('multiple: true')
     expect(source).toContain('galleryButton.addEventListener("click", chooseGallery)')
     expect(source).toContain('galleryButton.removeEventListener("click", chooseGallery)')
@@ -647,9 +647,9 @@ describe('native mobile presentation', () => {
     expect(source).toContain('dispatchComposerImageDrop(document, files)')
     expect(source).toContain('if (!dispatchComposerImageDrop(document, files))')
     expect(source).toContain('const attachmentBlocked = !canAcceptComposerDrop()')
-    expect(source).toMatch(/label\([^)]*Allegati immagine non disponibili[^)]*Image attachments are unavailable[^)]*图片附件不可用/)
+    expect(source).toMatch(/label\(\s*['\"]Allegati immagine non disponibili['\"]\s*,\s*['\"]Image attachments are unavailable['\"]\s*,\s*['\"]图片附件不可用['\"]/)
     expect(source).not.toContain('AttachmentOwner')
-    expect(source).toMatch(/label\([^)]*Ramo corrente[^)]*Current branch[^)]*当前分支/)
+    expect(source).toMatch(/label\(\s*['\"]Ramo corrente['\"]\s*,\s*['\"]Current branch['\"]\s*,\s*['\"]当前分支['\"]/)
   })
 
   it('loads older history only after an upward scroll reaches the top zone', () => {

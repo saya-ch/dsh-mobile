@@ -260,21 +260,22 @@ internal sealed class UpdateInstaller
     }
 
     /// <summary>
-    /// The default launcher: raise the installer through the shell so Windows shows its UAC
-    /// prompt, then let it outlive this process.
+    /// Launch the installer through the shell and let it outlive this process.
     /// </summary>
     /// <remarks>
-    /// <c>UseShellExecute</c> must be true for <c>runas</c> to mean anything, and the
-    /// installer now requires elevation to write a per-machine directory. CreateNoWindow is
-    /// deliberately absent: it has no effect under the shell, and the installer draws its own
-    /// progress.
+    /// No <c>Verb = "runas"</c>: Inno's setup loader is marked asInvoker and requests UAC
+    /// itself, so the elevation prompt still appears. More importantly, launching the setup
+    /// already elevated would make Inno's <c>runasoriginaluser</c> flag on the [Run] entry
+    /// ineffective — the client would come back after an upgrade running as administrator.
+    /// <c>UseShellExecute</c> stays true so the shell handles the executable and Inno can
+    /// request the elevation it needs. CreateNoWindow is absent: it has no effect under the
+    /// shell, and the installer draws its own progress.
     /// </remarks>
     internal static void StartInstaller(string executablePath, string arguments)
     {
         var start = new ProcessStartInfo(executablePath, arguments)
         {
             UseShellExecute = true,
-            Verb = "runas",
             WorkingDirectory = Path.GetDirectoryName(executablePath) ?? Path.GetTempPath(),
         };
         // The installer must survive this process, so the handle is dropped at once

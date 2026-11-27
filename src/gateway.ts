@@ -114,6 +114,7 @@ import { resolveBrowserUiLocale } from './browser-ui-locale.js'
 import { mobilePushAsset } from './mobile-push/assets.js'
 import { isPushInstallationId } from './mobile-push/installation-id.js'
 import type { PushConfig, PushEnrollment, PushMutationGuard, PushOwner, PushPreferences, PushRegistration, PushTarget } from './mobile-push/contracts.js'
+import { isPushLocale } from './mobile-push/contracts.js'
 import type { PushGatewayService } from './mobile-push/gateway.js'
 
 type GatewayServer = HttpServer | HttpsServer
@@ -203,7 +204,7 @@ function parsePushEnrollment(value: Record<string, unknown>): PushEnrollment {
   const keys = ['installationId', 'subscription', 'locale', 'preferences', 'keyFingerprint', 'ownerGeneration', 'registrationGeneration']
   if (!exactKeys(value, keys) || !isRecord(value.subscription) || !exactKeys(value.subscription, ['endpoint', 'keys'])
     || !isRecord(value.subscription.keys) || !exactKeys(value.subscription.keys, ['p256dh', 'auth'])
-    || (value.locale !== 'en' && value.locale !== 'zh-CN' && value.locale !== 'it')
+    || !isPushLocale(value.locale)
     || typeof value.keyFingerprint !== 'string' || value.keyFingerprint.length === 0 || value.keyFingerprint.length > 128) {
     throw new HttpError(400, 'bad_request')
   }

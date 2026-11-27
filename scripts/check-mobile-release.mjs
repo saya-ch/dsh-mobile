@@ -38,6 +38,58 @@ function requireSameResourceNames(referenceSource, candidateSource, element, can
   }
 }
 
+/**
+ * The Android format tokens of one resource, in order.
+ *
+ * Android's getString takes positional arguments (%1$s), so the index, the conversion and
+ * the precision all have to match between locales: a changed token renders wrong content
+ * without raising anything.
+ */
+function androidFormatTokens(source, name) {
+  const pattern = new RegExp(
+    `<string\\s+name="${name}"[^>]*>([\\s\\S]*?)</string>`, 'u')
+  const match = pattern.exec(source)
+  if (match === null) return null
+  // Android format tokens: %1$s, %2$d, %1$.1f, and the plain %s form.
+  const tokens = [...match[1].matchAll(/%(\d+)?\$?([a-zA-Z])/gu)]
+    .map(token => `${token[1] ?? ''}$${token[2]}`)
+  return tokens.sort()
+}
+
+/** The quantity keys a plurals resource declares, e.g. ["one", "other"]. */
+function androidPluralQuantities(source, name) {
+  const pattern = new RegExp(`<plurals\\s+name="${name}"[^>]*>([\\s\\S]*?)</plurals>`, 'u')
+  const match = pattern.exec(source)
+  if (match === null) return null
+  return [...match[1].matchAll(/quantity="([^"]+)"/gu)].map(item => item[1]).sort()
+}
+
+function requireSameFormatTokens(referenceSource, candidateSource, candidateLabel) {
+  const names = androidResourceNames(referenceSource, 'string')
+  for (const name of names) {
+    const reference = androidFormatTokens(referenceSource, name)
+    const candidate = androidFormatTokens(candidateSource, name)
+    if (reference === null || candidate === null) continue
+    if (JSON.stringify(reference) !== JSON.stringify(candidate)) {
+      fail(`${candidateLabel} must use the same Android format tokens as the default locale for "${name}"`)
+    }
+  }
+}
+
+function requireSamePluralQuantities(referenceSource, candidateSource, candidateLabel) {
+  for (const name of androidResourceNames(referenceSource, 'plurals')) {
+    const reference = androidPluralQuantities(referenceSource, name)
+    const candidate = androidPluralQuantities(candidateSource, name)
+    if (reference === null || candidate === null) continue
+    // Every language needs "other"; a missing one leaves Android with no string at all.
+    // Beyond that, the CLDR rules differ: Chinese and Japanese have only "other", Italian
+    // adds "many", so an exact set comparison would reject correct translations.
+    if (!candidate.includes('other')) {
+      fail(`${candidateLabel} is missing the "other" plural form for "${name}"`)
+    }
+  }
+}
+
 function pngMetadata(buffer, label) {
   if (buffer.length < 33 || !buffer.subarray(0, pngSignature.length).equals(pngSignature)) {
     fail(`${label} is not a valid PNG`)
@@ -245,6 +297,8 @@ async function checkAndroid() {
   ]) {
     requireSameResourceNames(defaultStrings, source, 'string', label)
     requireSameResourceNames(defaultStrings, source, 'plurals', label)
+    requireSameFormatTokens(defaultStrings, source, label)
+    requireSamePluralQuantities(defaultStrings, source, label)
   }
   if (![clientSource, mobileLayoutSource, nativeMobileSource].every(source => !source.includes('dsh-mobile-control-locale'))) {
     fail('Web plugin language must follow DSH and must not persist an independent locale preference')

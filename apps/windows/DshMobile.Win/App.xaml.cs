@@ -27,6 +27,9 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         base.OnStartup(e);
         MotionEnabled = SystemParameters.ClientAreaAnimation;
+        // Language first: the theme reader resolves no strings, but StartupUri builds the
+        // main window afterwards and its {x:Static} bindings resolve during that load.
+        InterfaceLanguages.Apply(ReadLanguagePreference());
         // The stored preference wins over the Windows setting; "system" defers to it.
         var preference = ReadThemePreference();
         if (!UsesLightTheme(preference)) ApplyDarkPalette();
@@ -83,6 +86,25 @@ public partial class App : Application
     /// correct before the first window paints. A missing or unreadable file means
     /// "system", which is also the default the settings page writes.
     /// </remarks>
+    /// <summary>The stored interface language, or "system" when unset or unreadable.</summary>
+    private static string ReadLanguagePreference()
+    {
+        try
+        {
+            var path = System.IO.Path.Combine(AppContext.BaseDirectory, "data", "settings.json");
+            if (!System.IO.File.Exists(path)) return AppSettings.LanguageSystem;
+            using var stream = System.IO.File.OpenRead(path);
+            using var document = System.Text.Json.JsonDocument.Parse(stream);
+            return document.RootElement.TryGetProperty("Language", out var language)
+                && language.ValueKind == System.Text.Json.JsonValueKind.String
+                ? language.GetString() ?? AppSettings.LanguageSystem : AppSettings.LanguageSystem;
+        }
+        catch
+        {
+            return AppSettings.LanguageSystem;
+        }
+    }
+
     private static string ReadThemePreference()
     {
         try

@@ -287,6 +287,25 @@ if (typeof window !== 'undefined' && window.dshMobile === undefined) {
   }
 }
 
+export /**
+ * The BCP-47 tag for a shipped locale, used for Intl number and date formatting.
+ *
+ * Without this the diagnostics panel formatted every locale with the US pattern, so a
+ * German or Japanese user read 1234.5 where their own locale writes 1.234,5.
+ */
+function mobileControlLocaleTag(locale: MobileControlLocale): string {
+  switch (locale) {
+    case 'it': return 'it-IT'
+    case 'zh': return 'zh-CN'
+    case 'ja': return 'ja-JP'
+    case 'ko': return 'ko-KR'
+    case 'es': return 'es-ES'
+    case 'fr': return 'fr-FR'
+    case 'de': return 'de-DE'
+    default: return 'en-US'
+  }
+}
+
 export function selectMobileControlLocale(documentLanguage = '', navigatorLanguages: readonly string[] = []): MobileControlLocale {
   for (const value of [documentLanguage, ...navigatorLanguages]) {
     const language = value.trim().toLowerCase().split(/[-_]/u)[0]
@@ -442,6 +461,46 @@ function mobileSwitchComputerCopy(locale: MobileControlLocale): MobileSwitchComp
     retry: 'Riprova',
     error: 'Cambio non riuscito. Riprova.',
   }
+  if (locale === 'ja') return {
+    title: 'コンピューターを切り替える',
+    description: 'ペアリング済みデバイスの一覧に戻り、開くコンピューターを選択してください。',
+    action: 'コンピューターを切り替える',
+    busy: '切り替え中…',
+    retry: '再試行',
+    error: 'コンピューターを切り替えられませんでした。再試行してください。',
+  }
+  if (locale === 'ko') return {
+    title: '컴퓨터 전환',
+    description: '페어링된 기기 목록으로 돌아가 열 컴퓨터를 선택하십시오.',
+    action: '컴퓨터 전환',
+    busy: '전환 중…',
+    retry: '다시 시도',
+    error: '컴퓨터를 전환할 수 없습니다. 다시 시도하십시오.',
+  }
+  if (locale === 'es') return {
+    title: 'Cambiar computadora',
+    description: 'Vuelve a la lista de dispositivos emparejados y elige la computadora que quieres abrir.',
+    action: 'Cambiar computadora',
+    busy: 'Cambiando…',
+    retry: 'Reintentar',
+    error: 'No se pudo cambiar de computadora. Vuelve a intentarlo.',
+  }
+  if (locale === 'fr') return {
+    title: 'Changer d\'ordinateur',
+    description: 'Revenir à la liste des appareils appairés et choisir l\'ordinateur à ouvrir.',
+    action: 'Changer d\'ordinateur',
+    busy: 'Changement…',
+    retry: 'Réessayer',
+    error: 'Impossible de changer d\'ordinateur. Réessayez.',
+  }
+  if (locale === 'de') return {
+    title: 'Computer wechseln',
+    description: 'Kehren Sie zur Liste der gekoppelten Geräte zurück und wählen Sie den zu öffnenden Computer aus.',
+    action: 'Computer wechseln',
+    busy: 'Computer wird gewechselt…',
+    retry: 'Erneut versuchen',
+    error: 'Der Computer konnte nicht gewechselt werden. Versuchen Sie es erneut.',
+  }
   return {
     title: 'Switch computer',
     description: 'Return to the paired-device list and choose a computer to open.',
@@ -521,6 +580,56 @@ function mobileTaskNotificationCopy(locale: MobileControlLocale): MobileTaskNoti
     error: 'Impossibile aprire le impostazioni delle notifiche. Riprova.',
     retry: 'Riprova',
   }
+  if (locale === 'ja') return {
+    title: 'タスク通知',
+    description: '完了したタスクと確認待ちのリマインダーに対する Android の通知を有効にします。',
+    action: '通知設定',
+    busy: '開いています…',
+    success: 'システムの確認画面または設定で、タスク通知の権限を確認してください。',
+    reopen: 'もう一度開く',
+    error: '通知設定を開けませんでした。再試行してください。',
+    retry: '再試行',
+  }
+  if (locale === 'ko') return {
+    title: '작업 알림',
+    description: '완료된 작업과 확인이 필요한 작업의 알림을 Android에서 사용하도록 설정하십시오.',
+    action: '알림 설정',
+    busy: '열고 있습니다…',
+    success: '시스템 확인 창이나 설정에서 알림 권한을 확인하십시오.',
+    reopen: '다시 열기',
+    error: '알림 설정을 열 수 없습니다. 다시 시도하십시오.',
+    retry: '다시 시도',
+  }
+  if (locale === 'es') return {
+    title: 'Notificaciones de tareas',
+    description: 'Activa los recordatorios de Android para tareas completadas y pendientes de confirmación.',
+    action: 'Ajustes de notificaciones',
+    busy: 'Abriendo…',
+    success: 'Confirma el permiso de notificaciones en el mensaje del sistema o en los ajustes.',
+    reopen: 'Volver a abrir',
+    error: 'No se pudieron abrir los ajustes de notificaciones. Vuelve a intentarlo.',
+    retry: 'Reintentar',
+  }
+  if (locale === 'fr') return {
+    title: 'Notifications des tâches',
+    description: 'Activer les rappels Android pour les tâches terminées et en attente de confirmation.',
+    action: 'Paramètres de notification',
+    busy: 'Ouverture…',
+    success: 'Confirmez l\'accès aux notifications dans l\'invite du système ou dans les paramètres.',
+    reopen: 'Rouvrir',
+    error: 'Impossible d\'ouvrir les paramètres de notification. Réessayez.',
+    retry: 'Réessayer',
+  }
+  if (locale === 'de') return {
+    title: 'Aufgabenbenachrichtigungen',
+    description: 'Aktivieren Sie Android-Erinnerungen für abgeschlossene Aufgaben und Aufgaben mit ausstehender Bestätigung.',
+    action: 'Benachrichtigungseinstellungen',
+    busy: 'Wird geöffnet…',
+    success: 'Bestätigen Sie den Benachrichtigungszugriff in der Systemabfrage oder in den Einstellungen.',
+    reopen: 'Erneut öffnen',
+    error: 'Die Benachrichtigungseinstellungen konnten nicht geöffnet werden. Versuchen Sie es erneut.',
+    retry: 'Erneut versuchen',
+  }
   return {
     title: 'Task notifications',
     description: 'Enable Android reminders for completed tasks and pending confirmation.',
@@ -586,6 +695,56 @@ function mobileBackgroundNotificationCopy(locale: MobileControlLocale): MobileBa
     error: 'Impossibile aggiornare i promemoria; controlla il permesso notifiche e la connessione attiva.',
     connected: 'Connesso',
     disconnected: 'Non connesso',
+  }
+  if (locale === 'ja') return {
+    title: 'バックグラウンドタスクの通知',
+    description: 'Android がページを一時停止しても、閉じられる常時接続を通じてタスク完了の通知を受け続けます。',
+    enabled: 'バックグラウンド通知を無効にする',
+    disabled: 'バックグラウンド通知を有効にする',
+    busy: '処理中…',
+    error: 'バックグラウンド通知を更新できませんでした。通知の権限と現在の接続を確認してください。',
+    connected: '接続済み',
+    disconnected: '未接続',
+  }
+  if (locale === 'ko') return {
+    title: '백그라운드 작업 알림',
+    description: 'Android가 페이지를 일시정지한 후에도 해제 가능한 영구 연결을 통해 작업 완료 알림을 계속 받습니다.',
+    enabled: '백그라운드 알림 끄기',
+    disabled: '백그라운드 알림 켜기',
+    busy: '처리 중…',
+    error: '백그라운드 알림을 업데이트할 수 없습니다. 알림 권한과 현재 연결을 확인하십시오.',
+    connected: '연결됨',
+    disconnected: '연결 안 됨',
+  }
+  if (locale === 'es') return {
+    title: 'Recordatorios de tareas en segundo plano',
+    description: 'Sigue recibiendo avisos de tareas completadas después de que Android suspenda la página, mediante una conexión persistente que puedes cerrar.',
+    enabled: 'Desactivar recordatorios en segundo plano',
+    disabled: 'Activar recordatorios en segundo plano',
+    busy: 'Procesando…',
+    error: 'No se pudieron actualizar los recordatorios en segundo plano. Revisa el permiso de notificaciones y la conexión activa.',
+    connected: 'Conectado',
+    disconnected: 'No conectado',
+  }
+  if (locale === 'fr') return {
+    title: 'Rappels des tâches en arrière-plan',
+    description: 'Continuer à recevoir des alertes de fin de tâche après la mise en veille de la page par Android, via une connexion persistante que l\'on peut fermer.',
+    enabled: 'Désactiver les rappels en arrière-plan',
+    disabled: 'Activer les rappels en arrière-plan',
+    busy: 'Traitement…',
+    error: 'Impossible de mettre à jour les rappels en arrière-plan. Vérifiez l\'autorisation de notification et la connexion active.',
+    connected: 'Connecté',
+    disconnected: 'Non connecté',
+  }
+  if (locale === 'de') return {
+    title: 'Aufgabenbenachrichtigungen im Hintergrund',
+    description: 'Erhalten Sie weiterhin Benachrichtigungen über abgeschlossene Aufgaben, nachdem Android die Seite angehalten hat – über eine dauerhafte Verbindung, die Sie schließen können.',
+    enabled: 'Hintergrundbenachrichtigungen deaktivieren',
+    disabled: 'Hintergrundbenachrichtigungen aktivieren',
+    busy: 'Wird verarbeitet…',
+    error: 'Die Hintergrundbenachrichtigungen konnten nicht aktualisiert werden. Prüfen Sie die Benachrichtigungsberechtigung und die aktive Verbindung.',
+    connected: 'Verbunden',
+    disconnected: 'Nicht verbunden',
   }
   return {
     title: 'Background task reminders',
@@ -1105,7 +1264,7 @@ export function localizedDiagnosticEntryCopy(
   versions?: unknown,
 ): { readonly detail: string; readonly action: string } {
   const t = controlTranslator(locale)
-  const localeTag = locale === 'it' ? 'it-IT' : locale === 'zh' ? 'zh-CN' : 'en-US'
+  const localeTag = mobileControlLocaleTag(locale)
   const serverCopy = diagnosticServerCopy(entry)
   const reason = typeof entry.reason === 'string' ? entry.reason : ''
   const facts = entry.facts !== null && typeof entry.facts === 'object' ? entry.facts as Record<string, unknown> : {}
@@ -1172,7 +1331,7 @@ function installControl(): { remove: () => void; toggle: () => void; isOpen: () 
     return key === undefined ? t(fallbackKey, { error: message }) : t(key)
   }
   const locale = selectedMobileControlLocale()
-  const localeTag = locale === 'it' ? 'it-IT' : locale === 'zh' ? 'zh-CN' : 'en-US'
+  const localeTag = mobileControlLocaleTag(locale)
   const t = controlTranslator(locale)
   const lifecycle = new AbortController()
   const controlRequestJson = (path: string, init?: RequestInit, timeoutMs?: number): Promise<Record<string, unknown>> => requestJson(path, { ...init, signal: lifecycle.signal }, timeoutMs)

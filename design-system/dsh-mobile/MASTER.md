@@ -29,22 +29,26 @@ The portable Windows client (`apps/windows/`) keeps the roles above but derives 
 
 | Role | Light | Dark |
 | --- | --- | --- |
-| Page canvas | `#F5F5F7` | `#0A101E` |
-| Navigation rail | `#FDFDFF` | `#080D18` (below the canvas) |
-| Group card | `#FFFFFF` | `#151E2E` (above the canvas) |
-| Card border | `#E8ECF2` | `#24314A` (hairline, not a frame) |
-| Row divider | `#EDF0F4` | `#232F45` (fainter than the card border) |
-| Accent tint (selection, brand band) | `#E9EFFD` | `#17263F` |
-| Secondary text | `#667085` | `#A9B6CB` |
-| Muted text (eyebrow, footer) | `#5F6A7A` | `#8A97AC` |
+| Page canvas | `#F5F5F7` | `#131317` |
+| Navigation rail | `#FDFDFF` | `#0D0D11` (below the canvas) |
+| Group card | `#FFFFFF` | `#1E1E22` (above the canvas) |
+| Card border | `#E8E8ED` | `#2E2E34` (hairline, not a frame) |
+| Row divider | `#EDEDF0` | `#2A2A30` (fainter than the card border) |
+| Accent tint (selection, brand band) | `#EAF1FF` | `#1C2840` |
+| Secondary text | `#6E6E73` | `#A1A1A6` |
+| Muted text (decoration only) | `#85858B` | `#8E8E93` |
 
-The card border and the row divider are deliberately different weights. The border is a hairline that closes the card without drawing a frame around it; the divider is fainter still, because a row separator inside a card should be felt rather than seen. Grouping is carried by the canvas step (`#F5F5F7` to `#FFFFFF`), not by outlines — this is the same choice Apple's settings panels make, and it is why the border went from `#C6CCD6` to `#E8ECF2`. Do not "restore" contrast by darkening it: if a card needs to separate, raise its shadow, not its outline.
+These are the values `App.xaml.cs` installs at startup. The brushes declared in `App.xaml`
+are design-time defaults only; the runtime palette is the code, so change both when adding a
+role (a value that exists only in XAML will be silently replaced).
+
+The card border and the row divider are deliberately different weights. The border is a hairline that closes the card without drawing a frame around it; the divider is fainter still, because a row separator inside a card should be felt rather than seen. Grouping is carried by the canvas step (`#F5F5F7` to `#FFFFFF`), not by outlines — this is the same choice Apple's settings panels make, and it is why the border went from `#C6CCD6` to `#E8E8ED`. Do not "restore" contrast by darkening it: if a card needs to separate, raise its shadow, not its outline.
 
 The dark column is deliberately **not** the Android dark background, card and border (`#0A1020 / #16203A / #29FFFFFF`): at desktop width those three read as one flat blue, and the 16% white border reads brighter than the surface it frames. Keep the three-level order rail < canvas < card, keep borders low-saturation, and keep the shadow soft — depth on dark comes from the border and the rail step, not from a halo.
 
-Two consequences follow from that order. A raised or floating layer takes one more step above the card (`#1A2436` dark) instead of reusing the card fill or adding a highlight. And the dark shadow must be neutral black at a lower offset: the light theme's navy-tinted shadow (`#0B1220`) lands on a dark canvas as a blue halo, which is the glow this document forbids, and a shadow brighter than the gap it separates reads as a defect rather than elevation.
+Two consequences follow from that order. A raised or floating layer takes one more step above the card (`#26262B` dark) instead of reusing the card fill or adding a highlight. And the dark shadow must be neutral black at a lower offset: the light theme's navy-tinted shadow (`#0B1220`) lands on a dark canvas as a blue halo, which is the glow this document forbids, and a shadow brighter than the gap it separates reads as a defect rather than elevation.
 
-`MutedTextBrush` is the smallest text in the shell (10.5px uppercase eyebrow, footer metadata). It must stay at **≥5:1** against both the canvas and the card in each theme; `#98A2B3` failed at 2.5:1 and was replaced. `SuccessBrush`/`WarningBrush` exist for connection-state chips (`#15803D`/`#4ADE80`, `#B45309`/`#FBBF24`).
+`MutedTextBrush` is for **decoration only** (roughly 3.7:1 on the light card). It is not body text: use `SecondaryTextBrush` (5.07:1) for anything that must be read. The earlier ≥5:1 rule was retired when the neutral palette split the roles; `#98A2B3` failed at 2.5:1 and was replaced. `SuccessBrush`/`WarningBrush` exist for connection-state chips (`#15803D`/`#4ADE80`, `#B45309`/`#FBBF24`).
 
 ## Typography
 
@@ -59,7 +63,7 @@ Keep per-Origin mobile font preferences separate from App-wide WebView zoom. Sho
 - Windows desktop row height is 76 DIP with 20 DIP insets, page gutters are 40 DIP, and the settings
   page display title is 34 DIP — the larger title and the wider gutters are what give the shell its
   calm, Apple-like reading rhythm. Row title 14 DIP semibold against a 12.5 DIP muted hint.
-- Windows desktop uses device-independent pixels, not dp, and the portable client sits closer to the eye on a large display. Its scale is one step tighter: group cards 14, secondary buttons 9, primary buttons 10, icon chips 10, segmented pills 7. Do not carry the 16–20 card value to Windows: a 20-radius card at 1000px column width reads as a bubble.
+- Windows desktop uses device-independent pixels, not dp, and the portable client sits closer to the eye on a large display. Its scale is one step tighter: group cards 16, secondary buttons 9, primary buttons 10, icon chips 12, segmented pills 7. Do not carry the 16–20 card value to Windows: a 20-radius card at 1000px column width reads as a bubble.
 - Those Windows values are DIPs at the user's own scale factor, not device pixels: the same layout is 2560 physical pixels wide on a 1280-DIP screen at 200%. Judge a desktop review in DIPs (physical pixels ÷ the display scale) on a maximized window; a screenshot's pixel width is not the layout's width.
 - Native touch target: at least 48dp. Web targets: at least 44 CSS pixels, with 48px for primary mobile actions where space permits. The Windows rail uses 60×54 DIP destinations for the same reason; a 40×40 icon button was too small even with a mouse.
 - Use a subtle theme-aware border and restrained shadows.
