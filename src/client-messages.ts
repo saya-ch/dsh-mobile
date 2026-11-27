@@ -2615,7 +2615,7 @@ export const MOBILE_CONTROL_MESSAGES = {
     diagnosticNeedsCount: '{count} vérifications · {issues} à traiter',
     diagnosticsChecking: 'Vérification…',
     diagnosticsCheckingTitle: 'Vérification de la connexion',
-    diagnosticsCheckingText: 'Cela prend généralement quelques secondes. Le canal distant effectue un test de joignabilité réel.',
+    diagnosticsCheckingText: 'Cela prend généralement quelques secondes. Le canal distant effectue un test d’accessibilité réel.',
     diagnosticsRunningMeta: 'En cours · gardez DSH en ligne',
     diagnosticsIncomplete: 'Vérification non terminée',
     diagnosticsReadFailed: 'Impossible de lire les diagnostics : {error}',
