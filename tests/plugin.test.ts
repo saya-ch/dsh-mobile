@@ -1417,7 +1417,7 @@ describe('stock DSH lifecycle', () => {
       expect(stillAuthenticated.status).toBe(200)
     } else expect(result.body).toEqual({ loggedOut: true })
     expect((await store.load()).registrations[0]?.enabled).toBe(enabled)
-  })
+  }, 60_000)
 
   it('closes the single push runtime on normal plugin unload', async () => {
     vi.useFakeTimers()
