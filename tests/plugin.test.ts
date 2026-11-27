@@ -32,7 +32,7 @@ import { parseUnavailableExtensionHosts } from '../src/extension-recovery-ui.js'
 import { CaddyComponentManager, CADDY_VERSION, type CaddyArtifact } from '../src/caddy-component.js'
 import { FunnelController, type FunnelControllerOptions } from '../src/funnel.js'
 import { FrpController, type FrpControllerOptions } from '../src/frp.js'
-import type { MobileAccessGateway } from '../src/gateway.js'
+import { MobileAccessGateway } from '../src/gateway.js'
 import { PushGatewayCoordinator, type PushGatewayOriginBinding } from '../src/mobile-push/gateway.js'
 import { PushDelivery } from '../src/mobile-push/delivery.js'
 import { PushRegistry, vapidFingerprint } from '../src/mobile-push/registry.js'
@@ -124,6 +124,7 @@ async function mount(
   loaderMobileInjection = false,
   waitForPushRuntime = true,
   authenticationUrl?: (base: string) => string,
+  getOrigin?: (this: { readonly port: number }) => string,
 ): Promise<{
   context: Context; route: WebRoute; command: CommandDefinition; upstreamBase: string | undefined; directory: string;
   pushProjectionDisposer: (() => void) | undefined; pushProjectionRegistered: Promise<void>;
@@ -140,6 +141,7 @@ async function mount(
   contexts.push(context)
   context.provide('webServer', {
     port: webServerPort,
+    ...(getOrigin === undefined ? {} : { getOrigin }),
     collectIndexInjections: () => indexInjections,
     register(candidate: WebRoute) {
       route = candidate
@@ -222,6 +224,18 @@ async function mount(
     context, route, command, upstreamBase, directory, pushProjectionRegistered, installPushHostServices,
     get pushProjectionDisposer() { return pushProjectionDisposer },
   }
+}
+
+async function mountModernAdminGateway(config: Partial<PluginConfig> = {}): Promise<{ route: WebRoute; gateway: MobileAccessGateway }> {
+  const start = MobileAccessGateway.prototype.start
+  let gateway: MobileAccessGateway | undefined
+  vi.spyOn(MobileAccessGateway.prototype, 'start').mockImplementation(function (this: MobileAccessGateway) {
+    gateway = this
+    return start.call(this)
+  })
+  const { route } = await mount(true, 3080, config, 'admitted-peer')
+  if (gateway === undefined) throw new Error('plugin did not start its LAN gateway')
+  return { route, gateway }
 }
 
 async function unusedOriginPort(): Promise<number> {
@@ -628,6 +642,18 @@ describe('upstream browser authentication', () => {
       `${base}/?token=launch-token`,
     ])
     expect(upstreamAuthenticatedUrl(ctx, upstreamOrigin)).toBe('http://127.0.0.1:3080/?token=launch-token')
+  })
+
+  it('keeps modern authentication on the exact bound LAN origin and rejects another audience', () => {
+    const boundOrigin = new URL('http://192.168.50.23:28000')
+    const entries = vi.fn((base: string) => [
+      'http://127.0.0.1:28000/?token=wrong-loopback-audience',
+      'http://192.168.50.23:28001/?token=wrong-port',
+      `${base}/?token=bound-launch-token`,
+    ])
+    expect(upstreamAuthenticatedUrl(withEntryUrls(entries), boundOrigin))
+      .toBe('http://192.168.50.23:28000/?token=bound-launch-token')
+    expect(entries).toHaveBeenCalledExactlyOnceWith(boundOrigin.origin)
   })
 
   it('does not silently downgrade to unauthenticated access if a modern entry listener throws', () => {
@@ -1057,6 +1083,67 @@ describe('stock DSH lifecycle', () => {
   it('follows the active WebServer port when no setup upstream is configured', async () => {
     const mounted = await mount(false, 43120)
     expect(mounted.upstreamBase).toBe('http://127.0.0.1:43120')
+  })
+
+  it.each(['fixed', 'managed'] as const)('uses one bound WebServer origin for initial authentication and the %s LAN gateway parse', async kind => {
+    const upstreamOrigin = 'http://192.168.50.23:28000'
+    const getOrigin = vi.fn(function (this: { readonly port: number }) {
+      return `http://192.168.50.23:${String(this.port)}`
+    })
+    const setupFile = kind === 'managed' ? await managedSetupFile('http://127.0.0.1:3080') : undefined
+    if (kind === 'managed') {
+      vi.spyOn(managedSetup, 'selectLanNetwork').mockReturnValue({
+        name: 'unused-while-disabled', address: '127.0.0.1', cidr: '127.0.0.0/8',
+      })
+      // Own only a loopback listener; the concrete LAN address is an upstream
+      // parser input and is never contacted by this start/stop regression.
+      vi.spyOn(managedSetup, 'materializeManagedSetup').mockResolvedValue({
+        listenHost: '127.0.0.1', listenPort: 0, publicAuthorities: ['127.0.0.1'],
+        allowedCidrs: ['127.0.0.0/8'], tls: { mode: 'disabled' },
+      })
+    }
+    const start = MobileAccessGateway.prototype.start
+    const startedOrigins: string[] = []
+    vi.spyOn(MobileAccessGateway.prototype, 'start').mockImplementation(function (this: MobileAccessGateway) {
+      startedOrigins.push(this.config.upstreamOrigin.origin)
+      return start.call(this)
+    })
+    const authenticate = vi.fn((base: string) => `${base}/?token=owned-bound-origin-token`)
+    const mounted = await mount(false, 28000, {
+      upstreamOrigin: 'http://127.0.0.1:3080', ...(setupFile === undefined ? {} : { setupFile }),
+    }, undefined, [], false, false, false, false, true, authenticate, getOrigin)
+
+    expect(mounted.upstreamBase).toBe(upstreamOrigin)
+    expect(authenticate).toHaveBeenCalledExactlyOnceWith(upstreamOrigin)
+    expect(getOrigin).toHaveBeenCalledTimes(1)
+    expect(startedOrigins).toEqual([])
+    const started = await invoke(mounted.route, 'POST', '/api/mobile-access/lan/control', '{"running":true}')
+    expect(started.status).toBe(200)
+    expect(JSON.parse(started.body)).toMatchObject({ running: true })
+    expect(startedOrigins).toEqual([upstreamOrigin])
+    expect(getOrigin).toHaveBeenCalledTimes(1)
+    if (setupFile !== undefined) {
+      expect(managedSetup.parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8'))).upstreamOrigin).toBe(upstreamOrigin)
+    }
+    const stopped = await invoke(mounted.route, 'POST', '/api/mobile-access/lan/control', '{"running":false}')
+    expect(stopped.status).toBe(200)
+    expect(JSON.parse(stopped.body)).toMatchObject({ running: false })
+  })
+
+  it('keeps scoped entry-url authentication available after mounting with a bound WebServer origin', async () => {
+    const upstreamOrigin = 'http://192.168.50.23:28000'
+    const mounted = await mount(false, 3080, {}, 'admitted-peer', [], false, false, false, false, true,
+      undefined, () => upstreamOrigin)
+    const entry = vi.fn(function (this: unknown, base: string, entries: { url: string; label: string; open: boolean }[]) {
+      expect(this).toBe(mounted.context.webServer)
+      entries.push({ url: `${base}/?token=owned-modern-entry-token`, label: 'Owned authentication', open: true })
+    })
+    const onEntry = mounted.context.on as unknown as (event: string, listener: typeof entry) => () => boolean
+    onEntry.call(mounted.context, 'webserver/entry-url', entry)
+
+    expect(upstreamAuthenticatedUrl(mounted.context, new URL(upstreamOrigin)))
+      .toBe(`${upstreamOrigin}/?token=owned-modern-entry-token`)
+    expect(entry).toHaveBeenCalledExactlyOnceWith(upstreamOrigin, expect.any(Array))
   })
 
   it('reports a live third-party remote boot conflict through the desktop diagnostic route', async () => {
@@ -1524,6 +1611,122 @@ describe('stock DSH lifecycle', () => {
     }
     expect(openPairing).toHaveBeenCalledTimes(2)
     expect(requestRejection).not.toHaveBeenCalled()
+  })
+
+  it('admits explicit management CIDRs for modern owner delegated LAN status', async () => {
+    const { route } = await mount(true, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    const result = await invoke(route, 'GET', '/api/mobile-access/lan/status', '', '192.168.50.9', {}, '192.168.50.23', owner)
+    expect(result.status).toBe(200)
+    expect(JSON.parse(result.body)).toMatchObject({ gateway: expect.any(Object), deviceCount: 0 })
+  })
+
+  it.each([
+    '/api/mobile-access/status',
+    '/api/mobile-access/devices',
+  ])('admits explicit management CIDRs for modern owner delegated %s', async path => {
+    const { route } = await mount(true, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    const result = await invoke(route, 'GET', path, '', '192.168.50.9', {}, '192.168.50.23', owner)
+    expect(result.status).toBe(200)
+    expect(JSON.parse(result.body)).toMatchObject(path.endsWith('/devices') ? { devices: [] } : { gateway: expect.any(Object), deviceCount: 0 })
+  })
+
+  it('forwards explicit management CIDRs through every delegated gateway prefix', async () => {
+    const { route, gateway } = await mountModernAdminGateway({ adminAllowedCidrs: ['192.168.50.23/32'] })
+    // Select an owned, running gateway for remote delegation without launching a tunnel.
+    vi.spyOn(FunnelController.prototype, 'gateway').mockReturnValue(gateway)
+    const localAdminRoute = vi.spyOn(MobileAccessGateway.prototype, 'localAdminRoute')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    for (const prefix of ['/api/mobile-access/remote', '/api/mobile-access/lan', '/api/mobile-access']) {
+      const result = await invoke(route, 'GET', `${prefix}/status`, '', '192.168.50.9', {}, '192.168.50.23', owner)
+      expect(result.status).toBe(200)
+      expect(JSON.parse(result.body)).toMatchObject({ gateway: expect.any(Object), deviceCount: 0 })
+      expect(localAdminRoute).toHaveBeenLastCalledWith(prefix, expect.any(Function), gateway.config.adminAllowedCidrs)
+    }
+  })
+
+  it.each([
+    '/api/mobile-access/lan/status',
+    '/api/mobile-access/status',
+    '/api/mobile-access/devices',
+    '/api/mobile-access/remote/status',
+  ])('rejects invalid modern owners before delegating management through %s', async path => {
+    const { route } = await mount(true, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const localAdminRoute = vi.spyOn(MobileAccessGateway.prototype, 'localAdminRoute')
+    for (const peer of [undefined,
+      { principal: { kind: 'device' }, signal: new AbortController().signal },
+      { principal: { kind: 'owner' }, signal: AbortSignal.abort() },
+    ]) {
+      for (const directPeer of ['127.0.0.1', '192.168.50.23']) {
+        const result = await invoke(route, 'GET', path, '', '192.168.50.9', {}, directPeer, peer)
+        expect(result.status).toBe(401)
+        expect(JSON.parse(result.body)).toEqual({ error: 'admin_authentication_required' })
+      }
+    }
+    expect(localAdminRoute).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    '/api/mobile-access/lan/status',
+    '/api/mobile-access/status',
+    '/api/mobile-access/devices',
+    '/api/mobile-access/remote/status',
+  ])('keeps modern delegated management subject to CIDR, Host and Origin through %s', async path => {
+    const { route } = await mount(true, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const localAdminRoute = vi.spyOn(MobileAccessGateway.prototype, 'localAdminRoute')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    const attempts: { host: string; headers: Record<string, string>; peer: string }[] = [
+      { host: '192.168.50.9', headers: { 'x-forwarded-for': '192.168.50.23' }, peer: '192.168.50.24' },
+      { host: 'evil.example', headers: {}, peer: '192.168.50.23' },
+      { host: '8.8.8.8', headers: {}, peer: '192.168.50.23' },
+      { host: '192.168.50.9', headers: { origin: 'http://evil.example' }, peer: '192.168.50.23' },
+      { host: '192.168.50.9', headers: { 'sec-fetch-site': 'cross-site' }, peer: '192.168.50.23' },
+    ]
+    for (const attempt of attempts) {
+      const result = await invoke(route, 'GET', path, '', attempt.host, attempt.headers, attempt.peer, owner)
+      expect(result.status).toBe(403)
+      expect(JSON.parse(result.body)).toEqual({ error: 'forbidden' })
+    }
+    expect(localAdminRoute).not.toHaveBeenCalled()
+  })
+
+  it('keeps modern delegated management loopback-only without an explicit CIDR', async () => {
+    const { route } = await mount(true, 3080, {}, 'admitted-peer')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    for (const path of ['/api/mobile-access/lan/status', '/api/mobile-access/status', '/api/mobile-access/devices']) {
+      expect((await invoke(route, 'GET', path, '', '192.168.50.9', {}, '192.168.50.23', owner)).status).toBe(403)
+      expect((await invoke(route, 'GET', path, '', '127.0.0.1', {}, '127.0.0.1', owner)).status).toBe(200)
+    }
+  })
+
+  it('keeps delegated gateway trust opt-in and checks the authenticated source and browser authority', async () => {
+    const { gateway } = await mountModernAdminGateway({ adminAllowedCidrs: ['192.168.50.23/32'] })
+    const authenticate = vi.fn((request: IncomingMessage) => request.headers.cookie === 'dsh-session=valid')
+    const defaultRoute = gateway.localAdminRoute('/api/mobile-access', authenticate)
+    const headers = { cookie: 'dsh-session=valid' }
+    expect((await invoke(defaultRoute, 'GET', '/api/mobile-access/status', '', '192.168.50.9', headers, '192.168.50.23')).status).toBe(403)
+    expect((await invoke(defaultRoute, 'GET', '/api/mobile-access/status')).status).toBe(200)
+
+    const admittedRoute = gateway.localAdminRoute('/api/mobile-access', authenticate, gateway.config.adminAllowedCidrs)
+    expect((await invoke(admittedRoute, 'GET', '/api/mobile-access/status', '', '192.168.50.9', headers, '192.168.50.23')).status).toBe(200)
+    expect((await invoke(admittedRoute, 'GET', '/api/mobile-access/status', '', '192.168.50.9', {}, '192.168.50.23')).status).toBe(401)
+    expect((await invoke(admittedRoute, 'GET', '/api/mobile-access/status', '', '192.168.50.9', { ...headers, 'x-forwarded-for': '192.168.50.23' }, '192.168.50.24')).status).toBe(403)
+    expect((await invoke(admittedRoute, 'GET', '/api/mobile-access/status', '', 'evil.example', headers, '192.168.50.23')).status).toBe(403)
+    expect((await invoke(admittedRoute, 'GET', '/api/mobile-access/status', '', '192.168.50.9', { ...headers, origin: 'http://evil.example' }, '192.168.50.23')).status).toBe(403)
+  })
+
+  it('keeps push reset loopback-only after modern owner delegated LAN status is admitted', async () => {
+    const { route } = await mount(true, 3080, { adminAllowedCidrs: ['192.168.50.23/32'] }, 'admitted-peer')
+    const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal }
+    const marker = { [DESKTOP_ADMIN_HEADER]: DESKTOP_ADMIN_MARKER }
+    expect((await invoke(route, 'GET', '/api/mobile-access/lan/status', '', '192.168.50.9', {}, '192.168.50.23', owner)).status).toBe(200)
+    const reset = await invoke(route, 'POST', '/api/mobile-access/push/reset', '{"confirm":"reset-web-push"}', '192.168.50.9', marker, '192.168.50.23', owner)
+    expect(reset.status).toBe(403)
+    expect(JSON.parse(reset.body)).toEqual({ error: 'forbidden' })
+    const loopback = await invoke(route, 'POST', '/api/mobile-access/push/reset', '{"confirm":"reset-web-push"}', '127.0.0.1', marker, '127.0.0.1', owner)
+    expect(loopback.status).toBe(503)
+    expect(JSON.parse(loopback.body)).toEqual({ error: 'push_unavailable' })
   })
 
   it('uses a modern admitted owner Peer for delegated desktop pairing and explicit LAN management', async () => {

@@ -163,26 +163,30 @@ export function parseAdditionalTrustedNetworks(value: unknown): readonly string[
 }
 
 /**
- * Refresh the legacy `upstreamOrigin` snapshot to the DSH port actually in use.
+ * Refresh the legacy `upstreamOrigin` snapshot to the DSH listener actually in use.
  *
- * The runtime deliberately follows the WebServer port instead of this field (a Desktop
- * profile can start with `--port 0`), but a stale snapshot is indistinguishable from a
- * stale gateway to whoever reads the file while diagnosing a restart — #273 became a
- * manual edit because of it. Rewriting it keeps the file honest without changing which
- * upstream the gateway uses.
+ * The runtime follows the WebServer, not this field: newer hosts may bind only one
+ * interface, and a Desktop profile can start with `--port 0`. Keeping the snapshot
+ * current avoids a misleading stale address while diagnosing a restart.
  *
  * @param setupFile - Existing managed setup file.
  * @param setup - The setup as it was read.
- * @param webServerPort - The port the active DSH WebServer bound.
+ * @param webServerOrigin - Validated active WebServer origin, or the legacy loopback port.
  * @returns Whether the file needed rewriting.
  */
 export async function refreshManagedUpstreamOrigin(
   setupFile: string,
   setup: ManagedSetup,
-  webServerPort: number,
+  webServerOrigin: number | string,
 ): Promise<boolean> {
-  if (!Number.isInteger(webServerPort) || webServerPort <= 0) return false
-  const upstreamOrigin = `http://127.0.0.1:${String(webServerPort)}`
+  if (typeof webServerOrigin === 'number' && (!Number.isInteger(webServerOrigin) || webServerOrigin <= 0)) return false
+  const upstreamOrigin = typeof webServerOrigin === 'number'
+    ? `http://127.0.0.1:${String(webServerOrigin)}`
+    : webServerOrigin
+  const url = URL.parse(upstreamOrigin)
+  if (url === null || url.protocol !== 'http:' || url.port === '' || url.origin !== upstreamOrigin) {
+    throw new Error('managed upstream snapshot must be the validated active HTTP origin')
+  }
   if (setup.upstreamOrigin === upstreamOrigin) return false
   const next = Object.freeze({ ...setup, upstreamOrigin })
   await atomicWrite(setupFile, `${JSON.stringify(next, null, 2)}\n`)

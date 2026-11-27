@@ -15,6 +15,45 @@ const stateFile = join(tmpdir(), 'dsh-mobile-access-config-test.json')
 const controlFile = join(tmpdir(), 'dsh-mobile-access-control-test.json')
 
 describe('gateway configuration', () => {
+  const upstreamBase = { stateFile, tls: { mode: 'disabled' as const } }
+
+  it.each(['http://127.0.0.1:28000', 'http://[::1]:28000'])('keeps ordinary loopback upstream %s valid without runtime trust', upstreamOrigin => {
+    expect(parseGatewayConfig({ ...upstreamBase, upstreamOrigin }).upstreamOrigin.origin).toBe(upstreamOrigin)
+  })
+
+  it.each(['http://192.168.50.23:28000', 'http://10.20.30.40:28000', 'http://[2001:db8::23]:28000'])('requires runtime trust for non-loopback upstream %s', upstreamOrigin => {
+    expect(() => parseGatewayConfig({ ...upstreamBase, upstreamOrigin })).toThrow(/upstreamOrigin/u)
+    expect(() => parseGatewayConfig({ ...upstreamBase, upstreamOrigin, trustedUpstreamOrigin: upstreamOrigin })).toThrow(/upstreamOrigin/u)
+    expect(parseGatewayConfig({ ...upstreamBase, upstreamOrigin }, upstreamOrigin).upstreamOrigin.origin).toBe(upstreamOrigin)
+  })
+
+  it.each([
+    'http://192.168.50.24:28000',
+    'http://192.168.50.23:28001',
+    'http://[2001:db8::23]:28000',
+    'https://192.168.50.23:28000',
+  ])('does not widen runtime trust beyond the exact active origin to %s', upstreamOrigin => {
+    expect(() => parseGatewayConfig({ ...upstreamBase, upstreamOrigin }, 'http://192.168.50.23:28000')).toThrow(/upstreamOrigin/u)
+  })
+
+  it.each([
+    'https://192.168.50.23:28000',
+    'http://192.168.50.23',
+    'http://192.168.50.23:80',
+    'http://192.168.50.23:65536',
+    'http://user@192.168.50.23:28000',
+    'http://user:password@192.168.50.23:28000',
+    'http://192.168.50.23:28000/path',
+    'http://192.168.50.23:28000/?query=value',
+    'http://192.168.50.23:28000/#fragment',
+    'http://gateway.example.com:28000',
+    'http://0.0.0.0:28000',
+    'http://[::]:28000',
+  ])('keeps upstream URL restrictions even with matching runtime trust for %s', upstreamOrigin => {
+    const trusted = URL.parse(upstreamOrigin)?.origin ?? upstreamOrigin
+    expect(() => parseGatewayConfig({ ...upstreamBase, upstreamOrigin }, trusted)).toThrow(/upstreamOrigin/u)
+  })
+
   it('keeps additional management networks opt-in, validated and independent of gateway access', () => {
     const base = { stateFile, controlFile, initiallyEnabled: false, tls: { mode: 'disabled' as const } }
     expect(parseGatewayConfig(base).adminAllowedCidrs).toEqual([])

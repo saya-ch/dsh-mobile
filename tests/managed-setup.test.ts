@@ -258,6 +258,38 @@ describe('managed DHCP setup', () => {
 })
 
 describe('managed setup upstream snapshot', () => {
+  it.each(['http://192.168.50.23:28000', 'http://[2001:db8::23]:28000', 'http://[::1]:28000'])('persists the exact active origin %s without changing setup identity or other fields', async upstreamOrigin => {
+    const setup = { ...await fixture(), extraAllowedCidrs: ['11.24.0.0/24'] }
+    const setupFile = join(dirname(setup.tls.caCertFile), 'setup.json')
+    await writeFile(setupFile, `${JSON.stringify(setup, null, 2)}\n`)
+
+    expect(await refreshManagedUpstreamOrigin(setupFile, setup, upstreamOrigin)).toBe(true)
+    const current = { ...setup, upstreamOrigin }
+    expect(parseManagedSetup(JSON.parse(await readFile(setupFile, 'utf8')))).toEqual(current)
+    const saved = await readFile(setupFile, 'utf8')
+    expect(await refreshManagedUpstreamOrigin(setupFile, current, upstreamOrigin)).toBe(false)
+    expect(await readFile(setupFile, 'utf8')).toBe(saved)
+  })
+
+  it.each([
+    'https://192.168.50.23:28000',
+    'http://192.168.50.23',
+    'http://192.168.50.23:80',
+    'http://user:password@192.168.50.23:28000',
+    'http://192.168.50.23:28000/',
+    'http://192.168.50.23:28000/path',
+    'http://192.168.50.23:28000/?query=value',
+    'http://192.168.50.23:28000/#fragment',
+  ])('does not overwrite the snapshot with an invalid or noncanonical origin %s', async upstreamOrigin => {
+    const setup = await fixture()
+    const setupFile = join(dirname(setup.tls.caCertFile), 'setup.json')
+    const saved = `${JSON.stringify(setup, null, 2)}\n`
+    await writeFile(setupFile, saved)
+
+    await expect(refreshManagedUpstreamOrigin(setupFile, setup, upstreamOrigin)).rejects.toThrow(/active HTTP origin/u)
+    expect(await readFile(setupFile, 'utf8')).toBe(saved)
+  })
+
   it('refreshes only the legacy upstreamOrigin and keeps every other field', async () => {
     const setup = { ...await fixture(), extraAllowedCidrs: ['11.24.0.0/24'] }
     const setupFile = join(dirname(setup.tls.caCertFile), 'setup.json')
