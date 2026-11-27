@@ -5,11 +5,17 @@
 ; so this script never hardcodes the release version.
 ;
 ; The installer is the second distribution form beside the portable zip:
-;   - per-user install by default ({autopf} resolves to %LocalAppData%\Programs
-;     because PrivilegesRequired=lowest), so no UAC prompt is needed;
-;   - the directory page stays visible so the user can choose any writable path;
+;   - per-machine install by default ({autopf} resolves to %ProgramFiles% because
+;     PrivilegesRequired=admin), so an upgrade can write a protected directory;
+;   - the directory page stays visible so the user can choose another path;
+;   - UsePreviousAppDir keeps an existing per-user install where it is instead of
+;     installing a second copy under Program Files;
 ;   - uninstall deliberately keeps <install>\data (paired computers, settings,
 ;     logs) unless the user explicitly chooses to delete it.
+;
+; Elevation is required rather than optional: the in-app updater launches this
+; installer with Verb=runas, and an unelevated installer silently fails to write a
+; directory the current user does not own.
 
 #ifndef MyAppVersion
   #error MyAppVersion is required. Pass /DMyAppVersion=<version> (read from DshMobile.Win.csproj).
@@ -51,8 +57,11 @@ VersionInfoCopyright=Copyright (c) DSH Mobile contributors
 DefaultDirName={autopf}\DshMobile
 DefaultGroupName=DSH Mobile
 DisableDirPage=no
+; Keep an existing per-user install in place instead of adding a second copy under
+; Program Files now that the installer is per-machine.
+UsePreviousAppDir=yes
 DisableProgramGroupPage=yes
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 MinVersion=10.0.17763
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -93,8 +102,11 @@ Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Name: "{autoprograms}\DSH Mobile"; Filename: "{app}\DshMobile.Win.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\DSH Mobile"; Filename: "{app}\DshMobile.Win.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
+; Runs for a silent install too, which is how the in-app updater installs: without this
+; the client exits, the installer finishes, and nothing reopens the window. runasoriginaluser
+; keeps the relaunched client unelevated.
 [Run]
-Filename: "{app}\DshMobile.Win.exe"; Description: "{cm:LaunchProgram,DSH Mobile}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\DshMobile.Win.exe"; Description: "{cm:LaunchProgram,DSH Mobile}"; Flags: nowait postinstall runasoriginaluser
 
 ; [UninstallDelete] intentionally has no entry for {app}\data. Inno Setup only
 ; removes the files it installed and anything listed here, so runtime data
