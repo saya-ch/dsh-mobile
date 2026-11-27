@@ -38,7 +38,16 @@ describe('Windows pinned-origin probe', () => {
     const throwSite = source.indexOf('VerifyPinnedOriginAsync(device, _connectCts.Token, Log)')
     expect(throwSite).toBeGreaterThan(0)
     const message = source.slice(throwSite, throwSite + 400)
-    expect(message).not.toContain('配对 CA 校验失败：这台电脑出示的证书与配对时固定的不一致')
-    expect(message).toContain('可能是网络不通')
+    // The copy moved into Resources/Strings.resx, so the guard follows it there: the site
+    // must reference the network-failure key, not the certificate-mismatch one.
+    expect(message).toContain('Strings.Connect_PinnedCertVerifyFailed')
+    expect(message).not.toContain('Strings.Pairing_CaMismatch')
+    const resources = readFileSync(
+      fileURLToPath(new URL('../apps/windows/DshMobile.Win/Resources/Strings.resx', import.meta.url)),
+      'utf8',
+    )
+    const copy = /<data name="Connect_PinnedCertVerifyFailed"[^>]*>\s*<value>([^<]*)<\/value>/.exec(resources)
+    expect(copy).not.toBeNull()
+    expect(copy![1]).toContain('可能是网络不通')
   })
 })
