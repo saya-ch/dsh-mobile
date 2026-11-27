@@ -185,11 +185,11 @@ public partial class App : Application
             ("PrimaryTextBrush",   Color.FromRgb(0xF5, 0xF5, 0xF7)),
             ("SecondaryTextBrush",   Color.FromRgb(0xA1, 0xA1, 0xA6)),
             ("MutedTextBrush",   Color.FromRgb(0x8E, 0x8E, 0x93)),
-            ("AccentBrush",   Color.FromRgb(0x0A, 0x84, 0xFF)),
-            ("AccentHoverBrush",   Color.FromRgb(0x40, 0x9C, 0xFF)),
-            ("AccentPressedBrush",   Color.FromRgb(0x00, 0x71, 0xE3)),
-            ("AccentSoftBrush",   Color.FromRgb(0x2C, 0x2C, 0x30)),
-            ("AccentSoftBorderBrush",   Color.FromRgb(0x3A, 0x3A, 0x3F)),
+            ("AccentBrush",   Color.FromRgb(0x60, 0xA5, 0xFA)),
+            ("AccentHoverBrush",   Color.FromRgb(0x93, 0xC5, 0xFD)),
+            ("AccentPressedBrush",   Color.FromRgb(0xBF, 0xDB, 0xFE)),
+            ("AccentSoftBrush",   Color.FromRgb(0x1C, 0x28, 0x40)),
+            ("AccentSoftBorderBrush",   Color.FromRgb(0x25, 0x33, 0x4E)),
             ("OnAccentBrush",        Color.FromRgb(0x0B, 0x12, 0x20)),
             ("HoverBrush",   Color.FromRgb(0x26, 0x26, 0x2B)),
             ("PressedBrush",   Color.FromRgb(0x2E, 0x2E, 0x35)),
@@ -220,8 +220,8 @@ public partial class App : Application
             (0.07, Color.FromRgb(0x2A, 0x2A, 0x30)),
             (1.0, Color.FromRgb(0x25, 0x25, 0x2B)));
         Resources["PrimaryButtonBrush"] = VerticalGradient(
-            (0.0, Color.FromRgb(0x38, 0x97, 0xFF)),
-            (1.0, Color.FromRgb(0x0A, 0x84, 0xFF)));
+            (0.0, Color.FromRgb(0x7C, 0xB6, 0xFC)),
+            (1.0, Color.FromRgb(0x60, 0xA5, 0xFA)));
         Resources["IconChipBrush"] = VerticalGradient(
             (0.0, Color.FromRgb(0x32, 0x32, 0x37)),
             (1.0, Color.FromRgb(0x28, 0x28, 0x2D)));
@@ -244,11 +244,11 @@ public partial class App : Application
             ("PrimaryTextBrush",   Color.FromRgb(0x1D, 0x1D, 0x1F)),
             ("SecondaryTextBrush",   Color.FromRgb(0x6E, 0x6E, 0x73)),
             ("MutedTextBrush",   Color.FromRgb(0x85, 0x85, 0x8B)),
-            ("AccentBrush",   Color.FromRgb(0x00, 0x71, 0xE3)),
-            ("AccentHoverBrush",   Color.FromRgb(0x00, 0x77, 0xED)),
-            ("AccentPressedBrush",   Color.FromRgb(0x00, 0x62, 0xC4)),
-            ("AccentSoftBrush",   Color.FromRgb(0xF2, 0xF2, 0xF7)),
-            ("AccentSoftBorderBrush",   Color.FromRgb(0xE8, 0xE8, 0xED)),
+            ("AccentBrush",   Color.FromRgb(0x25, 0x63, 0xEB)),
+            ("AccentHoverBrush",   Color.FromRgb(0x1D, 0x4E, 0xD8)),
+            ("AccentPressedBrush",   Color.FromRgb(0x1E, 0x40, 0xAF)),
+            ("AccentSoftBrush",   Color.FromRgb(0xEA, 0xF1, 0xFF)),
+            ("AccentSoftBorderBrush",   Color.FromRgb(0xD6, 0xE2, 0xFB)),
             ("OnAccentBrush",        Color.FromRgb(0xFF, 0xFF, 0xFF)),
             ("HoverBrush",           Color.FromRgb(0xF1, 0xF4, 0xF9)),
             ("PressedBrush",         Color.FromRgb(0xE6, 0xEB, 0xF2)),
@@ -279,8 +279,8 @@ public partial class App : Application
             (0.07, Color.FromRgb(0xEC, 0xEC, 0xEF)),
             (1.0, Color.FromRgb(0xE9, 0xE9, 0xEC)));
         Resources["PrimaryButtonBrush"] = VerticalGradient(
-            (0.0, Color.FromRgb(0x1F, 0x87, 0xEB)),
-            (1.0, Color.FromRgb(0x00, 0x71, 0xE3)));
+            (0.0, Color.FromRgb(0x34, 0x71, 0xEF)),
+            (1.0, Color.FromRgb(0x25, 0x63, 0xEB)));
         Resources["IconChipBrush"] = VerticalGradient(
             (0.0, Color.FromRgb(0xF7, 0xF7, 0xFA)),
             (1.0, Color.FromRgb(0xED, 0xED, 0xF2)));

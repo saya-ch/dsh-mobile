@@ -8,6 +8,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -95,6 +96,11 @@ public partial class MainWindow : Window
         SyncDevicePageLayout();
         Loaded += async (_, _) =>
         {
+            // A new window hands keyboard focus to its first focusable element, which is the
+            // Devices rail button; the RailItem template then draws its 2px accent ring
+            // around the current destination on launch, reading as a stray blue outline.
+            // Clearing it keeps Tab navigation and every ring the user actually earns.
+            Keyboard.ClearFocus();
             ApplyCaptionColor();
             if (!_dataWritable) ShowDataFolderWarning();
             await InitializeWebViewAsync();
