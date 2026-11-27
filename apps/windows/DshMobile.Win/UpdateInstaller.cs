@@ -216,6 +216,11 @@ internal static class UpdatePayload
     internal static string DescribeCheckFailure(Exception error) => error switch
     {
         TaskCanceledException => Strings.Update_TimeoutCheck,
+        // A refused request is not the same as an unreachable network: GitHub answers 403
+        // with a rate-limit body when the unauthenticated quota is spent, and the only useful
+        // advice there is to wait rather than to check the connection.
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden } => Strings.Update_RateLimited,
+        HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound } => Strings.Update_ReleasesMissing,
         HttpRequestException => Strings.Update_CannotReachGitHub,
         _ => string.IsNullOrWhiteSpace(error.Message) ? Strings.Update_UnknownError : error.Message,
     };

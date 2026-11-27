@@ -717,7 +717,16 @@ EndpointId: {0}
     <value>다음 아이콘으로 전환합니다</value>
     <comment>Settings row action tooltip</comment>
   </data>
-  <data name="Settings_Theme" xml:space="preserve">
+    <data name="Settings_Language" xml:space="preserve">
+    <value>인터페이스 언어</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>기본적으로 Windows 표시 언어를 따릅니다. 변경하면 창이 다시 열립니다.</value>
+  </data>
+  <data name="Settings_LanguageSystem" xml:space="preserve">
+    <value>시스템 설정 따르기</value>
+  </data>
+<data name="Settings_Theme" xml:space="preserve">
     <value>테마</value>
     <comment>Settings row title</comment>
   </data>
@@ -915,7 +924,13 @@ EndpointId: {0}
     <value>요청 시간 초과(15초 안에 응답이 없음)</value>
     <comment>Check-update failure reason for a timeout</comment>
   </data>
-  <data name="Update_CannotReachGitHub" xml:space="preserve">
+    <data name="Update_RateLimited" xml:space="preserve">
+    <value>GitHub에서 업데이트 확인 빈도를 제한하고 있습니다(로그인하지 않으면 시간당 60회). 잠시 후 다시 시도하십시오.</value>
+  </data>
+  <data name="Update_ReleasesMissing" xml:space="preserve">
+    <value>릴리스 페이지를 찾을 수 없습니다. 해당 버전이 삭제되었을 수 있습니다. 다운로드 페이지를 열어 확인하십시오.</value>
+  </data>
+<data name="Update_CannotReachGitHub" xml:space="preserve">
     <value>GitHub에 연결할 수 없습니다</value>
     <comment>Check-update failure reason for a transport error</comment>
   </data>

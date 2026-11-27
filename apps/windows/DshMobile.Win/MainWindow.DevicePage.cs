@@ -74,12 +74,7 @@ public partial class MainWindow
         {
             BrandMark.Source = image;
         }
-        // Build metadata after '+' is not a version number a user can compare.
-        var informational = typeof(MainWindow).Assembly
-            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion
-            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
-        BrandVersion.Text = "Windows · " + informational.Split('+')[0];
+
     }
 
     private void PairMethod_Checked(object sender, RoutedEventArgs e)

@@ -49,7 +49,11 @@
        are PNG rather than ICO because the WPF ICO decoder picks a small frame and
        the scaled-up result looked soft next to the vector glyphs. -->
   <ItemGroup>
+    <!-- The PNGs are required, not optional: the rail mark and page-header avatar load them
+         with `pack://siteoforigin:,,,/icons/…` at runtime, so a build that copies only the
+         ICO files ships an empty 44 DIP square at the top of the navigation rail. -->
     <Content Include="icons\*.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="icons\*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Pure-logic unit tests live in a separate project; expose internals only to it. -->

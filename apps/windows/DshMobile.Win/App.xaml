@@ -73,8 +73,8 @@
              YaHei UI, so mixed strings keep one optical weight. -->
         <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Microsoft YaHei UI</FontFamily>
 
-        <DropShadowEffect x:Key="CardShadow" Color="#0B1220" BlurRadius="22"
-                          ShadowDepth="3" Direction="270" Opacity="0.09"
+        <DropShadowEffect x:Key="CardShadow" Color="#0B1220" BlurRadius="20"
+                          ShadowDepth="2" Direction="270" Opacity="0.05"
                           RenderingBias="Quality" />
 
         <!-- =====================================================================
@@ -123,11 +123,11 @@
             <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
         </Style>
         <Style x:Key="DisplayTitle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
-            <Setter Property="FontSize" Value="30" />
+            <Setter Property="FontSize" Value="34" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
         </Style>
@@ -145,16 +145,16 @@
         </Style>
         <Style x:Key="RowTitle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
-            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="RowHint" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="12.5" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
         </Style>
 
         <!-- =====================================================================
@@ -166,22 +166,22 @@
              of identical boxes. -->
         <Style x:Key="GroupCard" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource CardBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderGradientBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Effect" Value="{StaticResource CardShadow}" />
         </Style>
         <Style x:Key="RowDivider" TargetType="Border">
             <Setter Property="Height" Value="1" />
             <Setter Property="Background" Value="{DynamicResource DividerBrush}" />
-            <Setter Property="Margin" Value="18,0,18,0" />
+            <Setter Property="Margin" Value="20,0,20,0" />
         </Style>
         <!-- 36px accent-tinted glyph tile that anchors each row. -->
         <Style x:Key="IconChip" TargetType="Border">
-            <Setter Property="Width" Value="36" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="{DynamicResource IconChipBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
@@ -204,9 +204,11 @@
             <Setter Property="MinHeight" Value="40" />
             <Setter Property="MinWidth" Value="72" />
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
-            <Setter Property="Background" Value="{DynamicResource CardBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource OutlineBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
+            <!-- Filled, not outlined: on a white card a white button with a grey border is
+                 just a drawn rectangle. A soft fill separates it without a line. -->
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
@@ -252,8 +254,11 @@
         <!-- Primary action: 16dp radius, accent fill, larger hit area. -->
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBrush}" />
+            <!-- No outline: a border darker than its own fill reads as a black edge. Depth
+                 comes from the vertical gradient, the way a filled Apple button does it. -->
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="MinHeight" Value="44" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
@@ -410,6 +415,123 @@
             <Setter Property="Padding" Value="3" />
             <Setter Property="HorizontalAlignment" Value="Right" />
             <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <!-- Language drop-down. Eight options do not fit a segmented control, so this is a
+             drop-down sized like its neighbours: 32 DIP tall, 10px radius, centred in the row.
+             The ToggleButton is what opens the list — a ComboBox template without one cannot
+             be opened at all. Focus is drawn in-template for the same reason as every other
+             control here. -->
+        <Style x:Key="LangPicker" TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="MinWidth" Value="150" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="11,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Root" CornerRadius="9"
+                                    Background="{DynamicResource SurfaceAltBrush}"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="1">
+                                <Grid Margin="{TemplateBinding Padding}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter VerticalAlignment="Center"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      TextElement.Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <Path Grid.Column="1" Margin="10,1,0,0" Data="M5 8l5 5 5-5"
+                                          Width="10" Height="6" Stretch="Uniform"
+                                          StrokeThickness="1.7"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round" VerticalAlignment="Center"
+                                          Stroke="{DynamicResource SecondaryTextBrush}" />
+                                </Grid>
+                            </Border>
+                            <!-- Transparent hit layer: this is what opens the list. -->
+                            <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Border x:Name="FocusOutline" CornerRadius="9" BorderThickness="1.5"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    Visibility="Collapsed" IsHitTestVisible="False"
+                                    SnapsToDevicePixels="True" />
+                            <Popup x:Name="PART_Popup" AllowsTransparency="True"
+                                   Placement="Bottom" VerticalOffset="4"
+                                   PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
+                                   IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   PopupAnimation="Fade" Focusable="False">
+                                <Border CornerRadius="9" MinWidth="{TemplateBinding ActualWidth}"
+                                        Background="{DynamicResource CardBrush}"
+                                        BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                                        Margin="0,0,8,10">
+                                    <!-- The shell's own raised-layer shadow, not a hard-coded
+                                         black one: it is theme-aware and already tuned for
+                                         the surface scale (MASTER.md: restrained shadows). -->
+                                    <Border.Effect>
+                                        <StaticResource ResourceKey="CardShadow" />
+                                    </Border.Effect>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False"
+                                                  MaxHeight="300">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="FocusOutline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="LangPickerItem" TargetType="ComboBoxItem">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Row" CornerRadius="6" Margin="4,1" Padding="9,7"
+                                Background="Transparent">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="SegChoice" TargetType="RadioButton">
             <Setter Property="MinHeight" Value="28" />

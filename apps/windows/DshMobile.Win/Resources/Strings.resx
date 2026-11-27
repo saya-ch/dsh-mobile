@@ -748,6 +748,18 @@ EndpointId：{0}
     <value>切换到下一个图标</value>
     <comment>Settings row action tooltip</comment>
   </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>界面语言</value>
+    <comment>Appearance section: language picker label</comment>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>默认跟随 Windows 的显示语言。切换后窗口会重新打开。</value>
+    <comment>Shown under the language picker; explains the rebuild</comment>
+  </data>
+  <data name="Settings_LanguageSystem" xml:space="preserve">
+    <value>跟随系统</value>
+    <comment>First picker entry: follow the Windows UI language</comment>
+  </data>
   <data name="Settings_Theme" xml:space="preserve">
     <value>主题</value>
     <comment>Settings row title</comment>
@@ -946,6 +958,14 @@ EndpointId：{0}
   <data name="Update_TimeoutCheck" xml:space="preserve">
     <value>请求超时（15 秒内没有响应）</value>
     <comment>Check-update failure reason for a timeout</comment>
+  </data>
+  <data name="Update_RateLimited" xml:space="preserve">
+    <value>GitHub 限制了更新检查的频率（未登录时每小时 60 次）。请稍后重试。</value>
+    <comment>Rate limiting is not a network failure: the unauthenticated API allows 60 requests per hour.</comment>
+  </data>
+  <data name="Update_ReleasesMissing" xml:space="preserve">
+    <value>找不到发布页，该版本可能已被移除。可手动打开下载页查看。</value>
+    <comment>HTTP 404 from the releases API: the page moved or the release was deleted.</comment>
   </data>
   <data name="Update_CannotReachGitHub" xml:space="preserve">
     <value>无法连接 GitHub</value>

@@ -29,15 +29,16 @@ The portable Windows client (`apps/windows/`) keeps the roles above but derives 
 
 | Role | Light | Dark |
 | --- | --- | --- |
-| Page canvas | `#F7F8FA` | `#0A101E` |
+| Page canvas | `#F5F5F7` | `#0A101E` |
 | Navigation rail | `#FDFDFF` | `#080D18` (below the canvas) |
 | Group card | `#FFFFFF` | `#151E2E` (above the canvas) |
-| Card border / divider | `#C6CCD6` | `#33425C` (low saturation) |
+| Card border | `#E8ECF2` | `#24314A` (hairline, not a frame) |
+| Row divider | `#EDF0F4` | `#232F45` (fainter than the card border) |
 | Accent tint (selection, brand band) | `#E9EFFD` | `#17263F` |
 | Secondary text | `#667085` | `#A9B6CB` |
 | Muted text (eyebrow, footer) | `#5F6A7A` | `#8A97AC` |
 
-`CardBorderBrush` and `DividerBrush` now share one value in each theme, so one row covers both. The old `#E6E9F0` card border measured 1.24:1 on white and the `#EFF1F5` row hairline 1.13:1 — both effectively invisible — so the client replaced them with the values above, which clear the ≥1.6:1 non-text contrast it targets.
+The card border and the row divider are deliberately different weights. The border is a hairline that closes the card without drawing a frame around it; the divider is fainter still, because a row separator inside a card should be felt rather than seen. Grouping is carried by the canvas step (`#F5F5F7` to `#FFFFFF`), not by outlines — this is the same choice Apple's settings panels make, and it is why the border went from `#C6CCD6` to `#E8ECF2`. Do not "restore" contrast by darkening it: if a card needs to separate, raise its shadow, not its outline.
 
 The dark column is deliberately **not** the Android dark background, card and border (`#0A1020 / #16203A / #29FFFFFF`): at desktop width those three read as one flat blue, and the 16% white border reads brighter than the surface it frames. Keep the three-level order rail < canvas < card, keep borders low-saturation, and keep the shadow soft — depth on dark comes from the border and the rail step, not from a halo.
 
@@ -55,6 +56,9 @@ Keep per-Origin mobile font preferences separate from App-wide WebView zoom. Sho
 
 - Native card radius: 16–20dp according to the existing screen.
 - Native button radius: 12dp for secondary actions and 16dp for primary actions; preserve existing component variants.
+- Windows desktop row height is 76 DIP with 20 DIP insets, page gutters are 40 DIP, and the settings
+  page display title is 34 DIP — the larger title and the wider gutters are what give the shell its
+  calm, Apple-like reading rhythm. Row title 14 DIP semibold against a 12.5 DIP muted hint.
 - Windows desktop uses device-independent pixels, not dp, and the portable client sits closer to the eye on a large display. Its scale is one step tighter: group cards 14, secondary buttons 9, primary buttons 10, icon chips 10, segmented pills 7. Do not carry the 16–20 card value to Windows: a 20-radius card at 1000px column width reads as a bubble.
 - Those Windows values are DIPs at the user's own scale factor, not device pixels: the same layout is 2560 physical pixels wide on a 1280-DIP screen at 200%. Judge a desktop review in DIPs (physical pixels ÷ the display scale) on a maximized window; a screenshot's pixel width is not the layout's width.
 - Native touch target: at least 48dp. Web targets: at least 44 CSS pixels, with 48px for primary mobile actions where space permits. The Windows rail uses 60×54 DIP destinations for the same reason; a 40×40 icon button was too small even with a mouse.

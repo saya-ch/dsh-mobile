@@ -152,33 +152,50 @@ public partial class App : Application
     /// #1E293B card over #0F172A read as one flat blue at 1600px, and its #475569
     /// border was brighter than the surface it framed.
     /// </remarks>
+    /// <summary>Build a vertical gradient from (offset, colour) stops.</summary>
+    /// <remarks>
+    /// Used only for surface depth: a few percent of luminance along an edge. WPF has no
+    /// params constructor, and building it by hand keeps the stops readable.
+    /// </remarks>
+    private static LinearGradientBrush VerticalGradient(params (double Offset, Color Color)[] stops)
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(0, 1),
+        };
+        foreach (var (offset, color) in stops)
+            brush.GradientStops.Add(new GradientStop(color, offset));
+        return brush;
+    }
+
     private void ApplyDarkPalette()
     {
         (string Key, Color Color)[] dark =
         [
-            ("AppBackgroundBrush",   Color.FromRgb(0x0A, 0x10, 0x1E)),
-            ("CardBrush",            Color.FromRgb(0x15, 0x1E, 0x2E)),
-            ("CardElevatedBrush",    Color.FromRgb(0x1A, 0x24, 0x36)),
-            ("CardBorderBrush",      Color.FromRgb(0x33, 0x42, 0x5C)),
-            ("RailBrush",            Color.FromRgb(0x08, 0x0D, 0x18)),
-            ("RailBorderBrush",      Color.FromRgb(0x1B, 0x24, 0x35)),
-            ("SurfaceAltBrush",      Color.FromRgb(0x10, 0x18, 0x28)),
-            ("OutlineBrush",         Color.FromRgb(0x3A, 0x49, 0x64)),
-            ("DividerBrush",         Color.FromRgb(0x33, 0x42, 0x5C)),
-            ("PrimaryTextBrush",     Color.FromRgb(0xF2, 0xF5, 0xF9)),
-            ("SecondaryTextBrush",   Color.FromRgb(0xA9, 0xB6, 0xCB)),
-            ("MutedTextBrush",       Color.FromRgb(0x8A, 0x97, 0xAC)),
-            ("AccentBrush",          Color.FromRgb(0x60, 0xA5, 0xFA)),
-            ("AccentHoverBrush",     Color.FromRgb(0x93, 0xC5, 0xFD)),
-            ("AccentPressedBrush",   Color.FromRgb(0xBF, 0xDB, 0xFE)),
-            ("AccentSoftBrush",      Color.FromRgb(0x17, 0x26, 0x3F)),
-            ("AccentSoftBorderBrush", Color.FromRgb(0x1F, 0x33, 0x50)),
+            ("AppBackgroundBrush",   Color.FromRgb(0x13, 0x13, 0x17)),
+            ("CardBrush",   Color.FromRgb(0x1E, 0x1E, 0x22)),
+            ("CardElevatedBrush",   Color.FromRgb(0x26, 0x26, 0x2B)),
+            ("CardBorderBrush",   Color.FromRgb(0x2E, 0x2E, 0x34)),
+            ("RailBrush",   Color.FromRgb(0x0D, 0x0D, 0x11)),
+            ("RailBorderBrush",   Color.FromRgb(0x23, 0x23, 0x28)),
+            ("SurfaceAltBrush",   Color.FromRgb(0x19, 0x19, 0x1E)),
+            ("OutlineBrush",   Color.FromRgb(0x3A, 0x3A, 0x40)),
+            ("DividerBrush",   Color.FromRgb(0x2A, 0x2A, 0x30)),
+            ("PrimaryTextBrush",   Color.FromRgb(0xF5, 0xF5, 0xF7)),
+            ("SecondaryTextBrush",   Color.FromRgb(0xA1, 0xA1, 0xA6)),
+            ("MutedTextBrush",   Color.FromRgb(0x8E, 0x8E, 0x93)),
+            ("AccentBrush",   Color.FromRgb(0x0A, 0x84, 0xFF)),
+            ("AccentHoverBrush",   Color.FromRgb(0x40, 0x9C, 0xFF)),
+            ("AccentPressedBrush",   Color.FromRgb(0x00, 0x71, 0xE3)),
+            ("AccentSoftBrush",   Color.FromRgb(0x2C, 0x2C, 0x30)),
+            ("AccentSoftBorderBrush",   Color.FromRgb(0x3A, 0x3A, 0x3F)),
             ("OnAccentBrush",        Color.FromRgb(0x0B, 0x12, 0x20)),
-            ("HoverBrush",           Color.FromRgb(0x1B, 0x27, 0x39)),
-            ("PressedBrush",         Color.FromRgb(0x22, 0x30, 0x4A)),
+            ("HoverBrush",   Color.FromRgb(0x26, 0x26, 0x2B)),
+            ("PressedBrush",   Color.FromRgb(0x2E, 0x2E, 0x35)),
             ("SwitchKnobBrush",      Color.FromRgb(0xE6, 0xEC, 0xF5)),
-            ("DisabledFillBrush",    Color.FromRgb(0x22, 0x30, 0x4A)),
-            ("DisabledBorderBrush",  Color.FromRgb(0x4A, 0x5C, 0x7A)),
+            ("DisabledFillBrush",   Color.FromRgb(0x2E, 0x2E, 0x35)),
+            ("DisabledBorderBrush",   Color.FromRgb(0x44, 0x44, 0x4C)),
             ("DisabledTextBrush",    Color.FromRgb(0x8A, 0x97, 0xAC)),
             ("ErrorBrush",           Color.FromRgb(0xFC, 0xA5, 0xA5)),
             ("SuccessBrush",         Color.FromRgb(0x4A, 0xDE, 0x80)),
@@ -194,33 +211,44 @@ public partial class App : Application
         // shadow present but soft so it does not turn into a halo.
         Resources["CardShadow"] = new DropShadowEffect
         {
-            Color = Color.FromRgb(0x00, 0x00, 0x00), BlurRadius = 22, ShadowDepth = 2,
-            Direction = 270, Opacity = 0.34, RenderingBias = RenderingBias.Quality,
+            Color = Color.FromRgb(0x00, 0x00, 0x00), BlurRadius = 20, ShadowDepth = 2,
+            Direction = 270, Opacity = 0.30, RenderingBias = RenderingBias.Quality,
         };
-    }
+    
+        Resources["CardBorderGradientBrush"] = VerticalGradient(
+            (0.0, Color.FromRgb(0x3A, 0x3A, 0x42)),
+            (0.07, Color.FromRgb(0x2A, 0x2A, 0x30)),
+            (1.0, Color.FromRgb(0x25, 0x25, 0x2B)));
+        Resources["PrimaryButtonBrush"] = VerticalGradient(
+            (0.0, Color.FromRgb(0x38, 0x97, 0xFF)),
+            (1.0, Color.FromRgb(0x0A, 0x84, 0xFF)));
+        Resources["IconChipBrush"] = VerticalGradient(
+            (0.0, Color.FromRgb(0x32, 0x32, 0x37)),
+            (1.0, Color.FromRgb(0x28, 0x28, 0x2D)));
+}
 
     /// <summary>Restore the light brushes declared in App.xaml.</summary>
     private void ApplyLightPalette()
     {
         (string Key, Color Color)[] light =
         [
-            ("AppBackgroundBrush",   Color.FromRgb(0xF7, 0xF8, 0xFA)),
+            ("AppBackgroundBrush",   Color.FromRgb(0xF5, 0xF5, 0xF7)),
             ("CardBrush",            Color.FromRgb(0xFF, 0xFF, 0xFF)),
             ("CardElevatedBrush",    Color.FromRgb(0xFF, 0xFF, 0xFF)),
-            ("CardBorderBrush",      Color.FromRgb(0xC6, 0xCC, 0xD6)),
+            ("CardBorderBrush",   Color.FromRgb(0xE8, 0xE8, 0xED)),
             ("RailBrush",            Color.FromRgb(0xFD, 0xFD, 0xFF)),
             ("RailBorderBrush",      Color.FromRgb(0xE8, 0xEB, 0xF2)),
             ("SurfaceAltBrush",      Color.FromRgb(0xED, 0xF1, 0xF7)),
-            ("OutlineBrush",         Color.FromRgb(0xC6, 0xCC, 0xD6)),
-            ("DividerBrush",         Color.FromRgb(0xC6, 0xCC, 0xD6)),
-            ("PrimaryTextBrush",     Color.FromRgb(0x11, 0x18, 0x27)),
-            ("SecondaryTextBrush",   Color.FromRgb(0x66, 0x70, 0x85)),
-            ("MutedTextBrush",       Color.FromRgb(0x5F, 0x6A, 0x7A)),
-            ("AccentBrush",          Color.FromRgb(0x25, 0x63, 0xEB)),
-            ("AccentHoverBrush",     Color.FromRgb(0x1D, 0x4E, 0xD8)),
-            ("AccentPressedBrush",   Color.FromRgb(0x1E, 0x40, 0xAF)),
-            ("AccentSoftBrush",      Color.FromRgb(0xE9, 0xEF, 0xFD)),
-            ("AccentSoftBorderBrush", Color.FromRgb(0xD6, 0xE2, 0xFB)),
+            ("OutlineBrush",   Color.FromRgb(0xD9, 0xD9, 0xDE)),
+            ("DividerBrush",   Color.FromRgb(0xED, 0xED, 0xF0)),
+            ("PrimaryTextBrush",   Color.FromRgb(0x1D, 0x1D, 0x1F)),
+            ("SecondaryTextBrush",   Color.FromRgb(0x6E, 0x6E, 0x73)),
+            ("MutedTextBrush",   Color.FromRgb(0x85, 0x85, 0x8B)),
+            ("AccentBrush",   Color.FromRgb(0x00, 0x71, 0xE3)),
+            ("AccentHoverBrush",   Color.FromRgb(0x00, 0x77, 0xED)),
+            ("AccentPressedBrush",   Color.FromRgb(0x00, 0x62, 0xC4)),
+            ("AccentSoftBrush",   Color.FromRgb(0xF2, 0xF2, 0xF7)),
+            ("AccentSoftBorderBrush",   Color.FromRgb(0xE8, 0xE8, 0xED)),
             ("OnAccentBrush",        Color.FromRgb(0xFF, 0xFF, 0xFF)),
             ("HoverBrush",           Color.FromRgb(0xF1, 0xF4, 0xF9)),
             ("PressedBrush",         Color.FromRgb(0xE6, 0xEB, 0xF2)),
@@ -240,8 +268,21 @@ public partial class App : Application
 
         Resources["CardShadow"] = new DropShadowEffect
         {
-            Color = Color.FromRgb(0x0B, 0x12, 0x20), BlurRadius = 18, ShadowDepth = 2,
-            Direction = 270, Opacity = 0.06, RenderingBias = RenderingBias.Quality,
+            Color = Color.FromRgb(0x0B, 0x12, 0x20), BlurRadius = 20, ShadowDepth = 2,
+            Direction = 270, Opacity = 0.05, RenderingBias = RenderingBias.Quality,
         };
-    }
+    
+        // Material gradients: a few percent of luminance to describe an edge, never a colour
+        // effect. Separate tokens so text keeps a solid brush.
+        Resources["CardBorderGradientBrush"] = VerticalGradient(
+            (0.0, Color.FromRgb(0xFD, 0xFD, 0xFE)),
+            (0.07, Color.FromRgb(0xEC, 0xEC, 0xEF)),
+            (1.0, Color.FromRgb(0xE9, 0xE9, 0xEC)));
+        Resources["PrimaryButtonBrush"] = VerticalGradient(
+            (0.0, Color.FromRgb(0x1F, 0x87, 0xEB)),
+            (1.0, Color.FromRgb(0x00, 0x71, 0xE3)));
+        Resources["IconChipBrush"] = VerticalGradient(
+            (0.0, Color.FromRgb(0xF7, 0xF7, 0xFA)),
+            (1.0, Color.FromRgb(0xED, 0xED, 0xF2)));
+}
 }

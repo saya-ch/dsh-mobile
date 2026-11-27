@@ -382,6 +382,12 @@ public static class Strings
     /// <summary>Settings row action tooltip</summary>
     public static string Settings_AppIconCycleTooltip => Manager.GetString("Settings_AppIconCycleTooltip", CultureInfo.CurrentUICulture) ?? string.Empty;
     /// <summary>Settings row title</summary>
+    /// <summary>Appearance section: language picker label</summary>
+    public static string Settings_Language => Manager.GetString("Settings_Language", CultureInfo.CurrentUICulture) ?? string.Empty;
+    /// <summary>Shown under the language picker; explains the rebuild</summary>
+    public static string Settings_LanguageHint => Manager.GetString("Settings_LanguageHint", CultureInfo.CurrentUICulture) ?? string.Empty;
+    /// <summary>First picker entry: follow the Windows UI language</summary>
+    public static string Settings_LanguageSystem => Manager.GetString("Settings_LanguageSystem", CultureInfo.CurrentUICulture) ?? string.Empty;
     public static string Settings_Theme => Manager.GetString("Settings_Theme", CultureInfo.CurrentUICulture) ?? string.Empty;
     /// <summary>Settings row hint</summary>
     public static string Settings_ThemeHint => Manager.GetString("Settings_ThemeHint", CultureInfo.CurrentUICulture) ?? string.Empty;
@@ -482,6 +488,10 @@ public static class Strings
     /// <summary>Check-update failure reason for a timeout</summary>
     public static string Update_TimeoutCheck => Manager.GetString("Update_TimeoutCheck", CultureInfo.CurrentUICulture) ?? string.Empty;
     /// <summary>Check-update failure reason for a transport error</summary>
+    /// <summary>Rate limiting is not a network failure: the unauthenticated API allows 60 requests per hour.</summary>
+    public static string Update_RateLimited => Manager.GetString("Update_RateLimited", CultureInfo.CurrentUICulture) ?? string.Empty;
+    /// <summary>HTTP 404 from the releases API: the page moved or the release was deleted.</summary>
+    public static string Update_ReleasesMissing => Manager.GetString("Update_ReleasesMissing", CultureInfo.CurrentUICulture) ?? string.Empty;
     public static string Update_CannotReachGitHub => Manager.GetString("Update_CannotReachGitHub", CultureInfo.CurrentUICulture) ?? string.Empty;
     /// <summary>Fallback failure reason</summary>
     public static string Update_UnknownError => Manager.GetString("Update_UnknownError", CultureInfo.CurrentUICulture) ?? string.Empty;

@@ -17,12 +17,23 @@ internal sealed class AppSettings
 {
     internal const string StartPageDevices = "devices";
     internal const string StartPageLastDevice = "last";
+    /// <summary>Sentinel for "follow the Windows UI language".</summary>
+    internal const string LanguageSystem = "system";
 
     public string Icon { get; set; } = "default";
     /// <summary>"devices" shows the list on launch; "last" reconnects the last device.</summary>
     public string StartPage { get; set; } = StartPageDevices;
     /// <summary>"system" | "light" | "dark".</summary>
     public string Theme { get; set; } = "system";
+    /// <summary>
+    /// Interface language as a culture name ("ja", "de", …), or "system" to follow Windows.
+    /// </summary>
+    /// <remarks>
+    /// Changing this needs the window rebuilt: the XAML binds strings through
+    /// <c>{x:Static}</c>, which resolves once when an element loads, so a live culture change
+    /// does not repaint anything already on screen.
+    /// </remarks>
+    public string Language { get; set; } = LanguageSystem;
     public bool BackgroundNotifications { get; set; } = true;
     /// <summary>
     /// EndpointId of the computer connected last. "自动连接上次的电脑" needs to know

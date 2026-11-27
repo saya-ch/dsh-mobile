@@ -717,7 +717,16 @@ EndpointId：{0}
     <value>次のアイコンに切り替えます</value>
     <comment>Settings row action tooltip</comment>
   </data>
-  <data name="Settings_Theme" xml:space="preserve">
+    <data name="Settings_Language" xml:space="preserve">
+    <value>表示言語</value>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>既定では Windows の表示言語に従います。変更するとウィンドウが開き直されます。</value>
+  </data>
+  <data name="Settings_LanguageSystem" xml:space="preserve">
+    <value>システムに従う</value>
+  </data>
+<data name="Settings_Theme" xml:space="preserve">
     <value>テーマ</value>
     <comment>Settings row title</comment>
   </data>
@@ -915,7 +924,13 @@ EndpointId：{0}
     <value>リクエストがタイムアウトしました（15 秒以内に応答がありません）</value>
     <comment>Check-update failure reason for a timeout</comment>
   </data>
-  <data name="Update_CannotReachGitHub" xml:space="preserve">
+    <data name="Update_RateLimited" xml:space="preserve">
+    <value>GitHub がアップデート確認の頻度を制限しています（未ログインでは 1 時間に 60 回）。しばらく待ってから再試行してください。</value>
+  </data>
+  <data name="Update_ReleasesMissing" xml:space="preserve">
+    <value>リリースページが見つかりません。このバージョンは削除された可能性があります。ダウンロードページを開いて確認してください。</value>
+  </data>
+<data name="Update_CannotReachGitHub" xml:space="preserve">
     <value>GitHub に接続できません</value>
     <comment>Check-update failure reason for a transport error</comment>
   </data>

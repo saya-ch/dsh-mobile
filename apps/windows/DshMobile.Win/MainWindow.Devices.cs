@@ -217,13 +217,16 @@ public partial class MainWindow
         var card = new Border
         {
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(16, 13, 16, 13),
-            Margin = new Thickness(0, 0, 0, 8),
+            CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(18, 14, 18, 14),
+            Margin = new Thickness(0, 0, 0, 10),
             Child = grid,
         };
         card.SetResourceReference(Border.BackgroundProperty, "CardBrush");
-        card.SetResourceReference(Border.BorderBrushProperty, "OutlineBrush");
+        // The same material edge as GroupCard: this card is built in code, so it has to ask
+        // for the gradient explicitly or it keeps the flat outline every other card dropped.
+        card.SetResourceReference(Border.BorderBrushProperty, "CardBorderGradientBrush");
+        card.SetResourceReference(Border.EffectProperty, "CardShadow");
         // Double-clicking anywhere on the card opens it, the way a row on the phone
         // does; the buttons stay the discoverable path.
         card.MouseLeftButtonDown += (_, e) =>

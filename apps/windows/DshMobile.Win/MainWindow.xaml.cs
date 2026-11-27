@@ -493,18 +493,28 @@ public partial class MainWindow : Window
     /// <summary>Show the settings page, keeping the device list state intact.</summary>
     private void SettingsOpen_Click(object sender, RoutedEventArgs e) => ShowSettingsPage(true);
     /// <summary>Return to the device list from either the rail or the page header.</summary>
+    /// <summary>
+    /// Reflect the active surface in the navigation rail.
+    /// </summary>
+    /// <remarks>
+    /// The rail is a RadioButton group and the RailItem template draws the accent pill and
+    /// marker from <c>IsChecked</c>, which is also what a screen reader reports. Every path
+    /// that switches the main surface must call this: Settings is the only destination with
+    /// its own page, so the connecting page and the embedded browser both count as Devices.
+    /// </remarks>
+    private void SyncRail(bool settingsSelected)
+    {
+        SettingsRailButton.IsChecked = settingsSelected;
+        DevicesRailButton.IsChecked = !settingsSelected;
+    }
+
     private void SettingsBack_Click(object sender, RoutedEventArgs e) => ShowSettingsPage(false);
 
     private void ShowSettingsPage(bool show)
     {
         DevicesScroll.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
         SettingsScroll.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        // TODO(rail): switch to IsChecked once the rail uses RadioButtons — the checked
-        // state then carries both the selected pill and the accessibility state.
-        SettingsRailButton.Background = show
-            ? (Brush)FindResource("SurfaceAltBrush") : Brushes.Transparent;
-        DevicesRailButton.Background = show
-            ? Brushes.Transparent : (Brush)FindResource("SurfaceAltBrush");
+        SyncRail(show);
         if (show) SyncSettingsControls();
         else RefreshDeviceList();
     }
@@ -519,6 +529,7 @@ public partial class MainWindow : Window
         StartDevices.IsChecked = _settings.StartPage == AppSettings.StartPageDevices;
         StartLast.IsChecked = _settings.StartPage == AppSettings.StartPageLastDevice;
         NotifyToggle.IsChecked = _settings.BackgroundNotifications;
+        SyncLanguageControls();
     }
 
     private void Theme_Checked(object sender, RoutedEventArgs e)
@@ -805,13 +816,13 @@ public partial class MainWindow : Window
         var card = new Border
         {
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(12),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(14),
             Margin = new Thickness(0, 0, 0, 8),
             Child = grid,
         };
         card.SetResourceReference(Border.BackgroundProperty, "CardBrush");
-        card.SetResourceReference(Border.BorderBrushProperty, "OutlineBrush");
+        card.SetResourceReference(Border.BorderBrushProperty, "CardBorderGradientBrush");
         FoundList.Children.Add(card);
     }
 
@@ -1219,6 +1230,7 @@ public partial class MainWindow : Window
     {
         WebView.Visibility = Visibility.Visible;
         ConnectPage.Visibility = Visibility.Collapsed;
+        SyncRail(false);
         Title = "DeepSeek Harness — " + device.Name;
         BrowserTitle.Text = string.Format(Strings.Connect_Connected, device.Name);
         BackButton.Visibility = Visibility.Visible;
@@ -1232,6 +1244,7 @@ public partial class MainWindow : Window
     {
         ConnectPage.Visibility = Visibility.Visible;
         WebView.Visibility = Visibility.Collapsed;
+        SyncRail(false);
         BackButton.Visibility = Visibility.Collapsed;
         BrowserTitle.Visibility = Visibility.Collapsed;
         DisconnectButton.Visibility = Visibility.Collapsed;
