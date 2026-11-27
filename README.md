@@ -28,7 +28,7 @@
   <a href="#兼容性">兼容性</a> ·
   <a href="docs/README.md">文档</a> ·
   <a href="#贡献者">贡献者</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1">更新记录</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.2">更新记录</a> ·
   <a href="README.en.md">English</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.9.1**。侧边栏现在跟随「移动端字号」设置（此前只影响输入框）。新增可选组件 **移动访问 skill**：向 agent 提供各通道的配置字段、状态位置、错误码含义与本机管理接口，配置和排障可在对话中完成，也可在组件列表中单独关闭（见[说明](#移动访问-skill)）。macOS 支持补齐：cpolar 与 iroh 组件新增 macOS x64/arm64，Tailscale Funnel 也首次支持 macOS，同时插件包从 74.6 MB 瘦身到 9.2 MB。插件与 Android App 独立更新；Android App 0.8.4 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.9.2**。侧边栏底部「移动访问」入口的手机图标墨迹与本排其它入口等宽；窄屏阈值对齐到 DSH 自身的 768 抽屉断点（此前 720–768 之间两套布局同时生效）。随包 skill 与各篇文档已按源码逐条核对，修正了管理接口、iroh 证书路径、通道面板按钮名等与实际不符的描述；国内 AtomGit 镜像现在同步发布页与安装包，不再停留在 0.8.2。插件与 Android App 独立更新；Android App 0.8.4 为当前正式版。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.2) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
@@ -505,6 +505,7 @@ macOS 上局域网、Tailscale Funnel、cpolar、cloudflared、自建 FRP、自�
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
+| `0.9.2` | 侧边栏「移动访问」图标墨迹与同排入口等宽；窄屏阈值对齐 DSH 的 768px 抽屉断点；随包 skill 与各篇文档按源码逐条核对并修正；国内 AtomGit 镜像同步发布页与安装包。Android App 为 0.8.4 |
 | `0.9.1` | 侧边栏跟随移动端字号设置（此前只影响输入框）；新增可选组件「移动访问 skill」，向 agent 提供各通道的配置接口与排障知识；随插件提供的组件在插件列表显示可读名称。 |
 | `0.9.0` | macOS 补齐 cpolar、iroh 与 Tailscale Funnel（均为双架构）；Funnel 组件改为按平台安装，插件解包体积 74.6 MB → 9.2 MB；iroh 组件升级到 0.1.0-alpha.2。Android App 为 0.8.3 |
 | `0.8.16` | 宽屏下会话列恢复全宽，左右侧栏均可拖拽调宽，侧栏打开不再顿挫（#465）；opaque-path WebView 上文件预览恢复（#415）。Android App 为 0.8.3 |

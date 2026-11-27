@@ -28,7 +28,7 @@
   <a href="#compatibility">Compatibility</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="#contributors">Contributors</a> ·
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1">Release notes</a> ·
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.2">Release notes</a> ·
   <a href="README.md">简体中文</a>
 </p>
 
@@ -36,7 +36,7 @@
 >
 > **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.9.1**. The sidebar now follows the mobile font-size setting, which previously only moved the composer. A new optional component, **Mobile access skill**, gives the agent each channel's configuration fields, where its state lives, what every error code means and the local management API, so configuration and troubleshooting can happen in a conversation; it has its own switch in the component list ([details](#mobile-access-skill)). macOS support is now complete: cpolar and iroh gain macOS x64/arm64 components, Tailscale Funnel works on macOS for the first time, and the plugin package shrinks from 74.6 MB to 9.2 MB. The plugin and the Android app update independently; Android app 0.8.4 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.1) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.9.2**. The Mobile access entry at the sidebar footer now draws the same ink width as the icons beside it, and the narrow-layout threshold matches DSH's own 768px drawer breakpoint, so the two layouts no longer both claim the page between 720 and 768. The bundled skill and every guide were read against the source and corrected where they described behaviour the code does not have. The China AtomGit mirror now serves releases and installer downloads instead of stopping at 0.8.2. The plugin and the Android app update independently; Android app 0.8.4 is the current stable build. [Plugin update and download](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.2) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
@@ -505,6 +505,7 @@ This table describes the **computer**. Phones and tablets use the Android app or
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
+| `0.9.2` | The sidebar Mobile access glyph matches the ink width of the entries beside it; the narrow threshold matches DSH's 768px drawer breakpoint; the bundled skill and every guide were re-checked against the source and corrected; the China AtomGit mirror serves releases and installers. Android app 0.8.4 |
 | `0.9.1` | The sidebar follows the mobile font-size setting, which previously only moved the composer; a new optional component, Mobile access skill, gives the agent each channel's configuration interface and troubleshooting knowledge; bundled components show readable names in the plugin list. |
 | `0.9.0` | macOS gains cpolar, iroh and Tailscale Funnel, all on both architectures; Funnel helpers install per platform, shrinking the plugin from 74.6 MB to 9.2 MB unpacked; the iroh component moves to 0.1.0-alpha.2. Android app 0.8.3 |
 | `0.8.16` | The wide conversation column is full width again and both side panels are draggable, and the sidebar no longer stutters when opening (#465); file previews work on opaque-path WebViews (#415). Android app 0.8.3 |

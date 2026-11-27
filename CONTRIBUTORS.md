@@ -4,6 +4,12 @@ GitHub 的 [Contributors 图表](https://github.com/saya-ch/dsh-mobile/graphs/co
 
 GitHub's Contributors graph counts commits on the default branch; issue reports and PR proposals cannot be manually added to it. This page credits community members by how they contributed. The repository maintainer and automated dependency updates remain visible in GitHub's history.
 
+## 0.9.2 贡献 / Contributions in 0.9.2
+
+感谢 [@abworks-dev](https://github.com/abworks-dev) 在 [#472](https://github.com/saya-ch/dsh-mobile/pull/472) 把侧边栏底部「移动访问」入口的手机图标墨迹加宽到社区 UI 约定的图标态区间，使它与同排其它入口等宽。
+
+Thanks [@abworks-dev](https://github.com/abworks-dev) for widening the Mobile access glyph at the sidebar footer to the community UI conventions' icon-state ink box in [#472](https://github.com/saya-ch/dsh-mobile/pull/472), so it matches the entries beside it.
+
 ## 0.9.1 贡献 / Contributions in 0.9.1
 
 感谢 [@zhiwill](https://github.com/zhiwill) 在 [#466](https://github.com/saya-ch/dsh-mobile/issues/466) 反馈手机端字号问题，促成侧边栏根节点改为读取同一移动端字号偏好。

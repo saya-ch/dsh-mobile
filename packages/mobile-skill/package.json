@@ -1,6 +1,6 @@
 {
   "name": "dsh-mobile-skill",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "private": true,
   "description": "Bundled DSH Mobile access documentation skill for the agent.",
   "type": "module",
