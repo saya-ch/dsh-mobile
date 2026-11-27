@@ -4627,10 +4627,11 @@ export class MobileAccessGateway {
     }
   }
 
-  /** Loopback-only DSH WebServer route for opening pairing and managing devices. */
+  /** DSH management route; only the authenticated outer route supplies explicit management networks. */
   localAdminRoute(
     prefix: string = LOCAL_ADMIN_PREFIX,
     authenticateDesktop?: (request: IncomingMessage) => boolean,
+    adminAllowedCidrs: readonly ParsedCidr[] = [],
   ): WebRoute {
     return {
       kind: 'prefix',
@@ -4639,7 +4640,7 @@ export class MobileAccessGateway {
         try {
           const target = parseRequestTarget(request.url)
           const mutation = request.method === 'POST'
-          assertLocalAdminTrust(request, mutation, () => authenticateDesktop?.(request) === true)
+          assertLocalAdminTrust(request, mutation, () => authenticateDesktop?.(request) === true, adminAllowedCidrs)
           if (target.search !== '') throw new HttpError(400, 'bad_request')
           if (request.method === 'GET' && target.decodedPathname === `${prefix}/status`) {
             sendJson(response, 200, {

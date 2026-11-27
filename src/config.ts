@@ -306,7 +306,7 @@ export function parseControlFile(value: unknown): string {
   return absoluteFile(value, 'controlFile')
 }
 
-function parseUpstream(value: unknown): URL {
+function parseUpstream(value: unknown, trustedUpstreamOrigin?: string): URL {
   const source = value ?? 'http://127.0.0.1:3080'
   if (typeof source !== 'string') throw new Error('upstreamOrigin must be a string')
   let url: URL
@@ -315,9 +315,15 @@ function parseUpstream(value: unknown): URL {
   } catch {
     throw new Error('upstreamOrigin must be an HTTP loopback origin')
   }
-  if (url.protocol !== 'http:' || !isLoopbackAddress(url.hostname) || url.username !== '' || url.password !== ''
+  // Only the embedding plugin can supply the active WebServer origin. This is
+  // deliberately not a config property or a general private-network allowlist.
+  const isBoundOrigin = url.origin === trustedUpstreamOrigin
+    && isIP(url.hostname.replace(/^\[|\]$/gu, '')) !== 0
+    && url.hostname !== '0.0.0.0' && url.hostname !== '[::]'
+  if (url.protocol !== 'http:' || (!isLoopbackAddress(url.hostname) && !isBoundOrigin)
+    || url.username !== '' || url.password !== ''
     || url.pathname !== '/' || url.search !== '' || url.hash !== '' || url.port === '') {
-    throw new Error('upstreamOrigin must be an HTTP loopback origin with an explicit port and no path or credentials')
+    throw new Error('upstreamOrigin must be an HTTP loopback or active DSH origin with an explicit port and no path or credentials')
   }
   return url
 }
@@ -364,8 +370,8 @@ function parseTls(value: PluginConfig['tls'], listenHost: string): TlsConfig {
   })
 }
 
-/** Parse configuration and reject unsafe topology, credential, and resource combinations. */
-export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
+/** Parse configuration; the optional trusted origin comes only from the embedding WebServer. */
+export function parseGatewayConfig(raw: unknown, trustedUpstreamOrigin?: string): ResolvedGatewayConfig {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('mobile-access config must be an object')
   const value = raw as PluginConfig
   const publicOrigin = parsePublicOrigin(value.publicOrigin)
@@ -378,7 +384,7 @@ export function parseGatewayConfig(raw: unknown): ResolvedGatewayConfig {
   const listenHost = value.listenHost ?? (publicOrigin === undefined ? '127.0.0.1' : '0.0.0.0')
   if (isIP(listenHost) === 0) throw new Error('listenHost must be an IP literal')
   const listenPort = publicOrigin?.port ?? integer(value.listenPort, 'listenPort', 3443, 0, 65535)
-  const upstreamOrigin = parseUpstream(value.upstreamOrigin)
+  const upstreamOrigin = parseUpstream(value.upstreamOrigin, trustedUpstreamOrigin)
   const tls = parseTls(value.tls, listenHost)
   if (publicOrigin !== undefined && tls.mode !== 'provided') {
     throw new Error('publicOrigin requires TLS')

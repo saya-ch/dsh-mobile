@@ -21,6 +21,7 @@ import { X509Certificate } from 'node:crypto'
 import { copyFile, lstat, readFile, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isIP } from 'node:net'
 import { parseControlFile, parseGatewayConfig, type PluginConfig, type ResolvedGatewayConfig } from './config.js'
 import { collectConnectionDiagnostics, hasCompetingRemoteChannelBoot } from './diagnostics.js'
 import { MacFileAccessProbe, openMacFullDiskAccessSettings } from './macos-file-access.js'
@@ -368,12 +369,34 @@ async function loadSetup(config: PluginConfig): Promise<LoadedSetup> {
   }
 }
 
-function loopbackTemplate(loaded: LoadedSetup, webServerPort: number): ResolvedGatewayConfig {
+/** Resolve only this WebServer's listener, retaining the older port-only contract. */
+export function resolveWebServerUpstreamOrigin(webServer: { readonly port: number; getOrigin?: () => string }): string {
+  const getOrigin = webServer.getOrigin
+  if (getOrigin !== undefined && typeof getOrigin !== 'function') {
+    throw new Error('DSH WebServer getOrigin must be a function when present')
+  }
+  const source = getOrigin === undefined
+    ? `http://127.0.0.1:${String(webServer.port)}`
+    : getOrigin.call(webServer)
+  const url = typeof source === 'string' ? URL.parse(source) : null
+  if (url === null || url.protocol !== 'http:' || url.port === ''
+    || isIP(url.hostname.replace(/^\[|\]$/gu, '')) === 0
+    || url.username !== '' || url.password !== '' || url.pathname !== '/'
+    || url.search !== '' || url.hash !== '') {
+    throw new Error('DSH Mobile requires an HTTP WebServer origin with an explicit port and no path or credentials')
+  }
+  // A wildcard listener accepts loopback; a concrete interface must keep its
+  // actual address so the cookie audience and every forwarded request agree.
+  if (url.hostname === '0.0.0.0') url.hostname = '127.0.0.1'
+  if (url.hostname === '[::]') url.hostname = '[::1]'
+  return url.origin
+}
+
+function loopbackTemplate(loaded: LoadedSetup, activeUpstreamOrigin: string, followsWebServer: boolean): ResolvedGatewayConfig {
   const base = withoutSetupKeys(loaded.config)
-  const activeUpstreamOrigin = `http://127.0.0.1:${String(webServerPort)}`
   return parseGatewayConfig({
     ...base,
-    ...(loaded.kind === 'managed'
+    ...(loaded.kind === 'managed' || followsWebServer
       ? { upstreamOrigin: activeUpstreamOrigin }
       : { upstreamOrigin: loaded.config.upstreamOrigin ?? activeUpstreamOrigin }),
     listenHost: '127.0.0.1',
@@ -381,7 +404,7 @@ function loopbackTemplate(loaded: LoadedSetup, webServerPort: number): ResolvedG
     publicAuthorities: ['127.0.0.1'],
     allowedCidrs: ['127.0.0.0/8'],
     tls: { mode: 'disabled' },
-  })
+  }, activeUpstreamOrigin)
 }
 
 async function stableInstanceId(loaded: LoadedSetup, template: ResolvedGatewayConfig): Promise<string> {
@@ -595,7 +618,9 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   let managedSetupOverride: ManagedSetup | undefined
   let lanRebindRecoveryRequired = false
   const mobileAccess: MobileAccessService = createMobileAccessService(ctx)
-  const baseTemplate = loopbackTemplate(loaded, ctx.webServer.port)
+  const activeUpstreamOrigin = resolveWebServerUpstreamOrigin(ctx.webServer)
+  const baseTemplate = loopbackTemplate(loaded, activeUpstreamOrigin,
+    typeof (ctx.webServer as { getOrigin?: unknown }).getOrigin === 'function')
   const { connection } = ctx as unknown as { readonly connection?: BrowserAuthenticatedConnection }
   const resolveUpstreamLogin = (): string | undefined => upstreamAuthenticatedUrl(ctx, baseTemplate.upstreamOrigin)
   // The modern provider can mount after Mobile. Do not snapshot a missing URL
@@ -611,12 +636,12 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const logFile = await installMobileFileLogger(ctx, stateDirectory)
   const logger = ctx.logger('dsh-mobile')
   logger.info('logging initialized file=%s', logFile)
-  if (loaded.kind === 'managed' && typeof ctx.webServer.port === 'number') {
-    // Keep the compatibility snapshot in step with the port the gateway actually
-    // follows; the value itself never selects the upstream.
+  if (loaded.kind === 'managed') {
+    // Keep the compatibility snapshot in step with the listener the gateway
+    // actually follows; the value itself never selects the upstream.
     try {
-      if (await refreshManagedUpstreamOrigin(loaded.setupFile, loaded.setup, ctx.webServer.port)) {
-        logger.info('dsh-mobile: refreshed the managed setup upstream snapshot to the active DSH port')
+      if (await refreshManagedUpstreamOrigin(loaded.setupFile, loaded.setup, activeUpstreamOrigin)) {
+        logger.info('dsh-mobile: refreshed the managed setup upstream snapshot to the active DSH origin')
       }
     } catch (error) {
       logger.warn('dsh-mobile: could not refresh the managed setup upstream snapshot: %s', error instanceof Error ? error.message : String(error))
@@ -926,7 +951,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     const resolved = withInstallationIdentity(parseGatewayConfig({
       ...candidateConfig,
       upstreamOrigin: template.upstreamOrigin.origin,
-    }), frpIdentity, candidateConfig.instanceId !== undefined)
+    }, activeUpstreamOrigin), frpIdentity, candidateConfig.instanceId !== undefined)
     const candidate = new MobileAccessGateway(
       resolved,
       new JsonDeviceStore(resolved.stateFile, resolved.maxDevices),
@@ -2056,18 +2081,18 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
         if (target.decodedPathname.startsWith(`${LOCAL_ADMIN_PREFIX}/remote/`)) {
           const active = remoteController().gateway()
           if (active === undefined) throw new HttpError(409, 'gateway_stopped')
-          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/remote`, authenticateDesktopAdmin).handler(request, response)
+          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/remote`, authenticateDesktopAdmin, baseTemplate.adminAllowedCidrs).handler(request, response)
           return
         }
         if (target.decodedPathname.startsWith(`${LOCAL_ADMIN_PREFIX}/lan/`)) {
           const active = lanGateway
           if (active === undefined) throw new HttpError(409, 'gateway_stopped')
-          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/lan`, authenticateDesktopAdmin).handler(request, response)
+          await active.localAdminRoute(`${LOCAL_ADMIN_PREFIX}/lan`, authenticateDesktopAdmin, baseTemplate.adminAllowedCidrs).handler(request, response)
           return
         }
         const active = lanGateway
         if (active === undefined) throw new HttpError(409, 'gateway_stopped')
-        await active.localAdminRoute(LOCAL_ADMIN_PREFIX, authenticateDesktopAdmin).handler(request, response)
+        await active.localAdminRoute(LOCAL_ADMIN_PREFIX, authenticateDesktopAdmin, baseTemplate.adminAllowedCidrs).handler(request, response)
       } catch (error) {
         const mapped = mapAdminError(error)
         if (response.headersSent) response.destroy()
