@@ -55,6 +55,7 @@ describe('AtomGit release mirror', () => {
       readonly on: {
         readonly push: { readonly tags: readonly string[] }
         readonly release?: { readonly types: readonly string[] }
+        readonly workflow_run?: { readonly workflows: readonly string[]; readonly types: readonly string[] }
         readonly workflow_dispatch?: { readonly inputs: Readonly<Record<string, unknown>> }
       }
       readonly jobs: Readonly<Record<string, {
@@ -63,12 +64,29 @@ describe('AtomGit release mirror', () => {
       }>>
     }
 
-    // A tag push alone cannot mirror a release whose assets are not built yet.
-    expect(mirror.on.release?.types).toEqual(['published'])
+    // A tag push alone cannot mirror a release whose assets are not built yet, and
+    // `release: published` never fires for this project's own releases: the Release
+    // workflow creates them with `github.token`, and GitHub does not start a workflow from
+    // an event its own GITHUB_TOKEN produced. Chaining on the release workflows is the
+    // only trigger that actually runs — v0.9.2 proved it, its mirror job was skipped.
+    expect(mirror.on.release).toBeUndefined()
+    expect(mirror.on.workflow_run?.types).toEqual(['completed'])
+    expect(mirror.on.workflow_run?.workflows).toContain('Release')
     expect(mirror.jobs['release']).toBeDefined()
-    expect(mirror.jobs['release']!.if).toContain("github.event_name == 'release'")
+    expect(mirror.jobs['release']!.if).toContain("github.event_name == 'workflow_run'")
 
     const steps = mirror.jobs['release']!.steps
+
+    // The tag arrives in the triggering run's branch, not in a release payload.
+    const resolve = steps.find(step => step.name === 'Resolve the tag to mirror')!.run!
+    // The workflow passes the run's branch in as an environment variable, so the script
+    // reads RUN_BRANCH rather than a GitHub expression.
+    expect(resolve).toContain('RUN_BRANCH')
+    expect(resolve).toContain('RUN_CONCLUSION')
+    // A failed build published nothing, so it must not be mirrored.
+    expect(resolve).toContain("!= 'success'")
+    expect(resolve).toContain('v*|android-v*|windows-v*')
+
     const gate = steps.find(step => step.name === 'Check the mirror token')!.run!
     expect(gate).toContain('ATOMGIT_TOKEN')
     // Without the token the job must skip visibly rather than fail the whole mirror.
@@ -76,7 +94,6 @@ describe('AtomGit release mirror', () => {
 
     const upload = steps.find(step => step.name === 'Mirror the release and its assets')!.run!
     expect(upload).toContain('node scripts/sync-atomgit-release.mjs')
-    // The tag comes from the release event, or from a manual dispatch when backfilling.
     expect(upload).toContain('${TAG}')
     expect(mirror.on.workflow_dispatch?.inputs).toHaveProperty('tag')
   })
