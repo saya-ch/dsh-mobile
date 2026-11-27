@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -25,17 +26,14 @@ public partial class MainWindow
     private static (string Hint, string Placeholder) PairModeCopy(string mode) => mode switch
     {
         "remote" => (
-            "跨网络访问：在电脑端「移动访问」里复制远程配对链接（https://你的域名/mobile-access/pair#…），"
-            + "粘贴到下面。域名需要能从这台电脑访问。",
-            "粘贴远程配对链接"),
+            Strings.Pairing_ModeRemoteHint,
+            Strings.Pairing_ModeRemotePlaceholder),
         "iroh" => (
-            "不需要公网端口：在电脑端复制 iroh 配对内容（JSON）粘到下面。"
-            + "第一次连接会下载并校验官方组件（约 14.8 MB）。",
-            "粘贴 iroh 配对内容（JSON）"),
+            Strings.Pairing_ModeIrohHint,
+            Strings.Pairing_ModeIrohPlaceholder),
         _ => (
-            "同一 Wi-Fi 或局域网里最快：复制电脑端的局域网配对链接（https://192.168.x.x:端口/mobile-access/pair#…），"
-            + "粘贴到下面。找不到链接时，可以在本机扫描。",
-            "粘贴局域网配对链接"),
+            Strings.Pairing_ModeLanHint,
+            Strings.Pairing_ModeLanPlaceholder),
     };
 
     private void DevicesPage_Loaded(object sender, RoutedEventArgs e)
@@ -114,7 +112,7 @@ public partial class MainWindow
         if (!lan)
         {
             DiscoveryPanel.Visibility = Visibility.Collapsed;
-            DiscoveryToggle.Content = "在本机查找电脑";
+            DiscoveryToggle.Content = Strings.Pairing_FindOnThisPc;
         }
     }
 
@@ -122,7 +120,7 @@ public partial class MainWindow
     {
         var reveal = DiscoveryPanel.Visibility != Visibility.Visible;
         DiscoveryPanel.Visibility = reveal ? Visibility.Visible : Visibility.Collapsed;
-        DiscoveryToggle.Content = reveal ? "收起查找" : "在本机查找电脑";
+        DiscoveryToggle.Content = reveal ? Strings.Pairing_HideFinder : Strings.Pairing_FindOnThisPc;
         if (reveal) AddressBox.Focus();
     }
 

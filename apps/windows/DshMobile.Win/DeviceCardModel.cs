@@ -1,3 +1,5 @@
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -32,13 +34,14 @@ internal sealed record DeviceCardModel(
     internal string StatusBrushToken => DeviceStatus.BrushToken(Status);
 
     /// <summary>Connection mode and identity, e.g. "局域网 · a1b2c3d4e5f6…".</summary>
-    internal string IdentityText => $"{ChannelLabel} · {ShortId}…";
+    internal string IdentityText => string.Format(Strings.DeviceCard_Identity, ChannelLabel, ShortId);
 
     /// <summary>
     /// Credential lifetime, or an empty string for a record with no recorded expiry.
     /// The caller appends this to <see cref="IdentityText"/>.
     /// </summary>
-    internal string ExpiryText => ExpiresAt > 0 ? "凭据至 " + RelativeTime.AbsoluteDate(ExpiresAt) : string.Empty;
+    internal string ExpiryText =>
+        ExpiresAt > 0 ? string.Format(Strings.DeviceCard_Expiry, RelativeTime.AbsoluteDate(ExpiresAt)) : string.Empty;
 
     /// <summary>
     /// Status plus recency, e.g. "可达 · 最近连接 3 分钟前" - or "可达 · 从未连接" for a
@@ -47,14 +50,14 @@ internal sealed record DeviceCardModel(
     internal string StatusLine(DateTimeOffset now)
     {
         var relative = RelativeTime.Format(LastConnectedAt, now);
-        var connected = LastConnectedAt > 0 ? "最近连接 " + relative : relative;
-        return StatusText + " · " + connected;
+        var connected = LastConnectedAt > 0 ? string.Format(Strings.DeviceCard_LastConnected, relative) : relative;
+        return string.Format(Strings.DeviceCard_StatusLine, StatusText, connected);
     }
 
     /// <summary>The one repair instruction a broken record needs, or null when it is fine.</summary>
     internal string? RepairHint => CanReconnect
         ? null
-        : "凭据已过期或不可读，粘贴该电脑当前链接即可更新";
+        : Strings.DeviceCard_RepairHint;
 
     /// <summary>The full secondary line under the name.</summary>
     internal string DetailText
@@ -62,7 +65,7 @@ internal sealed record DeviceCardModel(
         get
         {
             var expiry = ExpiryText;
-            return expiry.Length == 0 ? IdentityText : IdentityText + " · " + expiry;
+            return expiry.Length == 0 ? IdentityText : string.Format(Strings.DeviceCard_Detail, IdentityText, expiry);
         }
     }
 }

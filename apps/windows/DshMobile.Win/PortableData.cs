@@ -1,4 +1,5 @@
 using System.IO;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -15,13 +16,9 @@ namespace DshMobile.Win;
 /// </remarks>
 internal static class PortableData
 {
-    internal const string UnwritableTitle = "程序目录不可写";
+    internal static string UnwritableTitle => Strings.AppData_UnwritableTitle;
 
-    internal const string UnwritableMessage =
-        "程序目录不可写，设置、已配对电脑与日志都无法保存。\n\n" +
-        "请把整个程序文件夹放到可写目录（例如桌面、文档或 U 盘）后重新运行；" +
-        "不要放在 Program Files 等需要管理员权限的位置。\n\n" +
-        "本次运行仍可连接电脑，但退出后不会保留任何设置。";
+    internal static string UnwritableMessage => Strings.AppData_UnwritableMessage;
 
     internal const string ProbeFileName = ".write-probe";
 

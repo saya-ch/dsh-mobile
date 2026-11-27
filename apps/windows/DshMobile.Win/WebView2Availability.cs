@@ -1,3 +1,5 @@
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -16,14 +18,10 @@ internal static class WebView2Availability
 {
     internal const string DownloadUrl = "https://developer.microsoft.com/microsoft-edge/webview2";
 
-    internal const string MissingTitle = "缺少 WebView2 运行时";
+    internal static string MissingTitle => Strings.WebView_RuntimeMissingTitle;
 
-    internal const string MissingMessage =
-        "这台电脑没有安装 Microsoft Edge WebView2 运行时，客户端无法显示 DSH 页面。\n\n" +
-        "请安装后重新打开客户端：\n" +
-        DownloadUrl + "\n\n" +
-        "Windows 11 通常已自带；Windows 10 需要安装一次 Evergreen Runtime。\n" +
-        "如果已安装仍提示缺失，请确认安装的是 x64 版本。";
+    internal static string MissingMessage =>
+        string.Format(Strings.WebView_RuntimeMissingMessage, DownloadUrl);
 
     /// <summary>
     /// True when the probe returns a parseable runtime version.

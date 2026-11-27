@@ -8,6 +8,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 internal sealed record NativeSession(
@@ -80,7 +82,8 @@ internal static class GatewayAuth
         var outcome = PairingTrustPolicy.Decide(status, device);
         if (outcome == CaBootstrapOutcome.PlatformTrust) return null;
         if (outcome == CaBootstrapOutcome.Reject)
-            throw new InvalidOperationException($"获取配对 CA 失败: {statusLine.Trim()}");
+            throw new InvalidOperationException(string.Format(
+                Strings.Diagnosis_CaFetchFailed, statusLine.Trim()));
         var body = raw[(headerEnd + 4)..];
         if (headers.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase))
             body = DecodeChunkedBytes(body);
@@ -103,11 +106,11 @@ internal static class GatewayAuth
         else
         {
             var text = Encoding.ASCII.GetString(body).Trim();
-            if (text.Length == 0) throw new InvalidOperationException("ca.cer 响应为空");
+            if (text.Length == 0) throw new InvalidOperationException(Strings.Diagnosis_CaResponseEmpty);
             der = Convert.FromBase64String(text);
         }
         var ca = CertificatePolicy.ValidateFetchedCa(der, device.InstanceId)
-            ?? throw new InvalidOperationException("配对 CA 与二维码指纹不匹配，连接的电脑可能不是二维码指向的那台");
+            ?? throw new InvalidOperationException(Strings.Diagnosis_CaFingerprintMismatch);
         return ca;
     }
 
@@ -116,7 +119,8 @@ internal static class GatewayAuth
         var addresses = await Dns.GetHostAddressesAsync(device.Hostname, token);
         var address = addresses.FirstOrDefault(a =>
                 a.AddressFamily == AddressFamily.InterNetwork || a.AddressFamily == AddressFamily.InterNetworkV6)
-            ?? throw new InvalidOperationException($"无法解析主机 {device.Hostname}");
+            ?? throw new InvalidOperationException(
+                string.Format(Strings.Pairing_HostUnresolved, device.Hostname));
         var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
         await socket.ConnectAsync(address, device.LocalPort, token);
         var network = new NetworkStream(socket, ownsSocket: true);
@@ -140,7 +144,7 @@ internal static class GatewayAuth
                 // fingerprint check on that CA (ValidateFetchedCa).
                 options.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
             else if (!bootstrap && !device.PlatformTrust)
-                throw new InvalidOperationException("没有信任锚：缺少配对 CA 且不允许平台信任");
+                throw new InvalidOperationException(Strings.Diagnosis_NoTrustAnchor);
             // A platform-trust device (dsh1 remote, 404 ca.cer) gets Schannel default
             // validation by leaving the callback unset.
             await ssl.AuthenticateAsClientAsync(options, token);

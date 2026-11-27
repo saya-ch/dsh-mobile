@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -56,21 +57,21 @@ internal sealed record UrlPairing(
     internal static UrlPairing Parse(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw) || Encoding.UTF8.GetByteCount(raw) > MaxBytes)
-            throw new FormatException("配对链接为空或超长");
+            throw new FormatException(Strings.Pairing_UrlEmpty);
 
-        var uri = TryUri(raw.Trim()) ?? throw new FormatException("不是有效的 URL");
+        var uri = TryUri(raw.Trim()) ?? throw new FormatException(Strings.Pairing_UrlNotUrl);
         if (!uri.IsAbsoluteUri || uri.Scheme != "https")
-            throw new FormatException("只接受 https:// 配对链接");
+            throw new FormatException(Strings.Pairing_UrlMustBeHttps);
         // Uri.UserInfo / Uri.Query are "" (never null) when absent.
         if (uri.UserInfo.Length > 0 || uri.Query.Length > 0)
-            throw new FormatException("配对链接不能包含用户信息或查询参数");
+            throw new FormatException(Strings.Pairing_UrlUserInfo);
         if (uri.AbsolutePath != PairPath && uri.AbsolutePath != "/" && uri.AbsolutePath != string.Empty)
-            throw new FormatException($"配对链接路径必须是 {PairPath}");
+            throw new FormatException(string.Format(Strings.Pairing_UrlPath, PairPath));
 
         var host = CanonicalHost(uri.Host)
-            ?? throw new FormatException("主机名格式无效");
+            ?? throw new FormatException(Strings.Pairing_HostInvalid);
         var port = uri.Port == -1 ? 443 : uri.Port;
-        if (port is < 1 or > 65535) throw new FormatException("端口超出范围");
+        if (port is < 1 or > 65535) throw new FormatException(Strings.Pairing_PortInvalid);
 
         string? fragment = uri.Fragment.Length > 1 ? uri.Fragment[1..] : null;
         string token;
@@ -78,13 +79,13 @@ internal sealed record UrlPairing(
         bool requiresCa;
         if (fragment is null)
         {
-            throw new FormatException("缺少配对凭据（fragment 必须包含 instance/token 或 key=…）");
+            throw new FormatException(Strings.Pairing_UrlNoCredential);
         }
         if (fragment.StartsWith("key=", StringComparison.Ordinal))
         {
             var match = System.Text.RegularExpressions.Regex.Match(
                 fragment[4..], "^dsh([12])\\.([a-f0-9]{64})\\.([A-Za-z0-9_-]{43})$");
-            if (!match.Success) throw new FormatException("key= 配对码格式无效");
+            if (!match.Success) throw new FormatException(Strings.Pairing_UrlKeyFormat);
             instanceId = match.Groups[2].Value;
             token = match.Groups[3].Value;
             requiresCa = match.Groups[1].Value == "2";
@@ -93,7 +94,7 @@ internal sealed record UrlPairing(
         {
             if (!System.Text.RegularExpressions.Regex.IsMatch(
                     fragment, AllowedFragments[0]))
-                throw new FormatException("instance/token 配对码格式无效");
+                throw new FormatException(Strings.Pairing_UrlInstanceFormat);
             instanceId = fragment["instance=".Length..][..64];
             var tokenStart = "instance=".Length + 64 + "&token=".Length;
             token = fragment[tokenStart..];

@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -163,7 +165,7 @@ internal sealed class BackgroundEventWatcher : IDisposable
         if (notification.Event == "device-revoked")
         {
             _log("device revoked by the computer");
-            Revoked?.Invoke("电脑端已撤销此设备");
+            Revoked?.Invoke(Strings.Notify_RevokedByComputer);
             return;
         }
         if (notification.Event != "task-notify") return;
@@ -186,6 +188,8 @@ internal sealed class BackgroundEventWatcher : IDisposable
         error.Message.Contains("device_revoked", StringComparison.Ordinal) ||
         error.Message.Contains("device_expired", StringComparison.Ordinal) ||
         error.Message.Contains("device credential", StringComparison.OrdinalIgnoreCase) ||
+        // Matching token, not UI copy: it recognises the credential failure the gateway
+        // reports in prose. It stays a literal on purpose (see Resources/README.md).
         error.Message.Contains("设备凭据", StringComparison.Ordinal);
 
     private static bool IsAuthRejection(Exception error) =>

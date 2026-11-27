@@ -1,4 +1,5 @@
 using System.Globalization;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -16,10 +17,10 @@ namespace DshMobile.Win;
 internal static class RelativeTime
 {
     /// <summary>Shown when the record has no connection timestamp at all.</summary>
-    internal const string Never = "从未连接";
+    internal static string Never => Strings.RelativeTime_Never;
 
     /// <summary>Shown for anything under a minute old, including clock skew.</summary>
-    internal const string JustNow = "刚刚";
+    internal static string JustNow => Strings.RelativeTime_JustNow;
 
     private const long MinuteMs = 60_000L;
     private const long HourMs = 60 * MinuteMs;
@@ -36,9 +37,12 @@ internal static class RelativeTime
         var elapsed = now.ToUnixTimeMilliseconds() - unixMilliseconds;
         if (elapsed < 0) elapsed = 0;
         if (elapsed < MinuteMs) return JustNow;
-        if (elapsed < HourMs) return Math.Max(1L, elapsed / MinuteMs).ToString(CultureInfo.InvariantCulture) + " 分钟前";
-        if (elapsed < DayMs) return Math.Max(1L, elapsed / HourMs).ToString(CultureInfo.InvariantCulture) + " 小时前";
-        if (elapsed < WeekMs) return Math.Max(1L, elapsed / DayMs).ToString(CultureInfo.InvariantCulture) + " 天前";
+        if (elapsed < HourMs) return string.Format(Strings.RelativeTime_MinutesAgo,
+            Math.Max(1L, elapsed / MinuteMs).ToString(CultureInfo.InvariantCulture));
+        if (elapsed < DayMs) return string.Format(Strings.RelativeTime_HoursAgo,
+            Math.Max(1L, elapsed / HourMs).ToString(CultureInfo.InvariantCulture));
+        if (elapsed < WeekMs) return string.Format(Strings.RelativeTime_DaysAgo,
+            Math.Max(1L, elapsed / DayMs).ToString(CultureInfo.InvariantCulture));
         return DateTimeOffset.FromUnixTimeMilliseconds(unixMilliseconds).ToLocalTime()
             .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }

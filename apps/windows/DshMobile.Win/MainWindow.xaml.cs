@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Interop;
+using DshMobile.Win.Resources;
 using Microsoft.Web.WebView2.Core;
 
 namespace DshMobile.Win;
@@ -197,10 +198,10 @@ public partial class MainWindow : Window
     private async Task CheckForUpdateAsync()
     {
         CheckUpdateButton.IsEnabled = false;
-        CheckUpdateButton.Content = "检查中…";
+        CheckUpdateButton.Content = Strings.Update_CheckingButton;
         ManualUpdateButton.Visibility = Visibility.Collapsed;
         ShowUpdateProgress(false);
-        SetUpdateText("正在检查…", error: false);
+        SetUpdateText(Strings.Update_Checking, error: false);
         try
         {
             using var client = NewGitHubClient(TimeSpan.FromSeconds(15));
@@ -209,38 +210,36 @@ public partial class MainWindow : Window
             if (latest is null)
             {
                 _updateRelease = null;
-                CheckUpdateButton.Content = "检查更新";
-                SetUpdateText($"已是最新版本（{CurrentVersion}）。", error: false);
+                CheckUpdateButton.Content = Strings.Update_Check;
+                SetUpdateText(string.Format(Strings.Update_UpToDate, CurrentVersion), error: false);
             }
             else if (latest.SetupUrl is null)
             {
                 // An older release carries only the portable zip: there is nothing this
                 // flow can install and verify, so the row points at the release page.
                 _updateRelease = null;
-                CheckUpdateButton.Content = "检查更新";
+                CheckUpdateButton.Content = Strings.Update_Check;
                 SetUpdateText(
-                    $"发现新版本 {latest.Version}（当前 {CurrentVersion}），但该版本没有提供安装包，无法自动更新。" +
-                    "请手动下载：" + UpdateCheck.ReleasesPage, error: false);
+                    string.Format(Strings.Update_FoundNoInstaller,
+                        latest.Version, CurrentVersion, UpdateCheck.ReleasesPage), error: false);
                 RevealManualDownload();
             }
             else
             {
                 _updateRelease = latest;
-                CheckUpdateButton.Content = $"更新到 {latest.Version}";
+                CheckUpdateButton.Content = string.Format(Strings.Update_To, latest.Version);
                 SetUpdateText(
-                    $"发现新版本 {latest.Version}（当前 {CurrentVersion}）。" +
-                    $"点击「更新到 {latest.Version}」开始下载；下载并校验通过后客户端会退出，由安装程序替换文件，" +
-                    @"data\ 中的配对、设置与日志会保留。", error: false);
+                    string.Format(Strings.Update_Found, latest.Version, CurrentVersion), error: false);
             }
         }
         catch (Exception error)
         {
             Log("update check failed: " + error);
             _updateRelease = null;
-            CheckUpdateButton.Content = "检查更新";
+            CheckUpdateButton.Content = Strings.Update_Check;
             SetUpdateText(
-                "检查失败：" + UpdatePayload.DescribeCheckFailure(error) +
-                "。可以稍后重试，或手动打开 " + UpdateCheck.ReleasesPage + " 查看。", error: true);
+                string.Format(Strings.Update_CheckFailed,
+                    UpdatePayload.DescribeCheckFailure(error), UpdateCheck.ReleasesPage), error: true);
             RevealManualDownload();
         }
         finally
@@ -257,11 +256,11 @@ public partial class MainWindow : Window
         _updateCts = new CancellationTokenSource();
         var token = _updateCts.Token;
         CheckUpdateButton.IsEnabled = false;
-        CheckUpdateButton.Content = "正在下载…";
+        CheckUpdateButton.Content = Strings.Update_Downloading;
         CancelUpdateButton.IsEnabled = true;
         ManualUpdateButton.Visibility = Visibility.Collapsed;
         SetUpdateText(
-            $"正在下载 {release.Version} 的安装包…下载并校验通过后客户端会退出，由安装程序替换文件。",
+            string.Format(Strings.Update_DownloadingDetail, release.Version),
             error: false);
         ShowUpdateProgress(true);
         SetProgress(UpdateStage.Download, 0, null);
@@ -282,7 +281,7 @@ public partial class MainWindow : Window
             }
             ShowUpdateProgress(false);
             SetUpdateText(
-                $"安装程序已启动，客户端正在退出以完成更新。安装完成后请重新打开 DSH Mobile（{release.Version}）。",
+                string.Format(Strings.Update_InstallerStarted, release.Version),
                 error: false);
             Log("update installer started: " + release.Version);
             // One painted frame so the line above is readable before the window goes.
@@ -292,15 +291,15 @@ public partial class MainWindow : Window
         catch (OperationCanceledException)
         {
             ShowUpdateProgress(false);
-            SetUpdateText("已取消更新，未做任何更改。", error: false);
-            CheckUpdateButton.Content = $"更新到 {release.Version}";
+            SetUpdateText(Strings.Update_Cancelled, error: false);
+            CheckUpdateButton.Content = string.Format(Strings.Update_To, release.Version);
             CheckUpdateButton.IsEnabled = true;
         }
         catch (Exception error)
         {
             ShowUpdateFailure(
                 new UpdateFailure(
-                    "更新失败：" + error.Message + "。请重试，或手动下载：" + UpdateCheck.ReleasesPage,
+                    string.Format(Strings.Update_Failed, error.Message, UpdateCheck.ReleasesPage),
                     error.Message),
                 release);
         }
@@ -323,17 +322,19 @@ public partial class MainWindow : Window
         CancelUpdateButton.IsEnabled = true;
         if (failure.Cancelled)
         {
-            SetUpdateText("已取消更新，未做任何更改。", error: false);
+            SetUpdateText(Strings.Update_Cancelled, error: false);
         }
         else
         {
             SetUpdateText(
                 failure.Message +
-                (string.IsNullOrEmpty(failure.Detail) ? string.Empty : "\n详细信息：" + failure.Detail),
+                (string.IsNullOrEmpty(failure.Detail)
+                    ? string.Empty
+                    : string.Format(Strings.Update_Detail, failure.Detail)),
                 error: true);
             RevealManualDownload();
         }
-        CheckUpdateButton.Content = $"更新到 {release.Version}";
+        CheckUpdateButton.Content = string.Format(Strings.Update_To, release.Version);
         CheckUpdateButton.IsEnabled = true;
     }
 
@@ -392,7 +393,7 @@ public partial class MainWindow : Window
     {
         if (!_updateRunning) return;
         CancelUpdateButton.IsEnabled = false;
-        UpdateProgressText.Text = "正在取消…";
+        UpdateProgressText.Text = Strings.Update_Cancelling;
         _updateCts?.Cancel();
     }
 
@@ -406,8 +407,8 @@ public partial class MainWindow : Window
         catch (Exception error)
         {
             Log("open releases page failed: " + error);
-            MessageBox.Show(this, "无法打开浏览器，请手动访问：" + UpdateCheck.ReleasesPage,
-                "打开下载页失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, string.Format(Strings.Update_OpenBrowserFailed, UpdateCheck.ReleasesPage),
+                Strings.Update_OpenDownloadPageFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -439,8 +440,9 @@ public partial class MainWindow : Window
     {
         Log("portable data folder is not writable: " + (_dataFolderError ?? "unknown"));
         var result = MessageBox.Show(this,
-            PortableData.UnwritableMessage + "\n\n详细错误：" + (_dataFolderError ?? "未知") +
-            $"\n\n数据目录：{DataRoot}",
+            PortableData.UnwritableMessage +
+            string.Format(Strings.AppData_DetailError, _dataFolderError ?? Strings.AppData_Unknown) +
+            string.Format(Strings.AppData_DataDirectory, DataRoot),
             PortableData.UnwritableTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
         _ = result;
     }
@@ -552,25 +554,26 @@ public partial class MainWindow : Window
     {
         if (_core is null)
         {
-            MessageBox.Show("先连接一次，WebView 数据才有可清除的内容。", "清除站点数据",
+            MessageBox.Show(Strings.Settings_ClearNeedConnect, Strings.Settings_ClearSiteData,
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         var confirm = MessageBox.Show(
-            "清除 WebView 的缓存、Cookie 与本地存储？\n已配对的电脑与凭据不受影响。",
-            "清除站点数据", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+            Strings.Settings_ClearConfirm,
+            Strings.Settings_ClearSiteData, MessageBoxButton.OKCancel, MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.OK) return;
         try
         {
             await _core.Profile.ClearBrowsingDataAsync();
             Log("site data cleared");
-            MessageBox.Show("已清除。重新连接后会重新载入页面。", "清除站点数据",
+            MessageBox.Show(Strings.Settings_ClearDone, Strings.Settings_ClearSiteData,
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception error)
         {
             Log("site data clear failed: " + error);
-            MessageBox.Show("清除失败：" + error.Message, "清除站点数据",
+            MessageBox.Show(string.Format(Strings.Settings_ClearFailed, error.Message),
+                Strings.Settings_ClearSiteData,
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -578,7 +581,7 @@ public partial class MainWindow : Window
     private void ShowAddPanel(bool show)
     {
         AddPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        AddToggleButton.Content = show ? "收起" : "添加新电脑";
+        AddToggleButton.Content = show ? Strings.DeviceList_Collapse : Strings.DeviceList_AddComputer;
     }
 
     /// <summary>
@@ -626,8 +629,8 @@ public partial class MainWindow : Window
                     if (link.InstanceId != _pendingAdopt.InstanceId)
                     {
                         MessageBox.Show(this,
-                            "新链接不是同一台电脑（instanceId 不一致），已保留原记录。",
-                            "无法更新地址", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            Strings.Pairing_UpdateAddressNotSame,
+                            Strings.Pairing_UpdateAddressTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
                     device = _pendingAdopt.AdoptNewOrigin(link);
@@ -640,9 +643,10 @@ public partial class MainWindow : Window
                     if (_selectedDiscovery is not null && link.Origin != _selectedDiscovery.Origin)
                     {
                         var confirm = MessageBox.Show(this,
-                            $"配对链接指向 {link.Origin}，与已选中的发现结果 {_selectedDiscovery.Origin} 不一致。\n\n" +
-                            "可能是贴错了另一台电脑的链接。继续配对吗？",
-                            "地址不一致", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                            string.Format(Strings.Pairing_OriginMismatch,
+                                link.Origin, _selectedDiscovery.Origin),
+                            Strings.Pairing_OriginMismatchTitle,
+                            MessageBoxButton.YesNo, MessageBoxImage.Warning);
                         if (confirm != MessageBoxResult.Yes) return;
                     }
                     _selectedDiscovery = null;
@@ -655,9 +659,9 @@ public partial class MainWindow : Window
             {
                 Log($"descriptor rejected: iroh={irohError.Message} url={urlError.Message}");
                 MessageBox.Show(this,
-                    "配对内容无效。\n\niroh 描述符错误：" + irohError.Message +
-                    "\n配对链接错误：" + urlError.Message,
-                    "配对内容无效", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    string.Format(Strings.Pairing_InvalidContent,
+                        irohError.Message, urlError.Message),
+                    Strings.Pairing_InvalidContentTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
         }
@@ -691,7 +695,7 @@ public partial class MainWindow : Window
             }
             if (found.Count == 0)
             {
-                ShowDiscoveryHint("广播没有回应，正在逐个探测本机所在网段…");
+                ShowDiscoveryHint(Strings.Pairing_ScanNoBroadcast);
                 foreach (var local in LocalIPv4s())
                 {
                     await foreach (var gateway in LanDiscovery.ScanSubnetAsync(
@@ -703,18 +707,18 @@ public partial class MainWindow : Window
                 }
             }
             if (found.Count == 0)
-                ShowDiscoveryHint("没有发现电脑：请确认电脑端网关正在运行且与本机在同一网络，或在上方手动输入地址查找。");
+                ShowDiscoveryHint(Strings.Pairing_ScanNotFound);
             else
                 Log($"discovery found {found.Count} computer(s)");
         }
         catch (OperationCanceledException)
         {
-            if (found.Count == 0) ShowDiscoveryHint("扫描超时，仍可手动输入地址查找。");
+            if (found.Count == 0) ShowDiscoveryHint(Strings.Pairing_ScanTimeout);
         }
         catch (Exception error)
         {
             Log("discovery scan failed: " + error.Message);
-            ShowDiscoveryHint("扫描失败：" + error.Message);
+            ShowDiscoveryHint(string.Format(Strings.Pairing_ScanFailed, error.Message));
         }
         finally
         {
@@ -734,7 +738,8 @@ public partial class MainWindow : Window
         }
         catch (FormatException error)
         {
-            MessageBox.Show(this, "地址无效：" + error.Message, "查找电脑",
+            MessageBox.Show(this, string.Format(Strings.Pairing_InvalidAddress, error.Message),
+                Strings.Pairing_FindTitle,
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -752,8 +757,8 @@ public partial class MainWindow : Window
         catch (Exception error)
         {
             Log("probe failed: " + error.Message);
-            MessageBox.Show(this, "找不到网关：" + error.Message + "\n\n请确认电脑端网关正在运行、地址正确且网络可达。",
-                "查找电脑", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, string.Format(Strings.Pairing_GatewayNotFound, error.Message),
+                Strings.Pairing_FindTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -771,8 +776,8 @@ public partial class MainWindow : Window
     private void SelectDiscovery(DiscoveredGateway gateway)
     {
         _selectedDiscovery = gateway;
-        ShowDiscoveryHint($"已选中「{gateway.DeviceName}」（{gateway.Origin}）。" +
-            "请在上方粘贴这台电脑的配对链接后配对；链接地址不一致时会提醒确认。");
+        ShowDiscoveryHint(string.Format(Strings.Pairing_SelectedHint,
+            gateway.DeviceName, gateway.Origin));
     }
 
     private void AddFoundCard(DiscoveredGateway gateway)
@@ -786,9 +791,9 @@ public partial class MainWindow : Window
         info.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryTextBrush");
         var select = new Button
         {
-            Content = "选用", Width = 80,
+            Content = Strings.Pairing_SelectFound, Width = 80,
             Margin = new Thickness(12, 0, 0, 0), Tag = gateway,
-            ToolTip = "记住这台电脑，粘贴配对链接时校验地址是否一致",
+            ToolTip = Strings.Pairing_SelectFoundTooltip,
         };
         select.Click += SelectDiscovery_Click;
         var grid = new Grid();
@@ -820,7 +825,7 @@ public partial class MainWindow : Window
     {
         ScanButton.IsEnabled = enabled;
         ProbeButton.IsEnabled = enabled;
-        ScanButton.Content = enabled ? "扫描局域网" : "扫描中…";
+        ScanButton.Content = enabled ? Strings.Pairing_Scan : Strings.Pairing_ScanRunning;
     }
 
     private static IEnumerable<string> LocalIPv4s()
@@ -849,9 +854,8 @@ public partial class MainWindow : Window
             ShowAddPanel(true);
             DescriptorBox.Focus();
             _pendingAdopt = device;
-            MessageBox.Show(this, "这台电脑的设备凭据已过期或无法读取。" +
-                "请粘贴这台电脑当前的配对链接，地址与名称会自动更新。",
-                "需要重新配对", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, Strings.Pairing_ReneedBody,
+                Strings.Pairing_ReneedTitle, MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
         await ConnectToAsync(device, null, null);
@@ -874,7 +878,7 @@ public partial class MainWindow : Window
         if (_current?.EndpointId == device.EndpointId)
         {
             _current.Name = dialog.DeviceName;
-            BrowserTitle.Text = "已连接 · " + dialog.DeviceName;
+            BrowserTitle.Text = string.Format(Strings.Connect_Connected, dialog.DeviceName);
             if (_carrier is not null) Title = "DeepSeek Harness — " + dialog.DeviceName;
         }
         Log($"renamed saved device {device.EndpointId} -> {dialog.DeviceName}");
@@ -912,7 +916,7 @@ public partial class MainWindow : Window
             NativeSession session;
             if (isIroh)
             {
-                SetProgress("正在连接 iroh");
+                SetProgress(Strings.Connect_ConnectingIroh);
                 var carrier = await StartCarrierWithRetryAsync(device, pairingCode, _connectCts.Token);
                 _carrier = carrier;
                 carrier.Failed += reason =>
@@ -923,13 +927,13 @@ public partial class MainWindow : Window
                         Dispatcher.BeginInvoke(new Action(() =>
                         {
                             if (_carrier is null) return;
-                            SetProgress("连接已中断");
+                            SetProgress(Strings.Connect_Interrupted);
                             // The progress line lives on the connect page, which is
                             // hidden while the user is reading the page. The bar stays
                             // visible, so the disconnect has to show up there too.
-                            BrowserTitle.Text = "连接已中断 · " + device.Name;
+                            BrowserTitle.Text = string.Format(Strings.Connect_InterruptedTitle, device.Name);
                             if (_settings.BackgroundNotifications)
-                                ShowTrayBalloon("连接已中断", reason, System.Windows.Forms.ToolTipIcon.Warning);
+                                ShowTrayBalloon(Strings.Connect_Interrupted, reason, System.Windows.Forms.ToolTipIcon.Warning);
                         }));
                     }
                     catch { /* window closed */ }
@@ -939,7 +943,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                SetProgress("正在验证电脑");
+                SetProgress(Strings.Connect_VerifyingComputer);
                 if (gatewayToken is not null && !device.HasPinnedCa)
                 {
                     var ca = await GatewayAuth.FetchCaAsync(device, _connectCts.Token);
@@ -959,7 +963,7 @@ public partial class MainWindow : Window
                 session = await AuthorizeAsync(device, pairingCode, gatewayToken);
             }
 
-            SetProgress("正在加载页面");
+            SetProgress(Strings.Connect_LoadingPage);
             var webViewTask = EnsureWebViewAsync();
             var webViewTimeout = Task.Delay(TimeSpan.FromSeconds(25), _connectCts.Token);
             if (await Task.WhenAny(webViewTask, webViewTimeout) != webViewTask)
@@ -970,8 +974,7 @@ public partial class MainWindow : Window
             // its error event when Chromium's own validation fails, so verify the pin
             // over a real handshake before handing the origin to the browser.
             if (!await VerifyPinnedOriginAsync(device, _connectCts.Token, Log))
-                throw new InvalidOperationException(
-                    "无法用配对时固定的证书验证这台电脑：可能是网络不通，也可能证书与配对时不一致");
+                throw new InvalidOperationException(Strings.Connect_PinnedCertVerifyFailed);
             _current = device;
             InstallCookies(session);
             await ClearCachedCertificateDecisionsAsync();
@@ -1005,8 +1008,8 @@ public partial class MainWindow : Window
                 // credential expired: offer to paste the computer's current
                 // link and keep the saved name.
                 var update = MessageBox.Show(this,
-                    hint + "\n\n是否用这台电脑当前的配对链接更新地址？（需同一台电脑，保留名称）",
-                    "连接失败", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    string.Format(Strings.Connect_OfferAdopt, hint),
+                    Strings.Connect_FailedTitle, MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (update == MessageBoxResult.Yes)
                 {
                     _pendingAdopt = device;
@@ -1016,7 +1019,7 @@ public partial class MainWindow : Window
                 }
                 return;
             }
-            MessageBox.Show(this, hint, "连接失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, hint, Strings.Connect_FailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -1028,7 +1031,7 @@ public partial class MainWindow : Window
     /// <summary>Shared Gateway auth for both transports; saves the device credential on pairing.</summary>
     private async Task<NativeSession> AuthorizeAsync(SavedDevice device, string? pairingCode, string? gatewayToken)
     {
-        SetProgress("正在授权");
+        SetProgress(Strings.Connect_Authorizing);
         if (pairingCode is not null && gatewayToken is not null ||
             device.Channel != "iroh" && gatewayToken is not null)
         {
@@ -1041,7 +1044,7 @@ public partial class MainWindow : Window
             return session;
         }
         var token = device.GetDeviceToken()
-            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+            ?? throw new InvalidOperationException(Strings.Connect_CredentialUnavailable);
         var renewed = await GatewayAuth.RenewAsync(device, token, _connectCts!.Token);
         Log("session renewed without a QR code");
         return renewed;
@@ -1055,7 +1058,7 @@ public partial class MainWindow : Window
             or ConnectionFailureKind.CaMismatch)
         {
             var prefix = device.ShortId;
-            return (failure.Hint + $"\n\n实例：{prefix}…", failure.Repair);
+            return (failure.Hint + string.Format(Strings.Connect_InstanceSuffix, prefix), failure.Repair);
         }
         return (failure.Hint, failure.Repair);
     }
@@ -1112,7 +1115,7 @@ public partial class MainWindow : Window
     {
         // The sidecar is not bundled: acquire the pinned official artifact (verified
         // by byte count + SHA-256) once before the retry loop starts.
-        SetProgress("正在准备 iroh 组件");
+        SetProgress(Strings.Connect_PreparingIroh);
         var sidecarPath = await SidecarProvisioner.EnsureAsync(DataRoot, Log, ct);
         for (var attempt = 1; ; attempt++)
         {
@@ -1132,7 +1135,7 @@ public partial class MainWindow : Window
                 carrier.Dispose();
                 if (!transient) throw;
                 Log($"iroh attempt {attempt}/{MaxConnectAttempts} failed ({error.Message}); retrying with a fresh Endpoint");
-                SetProgress($"正在重试连接 ({attempt + 1}/{MaxConnectAttempts})");
+                SetProgress(string.Format(Strings.Connect_Retrying, attempt + 1, MaxConnectAttempts));
             }
         }
     }
@@ -1217,7 +1220,7 @@ public partial class MainWindow : Window
         WebView.Visibility = Visibility.Visible;
         ConnectPage.Visibility = Visibility.Collapsed;
         Title = "DeepSeek Harness — " + device.Name;
-        BrowserTitle.Text = "已连接 · " + device.Name;
+        BrowserTitle.Text = string.Format(Strings.Connect_Connected, device.Name);
         BackButton.Visibility = Visibility.Visible;
         BrowserTitle.Visibility = Visibility.Visible;
         DisconnectButton.Visibility = Visibility.Visible;
@@ -1362,7 +1365,7 @@ public partial class MainWindow : Window
         e.Cancel = true;
         Log("blocked navigation outside the paired gateway: " + e.Uri);
         if (IsExternalHttps(e.Uri)) OpenInSystemBrowser(e.Uri);
-        else NotifyPolicyOnce("navigation", "已阻止非网关地址的导航。");
+        else NotifyPolicyOnce("navigation", Strings.WebView_BlockedNavigation);
     }
 
     private void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
@@ -1370,7 +1373,7 @@ public partial class MainWindow : Window
         e.Handled = true;
         Log("blocked new window: " + e.Uri);
         if (IsExternalHttps(e.Uri)) OpenInSystemBrowser(e.Uri);
-        else NotifyPolicyOnce("popup", "已阻止弹出窗口。");
+        else NotifyPolicyOnce("popup", Strings.WebView_BlockedPopup);
     }
 
     private void OnDownloadStarting(object? sender, CoreWebView2DownloadStartingEventArgs e)
@@ -1396,7 +1399,7 @@ public partial class MainWindow : Window
         e.Cancel = true;
         e.Handled = true;
         Log("blocked off-origin download: " + e.DownloadOperation.Uri);
-        NotifyPolicyOnce("download", "已阻止非网关地址的下载。");
+        NotifyPolicyOnce("download", Strings.WebView_BlockedDownload);
     }
 
     private void OnPermissionRequested(object? sender, CoreWebView2PermissionRequestedEventArgs e)
@@ -1421,7 +1424,7 @@ public partial class MainWindow : Window
         // A renderer/frame crash can be reloaded; a browser process exit cannot.
         if (e.ProcessFailedKind == CoreWebView2ProcessFailedKind.BrowserProcessExited)
         {
-            NotifyPolicyOnce("browser-exit", "浏览器进程已退出，请断开后重新连接。");
+            NotifyPolicyOnce("browser-exit", Strings.WebView_BrowserExited);
             return;
         }
         try
@@ -1429,7 +1432,7 @@ public partial class MainWindow : Window
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_core is null || _current is null) return;
-                NotifyPolicyOnce("renderer-reload", "页面进程异常，正在重新加载。");
+                NotifyPolicyOnce("renderer-reload", Strings.WebView_RendererReloading);
                 _core.Reload();
             }));
         }
@@ -1445,7 +1448,7 @@ public partial class MainWindow : Window
         try
         {
             Dispatcher.BeginInvoke(new Action(() =>
-                MessageBox.Show(this, message, "Windows 客户端", MessageBoxButton.OK, MessageBoxImage.Information)));
+                MessageBox.Show(this, message, Strings.WebView_NoticeTitle, MessageBoxButton.OK, MessageBoxImage.Information)));
         }
         catch { /* window closed */ }
     }
@@ -1532,21 +1535,22 @@ public partial class MainWindow : Window
         var watcher = new BackgroundEventWatcher(device, RenewForWatcherAsync, Log);
         watcher.TaskNotified += (title, body) => Dispatcher.BeginInvoke(new Action(() =>
             ShowTrayBalloon(
-                ClipNotifyText(title, "任务完成", 60),
-                ClipNotifyText(body, "电脑端任务有更新，点击查看。", 240),
+                ClipNotifyText(title, Strings.Notify_TaskComplete, 60),
+                ClipNotifyText(body, Strings.Notify_TaskUpdate, 240),
                 System.Windows.Forms.ToolTipIcon.Info)));
         watcher.Revoked += reason => Dispatcher.BeginInvoke(new Action(() =>
         {
             // Keep the icon alive until the balloon has been shown; hiding it first
             // discarded the notification the user needs to see.
             StopTaskWatcher(keepTrayIcon: true);
-            ShowTrayBalloon("设备已失效", reason + "。请粘贴该电脑当前的配对链接更新。",
+            ShowTrayBalloon(Strings.Notify_DeviceRevokedTitle,
+                string.Format(Strings.Notify_DeviceRevokedBody, reason),
                 System.Windows.Forms.ToolTipIcon.Warning);
         }));
         _watcher = watcher;
         EnsureTrayIcon();
         _trayIcon!.Visible = true;
-        _trayIcon.Text = "DeepSeek Harness — 正在监听任务完成";
+        _trayIcon.Text = Strings.Notify_TrayWatcher;
         watcher.Start(session.SessionToken);
     }
 
@@ -1560,9 +1564,9 @@ public partial class MainWindow : Window
     private async Task<NativeSession> RenewForWatcherAsync(CancellationToken ct)
     {
         var current = _current
-            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+            ?? throw new InvalidOperationException(Strings.Connect_CredentialUnavailable);
         var token = current.GetDeviceToken()
-            ?? throw new InvalidOperationException("设备凭据不可用，请重新粘贴配对链接");
+            ?? throw new InvalidOperationException(Strings.Connect_CredentialUnavailable);
         var renewed = await GatewayAuth.RenewAsync(current, token, ct);
         Dispatcher.Invoke(() =>
         {

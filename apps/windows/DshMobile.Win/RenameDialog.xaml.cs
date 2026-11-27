@@ -1,4 +1,5 @@
 using System.Windows;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -20,8 +21,8 @@ public partial class RenameDialog : Window
         var name = NameBox.Text.Trim();
         if (name.Length == 0 || name.Length > 32 || name.Any(char.IsControl))
         {
-            MessageBox.Show(this, "名称需为 1–32 个字符，且不能包含控制字符。",
-                "名称无效", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, Strings.Rename_InvalidName,
+                Strings.Rename_InvalidTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
             NameBox.Focus();
             return;
         }

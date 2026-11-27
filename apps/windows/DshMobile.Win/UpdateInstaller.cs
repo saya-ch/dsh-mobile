@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -154,7 +155,7 @@ internal static class UpdatePayload
     /// <summary>A byte count for the progress row ("49.0 MB").</summary>
     internal static string DescribeSize(long bytes)
     {
-        if (bytes < 0) return "未知大小";
+        if (bytes < 0) return Strings.Update_SizeUnknown;
         if (bytes < 1024) return bytes.ToString(CultureInfo.InvariantCulture) + " B";
         var value = bytes / 1024.0;
         if (value < 1024) return value.ToString("0.0", CultureInfo.InvariantCulture) + " KB";
@@ -167,10 +168,11 @@ internal static class UpdatePayload
     internal static string DescribeProgress(UpdateProgress progress) => progress.Stage switch
     {
         UpdateStage.Download when progress.Percent is { } percent && progress.Total is { } total =>
-            $"{DescribeSize(progress.Received)} / {DescribeSize(total)}（{percent.ToString("0", CultureInfo.InvariantCulture)}%）",
-        UpdateStage.Download => "已下载 " + DescribeSize(progress.Received),
-        UpdateStage.Verify => "正在校验 SHA-256…",
-        _ => "正在启动安装程序…",
+            string.Format(Strings.Update_ProgressPercent, DescribeSize(progress.Received),
+                DescribeSize(total), percent.ToString("0", CultureInfo.InvariantCulture)),
+        UpdateStage.Download => string.Format(Strings.Update_ProgressDownloaded, DescribeSize(progress.Received)),
+        UpdateStage.Verify => Strings.Update_ProgressVerifying,
+        _ => Strings.Update_ProgressLaunching,
     };
 
     /// <summary>
@@ -213,9 +215,9 @@ internal static class UpdatePayload
     /// <summary>Why the release lookup failed, in user-facing Chinese.</summary>
     internal static string DescribeCheckFailure(Exception error) => error switch
     {
-        TaskCanceledException => "请求超时（15 秒内没有响应）",
-        HttpRequestException => "无法连接 GitHub",
-        _ => string.IsNullOrWhiteSpace(error.Message) ? "未知错误" : error.Message,
+        TaskCanceledException => Strings.Update_TimeoutCheck,
+        HttpRequestException => Strings.Update_CannotReachGitHub,
+        _ => string.IsNullOrWhiteSpace(error.Message) ? Strings.Update_UnknownError : error.Message,
     };
 }
 
@@ -252,19 +254,28 @@ internal sealed class UpdateInstaller
         _tempRoot = tempRoot ?? Path.Combine(Path.GetTempPath(), "dsh-mobile-updates");
     }
 
-    /// <summary>The default launcher: start the installer and let it outlive this process.</summary>
+    /// <summary>
+    /// The default launcher: raise the installer through the shell so Windows shows its UAC
+    /// prompt, then let it outlive this process.
+    /// </summary>
+    /// <remarks>
+    /// <c>UseShellExecute</c> must be true for <c>runas</c> to mean anything, and the
+    /// installer now requires elevation to write a per-machine directory. CreateNoWindow is
+    /// deliberately absent: it has no effect under the shell, and the installer draws its own
+    /// progress.
+    /// </remarks>
     internal static void StartInstaller(string executablePath, string arguments)
     {
         var start = new ProcessStartInfo(executablePath, arguments)
         {
-            UseShellExecute = false,
-            CreateNoWindow = true,
+            UseShellExecute = true,
+            Verb = "runas",
             WorkingDirectory = Path.GetDirectoryName(executablePath) ?? Path.GetTempPath(),
         };
         // The installer must survive this process, so the handle is dropped at once
         // instead of being waited on.
         using var process = Process.Start(start)
-            ?? throw new InvalidOperationException("未能启动安装程序进程。");
+            ?? throw new InvalidOperationException(Strings.Update_LaunchProcessFailed);
     }
 
     /// <summary>
@@ -279,19 +290,18 @@ internal sealed class UpdateInstaller
     {
         if (string.IsNullOrWhiteSpace(release.SetupUrl))
         {
-            return Failed(new UpdateFailure(
-                $"版本 {release.Version} 没有提供安装包，无法自动更新。请手动下载：" + UpdateCheck.ReleasesPage));
+            return Failed(new UpdateFailure(string.Format(
+                Strings.Update_InstallMissingSetup, release.Version, UpdateCheck.ReleasesPage)));
         }
         if (!Uri.TryCreate(release.SetupUrl, UriKind.Absolute, out var setupUri))
         {
-            return Failed(new UpdateFailure(
-                $"版本 {release.Version} 的安装包地址无效，请手动下载：" + UpdateCheck.ReleasesPage));
+            return Failed(new UpdateFailure(string.Format(
+                Strings.Update_InvalidSetupUrl, release.Version, UpdateCheck.ReleasesPage)));
         }
         if (!Uri.TryCreate(release.SetupChecksumUrl, UriKind.Absolute, out var checksumUri))
         {
-            return Failed(new UpdateFailure(
-                $"版本 {release.Version} 缺少 SHA-256 校验文件，无法确认安装包完整性，已取消安装。" +
-                "请手动下载：" + UpdateCheck.ReleasesPage));
+            return Failed(new UpdateFailure(string.Format(
+                Strings.Update_ChecksumFileMissing, release.Version, UpdateCheck.ReleasesPage)));
         }
 
         var directory = Path.Combine(_tempRoot, UpdatePayload.SafeFileName("v" + release.Version, "update"));
@@ -304,7 +314,8 @@ internal sealed class UpdateInstaller
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            return Failed(new UpdateFailure("无法创建临时下载目录：" + directory, error.Message));
+            return Failed(new UpdateFailure(
+                string.Format(Strings.Update_TempDirFailed, directory), error.Message));
         }
 
         progress?.Report(new UpdateProgress(UpdateStage.Download, 0, null));
@@ -329,7 +340,7 @@ internal sealed class UpdateInstaller
         catch (OperationCanceledException error)
         {
             Delete(file.Path);
-            return Failed(Stopped(ct, "校验", error));
+            return Failed(Stopped(ct, Strings.Update_StepVerify, error));
         }
         if (verifyFailure is not null)
         {
@@ -346,7 +357,7 @@ internal sealed class UpdateInstaller
         {
             // The verified package is kept on purpose: the message tells the user to run it.
             return Failed(new UpdateFailure(
-                "无法启动安装程序。安装包已下载并校验通过，可手动运行：" + file.Path, error.Message));
+                string.Format(Strings.Update_LaunchFailed, file.Path), error.Message));
         }
         return new UpdateOutcome(true, null);
     }
@@ -360,8 +371,8 @@ internal sealed class UpdateInstaller
         var expected = UpdatePayload.ParseChecksum(checksumText);
         if (expected is null)
         {
-            return new UpdateFailure(
-                "校验失败：校验文件里没有可解析的 SHA-256 值，已取消安装。请手动下载：" + UpdateCheck.ReleasesPage);
+            return new UpdateFailure(string.Format(
+                Strings.Update_ChecksumUnparsable, UpdateCheck.ReleasesPage));
         }
         string actual;
         try
@@ -370,13 +381,11 @@ internal sealed class UpdateInstaller
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            return new UpdateFailure("校验失败：无法读取已下载的安装包，已取消安装。", error.Message);
+            return new UpdateFailure(Strings.Update_PackageUnreadable, error.Message);
         }
         if (UpdatePayload.Matches(expected, actual)) return null;
-        return new UpdateFailure(
-            "校验失败：安装包的 SHA-256 与发布值不一致，已删除下载的文件并且没有安装。" +
-            "\n发布值：" + expected + "\n实际值：" + actual +
-            "\n请重试；若仍不一致，请手动下载：" + UpdateCheck.ReleasesPage);
+        return new UpdateFailure(string.Format(
+            Strings.Update_ChecksumMismatch, expected, actual, UpdateCheck.ReleasesPage));
     }
 
     /// <summary>
@@ -430,7 +439,7 @@ internal sealed class UpdateInstaller
                     }
                     catch (OperationCanceledException error)
                     {
-                        return new DownloadOutcome(null, Stopped(ct, "下载", error));
+                        return new DownloadOutcome(null, Stopped(ct, Strings.Update_StepDownload, error));
                     }
                 }
                 if (read == 0) break;
@@ -444,9 +453,11 @@ internal sealed class UpdateInstaller
             target = null;
             if (total is { } declared && received != declared)
             {
-                return new DownloadOutcome(null, new UpdateFailure(
-                    $"下载中断：只收到 {UpdatePayload.DescribeSize(received)}，" +
-                    $"应为 {UpdatePayload.DescribeSize(declared)}。请重试，或手动下载：{UpdateCheck.ReleasesPage}"));
+                return new DownloadOutcome(null, new UpdateFailure(string.Format(
+                    Strings.Update_DownloadInterrupted,
+                    UpdatePayload.DescribeSize(received),
+                    UpdatePayload.DescribeSize(declared),
+                    UpdateCheck.ReleasesPage)));
             }
             File.Move(partial, path, overwrite: true);
             complete = true;
@@ -454,7 +465,7 @@ internal sealed class UpdateInstaller
         }
         catch (OperationCanceledException error)
         {
-            return new DownloadOutcome(null, Stopped(ct, "下载", error));
+            return new DownloadOutcome(null, Stopped(ct, Strings.Update_StepDownload, error));
         }
         catch (HttpRequestException error)
         {
@@ -462,9 +473,8 @@ internal sealed class UpdateInstaller
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            return new DownloadOutcome(null, new UpdateFailure(
-                "下载失败：无法写入临时目录 " + directory + "。请检查磁盘空间与权限，或手动下载：" +
-                UpdateCheck.ReleasesPage, error.Message));
+            return new DownloadOutcome(null, new UpdateFailure(string.Format(
+                Strings.Update_WriteTempFailed, directory, UpdateCheck.ReleasesPage), error.Message));
         }
         finally
         {
@@ -491,7 +501,7 @@ internal sealed class UpdateInstaller
         }
         catch (OperationCanceledException error)
         {
-            return (null, Stopped(ct, "下载校验文件", error));
+            return (null, Stopped(ct, Strings.Update_StepChecksumDownload, error));
         }
         catch (HttpRequestException error)
         {
@@ -499,33 +509,34 @@ internal sealed class UpdateInstaller
         }
     }
 
-    private static UpdateFailure OversizedChecksum() => new(
-        "校验失败：校验文件大小异常（不像 SHA-256 文件），已取消安装。请手动下载：" + UpdateCheck.ReleasesPage);
+    private static UpdateFailure OversizedChecksum() => new(string.Format(
+        Strings.Update_ChecksumOversized, UpdateCheck.ReleasesPage));
 
     private static UpdateFailure HttpFailure(HttpStatusCode status, Uri url)
     {
         var code = (int)status;
         var reason = status switch
         {
-            HttpStatusCode.NotFound => "发布资产不存在（HTTP 404）",
-            HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests => "GitHub 拒绝了本次请求（HTTP " + code + "），请稍后重试",
-            HttpStatusCode.Moved or HttpStatusCode.Redirect => "下载地址已变更（HTTP " + code + "）",
-            _ => "服务器返回 HTTP " + code,
+            HttpStatusCode.NotFound => Strings.Update_HttpNotFound,
+            HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests =>
+                string.Format(Strings.Update_HttpForbidden, code),
+            HttpStatusCode.Moved or HttpStatusCode.Redirect =>
+                string.Format(Strings.Update_HttpRedirect, code),
+            _ => string.Format(Strings.Update_HttpStatus, code),
         };
         return new UpdateFailure(
-            "下载失败：" + reason + "。请检查网络后重试，或手动下载：" + UpdateCheck.ReleasesPage, url.ToString());
+            string.Format(Strings.Update_DownloadFailed, reason, UpdateCheck.ReleasesPage), url.ToString());
     }
 
     private static UpdateFailure NetworkFailure(Exception error) => new(
-        "下载失败：网络连接中断或无法访问 GitHub。请检查网络（或代理）后重试，或手动下载：" +
-        UpdateCheck.ReleasesPage, error.Message);
+        string.Format(Strings.Update_NetworkFailed, UpdateCheck.ReleasesPage), error.Message);
 
     /// <summary>Distinguishes "the user stopped it" from "the deadline expired".</summary>
     private static UpdateFailure Stopped(CancellationToken userToken, string step, Exception error) =>
         userToken.IsCancellationRequested
-            ? new UpdateFailure("已取消更新，未做任何更改。", Cancelled: true)
+            ? new UpdateFailure(Strings.Update_Cancelled, Cancelled: true)
             : new UpdateFailure(
-                step + "超时（网络长时间无响应），请检查网络后重试，或手动下载：" + UpdateCheck.ReleasesPage,
+                string.Format(Strings.Update_StepTimeout, step, UpdateCheck.ReleasesPage),
                 error.Message);
 
     private static UpdateOutcome Failed(UpdateFailure failure) => new(false, failure);

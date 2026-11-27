@@ -7,6 +7,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -56,19 +58,19 @@ internal static class LanDiscovery
     internal static (string Host, int Port) NormalizeManualInput(string input)
     {
         if (string.IsNullOrWhiteSpace(input) || Encoding.UTF8.GetByteCount(input) > 512)
-            throw new FormatException("地址为空或超长");
+            throw new FormatException(Strings.Pairing_AddressEmpty);
         var text = input.Trim();
         if (!text.Contains("://", StringComparison.Ordinal))
             text = "https://" + text;
         Uri uri;
         try { uri = new Uri(text, UriKind.Absolute); }
-        catch (UriFormatException) { throw new FormatException("不是有效的地址"); }
+        catch (UriFormatException) { throw new FormatException(Strings.Pairing_AddressNotUrl); }
         if (!uri.IsAbsoluteUri || uri.Scheme != "https")
-            throw new FormatException("只接受 https 地址或裸主机名");
+            throw new FormatException(Strings.Pairing_AddressMustBeHttps);
         if (uri.UserInfo.Length > 0 || uri.Query.Length > 0 || uri.Fragment.Length > 1)
-            throw new FormatException("地址不能包含用户信息、查询参数或配对凭据");
+            throw new FormatException(Strings.Pairing_AddressSecret);
         var host = UrlPairingCanonicalHost(uri.Host)
-            ?? throw new FormatException("主机名格式无效");
+            ?? throw new FormatException(Strings.Pairing_HostInvalid);
         // Uri reports 443 for a bare https://host; the gateway default is 3443,
         // so only honor the port when the input actually specified one.
         var authority = text[(text.IndexOf("://", StringComparison.Ordinal) + 3)..]
@@ -78,7 +80,7 @@ internal static class LanDiscovery
             : authority.Split(':') is { Length: 2 } parts &&
               parts[1].Length > 0 && parts[1].All(char.IsDigit);
         var port = hasExplicitPort ? uri.Port : DefaultPort;
-        if (port is < 1 or > 65535) throw new FormatException("端口超出范围");
+        if (port is < 1 or > 65535) throw new FormatException(Strings.Pairing_PortInvalid);
         return (host, port);
     }
 
@@ -98,7 +100,7 @@ internal static class LanDiscovery
         var address = addresses.FirstOrDefault(a =>
                 a.AddressFamily == AddressFamily.InterNetwork ||
                 a.AddressFamily == AddressFamily.InterNetworkV6)
-            ?? throw new InvalidOperationException($"无法解析主机 {host}");
+            ?? throw new InvalidOperationException(string.Format(Strings.Pairing_HostUnresolved, host));
         using var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
         await socket.ConnectAsync(address, port, token);
         using var network = new NetworkStream(socket, ownsSocket: true);
@@ -130,18 +132,19 @@ internal static class LanDiscovery
         var raw = await GatewayAuth.ReadHttpResponseAsync(ssl, token, MaxResponseBytes);
         var text = Encoding.UTF8.GetString(raw);
         var split = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
-        if (split < 0) throw new InvalidOperationException("discovery 响应格式无效");
+        if (split < 0) throw new InvalidOperationException(Strings.Pairing_DiscoveryHttpFormat);
         if (!text.StartsWith("HTTP/1.1 200 ", StringComparison.Ordinal) &&
             !text.StartsWith("HTTP/1.0 200 ", StringComparison.Ordinal))
-            throw new InvalidOperationException("该地址不是 DSH Mobile 网关: " +
-                text.Split("\r\n")[0].Trim());
+            throw new InvalidOperationException(string.Format(
+                Strings.Pairing_NotGateway, text.Split("\r\n")[0].Trim()));
         JsonDocument doc;
         try { doc = JsonDocument.Parse(text[(split + 4)..]); }
-        catch (JsonException) { throw new InvalidOperationException("discovery 响应不是 JSON"); }
+        catch (JsonException) { throw new InvalidOperationException(Strings.Pairing_DiscoveryNotJson); }
         using (doc)
         {
             return ValidatePayload(doc.RootElement, host, isUdp: false, out var reason)
-                ?? throw new InvalidOperationException("discovery 响应校验失败: " + reason);
+                ?? throw new InvalidOperationException(
+                    string.Format(Strings.Pairing_DiscoveryInvalid, reason));
         }
     }
 

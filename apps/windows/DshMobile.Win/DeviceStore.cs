@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -72,7 +74,7 @@ internal sealed class SavedDevice
     {
         Channel = nameof(AccessChannel.Iroh).ToLowerInvariant(),
         EndpointId = descriptor.EndpointId,
-        Name = "电脑 " + descriptor.EndpointId[..8],
+        Name = string.Format(Strings.DeviceList_DefaultComputerName, descriptor.EndpointId[..8]),
         Hostname = descriptor.Hostname,
         Origin = descriptor.Origin,
         LocalPort = descriptor.LocalPort,
@@ -86,7 +88,7 @@ internal sealed class SavedDevice
     {
         Channel = link.Mode.ToString().ToLowerInvariant(),
         EndpointId = link.InstanceId,
-        Name = "电脑 " + link.InstanceId[..8],
+        Name = string.Format(Strings.DeviceList_DefaultComputerName, link.InstanceId[..8]),
         Hostname = link.Hostname,
         Origin = link.Origin,
         LocalPort = link.Port,
@@ -106,14 +108,14 @@ internal sealed class SavedDevice
     internal SavedDevice AdoptNewOrigin(UrlPairing link)
     {
         if (link.InstanceId != InstanceId)
-            throw new FormatException("新链接不是同一台电脑（instanceId 不一致）");
+            throw new FormatException(Strings.Pairing_NotSameComputer);
         // A record that already trusts a pinned CA must never adopt a link that drops that
         // requirement, or following a dsh1/legacy link would move it onto platform trust and
         // discard the pin. The test is on the actual anchor, not only on RequiresCa: a LAN
         // record paired from a legacy fragment is RequiresCa=false while its CA is pinned
         // (the bootstrap stores the fetched CA), so checking RequiresCa alone would miss it.
         if ((RequiresCa || HasPinnedCa) && !link.RequiresCa)
-            throw new FormatException("新链接不要求固定 CA，已固定 CA 的电脑不能降级；请改用该电脑当前的 dsh2 配对链接");
+            throw new FormatException(Strings.Pairing_CaDowngradeRejected);
         return new SavedDevice
         {
             Channel = link.Mode.ToString().ToLowerInvariant(),

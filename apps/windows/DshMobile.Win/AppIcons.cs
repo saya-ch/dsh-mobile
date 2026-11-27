@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Windows.Media.Imaging;
+using DshMobile.Win.Resources;
 using Drawing = System.Drawing;
 
 namespace DshMobile.Win;
@@ -33,16 +34,16 @@ internal static class AppIcons
     /// </remarks>
     internal static readonly IReadOnlyList<Choice> All = new[]
     {
-        new Choice("default", "app.ico", "默认（眨眼指手机）"),
-        new Choice("classic", "app-mascot-classic.ico", "经典（睁眼指手机）"),
-        new Choice("cheer", "app-mascot-cheer.ico", "欢呼（闭眼）"),
-        new Choice("quiet", "app-mascot-quiet.ico", "安静（手指抵唇）"),
-        new Choice("whale", "app-whale.ico", "鲸鱼"),
-        new Choice("whale-black", "app-whale-black.ico", "鲸鱼 · 黑"),
-        new Choice("whale-dark", "app-whale-dark.ico", "鲸鱼 · 深色"),
-        new Choice("whale-mono", "app-whale-mono.ico", "鲸鱼 · 单色"),
-        new Choice("whale-teal", "app-whale-teal.ico", "鲸鱼 · 青"),
-        new Choice("whale-white", "app-whale-white.ico", "鲸鱼 · 白"),
+        new Choice("default", "app.ico", Strings.AppIcon_Default),
+        new Choice("classic", "app-mascot-classic.ico", Strings.AppIcon_Classic),
+        new Choice("cheer", "app-mascot-cheer.ico", Strings.AppIcon_Cheer),
+        new Choice("quiet", "app-mascot-quiet.ico", Strings.AppIcon_Quiet),
+        new Choice("whale", "app-whale.ico", Strings.AppIcon_Whale),
+        new Choice("whale-black", "app-whale-black.ico", Strings.AppIcon_WhaleBlack),
+        new Choice("whale-dark", "app-whale-dark.ico", Strings.AppIcon_WhaleDark),
+        new Choice("whale-mono", "app-whale-mono.ico", Strings.AppIcon_WhaleMono),
+        new Choice("whale-teal", "app-whale-teal.ico", Strings.AppIcon_WhaleTeal),
+        new Choice("whale-white", "app-whale-white.ico", Strings.AppIcon_WhaleWhite),
     };
 
     private const string SettingsFileName = "settings.json";

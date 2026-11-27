@@ -1,3 +1,5 @@
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -51,15 +53,15 @@ internal static class DeviceStatus
     /// <summary>Short label for the status line on a card.</summary>
     internal static string Text(DeviceStatusKind kind) => kind switch
     {
-        DeviceStatusKind.Current => "当前连接",
-        DeviceStatusKind.Reachable => "可达",
-        DeviceStatusKind.Checking => "检测中…",
-        DeviceStatusKind.Unreachable => "暂不可达",
-        DeviceStatusKind.Revoked => "电脑端已移除",
-        DeviceStatusKind.Expired => "配对已过期",
-        DeviceStatusKind.AddressChanged => "地址可能已变化",
-        DeviceStatusKind.ConnectToCheck => "连接后可检测",
-        _ => "检测中…",
+        DeviceStatusKind.Current => Strings.DeviceStatus_Current,
+        DeviceStatusKind.Reachable => Strings.DeviceStatus_Reachable,
+        DeviceStatusKind.Checking => Strings.DeviceStatus_Checking,
+        DeviceStatusKind.Unreachable => Strings.DeviceStatus_Unreachable,
+        DeviceStatusKind.Revoked => Strings.DeviceStatus_Revoked,
+        DeviceStatusKind.Expired => Strings.DeviceStatus_Expired,
+        DeviceStatusKind.AddressChanged => Strings.DeviceStatus_AddressChanged,
+        DeviceStatusKind.ConnectToCheck => Strings.DeviceStatus_ConnectToCheck,
+        _ => Strings.DeviceStatus_Checking,
     };
 
     /// <summary>

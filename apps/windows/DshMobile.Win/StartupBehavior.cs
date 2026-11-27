@@ -1,3 +1,5 @@
+using DshMobile.Win.Resources;
+
 namespace DshMobile.Win;
 
 /// <summary>
@@ -61,7 +63,7 @@ internal static class StartupBehavior
 
     /// <summary>Prefix a failure dialog so the user knows why the device list appeared.</summary>
     internal static string DescribeAutoConnectFailure(string hint, string deviceName) =>
-        $"启动时自动连接「{deviceName}」失败，已返回设备列表。\n\n{hint}";
+        string.Format(Strings.Connect_AutoStartFailed, deviceName, hint);
 
     /// <summary>
     /// Record which computer was connected last, so the next launch can prefer it.

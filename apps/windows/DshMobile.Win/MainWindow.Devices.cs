@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -142,8 +143,8 @@ public partial class MainWindow
         // One primary action, everything else behind a menu. Six equal-weight buttons
         // on every row read as a wall of buttons, made a single device fill a whole
         // screen, and put "delete" on the same footing as "connect".
-        var connect = DeviceAction(device.CanReconnect ? "连接" : "重新配对", 92,
-            "连接这台电脑", ConnectSaved_Click, primary: true);
+        var connect = DeviceAction(device.CanReconnect ? Strings.DeviceList_Connect : Strings.DeviceList_Repair,
+            92, Strings.DeviceList_ConnectTooltip, ConnectSaved_Click, primary: true);
         connect.Tag = device; // the existing handler reads the record from the button
         connect.Margin = new Thickness(0, 0, 8, 0);
         _connectButtons.Add(connect);
@@ -157,17 +158,17 @@ public partial class MainWindow
             menu.Items.Add(item);
         }
 
-        AddMenu("重命名", RenameDevice_Click);
+        AddMenu(Strings.DeviceList_MenuRename, RenameDevice_Click);
         // Probing needs a reachable address; an iroh row only has one once a connect
         // starts the sidecar, which is exactly what its status says.
         if (device.Channel != "iroh")
-            AddMenu("立即检测", (_, _) => CheckDeviceNow(device));
+            AddMenu(Strings.DeviceList_MenuCheckNow, (_, _) => CheckDeviceNow(device));
         if (model.CanMoveUp)
-            AddMenu("上移一位", (_, _) => MoveDevice(device, toTop: false));
+            AddMenu(Strings.DeviceList_MenuMoveUp, (_, _) => MoveDevice(device, toTop: false));
         if (model.CanMoveToTop)
-            AddMenu("移到最前", (_, _) => MoveDevice(device, toTop: true));
+            AddMenu(Strings.DeviceList_MenuMoveTop, (_, _) => MoveDevice(device, toTop: true));
         menu.Items.Add(new Separator());
-        AddMenu("删除（可撤销）", (_, _) => DeleteDevice(device), danger: true);
+        AddMenu(Strings.DeviceList_MenuDelete, (_, _) => DeleteDevice(device), danger: true);
 
         var more = new Button
         {
@@ -176,11 +177,11 @@ public partial class MainWindow
             Padding = new Thickness(0),
             FontSize = 15,
             Tag = device,
-            ToolTip = "更多操作",
+            ToolTip = Strings.DeviceList_MoreActions,
             ContextMenu = menu,
         };
         more.SetResourceReference(StyleProperty, "BarButton");
-        more.SetValue(AutomationProperties.NameProperty, "更多操作");
+        more.SetValue(AutomationProperties.NameProperty, Strings.DeviceList_MoreActions);
         // A plain click opens the same menu the right mouse button does, so the
         // secondary actions stay discoverable without a visible row of buttons.
         more.Click += (_, _) =>
@@ -267,8 +268,8 @@ public partial class MainWindow
 
     private static string ChannelLabel(string channel) => channel switch
     {
-        "lan" => "局域网",
-        "remote" => "远程",
+        "lan" => Strings.Channel_Lan,
+        "remote" => Strings.Channel_Remote,
         _ => "iroh",
     };
 
@@ -434,7 +435,7 @@ public partial class MainWindow
     private void ShowUndoBar(SavedDevice device)
     {
         _undoDevice = device;
-        UndoText.Text = "已删除 " + device.Name;
+        UndoText.Text = string.Format(Strings.DeviceList_UndoDeleted, device.Name);
         UndoBar.Visibility = Visibility.Visible;
         _undoTimer?.Stop();
         _undoTimer = new DispatcherTimer { Interval = UndoWindow };

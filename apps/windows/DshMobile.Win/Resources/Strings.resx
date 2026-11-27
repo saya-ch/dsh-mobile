@@ -1,0 +1,1240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    User-visible strings of the portable Windows client. Chinese is the DEFAULT language:
+    the neutral (no-culture) resource set below is what every build ships, exactly as the
+    interface looked before the strings were extracted. A future translation adds a
+    satellite file next to this one (Strings.<culture>.resx); it never changes the values
+    here, so an untranslated build keeps rendering Chinese.
+
+    Keys are PascalCase and grouped by the screen that owns them:
+      Nav_*/Common_*      navigation labels and shared button words
+      DeviceList_*        device list page, saved-device cards, undo strip
+      Channel_*           connection-mode labels (LAN / remote)
+      Pairing_*           pairing panel, discovery tools, link/address validation
+      Connect_*           connecting progress, browser bar, connect dialogs
+      Diagnosis_*         connection-failure explanations
+      DeviceStatus_*      device status labels
+      DeviceCard_*        device card detail/status lines
+      RelativeTime_*      "last connected" wording
+      Settings_*          settings page
+      Update_*            check-update / download / verify / install flow
+      WebView_*/Notify_*  WebView2 policy notices and tray balloons
+      AppData_*/Crash_*   portable data folder warning and last-resort crash dialog
+      Rename_*            rename dialog
+      AppIcon_*           icon picker labels
+
+    {0}/{1}/... are placeholders filled with string.Format by the caller.
+    Value text is byte-for-byte what the hard-coded literals used to say; see Resources/README.md
+    for how the strings are read from XAML and C#.
+  -->
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- Nav -->
+  <data name="Nav_Devices" xml:space="preserve">
+    <value>设备</value>
+    <comment>Device page header title and navigation rail label</comment>
+  </data>
+  <data name="Nav_DeviceList" xml:space="preserve">
+    <value>设备列表</value>
+    <comment>"Back to device list" label (browser bar, settings header, rail tooltip/automation name)</comment>
+  </data>
+  <data name="Nav_Settings" xml:space="preserve">
+    <value>设置</value>
+    <comment>Settings page header title, rail label, rail tooltip/automation name</comment>
+  </data>
+  <!-- Common -->
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>取消</value>
+    <comment>Cancel buttons (update row, rename dialog)</comment>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>关闭</value>
+    <comment>Close button tooltip / automation name (rename dialog)</comment>
+  </data>
+  <data name="Common_Clear" xml:space="preserve">
+    <value>清除</value>
+    <comment>"Clear" button on the settings page</comment>
+  </data>
+  <data name="Common_BackToDeviceList" xml:space="preserve">
+    <value>回到设备列表</value>
+    <comment>Settings page back action tooltip</comment>
+  </data>
+  <!-- DeviceList -->
+  <data name="DeviceList_Subtitle" xml:space="preserve">
+    <value>选一台已配对的电脑继续，或添加一台新的。所有配对只保存在这台电脑上。</value>
+    <comment>Device page subtitle under the title</comment>
+  </data>
+  <data name="DeviceList_PairedHeader" xml:space="preserve">
+    <value>已配对电脑</value>
+    <comment>Section header above the saved-device cards</comment>
+  </data>
+  <data name="DeviceList_AddComputer" xml:space="preserve">
+    <value>添加新电脑</value>
+    <comment>Page action and its collapsed-state label</comment>
+  </data>
+  <data name="DeviceList_AddToggleTooltip" xml:space="preserve">
+    <value>打开配对面板；再点一次收起</value>
+    <comment>Add-computer button tooltip</comment>
+  </data>
+  <data name="DeviceList_Collapse" xml:space="preserve">
+    <value>收起</value>
+    <comment>Add-computer button label while the panel is open</comment>
+  </data>
+  <data name="DeviceList_EmptyTitle" xml:space="preserve">
+    <value>还没有配对的电脑</value>
+    <comment>Empty-state heading</comment>
+  </data>
+  <data name="DeviceList_EmptyHint" xml:space="preserve">
+    <value>在电脑端 DSH 打开「移动访问」，复制配对内容或链接贴到下面。配对只有这一次，之后点「连接」就能进。</value>
+    <comment>Empty-state explanation</comment>
+  </data>
+  <data name="DeviceList_Connect" xml:space="preserve">
+    <value>连接</value>
+    <comment>Card primary action for a reconnectable device</comment>
+  </data>
+  <data name="DeviceList_Repair" xml:space="preserve">
+    <value>重新配对</value>
+    <comment>Card primary action for a device whose credential is unusable</comment>
+  </data>
+  <data name="DeviceList_ConnectTooltip" xml:space="preserve">
+    <value>连接这台电脑</value>
+    <comment>Card primary action tooltip</comment>
+  </data>
+  <data name="DeviceList_MenuRename" xml:space="preserve">
+    <value>重命名</value>
+    <comment>Row menu item</comment>
+  </data>
+  <data name="DeviceList_MenuCheckNow" xml:space="preserve">
+    <value>立即检测</value>
+    <comment>Row menu item (reachability re-check)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveUp" xml:space="preserve">
+    <value>上移一位</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuMoveTop" xml:space="preserve">
+    <value>移到最前</value>
+    <comment>Row menu item (ordering)</comment>
+  </data>
+  <data name="DeviceList_MenuDelete" xml:space="preserve">
+    <value>删除（可撤销）</value>
+    <comment>Row menu item (destructive)</comment>
+  </data>
+  <data name="DeviceList_MoreActions" xml:space="preserve">
+    <value>更多操作</value>
+    <comment>Row "..." button tooltip and automation name</comment>
+  </data>
+  <data name="DeviceList_UndoDeleted" xml:space="preserve">
+    <value>已删除 {0}</value>
+    <comment>Undo strip text after deleting a device</comment>
+  </data>
+  <data name="DeviceList_UndoAction" xml:space="preserve">
+    <value>撤销</value>
+    <comment>Undo strip action</comment>
+  </data>
+  <data name="DeviceList_UndoTooltip" xml:space="preserve">
+    <value>恢复这条配对记录（不恢复电脑端的授权）</value>
+    <comment>Undo strip action tooltip</comment>
+  </data>
+  <data name="DeviceList_DefaultComputerName" xml:space="preserve">
+    <value>电脑 {0}</value>
+    <comment>Default display name given to a newly paired computer</comment>
+  </data>
+  <!-- Channel -->
+  <data name="Channel_Lan" xml:space="preserve">
+    <value>局域网</value>
+    <comment>LAN channel label</comment>
+  </data>
+  <data name="Channel_Remote" xml:space="preserve">
+    <value>远程</value>
+    <comment>Remote channel label</comment>
+  </data>
+  <!-- Pairing -->
+  <data name="Pairing_LanSummary" xml:space="preserve">
+    <value>同一 Wi-Fi 下最快</value>
+    <comment>Empty-state LAN chip subtitle</comment>
+  </data>
+  <data name="Pairing_RemoteSummary" xml:space="preserve">
+    <value>走公网域名或隧道</value>
+    <comment>Empty-state remote chip subtitle</comment>
+  </data>
+  <data name="Pairing_IrohSummary" xml:space="preserve">
+    <value>点对点，不开端口</value>
+    <comment>Empty-state iroh chip subtitle</comment>
+  </data>
+  <data name="Pairing_LanAutomationName" xml:space="preserve">
+    <value>用局域网配对</value>
+    <comment>Empty-state LAN chip automation name</comment>
+  </data>
+  <data name="Pairing_RemoteAutomationName" xml:space="preserve">
+    <value>用远程地址配对</value>
+    <comment>Empty-state remote chip automation name</comment>
+  </data>
+  <data name="Pairing_IrohAutomationName" xml:space="preserve">
+    <value>用 iroh 配对</value>
+    <comment>Empty-state iroh chip automation name</comment>
+  </data>
+  <data name="Pairing_PanelTitle" xml:space="preserve">
+    <value>添加一台电脑</value>
+    <comment>Add-panel heading (note: differs from the button label 添加新电脑)</comment>
+  </data>
+  <data name="Pairing_PanelHint" xml:space="preserve">
+    <value>配对内容只用于这一次握手，不会保存到本机。</value>
+    <comment>Add-panel hint under the heading</comment>
+  </data>
+  <data name="Pairing_DescriptorTooltip" xml:space="preserve">
+    <value>一次性配对内容，不会保存配对码或 token</value>
+    <comment>Paste box tooltip</comment>
+  </data>
+  <data name="Pairing_ConnectAction" xml:space="preserve">
+    <value>配对并连接</value>
+    <comment>Primary action of the add panel</comment>
+  </data>
+  <data name="Pairing_FindOnThisPc" xml:space="preserve">
+    <value>在本机查找电脑</value>
+    <comment>Discovery toggle label (collapsed state) and its reset copy</comment>
+  </data>
+  <data name="Pairing_FindToggleTooltip" xml:space="preserve">
+    <value>输入地址或扫描局域网，找到电脑后再粘贴它的配对链接</value>
+    <comment>Discovery toggle tooltip</comment>
+  </data>
+  <data name="Pairing_HideFinder" xml:space="preserve">
+    <value>收起查找</value>
+    <comment>Discovery toggle label while the finder is open</comment>
+  </data>
+  <data name="Pairing_FinderHint" xml:space="preserve">
+    <value>输入电脑地址，或扫描当前局域网。找到的电脑仍需粘贴它自己的配对链接。</value>
+    <comment>Hint above the address box</comment>
+  </data>
+  <data name="Pairing_AddressTooltip" xml:space="preserve">
+    <value>输入电脑的局域网地址，如 192.168.1.18 或 https://host:port</value>
+    <comment>Address box tooltip</comment>
+  </data>
+  <data name="Pairing_Probe" xml:space="preserve">
+    <value>查找</value>
+    <comment>Probe button label</comment>
+  </data>
+  <data name="Pairing_ProbeTooltip" xml:space="preserve">
+    <value>探测该地址是否为 DSH Mobile 网关</value>
+    <comment>Probe button tooltip</comment>
+  </data>
+  <data name="Pairing_Scan" xml:space="preserve">
+    <value>扫描局域网</value>
+    <comment>Scan button label and its idle state</comment>
+  </data>
+  <data name="Pairing_ScanTooltip" xml:space="preserve">
+    <value>广播查询并逐个探测本机所在网段</value>
+    <comment>Scan button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanRunning" xml:space="preserve">
+    <value>扫描中…</value>
+    <comment>Scan button label while scanning</comment>
+  </data>
+  <data name="Pairing_ModeRemoteHint" xml:space="preserve">
+    <value>跨网络访问：在电脑端「移动访问」里复制远程配对链接（https://你的域名/mobile-access/pair#…），粘贴到下面。域名需要能从这台电脑访问。</value>
+    <comment>Guidance under the paste box for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeRemotePlaceholder" xml:space="preserve">
+    <value>粘贴远程配对链接</value>
+    <comment>Placeholder for the remote tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohHint" xml:space="preserve">
+    <value>不需要公网端口：在电脑端复制 iroh 配对内容（JSON）粘到下面。第一次连接会下载并校验官方组件（约 14.8 MB）。</value>
+    <comment>Guidance under the paste box for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeIrohPlaceholder" xml:space="preserve">
+    <value>粘贴 iroh 配对内容（JSON）</value>
+    <comment>Placeholder for the iroh tab</comment>
+  </data>
+  <data name="Pairing_ModeLanHint" xml:space="preserve">
+    <value>同一 Wi-Fi 或局域网里最快：复制电脑端的局域网配对链接（https://192.168.x.x:端口/mobile-access/pair#…），粘贴到下面。找不到链接时，可以在本机扫描。</value>
+    <comment>Guidance under the paste box for the LAN tab</comment>
+  </data>
+  <data name="Pairing_ModeLanPlaceholder" xml:space="preserve">
+    <value>粘贴局域网配对链接</value>
+    <comment>Placeholder for the LAN tab</comment>
+  </data>
+  <data name="Pairing_SelectFound" xml:space="preserve">
+    <value>选用</value>
+    <comment>"Use this one" button on a discovered gateway card</comment>
+  </data>
+  <data name="Pairing_SelectFoundTooltip" xml:space="preserve">
+    <value>记住这台电脑，粘贴配对链接时校验地址是否一致</value>
+    <comment>Discovered gateway button tooltip</comment>
+  </data>
+  <data name="Pairing_ScanNoBroadcast" xml:space="preserve">
+    <value>广播没有回应，正在逐个探测本机所在网段…</value>
+    <comment>Discovery hint while probing the subnet</comment>
+  </data>
+  <data name="Pairing_ScanNotFound" xml:space="preserve">
+    <value>没有发现电脑：请确认电脑端网关正在运行且与本机在同一网络，或在上方手动输入地址查找。</value>
+    <comment>Discovery hint when nothing was found</comment>
+  </data>
+  <data name="Pairing_ScanTimeout" xml:space="preserve">
+    <value>扫描超时，仍可手动输入地址查找。</value>
+    <comment>Discovery hint on scan timeout</comment>
+  </data>
+  <data name="Pairing_ScanFailed" xml:space="preserve">
+    <value>扫描失败：{0}</value>
+    <comment>Discovery hint when the scan throws</comment>
+  </data>
+  <data name="Pairing_SelectedHint" xml:space="preserve">
+    <value>已选中「{0}」（{1}）。请在上方粘贴这台电脑的配对链接后配对；链接地址不一致时会提醒确认。</value>
+    <comment>Discovery hint after picking a result</comment>
+  </data>
+  <data name="Pairing_InvalidAddress" xml:space="preserve">
+    <value>地址无效：{0}</value>
+    <comment>Message box body when the typed address does not parse</comment>
+  </data>
+  <data name="Pairing_FindTitle" xml:space="preserve">
+    <value>查找电脑</value>
+    <comment>Message box title for the manual probe flow</comment>
+  </data>
+  <data name="Pairing_GatewayNotFound" xml:space="preserve">
+    <value>找不到网关：{0}
+
+请确认电脑端网关正在运行、地址正确且网络可达。</value>
+    <comment>Message box body when the probe fails</comment>
+  </data>
+  <data name="Pairing_InvalidContentTitle" xml:space="preserve">
+    <value>配对内容无效</value>
+    <comment>Message box title when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_InvalidContent" xml:space="preserve">
+    <value>配对内容无效。
+
+iroh 描述符错误：{0}
+配对链接错误：{1}</value>
+    <comment>Message box body when neither descriptor nor link parses</comment>
+  </data>
+  <data name="Pairing_OriginMismatchTitle" xml:space="preserve">
+    <value>地址不一致</value>
+    <comment>Message box title when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_OriginMismatch" xml:space="preserve">
+    <value>配对链接指向 {0}，与已选中的发现结果 {1} 不一致。
+
+可能是贴错了另一台电脑的链接。继续配对吗？</value>
+    <comment>Message box body when the pasted link points elsewhere</comment>
+  </data>
+  <data name="Pairing_UpdateAddressTitle" xml:space="preserve">
+    <value>无法更新地址</value>
+    <comment>Message box title when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_UpdateAddressNotSame" xml:space="preserve">
+    <value>新链接不是同一台电脑（instanceId 不一致），已保留原记录。</value>
+    <comment>Message box body when adopting a new address fails</comment>
+  </data>
+  <data name="Pairing_ReneedTitle" xml:space="preserve">
+    <value>需要重新配对</value>
+    <comment>Message box title when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_ReneedBody" xml:space="preserve">
+    <value>这台电脑的设备凭据已过期或无法读取。请粘贴这台电脑当前的配对链接，地址与名称会自动更新。</value>
+    <comment>Message box body when the stored credential is unusable</comment>
+  </data>
+  <data name="Pairing_NotSameComputer" xml:space="preserve">
+    <value>新链接不是同一台电脑（instanceId 不一致）</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_CaDowngradeRejected" xml:space="preserve">
+    <value>新链接不要求固定 CA，已固定 CA 的电脑不能降级；请改用该电脑当前的 dsh2 配对链接</value>
+    <comment>Exception message surfaced as "配对链接错误：" in the invalid-content dialog</comment>
+  </data>
+  <data name="Pairing_UrlEmpty" xml:space="preserve">
+    <value>配对链接为空或超长</value>
+    <comment>UrlPairing.Parse rejection, shown as 配对链接错误</comment>
+  </data>
+  <data name="Pairing_UrlNotUrl" xml:space="preserve">
+    <value>不是有效的 URL</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlMustBeHttps" xml:space="preserve">
+    <value>只接受 https:// 配对链接</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlUserInfo" xml:space="preserve">
+    <value>配对链接不能包含用户信息或查询参数</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlPath" xml:space="preserve">
+    <value>配对链接路径必须是 {0}</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_HostInvalid" xml:space="preserve">
+    <value>主机名格式无效</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_PortInvalid" xml:space="preserve">
+    <value>端口超出范围</value>
+    <comment>UrlPairing.Parse / LanDiscovery rejection</comment>
+  </data>
+  <data name="Pairing_UrlNoCredential" xml:space="preserve">
+    <value>缺少配对凭据（fragment 必须包含 instance/token 或 key=…）</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlKeyFormat" xml:space="preserve">
+    <value>key= 配对码格式无效</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_UrlInstanceFormat" xml:space="preserve">
+    <value>instance/token 配对码格式无效</value>
+    <comment>UrlPairing.Parse rejection</comment>
+  </data>
+  <data name="Pairing_AddressEmpty" xml:space="preserve">
+    <value>地址为空或超长</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection, shown as 地址无效</comment>
+  </data>
+  <data name="Pairing_AddressNotUrl" xml:space="preserve">
+    <value>不是有效的地址</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressMustBeHttps" xml:space="preserve">
+    <value>只接受 https 地址或裸主机名</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_AddressSecret" xml:space="preserve">
+    <value>地址不能包含用户信息、查询参数或配对凭据</value>
+    <comment>LanDiscovery.NormalizeManualInput rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryHttpFormat" xml:space="preserve">
+    <value>discovery 响应格式无效</value>
+    <comment>LanDiscovery.ProbeAsync rejection, shown as 找不到网关</comment>
+  </data>
+  <data name="Pairing_NotGateway" xml:space="preserve">
+    <value>该地址不是 DSH Mobile 网关: {0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryNotJson" xml:space="preserve">
+    <value>discovery 响应不是 JSON</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_DiscoveryInvalid" xml:space="preserve">
+    <value>discovery 响应校验失败: {0}</value>
+    <comment>LanDiscovery.ProbeAsync rejection</comment>
+  </data>
+  <data name="Pairing_HostUnresolved" xml:space="preserve">
+    <value>无法解析主机 {0}</value>
+    <comment>LanDiscovery / GatewayAuth DNS failure text</comment>
+  </data>
+  <!-- Connect -->
+  <data name="Connect_BackTooltip" xml:space="preserve">
+    <value>返回设备列表（保持连接）</value>
+    <comment>Browser bar back button tooltip</comment>
+  </data>
+  <data name="Connect_StatusAccessibility" xml:space="preserve">
+    <value>连接状态</value>
+    <comment>Accessible name for the connection status line</comment>
+  </data>
+  <data name="Connect_ProgressAccessibility" xml:space="preserve">
+    <value>连接进度</value>
+    <comment>Accessible name for the indeterminate connection progress bar</comment>
+  </data>
+  <data name="Update_ProgressAccessibility" xml:space="preserve">
+    <value>更新进度</value>
+    <comment>Accessible name for the update download progress bar</comment>
+  </data>
+  <data name="Connect_Disconnect" xml:space="preserve">
+    <value>断开</value>
+    <comment>Browser bar disconnect button label</comment>
+  </data>
+  <data name="Connect_DisconnectTooltip" xml:space="preserve">
+    <value>断开连接并清除会话</value>
+    <comment>Browser bar disconnect button tooltip</comment>
+  </data>
+  <data name="Connect_CancelHint" xml:space="preserve">
+    <value>连接期间可以随时取消，不会留下半开的连接</value>
+    <comment>Progress panel hint</comment>
+  </data>
+  <data name="Connect_Cancel" xml:space="preserve">
+    <value>取消连接</value>
+    <comment>Progress panel cancel button</comment>
+  </data>
+  <data name="Connect_CancelTooltip" xml:space="preserve">
+    <value>停止连接并释放本地代理</value>
+    <comment>Progress panel cancel button tooltip</comment>
+  </data>
+  <data name="Connect_ConnectingIroh" xml:space="preserve">
+    <value>正在连接 iroh</value>
+    <comment>Progress status while starting the iroh sidecar</comment>
+  </data>
+  <data name="Connect_Interrupted" xml:space="preserve">
+    <value>连接已中断</value>
+    <comment>Progress status and tray balloon title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_InterruptedTitle" xml:space="preserve">
+    <value>连接已中断 · {0}</value>
+    <comment>Browser bar title after a dropped carrier</comment>
+  </data>
+  <data name="Connect_VerifyingComputer" xml:space="preserve">
+    <value>正在验证电脑</value>
+    <comment>Progress status while authorizing a direct gateway</comment>
+  </data>
+  <data name="Connect_LoadingPage" xml:space="preserve">
+    <value>正在加载页面</value>
+    <comment>Progress status while initialising WebView2</comment>
+  </data>
+  <data name="Connect_Authorizing" xml:space="preserve">
+    <value>正在授权</value>
+    <comment>Progress status while pairing/renewing</comment>
+  </data>
+  <data name="Connect_PreparingIroh" xml:space="preserve">
+    <value>正在准备 iroh 组件</value>
+    <comment>Progress status while acquiring the sidecar artifact</comment>
+  </data>
+  <data name="Connect_Retrying" xml:space="preserve">
+    <value>正在重试连接 ({0}/{1})</value>
+    <comment>Progress status between iroh connect attempts</comment>
+  </data>
+  <data name="Connect_Connected" xml:space="preserve">
+    <value>已连接 · {0}</value>
+    <comment>Browser bar title and tray context for a live session</comment>
+  </data>
+  <data name="Connect_PinnedCertVerifyFailed" xml:space="preserve">
+    <value>无法用配对时固定的证书验证这台电脑：可能是网络不通，也可能证书与配对时不一致</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_CredentialUnavailable" xml:space="preserve">
+    <value>设备凭据不可用，请重新粘贴配对链接</value>
+    <comment>Exception text turned into a connect failure dialog</comment>
+  </data>
+  <data name="Connect_FailedTitle" xml:space="preserve">
+    <value>连接失败</value>
+    <comment>Connect failure dialog title</comment>
+  </data>
+  <data name="Connect_OfferAdopt" xml:space="preserve">
+    <value>{0}
+
+是否用这台电脑当前的配对链接更新地址？（需同一台电脑，保留名称）</value>
+    <comment>Connect failure dialog body when an address update would help</comment>
+  </data>
+  <data name="Connect_InstanceSuffix" xml:space="preserve">
+    <value>
+
+实例：{0}…</value>
+    <comment>Identity detail appended to credential/CA failures</comment>
+  </data>
+  <data name="Connect_AutoStartFailed" xml:space="preserve">
+    <value>启动时自动连接「{0}」失败，已返回设备列表。
+
+{1}</value>
+    <comment>Prefix added to a launch-time auto-connect failure</comment>
+  </data>
+  <!-- Diagnosis -->
+  <data name="Diagnosis_CredentialExpired" xml:space="preserve">
+    <value>这台电脑的设备凭据已失效，或电脑端已撤销此设备。
+
+请重新生成二维码并完成一次配对。</value>
+    <comment>Hint for an expired/revoked device credential</comment>
+  </data>
+  <data name="Diagnosis_ProtocolMismatch" xml:space="preserve">
+    <value>客户端与电脑端的协议版本不一致，无法完成配对。
+
+请把 Windows 客户端更新到最新版本（设置 → 检查更新），并确认电脑端的 DSH Mobile 插件也已更新到兼容版本。</value>
+    <comment>Hint for a protocol/version mismatch</comment>
+  </data>
+  <data name="Diagnosis_CaMismatch" xml:space="preserve">
+    <value>连接到的电脑与配对时固定的不是同一台（CA 指纹不匹配）。
+请确认配对链接来自这台电脑，且中间没有地址劫持。</value>
+    <comment>Hint for a pinned-CA mismatch</comment>
+  </data>
+  <data name="Diagnosis_CpolarStale" xml:space="preserve">
+    <value>cpolar 的临时地址已经失效。
+
+cpolar 免费隧道每次重启都会换域名，保存的地址已经连不到这台电脑。
+请在电脑端打开 DSH Mobile 的远程访问，复制新的配对链接后重新粘贴。</value>
+    <comment>Hint for a rotated cpolar tunnel address</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolved" xml:space="preserve">
+    <value>无法解析电脑地址 {0}。
+
+{1}</value>
+    <comment>Hint when the name cannot be resolved (second argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedLan" xml:space="preserve">
+    <value>局域网连接：请确认本机与电脑在同一网络，电脑端网关正在运行。</value>
+    <comment>LAN advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_HostUnresolvedRemote" xml:space="preserve">
+    <value>远程连接：请确认远程通道（Tailscale/cpolar/cloudflared 等）正在运行，且域名可访问。</value>
+    <comment>Remote advice for an unresolved name</comment>
+  </data>
+  <data name="Diagnosis_Http426" xml:space="preserve">
+    <value>电脑端要求升级客户端才能继续（HTTP 426）。
+
+请把 Windows 客户端更新到最新版本（设置 → 检查更新）。</value>
+    <comment>Hint for HTTP 426</comment>
+  </data>
+  <data name="Diagnosis_Http429" xml:space="preserve">
+    <value>电脑端当前限制了新的连接请求（HTTP 429）。
+
+请等一两分钟再试。如果经常出现，请检查电脑端是否同时有多个客户端在反复重连。</value>
+    <comment>Hint for HTTP 429</comment>
+  </data>
+  <data name="Diagnosis_ServiceUnavailable" xml:space="preserve">
+    <value>电脑端的 DSH 服务暂时不可用（HTTP {0}）。
+
+请确认电脑端网关与 DSH 本体都在运行，然后重试。</value>
+    <comment>Hint for a 5xx answer</comment>
+  </data>
+  <data name="Diagnosis_TlsFailure" xml:space="preserve">
+    <value>与电脑建立安全连接（TLS）失败。
+
+常见原因：电脑端证书已更换、代理或 VPN 在做 TLS 拦截、系统时间偏差过大。
+请确认电脑端网关正在运行，并重新粘贴该电脑当前的配对链接。</value>
+    <comment>Hint for a TLS handshake failure</comment>
+  </data>
+  <data name="Diagnosis_NetworkFailure" xml:space="preserve">
+    <value>无法建立到电脑端网关的 HTTPS 连接。
+
+{0}</value>
+    <comment>Hint when the gateway is unreachable (argument is the LAN/remote advice)</comment>
+  </data>
+  <data name="Diagnosis_NetworkLan" xml:space="preserve">
+    <value>局域网连接：请确认本机与电脑在同一网络，防火墙放行了网关端口，且通道处于就绪状态。</value>
+    <comment>LAN advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_NetworkRemote" xml:space="preserve">
+    <value>远程连接：请确认远程通道正在运行，公网可访问该地址。</value>
+    <comment>Remote advice for an unreachable gateway</comment>
+  </data>
+  <data name="Diagnosis_Timeout" xml:space="preserve">
+    <value>连接超时。请确认电脑端 iroh 通道处于就绪状态、两端网络可达，然后重试。</value>
+    <comment>Hint for a timeout/cancellation</comment>
+  </data>
+  <data name="Diagnosis_IrohNoAddress" xml:space="preserve">
+    <value>iroh 找不到该电脑端的地址（已自动重试 2 次）。
+
+EndpointId：{0}
+请在代理/VPN 中放行 dns.iroh.link、iroh.link、relay.iroh.network 的 DNS 与 UDP。</value>
+    <comment>iroh discovery found no addressing information</comment>
+  </data>
+  <data name="Diagnosis_IrohConnectTimeout" xml:space="preserve">
+    <value>iroh 在 15 秒内没能连上配对指向的电脑端（已自动重试 2 次）。
+
+EndpointId：{0}
+常见原因：电脑端通道刚重启、发现记录尚未传播，或代理/VPN 拦了 UDP。
+请确认通道就绪后重试；详细诊断见 data\client.log。</value>
+    <comment>iroh could not reach the paired endpoint in time</comment>
+  </data>
+  <data name="Diagnosis_CaFetchFailed" xml:space="preserve">
+    <value>获取配对 CA 失败: {0}</value>
+    <comment>GatewayAuth: ca.cer returned a rejection the trust policy will not accept</comment>
+  </data>
+  <data name="Diagnosis_CaResponseEmpty" xml:space="preserve">
+    <value>ca.cer 响应为空</value>
+    <comment>GatewayAuth: empty ca.cer body</comment>
+  </data>
+  <data name="Diagnosis_CaFingerprintMismatch" xml:space="preserve">
+    <value>配对 CA 与二维码指纹不匹配，连接的电脑可能不是二维码指向的那台</value>
+    <comment>GatewayAuth: fetched CA does not match the pairing fingerprint</comment>
+  </data>
+  <data name="Diagnosis_NoTrustAnchor" xml:space="preserve">
+    <value>没有信任锚：缺少配对 CA 且不允许平台信任</value>
+    <comment>GatewayAuth: no trust anchor for the connection</comment>
+  </data>
+  <!-- DeviceStatus -->
+  <data name="DeviceStatus_Current" xml:space="preserve">
+    <value>当前连接</value>
+    <comment>Status label: live session</comment>
+  </data>
+  <data name="DeviceStatus_Reachable" xml:space="preserve">
+    <value>可达</value>
+    <comment>Status label: probe succeeded</comment>
+  </data>
+  <data name="DeviceStatus_Checking" xml:space="preserve">
+    <value>检测中…</value>
+    <comment>Status label: no result yet (also the fallback)</comment>
+  </data>
+  <data name="DeviceStatus_Unreachable" xml:space="preserve">
+    <value>暂不可达</value>
+    <comment>Status label: probe failed</comment>
+  </data>
+  <data name="DeviceStatus_Revoked" xml:space="preserve">
+    <value>电脑端已移除</value>
+    <comment>Status label: computer revoked the credential</comment>
+  </data>
+  <data name="DeviceStatus_Expired" xml:space="preserve">
+    <value>配对已过期</value>
+    <comment>Status label: local credential expired</comment>
+  </data>
+  <data name="DeviceStatus_AddressChanged" xml:space="preserve">
+    <value>地址可能已变化</value>
+    <comment>Status label: a different gateway answered</comment>
+  </data>
+  <data name="DeviceStatus_ConnectToCheck" xml:space="preserve">
+    <value>连接后可检测</value>
+    <comment>Status label: iroh row that cannot be probed yet</comment>
+  </data>
+  <!-- DeviceCard -->
+  <data name="DeviceCard_Identity" xml:space="preserve">
+    <value>{0} · {1}…</value>
+    <comment>Card detail line: channel and short endpoint id</comment>
+  </data>
+  <data name="DeviceCard_Expiry" xml:space="preserve">
+    <value>凭据至 {0}</value>
+    <comment>Card detail line: credential expiry date</comment>
+  </data>
+  <data name="DeviceCard_LastConnected" xml:space="preserve">
+    <value>最近连接 {0}</value>
+    <comment>Card status line: relative last-connected wording</comment>
+  </data>
+  <data name="DeviceCard_StatusLine" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card status line: status label and recency</comment>
+  </data>
+  <data name="DeviceCard_Detail" xml:space="preserve">
+    <value>{0} · {1}</value>
+    <comment>Card detail line: identity and optional expiry</comment>
+  </data>
+  <data name="DeviceCard_RepairHint" xml:space="preserve">
+    <value>凭据已过期或不可读，粘贴该电脑当前链接即可更新</value>
+    <comment>Card warning line for an unusable record</comment>
+  </data>
+  <!-- RelativeTime -->
+  <data name="RelativeTime_Never" xml:space="preserve">
+    <value>从未连接</value>
+    <comment>Relative time: no timestamp</comment>
+  </data>
+  <data name="RelativeTime_JustNow" xml:space="preserve">
+    <value>刚刚</value>
+    <comment>Relative time: under a minute</comment>
+  </data>
+  <data name="RelativeTime_MinutesAgo" xml:space="preserve">
+    <value>{0} 分钟前</value>
+    <comment>Relative time: N minutes</comment>
+  </data>
+  <data name="RelativeTime_HoursAgo" xml:space="preserve">
+    <value>{0} 小时前</value>
+    <comment>Relative time: N hours</comment>
+  </data>
+  <data name="RelativeTime_DaysAgo" xml:space="preserve">
+    <value>{0} 天前</value>
+    <comment>Relative time: N days</comment>
+  </data>
+  <!-- Settings -->
+  <data name="Settings_Subtitle" xml:space="preserve">
+    <value>外观、启动方式与本机数据，所有设置只保存在这台电脑上。</value>
+    <comment>Settings page subtitle</comment>
+  </data>
+  <data name="Settings_Appearance" xml:space="preserve">
+    <value>外观</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_AppIcon" xml:space="preserve">
+    <value>应用图标</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_AppIconHint" xml:space="preserve">
+    <value>与手机 App 相同的 10 种图标</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_AppIconCycle" xml:space="preserve">
+    <value>切换</value>
+    <comment>Settings row action (next icon)</comment>
+  </data>
+  <data name="Settings_AppIconCycleTooltip" xml:space="preserve">
+    <value>切换到下一个图标</value>
+    <comment>Settings row action tooltip</comment>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>主题</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_ThemeHint" xml:space="preserve">
+    <value>默认跟随 Windows 的浅色/深色设置</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>跟随系统</value>
+    <comment>Theme segment: follow Windows</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>浅色</value>
+    <comment>Theme segment: light</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>深色</value>
+    <comment>Theme segment: dark</comment>
+  </data>
+  <data name="Settings_StartupGroup" xml:space="preserve">
+    <value>启动与连接</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_Startup" xml:space="preserve">
+    <value>启动时</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_StartupHint" xml:space="preserve">
+    <value>自动连接会直接进入上次使用的电脑</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_StartPageDevices" xml:space="preserve">
+    <value>显示设备列表</value>
+    <comment>Start-page segment: show the device list</comment>
+  </data>
+  <data name="Settings_StartPageLastDevice" xml:space="preserve">
+    <value>自动连接上次的电脑</value>
+    <comment>Start-page segment: reconnect the last computer</comment>
+  </data>
+  <data name="Settings_Notify" xml:space="preserve">
+    <value>任务完成提醒</value>
+    <comment>Settings row title</comment>
+  </data>
+  <data name="Settings_NotifyHint" xml:space="preserve">
+    <value>连接期间在托盘显示任务完成通知</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_NotifyAutomationName" xml:space="preserve">
+    <value>任务完成提醒通知</value>
+    <comment>Switch automation name</comment>
+  </data>
+  <data name="Settings_Data" xml:space="preserve">
+    <value>数据</value>
+    <comment>Settings group label</comment>
+  </data>
+  <data name="Settings_ClearSiteData" xml:space="preserve">
+    <value>清除站点数据</value>
+    <comment>Settings row title / dialog title shared by the clear-site-data flow</comment>
+  </data>
+  <data name="Settings_ClearSiteDataHint" xml:space="preserve">
+    <value>清除 WebView 的缓存与 Cookie；已配对电脑不受影响</value>
+    <comment>Settings row hint</comment>
+  </data>
+  <data name="Settings_ClearTooltip" xml:space="preserve">
+    <value>清除缓存、Cookie 与本地存储</value>
+    <comment>"Clear" button tooltip</comment>
+  </data>
+  <data name="Settings_ClearNeedConnect" xml:space="preserve">
+    <value>先连接一次，WebView 数据才有可清除的内容。</value>
+    <comment>Dialog body when WebView2 has not started yet</comment>
+  </data>
+  <data name="Settings_ClearConfirm" xml:space="preserve">
+    <value>清除 WebView 的缓存、Cookie 与本地存储？
+已配对的电脑与凭据不受影响。</value>
+    <comment>Confirmation dialog body</comment>
+  </data>
+  <data name="Settings_ClearDone" xml:space="preserve">
+    <value>已清除。重新连接后会重新载入页面。</value>
+    <comment>Dialog body after a successful clear</comment>
+  </data>
+  <data name="Settings_ClearFailed" xml:space="preserve">
+    <value>清除失败：{0}</value>
+    <comment>Dialog body when the clear throws</comment>
+  </data>
+  <data name="Settings_PortableHint" xml:space="preserve">
+    <value>便携版：不写注册表，运行时数据保存在程序目录的 data\ 下</value>
+    <comment>Footer hint beside the version</comment>
+  </data>
+  <!-- Update -->
+  <data name="Update_Check" xml:space="preserve">
+    <value>检查更新</value>
+    <comment>Check-update button label (idle and after a check)</comment>
+  </data>
+  <data name="Update_CheckingButton" xml:space="preserve">
+    <value>检查中…</value>
+    <comment>Check-update button label while checking</comment>
+  </data>
+  <data name="Update_Checking" xml:space="preserve">
+    <value>正在检查…</value>
+    <comment>Footer status line while checking</comment>
+  </data>
+  <data name="Update_UpToDate" xml:space="preserve">
+    <value>已是最新版本（{0}）。</value>
+    <comment>Footer status line: no newer release</comment>
+  </data>
+  <data name="Update_FoundNoInstaller" xml:space="preserve">
+    <value>发现新版本 {0}（当前 {1}），但该版本没有提供安装包，无法自动更新。请手动下载：{2}</value>
+    <comment>Footer status line: newer release without an installer asset</comment>
+  </data>
+  <data name="Update_Found" xml:space="preserve">
+    <value>发现新版本 {0}（当前 {1}）。点击「更新到 {0}」开始下载；下载并校验通过后客户端会退出，由安装程序替换文件，data\ 中的配对、设置与日志会保留。</value>
+    <comment>Footer status line: newer release ready to install</comment>
+  </data>
+  <data name="Update_To" xml:space="preserve">
+    <value>更新到 {0}</value>
+    <comment>Footer button label once a release is known</comment>
+  </data>
+  <data name="Update_CheckFailed" xml:space="preserve">
+    <value>检查失败：{0}。可以稍后重试，或手动打开 {1} 查看。</value>
+    <comment>Footer status line when the check throws</comment>
+  </data>
+  <data name="Update_Downloading" xml:space="preserve">
+    <value>正在下载…</value>
+    <comment>Footer button label while downloading</comment>
+  </data>
+  <data name="Update_DownloadingDetail" xml:space="preserve">
+    <value>正在下载 {0} 的安装包…下载并校验通过后客户端会退出，由安装程序替换文件。</value>
+    <comment>Footer status line while downloading</comment>
+  </data>
+  <data name="Update_InstallerStarted" xml:space="preserve">
+    <value>安装程序已启动，客户端正在退出以完成更新。安装完成后请重新打开 DSH Mobile（{0}）。</value>
+    <comment>Footer status line once the installer starts</comment>
+  </data>
+  <data name="Update_Cancelled" xml:space="preserve">
+    <value>已取消更新，未做任何更改。</value>
+    <comment>Footer status line after a cancellation</comment>
+  </data>
+  <data name="Update_Failed" xml:space="preserve">
+    <value>更新失败：{0}。请重试，或手动下载：{1}</value>
+    <comment>Footer status line when the update throws</comment>
+  </data>
+  <data name="Update_Detail" xml:space="preserve">
+    <value>
+详细信息：{0}</value>
+    <comment>Detail line appended to a failure message</comment>
+  </data>
+  <data name="Update_Cancelling" xml:space="preserve">
+    <value>正在取消…</value>
+    <comment>Progress text while cancelling</comment>
+  </data>
+  <data name="Update_OpenBrowserFailed" xml:space="preserve">
+    <value>无法打开浏览器，请手动访问：{0}</value>
+    <comment>Dialog body when the browser cannot be started</comment>
+  </data>
+  <data name="Update_OpenDownloadPageFailedTitle" xml:space="preserve">
+    <value>打开下载页失败</value>
+    <comment>Dialog title for the manual-download escape hatch</comment>
+  </data>
+  <data name="Update_OpenDownloadPage" xml:space="preserve">
+    <value>打开下载页</value>
+    <comment>Manual-download button label</comment>
+  </data>
+  <data name="Update_OpenDownloadPageTooltip" xml:space="preserve">
+    <value>在浏览器中打开 GitHub Releases 手动下载</value>
+    <comment>Manual-download button tooltip</comment>
+  </data>
+  <data name="Update_CheckTooltip" xml:space="preserve">
+    <value>检查是否有新的 Windows 客户端版本</value>
+    <comment>Check-update button tooltip</comment>
+  </data>
+  <data name="Update_CancelDownloadTooltip" xml:space="preserve">
+    <value>取消下载，删除临时文件</value>
+    <comment>Cancel-download button tooltip</comment>
+  </data>
+  <data name="Update_SizeUnknown" xml:space="preserve">
+    <value>未知大小</value>
+    <comment>Size text when the server declared no length</comment>
+  </data>
+  <data name="Update_ProgressPercent" xml:space="preserve">
+    <value>{0} / {1}（{2}%）</value>
+    <comment>Progress text with a known total</comment>
+  </data>
+  <data name="Update_ProgressDownloaded" xml:space="preserve">
+    <value>已下载 {0}</value>
+    <comment>Progress text without a known total</comment>
+  </data>
+  <data name="Update_ProgressVerifying" xml:space="preserve">
+    <value>正在校验 SHA-256…</value>
+    <comment>Progress text while verifying</comment>
+  </data>
+  <data name="Update_ProgressLaunching" xml:space="preserve">
+    <value>正在启动安装程序…</value>
+    <comment>Progress text while launching the installer</comment>
+  </data>
+  <data name="Update_TimeoutCheck" xml:space="preserve">
+    <value>请求超时（15 秒内没有响应）</value>
+    <comment>Check-update failure reason for a timeout</comment>
+  </data>
+  <data name="Update_CannotReachGitHub" xml:space="preserve">
+    <value>无法连接 GitHub</value>
+    <comment>Check-update failure reason for a transport error</comment>
+  </data>
+  <data name="Update_UnknownError" xml:space="preserve">
+    <value>未知错误</value>
+    <comment>Fallback failure reason</comment>
+  </data>
+  <data name="Update_InstallMissingSetup" xml:space="preserve">
+    <value>版本 {0} 没有提供安装包，无法自动更新。请手动下载：{1}</value>
+    <comment>Install failure: release has no setup asset</comment>
+  </data>
+  <data name="Update_InvalidSetupUrl" xml:space="preserve">
+    <value>版本 {0} 的安装包地址无效，请手动下载：{1}</value>
+    <comment>Install failure: setup URL does not parse</comment>
+  </data>
+  <data name="Update_ChecksumFileMissing" xml:space="preserve">
+    <value>版本 {0} 缺少 SHA-256 校验文件，无法确认安装包完整性，已取消安装。请手动下载：{1}</value>
+    <comment>Install failure: release has no checksum asset</comment>
+  </data>
+  <data name="Update_TempDirFailed" xml:space="preserve">
+    <value>无法创建临时下载目录：{0}</value>
+    <comment>Install failure: temp folder cannot be created</comment>
+  </data>
+  <data name="Update_StepDownload" xml:space="preserve">
+    <value>下载</value>
+    <comment>Timeout step name for the payload download</comment>
+  </data>
+  <data name="Update_StepChecksumDownload" xml:space="preserve">
+    <value>下载校验文件</value>
+    <comment>Timeout step name for the checksum download</comment>
+  </data>
+  <data name="Update_StepVerify" xml:space="preserve">
+    <value>校验</value>
+    <comment>Timeout step name for the verification</comment>
+  </data>
+  <data name="Update_StepTimeout" xml:space="preserve">
+    <value>{0}超时（网络长时间无响应），请检查网络后重试，或手动下载：{1}</value>
+    <comment>Failure message for a step deadline</comment>
+  </data>
+  <data name="Update_LaunchProcessFailed" xml:space="preserve">
+    <value>未能启动安装程序进程。</value>
+    <comment>Exception text when Process.Start returns null</comment>
+  </data>
+  <data name="Update_LaunchFailed" xml:space="preserve">
+    <value>无法启动安装程序。安装包已下载并校验通过，可手动运行：{0}</value>
+    <comment>Install failure: the installer cannot be started</comment>
+  </data>
+  <data name="Update_ChecksumUnparsable" xml:space="preserve">
+    <value>校验失败：校验文件里没有可解析的 SHA-256 值，已取消安装。请手动下载：{0}</value>
+    <comment>Verify failure: no digest in the sidecar</comment>
+  </data>
+  <data name="Update_PackageUnreadable" xml:space="preserve">
+    <value>校验失败：无法读取已下载的安装包，已取消安装。</value>
+    <comment>Verify failure: the download cannot be read</comment>
+  </data>
+  <data name="Update_ChecksumMismatch" xml:space="preserve">
+    <value>校验失败：安装包的 SHA-256 与发布值不一致，已删除下载的文件并且没有安装。
+发布值：{0}
+实际值：{1}
+请重试；若仍不一致，请手动下载：{2}</value>
+    <comment>Verify failure: digest mismatch</comment>
+  </data>
+  <data name="Update_ChecksumOversized" xml:space="preserve">
+    <value>校验失败：校验文件大小异常（不像 SHA-256 文件），已取消安装。请手动下载：{0}</value>
+    <comment>Verify failure: the sidecar is implausibly large</comment>
+  </data>
+  <data name="Update_HttpNotFound" xml:space="preserve">
+    <value>发布资产不存在（HTTP 404）</value>
+    <comment>HTTP failure reason: 404</comment>
+  </data>
+  <data name="Update_HttpForbidden" xml:space="preserve">
+    <value>GitHub 拒绝了本次请求（HTTP {0}），请稍后重试</value>
+    <comment>HTTP failure reason: 403/429</comment>
+  </data>
+  <data name="Update_HttpRedirect" xml:space="preserve">
+    <value>下载地址已变更（HTTP {0}）</value>
+    <comment>HTTP failure reason: redirect</comment>
+  </data>
+  <data name="Update_HttpStatus" xml:space="preserve">
+    <value>服务器返回 HTTP {0}</value>
+    <comment>HTTP failure reason: any other status</comment>
+  </data>
+  <data name="Update_DownloadFailed" xml:space="preserve">
+    <value>下载失败：{0}。请检查网络后重试，或手动下载：{1}</value>
+    <comment>Download failure wrapper</comment>
+  </data>
+  <data name="Update_NetworkFailed" xml:space="preserve">
+    <value>下载失败：网络连接中断或无法访问 GitHub。请检查网络（或代理）后重试，或手动下载：{0}</value>
+    <comment>Download failure: transport error</comment>
+  </data>
+  <data name="Update_DownloadInterrupted" xml:space="preserve">
+    <value>下载中断：只收到 {0}，应为 {1}。请重试，或手动下载：{2}</value>
+    <comment>Download failure: truncated body</comment>
+  </data>
+  <data name="Update_WriteTempFailed" xml:space="preserve">
+    <value>下载失败：无法写入临时目录 {0}。请检查磁盘空间与权限，或手动下载：{1}</value>
+    <comment>Download failure: the temp file cannot be written</comment>
+  </data>
+  <!-- WebView -->
+  <data name="WebView_RuntimeMissingTitle" xml:space="preserve">
+    <value>缺少 WebView2 运行时</value>
+    <comment>Dialog title when the WebView2 runtime is absent</comment>
+  </data>
+  <data name="WebView_RuntimeMissingMessage" xml:space="preserve">
+    <value>这台电脑没有安装 Microsoft Edge WebView2 运行时，客户端无法显示 DSH 页面。
+
+请安装后重新打开客户端：
+{0}
+
+Windows 11 通常已自带；Windows 10 需要安装一次 Evergreen Runtime。
+如果已安装仍提示缺失，请确认安装的是 x64 版本。</value>
+    <comment>Dialog body when the WebView2 runtime is absent (argument is the download URL)</comment>
+  </data>
+  <data name="WebView_BlockedNavigation" xml:space="preserve">
+    <value>已阻止非网关地址的导航。</value>
+    <comment>One-time notice when a non-gateway navigation is blocked</comment>
+  </data>
+  <data name="WebView_BlockedPopup" xml:space="preserve">
+    <value>已阻止弹出窗口。</value>
+    <comment>One-time notice when a pop-up is blocked</comment>
+  </data>
+  <data name="WebView_BlockedDownload" xml:space="preserve">
+    <value>已阻止非网关地址的下载。</value>
+    <comment>One-time notice when an off-origin download is blocked</comment>
+  </data>
+  <data name="WebView_BrowserExited" xml:space="preserve">
+    <value>浏览器进程已退出，请断开后重新连接。</value>
+    <comment>One-time notice when the browser process exits</comment>
+  </data>
+  <data name="WebView_RendererReloading" xml:space="preserve">
+    <value>页面进程异常，正在重新加载。</value>
+    <comment>One-time notice when the renderer crashes</comment>
+  </data>
+  <data name="WebView_NoticeTitle" xml:space="preserve">
+    <value>Windows 客户端</value>
+    <comment>Title of the one-time WebView policy notices</comment>
+  </data>
+  <!-- Notify -->
+  <data name="Notify_TaskComplete" xml:space="preserve">
+    <value>任务完成</value>
+    <comment>Tray balloon title fallback for a task notification</comment>
+  </data>
+  <data name="Notify_TaskUpdate" xml:space="preserve">
+    <value>电脑端任务有更新，点击查看。</value>
+    <comment>Tray balloon body fallback for a task notification</comment>
+  </data>
+  <data name="Notify_DeviceRevokedTitle" xml:space="preserve">
+    <value>设备已失效</value>
+    <comment>Tray balloon title when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_DeviceRevokedBody" xml:space="preserve">
+    <value>{0}。请粘贴该电脑当前的配对链接更新。</value>
+    <comment>Tray balloon body when the computer revoked this device</comment>
+  </data>
+  <data name="Notify_RevokedByComputer" xml:space="preserve">
+    <value>电脑端已撤销此设备</value>
+    <comment>Revocation reason reported by the background event stream</comment>
+  </data>
+  <data name="Notify_TrayWatcher" xml:space="preserve">
+    <value>DeepSeek Harness — 正在监听任务完成</value>
+    <comment>Tray icon tooltip while the task watcher runs</comment>
+  </data>
+  <!-- AppData -->
+  <data name="AppData_UnwritableTitle" xml:space="preserve">
+    <value>程序目录不可写</value>
+    <comment>Dialog title when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_UnwritableMessage" xml:space="preserve">
+    <value>程序目录不可写，设置、已配对电脑与日志都无法保存。
+
+请把整个程序文件夹放到可写目录（例如桌面、文档或 U 盘）后重新运行；不要放在 Program Files 等需要管理员权限的位置。
+
+本次运行仍可连接电脑，但退出后不会保留任何设置。</value>
+    <comment>Dialog body when data\ cannot be written</comment>
+  </data>
+  <data name="AppData_DetailError" xml:space="preserve">
+    <value>
+
+详细错误：{0}</value>
+    <comment>Detail appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_DataDirectory" xml:space="preserve">
+    <value>
+
+数据目录：{0}</value>
+    <comment>Data folder path appended to the unwritable-folder dialog</comment>
+  </data>
+  <data name="AppData_Unknown" xml:space="preserve">
+    <value>未知</value>
+    <comment>Placeholder when the underlying error text is missing</comment>
+  </data>
+  <!-- Crash -->
+  <data name="Crash_Title" xml:space="preserve">
+    <value>程序遇到未预期的问题</value>
+    <comment>Title of the last-resort crash dialog</comment>
+  </data>
+  <data name="Crash_BodyLead" xml:space="preserve">
+    <value>程序遇到未预期的问题，但已阻止直接退出。
+
+{0}</value>
+    <comment>Crash dialog lead plus the exception type name</comment>
+  </data>
+  <data name="Crash_BodyMessage" xml:space="preserve">
+    <value>：{0}</value>
+    <comment>Exception message appended to the type name</comment>
+  </data>
+  <data name="Crash_BodyLogPath" xml:space="preserve">
+    <value>
+
+详细信息已写入：
+{0}</value>
+    <comment>Crash dialog: where the log was written</comment>
+  </data>
+  <data name="Crash_BodyFooter" xml:space="preserve">
+    <value>
+
+如果问题反复出现，请把该日志附在 issue 里。</value>
+    <comment>Crash dialog closing advice</comment>
+  </data>
+  <!-- Rename -->
+  <data name="Rename_Title" xml:space="preserve">
+    <value>重命名</value>
+    <comment>Rename dialog window title and heading</comment>
+  </data>
+  <data name="Rename_Prompt" xml:space="preserve">
+    <value>给这台电脑起个名字</value>
+    <comment>Rename dialog prompt</comment>
+  </data>
+  <data name="Rename_InputTooltip" xml:space="preserve">
+    <value>1–32 个字符，仅用于本机显示</value>
+    <comment>Name box tooltip</comment>
+  </data>
+  <data name="Rename_Note" xml:space="preserve">
+    <value>名称只保存在本机，不影响配对与连接</value>
+    <comment>Rename dialog note</comment>
+  </data>
+  <data name="Rename_Save" xml:space="preserve">
+    <value>保存</value>
+    <comment>Rename dialog primary action</comment>
+  </data>
+  <data name="Rename_InvalidTitle" xml:space="preserve">
+    <value>名称无效</value>
+    <comment>Rename validation dialog title</comment>
+  </data>
+  <data name="Rename_InvalidName" xml:space="preserve">
+    <value>名称需为 1–32 个字符，且不能包含控制字符。</value>
+    <comment>Rename validation dialog body</comment>
+  </data>
+  <!-- AppIcon -->
+  <data name="AppIcon_Default" xml:space="preserve">
+    <value>默认（眨眼指手机）</value>
+    <comment>Icon choice label: default mascot (currently preview-only, see report)</comment>
+  </data>
+  <data name="AppIcon_Classic" xml:space="preserve">
+    <value>经典（睁眼指手机）</value>
+    <comment>Icon choice label: classic mascot</comment>
+  </data>
+  <data name="AppIcon_Cheer" xml:space="preserve">
+    <value>欢呼（闭眼）</value>
+    <comment>Icon choice label: cheering mascot</comment>
+  </data>
+  <data name="AppIcon_Quiet" xml:space="preserve">
+    <value>安静（手指抵唇）</value>
+    <comment>Icon choice label: quiet mascot</comment>
+  </data>
+  <data name="AppIcon_Whale" xml:space="preserve">
+    <value>鲸鱼</value>
+    <comment>Icon choice label: whale</comment>
+  </data>
+  <data name="AppIcon_WhaleBlack" xml:space="preserve">
+    <value>鲸鱼 · 黑</value>
+    <comment>Icon choice label: black whale</comment>
+  </data>
+  <data name="AppIcon_WhaleDark" xml:space="preserve">
+    <value>鲸鱼 · 深色</value>
+    <comment>Icon choice label: dark whale</comment>
+  </data>
+  <data name="AppIcon_WhaleMono" xml:space="preserve">
+    <value>鲸鱼 · 单色</value>
+    <comment>Icon choice label: mono whale</comment>
+  </data>
+  <data name="AppIcon_WhaleTeal" xml:space="preserve">
+    <value>鲸鱼 · 青</value>
+    <comment>Icon choice label: teal whale</comment>
+  </data>
+  <data name="AppIcon_WhaleWhite" xml:space="preserve">
+    <value>鲸鱼 · 白</value>
+    <comment>Icon choice label: white whale</comment>
+  </data>
+</root>

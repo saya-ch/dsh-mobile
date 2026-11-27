@@ -12,7 +12,7 @@
          independent of the plugin (package.json) and of the iroh sidecar pin. -->
     <Version>0.1.2-alpha</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <FileVersion>0.1.2.0</FileVersion>
     <InformationalVersion>0.1.2-alpha</InformationalVersion>
     <Product>DSH Mobile</Product>
     <Company>DSH Mobile contributors</Company>
@@ -27,6 +27,19 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3124.44" />
     <Resource Include="app.ico" />
+  </ItemGroup>
+
+  <!-- User-visible strings. Resources/Strings.resx holds the Chinese defaults; the
+       accessor (Resources/Strings.Designer.cs) is written by hand rather than emitted by
+       ResXFileCodeGenerator, so a build does not depend on Visual Studio or a designer
+       round-trip. The SDK already embeds every .resx under the project root, but the
+       logical name is pinned here (note the required .resources suffix) so the
+       ResourceManager lookup in the accessor cannot drift if RootNamespace or the
+       folder layout ever changes. -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <LogicalName>DshMobile.Win.Resources.Strings.resources</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- Launcher artwork the user can switch between. These are the same assets the

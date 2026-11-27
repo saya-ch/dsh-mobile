@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -125,6 +126,13 @@ internal static class ConnectionDiagnosis
     /// Protocol/version disagreement. The gateway reports it as a code, the client
     /// phrases it in prose; both spellings are recognised.
     /// </summary>
+    /// <remarks>
+    /// The Chinese entries below are MATCHING TOKENS, not UI copy: they recognise what
+    /// the gateway or the sidecar said. They are deliberately not moved into Strings.resx,
+    /// because translating them would stop them matching. They do depend on the wording
+    /// of the messages this client itself produces; if that wording changes, these
+    /// tokens have to change with it.
+    /// </remarks>
     internal static bool IsVersionMismatch(string? message)
     {
         if (string.IsNullOrWhiteSpace(message)) return false;
@@ -202,14 +210,11 @@ internal static class ConnectionDiagnosis
 
         if (IsCredentialFailure(message, diagnostics))
             return new ConnectionFailure(ConnectionFailureKind.CredentialExpired,
-                "这台电脑的设备凭据已失效，或电脑端已撤销此设备。\n\n" +
-                "请重新生成二维码并完成一次配对。", true);
+                Strings.Diagnosis_CredentialExpired, true);
 
         if (IsVersionMismatch(message))
             return new ConnectionFailure(ConnectionFailureKind.ProtocolMismatch,
-                "客户端与电脑端的协议版本不一致，无法完成配对。\n\n" +
-                "请把 Windows 客户端更新到最新版本（设置 → 检查更新），" +
-                "并确认电脑端的 DSH Mobile 插件也已更新到兼容版本。", false);
+                Strings.Diagnosis_ProtocolMismatch, false);
 
         if (IsWebView2Failure(message))
             return new ConnectionFailure(ConnectionFailureKind.WebView2Unavailable,
@@ -217,8 +222,7 @@ internal static class ConnectionDiagnosis
 
         if (IsCaMismatch(message))
             return new ConnectionFailure(ConnectionFailureKind.CaMismatch,
-                "连接到的电脑与配对时固定的不是同一台（CA 指纹不匹配）。\n" +
-                "请确认配对链接来自这台电脑，且中间没有地址劫持。", false);
+                Strings.Diagnosis_CaMismatch, false);
 
         if (target.IsDirect && IsHostUnresolved(error, message))
         {
@@ -226,14 +230,12 @@ internal static class ConnectionDiagnosis
             // exists, so the useful advice is "re-pair", not "check your network".
             if (target.IsRemote && IsCpolarHost(id))
                 return new ConnectionFailure(ConnectionFailureKind.CpolarAddressStale,
-                    "cpolar 的临时地址已经失效。\n\n" +
-                    "cpolar 免费隧道每次重启都会换域名，保存的地址已经连不到这台电脑。\n" +
-                    "请在电脑端打开 DSH Mobile 的远程访问，复制新的配对链接后重新粘贴。", true);
+                    Strings.Diagnosis_CpolarStale, true);
             return new ConnectionFailure(ConnectionFailureKind.HostUnresolved,
-                $"无法解析电脑地址 {id}。\n\n" +
-                (target.Channel == "lan"
-                    ? "局域网连接：请确认本机与电脑在同一网络，电脑端网关正在运行。"
-                    : "远程连接：请确认远程通道（Tailscale/cpolar/cloudflared 等）正在运行，且域名可访问。"),
+                string.Format(Strings.Diagnosis_HostUnresolved, id,
+                    target.Channel == "lan"
+                        ? Strings.Diagnosis_HostUnresolvedLan
+                        : Strings.Diagnosis_HostUnresolvedRemote),
                 true);
         }
 
@@ -243,56 +245,43 @@ internal static class ConnectionDiagnosis
             {
                 case ConnectionFailureKind.ProtocolMismatch:
                     return new ConnectionFailure(ConnectionFailureKind.ProtocolMismatch,
-                        "电脑端要求升级客户端才能继续（HTTP 426）。\n\n" +
-                        "请把 Windows 客户端更新到最新版本（设置 → 检查更新）。", false);
+                        Strings.Diagnosis_Http426, false);
                 case ConnectionFailureKind.RateLimited:
                     return new ConnectionFailure(ConnectionFailureKind.RateLimited,
-                        "电脑端当前限制了新的连接请求（HTTP 429）。\n\n" +
-                        "请等一两分钟再试。如果经常出现，请检查电脑端是否同时有多个客户端在反复重连。",
-                        false);
+                        Strings.Diagnosis_Http429, false);
                 case ConnectionFailureKind.ServiceUnavailable:
                     return new ConnectionFailure(ConnectionFailureKind.ServiceUnavailable,
-                        $"电脑端的 DSH 服务暂时不可用（HTTP {status}）。\n\n" +
-                        "请确认电脑端网关与 DSH 本体都在运行，然后重试。", false);
+                        string.Format(Strings.Diagnosis_ServiceUnavailable, status), false);
             }
         }
 
         if (IsTlsFailure(error, message))
             return new ConnectionFailure(ConnectionFailureKind.Tls,
-                "与电脑建立安全连接（TLS）失败。\n\n" +
-                "常见原因：电脑端证书已更换、代理或 VPN 在做 TLS 拦截、系统时间偏差过大。\n" +
-                "请确认电脑端网关正在运行，并重新粘贴该电脑当前的配对链接。", false);
+                Strings.Diagnosis_TlsFailure, false);
 
         if (target.IsDirect && IsNetworkFailure(error, message))
         {
             if (target.IsRemote && IsCpolarHost(id))
                 return new ConnectionFailure(ConnectionFailureKind.CpolarAddressStale,
-                    "cpolar 的临时地址已经失效。\n\n" +
-                    "cpolar 免费隧道每次重启都会换域名，保存的地址已经连不到这台电脑。\n" +
-                    "请在电脑端打开 DSH Mobile 的远程访问，复制新的配对链接后重新粘贴。", true);
+                    Strings.Diagnosis_CpolarStale, true);
             return new ConnectionFailure(ConnectionFailureKind.Network,
-                "无法建立到电脑端网关的 HTTPS 连接。\n\n" +
-                (target.Channel == "lan"
-                    ? "局域网连接：请确认本机与电脑在同一网络，防火墙放行了网关端口，且通道处于就绪状态。"
-                    : "远程连接：请确认远程通道正在运行，公网可访问该地址。"), true);
+                string.Format(Strings.Diagnosis_NetworkFailure,
+                    target.Channel == "lan"
+                        ? Strings.Diagnosis_NetworkLan
+                        : Strings.Diagnosis_NetworkRemote), true);
         }
 
         if (error is OperationCanceledException || error is TimeoutException)
             return new ConnectionFailure(ConnectionFailureKind.Timeout,
-                "连接超时。请确认电脑端 iroh 通道处于就绪状态、两端网络可达，然后重试。", false);
+                Strings.Diagnosis_Timeout, false);
 
         if (diagnostics?.Contains("No addressing information", StringComparison.OrdinalIgnoreCase) == true)
             return new ConnectionFailure(ConnectionFailureKind.IrohDiscovery,
-                "iroh 找不到该电脑端的地址（已自动重试 2 次）。\n\n" +
-                $"EndpointId：{ShortId(target)}\n" +
-                "请在代理/VPN 中放行 dns.iroh.link、iroh.link、relay.iroh.network 的 DNS 与 UDP。", false);
+                string.Format(Strings.Diagnosis_IrohNoAddress, ShortId(target)), false);
 
         if (diagnostics?.Contains("host connection timed out", StringComparison.OrdinalIgnoreCase) == true)
             return new ConnectionFailure(ConnectionFailureKind.IrohDiscovery,
-                "iroh 在 15 秒内没能连上配对指向的电脑端（已自动重试 2 次）。\n\n" +
-                $"EndpointId：{ShortId(target)}\n" +
-                "常见原因：电脑端通道刚重启、发现记录尚未传播，或代理/VPN 拦了 UDP。\n" +
-                "请确认通道就绪后重试；详细诊断见 data\\client.log。", false);
+                string.Format(Strings.Diagnosis_IrohConnectTimeout, ShortId(target)), false);
 
         return new ConnectionFailure(ConnectionFailureKind.Unknown, message, false);
     }

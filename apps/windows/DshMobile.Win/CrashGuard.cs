@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using DshMobile.Win.Resources;
 
 namespace DshMobile.Win;
 
@@ -16,7 +17,7 @@ namespace DshMobile.Win;
 /// </remarks>
 internal static class CrashGuard
 {
-    internal const string Title = "程序遇到未预期的问题";
+    internal static string Title => Strings.Crash_Title;
 
     private static int _showing;
 
@@ -33,11 +34,10 @@ internal static class CrashGuard
         var message = detail.Message.Trim();
         if (message.Length > 400) message = message[..400] + "…";
         var builder = new StringBuilder();
-        builder.Append("程序遇到未预期的问题，但已阻止直接退出。\n\n");
-        builder.Append(detail.GetType().Name);
-        if (message.Length > 0) builder.Append("：").Append(message);
-        builder.Append("\n\n详细信息已写入：\n").Append(logPath);
-        builder.Append("\n\n如果问题反复出现，请把该日志附在 issue 里。");
+        builder.Append(string.Format(Strings.Crash_BodyLead, detail.GetType().Name));
+        if (message.Length > 0) builder.Append(string.Format(Strings.Crash_BodyMessage, message));
+        builder.Append(string.Format(Strings.Crash_BodyLogPath, logPath));
+        builder.Append(Strings.Crash_BodyFooter);
         return builder.ToString();
     }
 
