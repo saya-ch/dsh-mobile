@@ -150,7 +150,7 @@
                                         Padding="9,3" BorderThickness="1"
                                         Background="{DynamicResource CardBrush}"
                                         BorderBrush="{DynamicResource OutlineBrush}">
-                                    <TextBlock x:Name="BrandVersion" FontSize="12"
+                                    <TextBlock x:Name="BrandVersion" FontSize="11.5"
                                                Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </Border>
                             </WrapPanel>
@@ -434,7 +434,7 @@
                                                 <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                     <TextBlock Text="{x:Static res:Strings.Channel_Lan}" FontSize="13" FontWeight="SemiBold" />
                                                     <TextBlock Text="{x:Static res:Strings.Pairing_LanSummary}" Margin="0,3,0,0"
-                                                               Style="{StaticResource Hint}" FontSize="12" />
+                                                               Style="{StaticResource Hint}" FontSize="11.5" />
                                                 </StackPanel>
                                             </Grid>
                                         </Button>
@@ -454,7 +454,7 @@
                                                 <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                     <TextBlock Text="{x:Static res:Strings.Channel_Remote}" FontSize="13" FontWeight="SemiBold" />
                                                     <TextBlock Text="{x:Static res:Strings.Pairing_RemoteSummary}" Margin="0,3,0,0"
-                                                               Style="{StaticResource Hint}" FontSize="12" />
+                                                               Style="{StaticResource Hint}" FontSize="11.5" />
                                                 </StackPanel>
                                             </Grid>
                                         </Button>
@@ -474,7 +474,7 @@
                                                 <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                     <TextBlock Text="iroh" FontSize="13" FontWeight="SemiBold" />
                                                     <TextBlock Text="{x:Static res:Strings.Pairing_IrohSummary}" Margin="0,3,0,0"
-                                                               Style="{StaticResource Hint}" FontSize="12" />
+                                                               Style="{StaticResource Hint}" FontSize="11.5" />
                                                 </StackPanel>
                                             </Grid>
                                         </Button>
