@@ -78,7 +78,8 @@ describe('browser authentication page localization', () => {
     expect(resolveAuthPageLocale('it-IT,en-US;q=0.8')).toBe('it')
     expect(resolveAuthPageLocale('en-US;q=0.5,zh-CN;q=0.9')).toBe('zh')
     expect(resolveAuthPageLocale('zh-CN;q=0,en-US;q=0.8')).toBe('en')
-    expect(resolveAuthPageLocale('fr-FR,de;q=0.8')).toBe('en')
+    // An unsupported language still falls back; `fr` is supported now.
+    expect(resolveAuthPageLocale('pt-BR,sv;q=0.8')).toBe('en')
     expect(resolveAuthPageLocale(undefined)).toBe('en')
   })
 
@@ -169,11 +170,11 @@ describe('browser pairing input and recovery feedback', () => {
     expect(form.button.disabled).toBe(false)
   })
 
-  it.each<AuthPageLocale>(['zh', 'en', 'it'])('localizes app-key guidance in %s', async locale => {
+  it.each<AuthPageLocale>(['zh', 'en', 'it', 'ja', 'ko', 'es', 'fr', 'de'])('localizes app-key guidance in %s', async locale => {
     const form = pairingForm(locale)
     form.token.value = 'dsh1.invalid'
     await form.submit()
-    const expected = { zh: 'Android App 密钥', en: 'Android app key', it: 'chiave per l’app Android' }
+    const expected: Record<AuthPageLocale, string> = { zh: '这是 Android App 密钥', en: 'This is an Android app key', it: 'Questa è una chiave per l’app Android', ja: 'これは Android アプリ用のキーです', ko: '이것은 Android 앱 키입니다', es: 'Esta es una clave de la app de Android', fr: 'Il s’agit d’une clé de l’app Android', de: 'Dies ist ein Schlüssel der Android-App' }
     expect(form.status.value).toContain(expected[locale])
     expect(form.requests).toEqual([])
   })

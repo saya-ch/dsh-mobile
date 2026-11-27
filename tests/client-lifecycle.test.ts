@@ -1143,15 +1143,17 @@ describe('mobile-control localization', () => {
   it('follows the DSH document language before the browser fallback', () => {
     expect(selectMobileControlLocale('it-IT', ['en-US'])).toBe('it')
     expect(selectMobileControlLocale('', ['zh-Hant', 'en-US'])).toBe('zh')
-    expect(selectMobileControlLocale('de-DE', ['fr-FR'])).toBe('en')
+    // `de` and `fr` are supported now; use languages that genuinely are not.
+    expect(selectMobileControlLocale('nl-NL', ['sv-SE'])).toBe('en')
     expect(selectMobileControlLocale('en-US', ['it-IT'])).toBe('en')
     expect(selectMobileControlLocale('zh-CN', ['it-IT'])).toBe('zh')
   })
 
-  it('keeps Italian, English, and Chinese catalogs in parity including v0.3 diagnostics', () => {
+  it('keeps every catalog in parity including v0.3 diagnostics', () => {
     const englishKeys = Object.keys(MOBILE_CONTROL_MESSAGES.en).sort()
-    expect(Object.keys(MOBILE_CONTROL_MESSAGES.it).sort()).toEqual(englishKeys)
-    expect(Object.keys(MOBILE_CONTROL_MESSAGES.zh).sort()).toEqual(englishKeys)
+    for (const locale of ['it', 'zh', 'ja', 'ko', 'es', 'fr', 'de'] as const) {
+      expect(Object.keys(MOBILE_CONTROL_MESSAGES[locale]).sort()).toEqual(englishKeys)
+    }
     expect(MOBILE_CONTROL_MESSAGES.it).toMatchObject({
       mobileAccess: 'Accesso mobile',
       diagnostics: 'Diagnostica',

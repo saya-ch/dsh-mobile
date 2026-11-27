@@ -23,7 +23,7 @@ The [official frps configuration reference](https://gofrp.org/en/docs/reference/
 
 Public-CA mode uses HTTPS 443. For self-signed mode, keep `https://PUBLIC_IPV4` in the address field and put the TCP port, such as `33080`, in **Public entry port**; the plugin builds the actual pairing address from both. Use public-CA mode for domains rather than the current IPv4-only self-signed mode.
 
-Plugin 0.6.16 adds Chinese, English and Italian field-level feedback: submission or preview marks invalid fields and focuses the first error; editing rechecks and clears corrected errors. It does not relax the validation above or change server listeners or ports for you.
+Plugin 0.6.16 adds Chinese, English, Italian, Japanese, Korean, Spanish, French and German field-level feedback: submission or preview marks invalid fields and focuses the first error; editing rechecks and clears corrected errors. It does not relax the validation above or change server listeners or ports for you.
 
 With plugin 0.8.3 or later, fill **frpc user (optional)** only if your shared frps provider supplies a username for proxy registration. The server uses it as a proxy-name prefix; it does not replace the shared token. To remove a saved username, clear the field and save. If the frps address and control port have not changed, you can reuse the saved token without displaying or reentering it.
 

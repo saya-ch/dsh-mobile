@@ -596,8 +596,10 @@ describe('native mobile presentation', () => {
   it('follows the DSH document language before the browser fallback', () => {
     expect(resolveNativeMobileLanguage('it-IT', ['en-US'])).toBe('it')
     expect(resolveNativeMobileLanguage('zh-CN', ['it-IT', 'en-US'])).toBe('zh')
-    expect(resolveNativeMobileLanguage('', ['de-DE', 'en-GB'])).toBe('en')
-    expect(resolveNativeMobileLanguage('', ['de-DE'])).toBe('en')
+    // `de` is supported now; use a language that genuinely is not.
+    expect(resolveNativeMobileLanguage('', ['nl-NL', 'en-GB'])).toBe('en')
+    expect(resolveNativeMobileLanguage('', ['nl-NL'])).toBe('en')
+    expect(resolveNativeMobileLanguage('', ['de-DE'])).toBe('de')
 
     const selected = resolveNativeMobileLanguage('zh-CN', ['en-US'])
     const root = { dataset: {} as DOMStringMap }
@@ -620,10 +622,12 @@ describe('native mobile presentation', () => {
     expect(source).toContain('button[aria-haspopup=\\"listbox\\"][aria-expanded=\\"true\\"]')
     expect(source).toContain('cameraButton.addEventListener("pointerdown", quietMediaPointer)')
     expect(source).toContain('active.isContentEditable')
-    expect(source).toContain('label("Scatta foto", "Take photo", "拍照")')
+    // Match the call by its arguments: the quote style depends on the transpiler, and
+    // the call now carries eight language arguments.
+    expect(source).toMatch(/label\([^)]*Scatta foto[^)]*Take photo[^)]*拍照/)
     expect(source).toContain('button.setAttribute("role", "option")')
     expect(source).toContain('mediaActionClassName(nativeItem)')
-    expect(source).toContain('label("Galleria", "Gallery", "相册")')
+    expect(source).toMatch(/label\([^)]*Galleria[^)]*Gallery[^)]*相册/)
     expect(source).toContain('multiple: true')
     expect(source).toContain('galleryButton.addEventListener("click", chooseGallery)')
     expect(source).toContain('galleryButton.removeEventListener("click", chooseGallery)')
@@ -643,9 +647,9 @@ describe('native mobile presentation', () => {
     expect(source).toContain('dispatchComposerImageDrop(document, files)')
     expect(source).toContain('if (!dispatchComposerImageDrop(document, files))')
     expect(source).toContain('const attachmentBlocked = !canAcceptComposerDrop()')
-    expect(source).toContain('label("Allegati immagine non disponibili", "Image attachments are unavailable", "图片附件不可用")')
+    expect(source).toMatch(/label\([^)]*Allegati immagine non disponibili[^)]*Image attachments are unavailable[^)]*图片附件不可用/)
     expect(source).not.toContain('AttachmentOwner')
-    expect(source).toContain('label("Ramo corrente", "Current branch", "当前分支")')
+    expect(source).toMatch(/label\([^)]*Ramo corrente[^)]*Current branch[^)]*当前分支/)
   })
 
   it('loads older history only after an upward scroll reaches the top zone', () => {

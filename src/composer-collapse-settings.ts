@@ -4,6 +4,7 @@ import {
   subscribeComposerCollapseEnabled,
   writeComposerCollapseEnabled,
 } from './composer-collapse.js'
+import type { MobileControlLocale } from './client-messages.js'
 
 /**
  * General-settings row for the reading-mode composer-collapse opt-in (issue #194).
@@ -32,10 +33,40 @@ export const COMPOSER_COLLAPSE_COPY = {
     on: 'Attivo',
     off: 'Disattivo',
   },
+  ja: {
+    title: 'リーディングモード：入力欄を折りたたむ',
+    desc: '長い会話を下にスクロールしている間、入力欄の編集領域を折りたたみます。タップする、フォーカスする、または上にスクロールすると元に戻ります。下書きがあるときや返信の生成中は折りたたみません。',
+    on: 'オン',
+    off: 'オフ',
+  },
+  ko: {
+    title: '읽기 모드: 입력창 접기',
+    desc: '긴 대화를 아래로 스크롤하는 동안 입력창 편집 영역을 접습니다. 탭하거나 포커스하거나 위로 스크롤하면 다시 펼쳐집니다. 임시 저장된 초안이 있거나 답변을 생성하는 중에는 접지 않습니다.',
+    on: '켜짐',
+    off: '꺼짐',
+  },
+  es: {
+    title: 'Modo lectura: contraer el editor',
+    desc: 'Contrae el área de edición del compositor mientras desplazas una conversación larga; tócalo, enfócalo o desplázate hacia arriba para restaurarlo. Nunca se contrae si hay un borrador o una respuesta en curso.',
+    on: 'Activado',
+    off: 'Desactivado',
+  },
+  fr: {
+    title: 'Mode lecture : réduire le champ de saisie',
+    desc: "Réduit la zone d'édition du champ de saisie pendant le défilement d'une longue conversation ; touchez-la, donnez-lui le focus ou remontez pour la restaurer. Elle n'est jamais réduite en présence d'un brouillon ou d'une réponse en cours.",
+    on: 'Activé',
+    off: 'Désactivé',
+  },
+  de: {
+    title: 'Lesemodus: Eingabefeld einklappen',
+    desc: 'Klappt den Bearbeitungsbereich des Eingabefelds beim Scrollen durch eine lange Unterhaltung ein; antippen, fokussieren oder nach oben scrollen stellt ihn wieder her. Bei einem Entwurf oder einer laufenden Antwort wird nie eingeklappt.',
+    on: 'Ein',
+    off: 'Aus',
+  },
 } as const
 
 export interface ComposerCollapseSettingsProps {
-  readonly locale: 'en' | 'zh' | 'it'
+  readonly locale: MobileControlLocale
   /** Injected in tests; defaults to the persisted store. */
   readonly read?: () => boolean
   readonly write?: (enabled: boolean) => void

@@ -4,6 +4,7 @@ import {
   subscribeSessionPrefetchEnabled,
   writeSessionPrefetchEnabled,
 } from './session-prefetch.js'
+import type { MobileControlLocale } from './client-messages.js'
 
 /**
  * General-settings row for the session-prefetch opt-in (issue #291).
@@ -32,10 +33,40 @@ export const SESSION_PREFETCH_COPY = {
     on: 'Attivo',
     off: 'Disattivo',
   },
+  ja: {
+    title: '直前のセッションを先読みする',
+    desc: 'セッションを切り替えた後、前のセッションをバックグラウンドで温めておき、戻ったときに速く開けるようにします。読み取り専用で、切り替えごとに最大 1 セッション、セッションごとのクールダウン付きです。',
+    on: 'オン',
+    off: 'オフ',
+  },
+  ko: {
+    title: '방금 떠난 세션 미리 불러오기',
+    desc: '세션을 전환한 뒤 이전 세션을 백그라운드에서 미리 준비하여 다시 돌아올 때 더 빠르게 열립니다. 읽기 전용이며 전환마다 최대 한 세션, 세션별 대기 시간이 적용됩니다.',
+    on: '켜짐',
+    off: '꺼짐',
+  },
+  es: {
+    title: 'Precargar la sesión que acabas de dejar',
+    desc: 'Tras cambiar de sesión, prepara la anterior en segundo plano para que volver a ella sea más rápido. Solo lectura, como máximo una sesión por cambio y con un tiempo de espera por sesión.',
+    on: 'Activado',
+    off: 'Desactivado',
+  },
+  fr: {
+    title: 'Précharger la session que vous venez de quitter',
+    desc: 'Après un changement de session, prépare la précédente en arrière-plan pour que le retour soit plus rapide. Lecture seule, au plus une session par changement, avec un délai par session.',
+    on: 'Activé',
+    off: 'Désactivé',
+  },
+  de: {
+    title: 'Zuletzt verlassene Sitzung vorladen',
+    desc: 'Bereitet nach einem Sitzungswechsel die vorherige im Hintergrund vor, damit der Wechsel zurück schneller öffnet. Nur lesend, höchstens eine Sitzung pro Wechsel, mit einer Wartezeit je Sitzung.',
+    on: 'Ein',
+    off: 'Aus',
+  },
 } as const
 
 export interface SessionPrefetchSettingsProps {
-  readonly locale: 'en' | 'zh' | 'it'
+  readonly locale: MobileControlLocale
   /** Injected in tests; defaults to the persisted store. */
   readonly read?: () => boolean
   readonly write?: (enabled: boolean) => void

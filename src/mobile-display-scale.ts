@@ -106,6 +106,11 @@ const messages = {
   zh: { title: '页面缩放', description: '调整整个页面的显示大小，仅保存在当前 App 中，与字号设置独立。', reset: '恢复 100%', loading: '读取中…', busy: '正在调整…', error: '无法调整页面缩放，请重试。', retry: '重试' },
   en: { title: 'Page zoom', description: 'Resize the whole page. Saved in this App, separately from font size.', reset: 'Reset to 100%', loading: 'Loading…', busy: 'Applying…', error: 'Could not change page zoom. Try again.', retry: 'Retry' },
   it: { title: 'Zoom pagina', description: 'Ridimensiona tutta la pagina. Salvato in questa app, separatamente dalla dimensione del testo.', reset: 'Ripristina 100%', loading: 'Caricamento…', busy: 'Applicazione…', error: 'Impossibile modificare lo zoom. Riprova.', retry: 'Riprova' },
+  ja: { title: 'ページのズーム', description: 'ページ全体の表示サイズを調整します。この App にのみ保存され、文字サイズの設定とは独立しています。', reset: '100% に戻す', loading: '読み込み中…', busy: '調整中…', error: 'ページのズームを変更できませんでした。もう一度お試しください。', retry: '再試行' },
+  ko: { title: '페이지 확대/축소', description: '페이지 전체의 표시 크기를 조정합니다. 이 App에만 저장되며 글꼴 크기 설정과는 별개입니다.', reset: '100%로 초기화', loading: '불러오는 중…', busy: '조정 중…', error: '페이지 확대/축소를 변경할 수 없습니다. 다시 시도하세요.', retry: '다시 시도' },
+  es: { title: 'Zoom de página', description: 'Ajusta el tamaño de toda la página. Se guarda en esta app, de forma independiente del tamaño de fuente.', reset: 'Restablecer a 100%', loading: 'Cargando…', busy: 'Aplicando…', error: 'No se pudo cambiar el zoom de página. Inténtalo de nuevo.', retry: 'Reintentar' },
+  fr: { title: 'Zoom de la page', description: 'Redimensionner toute la page. Enregistré dans cette application, indépendamment de la taille de police.', reset: 'Réinitialiser à 100%', loading: 'Chargement…', busy: 'Application…', error: 'Impossible de modifier le zoom de la page. Réessayer.', retry: 'Réessayer' },
+  de: { title: 'Seitenzoom', description: 'Ändert die Anzeigegröße der gesamten Seite. Wird in dieser App gespeichert, unabhängig von der Schriftgröße.', reset: 'Auf 100% zurücksetzen', loading: 'Wird geladen…', busy: 'Wird angewendet…', error: 'Der Seitenzoom konnte nicht geändert werden. Versuchen Sie es erneut.', retry: 'Erneut versuchen' },
 } as const
 
 /** Native-only General settings row using the existing DSH Mobile controls and locale. */

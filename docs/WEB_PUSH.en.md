@@ -57,7 +57,7 @@ All six categories default on **after** master opt-in. They cover authorized use
 
 Routine streaming/progress, runtime-child completion chatter and user-requested Stop do not notify. A child blocker is observed only when DSH exposes an actual human-directed request through the owning workflow; the plugin never fabricates parent questions or inspects private child state. Quick auto-decisions can settle before the attention delay and produce no alert. A notification says an event occurred, not that someone currently owns a wait.
 
-Lock-screen text is generic and localized in English, Simplified Chinese or Italian. It contains no question body, tool arguments, goal objective, conversation excerpt or raw error. Notification tags do not guarantee replacement or withdrawal.
+Lock-screen text is generic and localized in English, Simplified Chinese, Italian, Japanese, Korean, Spanish, French or German. It contains no question body, tool arguments, goal objective, conversation excerpt or raw error. Notification tags do not guarantee replacement or withdrawal.
 
 ## Consent, logout and revocation
 

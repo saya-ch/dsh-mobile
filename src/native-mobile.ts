@@ -139,6 +139,13 @@ export const NATIVE_MOBILE_STYLES = `
   [data-dsh-mobile-header] [class*="_sessionLogButton"] > * { display:none !important; }
   [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { color:var(--dsw-alias-label-primary, #171a21); content:"Log"; font-size:11px; font-weight:600; }
   html[data-dsh-mobile-language="zh"] [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { content:"日志"; }
+  html[data-dsh-mobile-language="ja"] [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { content:"ログ"; }
+  html[data-dsh-mobile-language="ko"] [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { content:"로그"; }
+  /* Same caption seat for the remaining locales the marker can carry: each
+     word follows DSH's own session-log term for that language. */
+  html[data-dsh-mobile-language="es"] [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { content:"Registro"; }
+  html[data-dsh-mobile-language="fr"] [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { content:"Journal"; }
+  html[data-dsh-mobile-language="de"] [data-dsh-mobile-header] [class*="_sessionLogButton"]::after { content:"Protokoll"; }
   [data-dsh-mobile-header] [class*="_tabs"] { box-sizing:border-box !important; width:max-content !important; max-width:calc(100% - 58px) !important; min-height:28px !important; height:28px !important; margin-top:0 !important; padding-left:6px !important; padding-right:6px !important; overflow-x:auto; scrollbar-width:none; }
   [data-dsh-mobile-header] [class*="_tab"] { padding-bottom:5px !important; }
   [data-dsh-mobile-header] [class*="_tabs"]::-webkit-scrollbar { display:none; }
@@ -510,7 +517,7 @@ export function createHeaderStripPanController(options: {
   }
 }
 
-export type NativeMobileLanguage = 'it' | 'en' | 'zh'
+export type NativeMobileLanguage = 'it' | 'en' | 'zh' | 'ja' | 'ko' | 'es' | 'fr' | 'de'
 
 interface FileDropTarget { dispatchEvent(event: Event): boolean }
 
@@ -601,7 +608,7 @@ export function resolveNativeMobileLanguage(
 ): NativeMobileLanguage {
   return [documentLanguage, ...browserLanguages]
     .map(value => value.trim().toLowerCase().split(/[-_]/u)[0])
-    .find((value): value is NativeMobileLanguage => value === 'it' || value === 'en' || value === 'zh') ?? 'en'
+    .find((value): value is NativeMobileLanguage => value === 'it' || value === 'en' || value === 'zh' || value === 'ja' || value === 'ko' || value === 'es' || value === 'fr' || value === 'de') ?? 'en'
 }
 
 /** Whether a user-driven scroll moved upward into the automatic history-loading zone. */
@@ -1299,7 +1306,24 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   const browserLanguages = navigator.languages.length > 0 ? navigator.languages : [navigator.language]
   const language = resolveNativeMobileLanguage(document.documentElement.lang, browserLanguages)
   const restoreLanguageMarker = applyNativeMobileLanguageMarker(document.documentElement, language)
-  const label = (italian: string, english: string, chinese: string): string => language === 'it' ? italian : language === 'zh' ? chinese : english
+  const label = (
+    italian: string,
+    english: string,
+    chinese: string,
+    japanese?: string,
+    korean?: string,
+    spanish?: string,
+    french?: string,
+    german?: string,
+  ): string =>
+    language === 'it' ? italian
+      : language === 'zh' ? chinese
+        : language === 'ja' ? (japanese ?? english)
+          : language === 'ko' ? (korean ?? english)
+            : language === 'es' ? (spanish ?? english)
+              : language === 'fr' ? (french ?? english)
+                : language === 'de' ? (german ?? english)
+                  : english
   const mediaIcon = (): SVGSVGElement => {
     const namespace = 'http://www.w3.org/2000/svg'
     const icon = document.createElementNS(namespace, 'svg')
@@ -1413,7 +1437,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   backdrop.className = 'dsh-native-mobile-backdrop'
   backdrop.lang = language
   backdrop.hidden = true
-  backdrop.setAttribute('aria-label', label('Chiudi navigazione area di lavoro', 'Close workspace navigation', '关闭工作区导航'))
+  backdrop.setAttribute('aria-label', label('Chiudi navigazione area di lavoro', 'Close workspace navigation', '关闭工作区导航', 'ワークスペースのナビゲーションを閉じる', '워크스페이스 탐색 닫기', 'Cerrar la navegación del espacio de trabajo', 'Fermer la navigation de l’espace de travail', 'Arbeitsbereichsnavigation schließen'))
   document.body.append(backdrop)
   const branchToast = document.createElement('div')
   branchToast.className = 'dsh-mobile-branch-toast'
@@ -1427,9 +1451,9 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   mediaToast.setAttribute('role', 'status')
   mediaToast.setAttribute('aria-live', 'polite')
   document.body.append(mediaToast)
-  const cameraButton = createMediaAction(label('Scatta foto', 'Take photo', '拍照'))
+  const cameraButton = createMediaAction(label('Scatta foto', 'Take photo', '拍照', '写真を撮影', '사진 촬영', 'Tomar foto', 'Prendre une photo', 'Foto aufnehmen'))
   cameraButton.disabled = true
-  const galleryButton = createMediaAction(label('Galleria', 'Gallery', '相册'), 'gallery')
+  const galleryButton = createMediaAction(label('Galleria', 'Gallery', '相册', 'ギャラリー', '갤러리', 'Galería', 'Galerie', 'Galerie'), 'gallery')
   galleryButton.disabled = true
   let galleryBusy = false
   let branchToastTimer = 0
@@ -1449,19 +1473,19 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     window,
   )
   const menu = viewerMenu(() => backServices.getViewerServices?.(), {
-    copy: label('Copia percorso', 'Copy Path', '复制路径'), share: label('Condividi file…', 'Share File…', '分享文件…'),
-    ready: label('Pronto: tocca per condividere', 'Ready to share — tap to share', '文件已就绪，轻点分享'),
-    reading: label('Preparazione del file…', 'Preparing file…', '正在准备文件…'), sharing: label('Condivisione…', 'Sharing…', '正在分享…'),
-    failed: label('Impossibile condividere il file.', 'Could not share this file.', '无法分享此文件。'),
-    size: label('Dimensione sconosciuta o superiore a 8 MiB.', 'Size unknown or larger than 8 MiB.', '文件大小未知或超过 8 MiB。'),
+    copy: label('Copia percorso', 'Copy Path', '复制路径', 'パスをコピー', '경로 복사', 'Copiar ruta', 'Copier le chemin', 'Pfad kopieren'), share: label('Condividi file…', 'Share File…', '分享文件…', 'ファイルを共有…', '파일 공유…', 'Compartir archivo…', 'Partager le fichier…', 'Datei teilen…'),
+    ready: label('Pronto: tocca per condividere', 'Ready to share — tap to share', '文件已就绪，轻点分享', '準備完了：タップして共有', '준비됨: 탭하여 공유', 'Listo para compartir: toca para compartir', 'Prêt à partager — appuyez pour partager', 'Bereit zum Teilen – zum Teilen tippen'),
+    reading: label('Preparazione del file…', 'Preparing file…', '正在准备文件…', 'ファイルを準備しています…', '파일을 준비하는 중…', 'Preparando el archivo…', 'Préparation du fichier…', 'Datei wird vorbereitet…'), sharing: label('Condivisione…', 'Sharing…', '正在分享…', '共有しています…', '공유하는 중…', 'Compartiendo…', 'Partage…', 'Wird geteilt…'),
+    failed: label('Impossibile condividere il file.', 'Could not share this file.', '无法分享此文件。', 'このファイルを共有できませんでした。', '이 파일을 공유할 수 없습니다.', 'No se pudo compartir este archivo.', 'Impossible de partager ce fichier.', 'Diese Datei konnte nicht geteilt werden.'),
+    size: label('Dimensione sconosciuta o superiore a 8 MiB.', 'Size unknown or larger than 8 MiB.', '文件大小未知或超过 8 MiB。', 'サイズが不明か、8 MiB を超えています。', '크기를 알 수 없거나 8 MiB를 초과합니다.', 'Tamaño desconocido o superior a 8 MiB.', 'Taille inconnue ou supérieure à 8 MiB.', 'Größe unbekannt oder größer als 8 MiB.'),
   }, nativeHandoff)
   const disposePathCopy = installMobilePathCopy({
     openMenu: menu.open,
     document,
     isTouchPrimary: () => window.matchMedia(PATH_COPY_TOUCH_QUERY).matches,
     labels: {
-      copied: label('Copiato: {path}', 'Copied: {path}', '已复制：{path}'),
-      failed: label('Impossibile copiare il percorso.', 'Could not copy the path.', '无法复制路径。'),
+      copied: label('Copiato: {path}', 'Copied: {path}', '已复制：{path}', 'コピーしました：{path}', '복사됨: {path}', 'Copiado: {path}', 'Copié : {path}', 'Kopiert: {path}'),
+      failed: label('Impossibile copiare il percorso.', 'Could not copy the path.', '无法复制路径。', 'パスをコピーできませんでした。', '경로를 복사할 수 없습니다.', 'No se pudo copiar la ruta.', 'Impossible de copier le chemin.', 'Der Pfad konnte nicht kopiert werden.'),
     },
   })
   let mediaRequestGeneration = 0
@@ -1521,20 +1545,20 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   }
   const deliverImages = (files: readonly File[], context: ReturnType<typeof mediaRequestContext>): void => {
     if (files.length === 0 || !mediaRequestIsCurrent(context)) return
-    if (!dispatchComposerImageDrop(document, files)) showMediaToast(label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用'))
+    if (!dispatchComposerImageDrop(document, files)) showMediaToast(label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用', '画像の添付は利用できません', '이미지 첨부를 사용할 수 없습니다', 'Los archivos adjuntos de imagen no están disponibles', 'Les pièces jointes image ne sont pas disponibles', 'Bildanhänge sind nicht verfügbar'))
   }
   const launchBrowserCamera = (context: ReturnType<typeof mediaRequestContext>): void => {
     void pickBrowserFiles({ accept: 'image/*', capture: 'environment', signal: mediaPickerAbortController.signal }).then(files => {
       if (files !== undefined) deliverImages(files, context)
     }).catch((_error: unknown) => {
-      if (mediaRequestIsCurrent(context)) showMediaToast(label('Impossibile aggiungere la foto', 'Could not attach the photo', '无法附加照片'))
+      if (mediaRequestIsCurrent(context)) showMediaToast(label('Impossibile aggiungere la foto', 'Could not attach the photo', '无法附加照片', '写真を添付できませんでした', '사진을 첨부할 수 없습니다', 'No se pudo adjuntar la foto', 'Impossible de joindre la photo', 'Das Foto konnte nicht angehängt werden'))
     })
   }
   const dismissCommandMenu = (): void => {
     const trigger = boundComposer?.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"][aria-expanded="true"]')
     trigger?.click()
   }
-  const addGroupLabel = label('Aggiungi', 'Add', '添加')
+  const addGroupLabel = label('Aggiungi', 'Add', '添加', '追加', '추가', 'Añadir', 'Ajouter', 'Hinzufügen')
   const placeCameraAction = (commandMenu: HTMLElement): boolean => {
     const sectionTitle = Array.from(commandMenu.querySelectorAll<HTMLElement>('[role="listbox"] [role="presentation"]'))
       .find(candidate => !candidate.hasAttribute('data-source') && candidate.textContent?.trim() === addGroupLabel)
@@ -1589,7 +1613,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     if (cameraButton.title !== title) cameraButton.title = title
     const galleryDisabled = disabled || galleryBusy
     if (galleryButton.disabled !== galleryDisabled) galleryButton.disabled = galleryDisabled
-    const galleryTitle = disabled ? title : label('Scegli immagini da allegare', 'Choose images to attach', '选择图片并附加到当前消息')
+    const galleryTitle = disabled ? title : label('Scegli immagini da allegare', 'Choose images to attach', '选择图片并附加到当前消息', '添付する画像を選択', '첨부할 이미지 선택', 'Elegir imágenes para adjuntar', 'Choisir des images à joindre', 'Bilder zum Anhängen auswählen')
     if (galleryButton.title !== galleryTitle) galleryButton.title = galleryTitle
   }
   const quietMediaPointer = (event: PointerEvent): void => {
@@ -1600,7 +1624,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   }
   const takePhoto = (): void => {
     if (!canAcceptComposerDrop()) {
-      setCameraActionDisabled(true, label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用'))
+      setCameraActionDisabled(true, label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用', '画像の添付は利用できません', '이미지 첨부를 사용할 수 없습니다', 'Los archivos adjuntos de imagen no están disponibles', 'Les pièces jointes image ne sont pas disponibles', 'Bildanhänge sind nicht verfügbar'))
       dismissCommandMenu()
       return
     }
@@ -1614,20 +1638,20 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     void Promise.resolve().then(() => bridge.invoke('camera.capture', {})).then(value => {
       if (!mediaRequestIsCurrent(context)) return
       if (value instanceof File) deliverImages([value], context)
-      else showMediaToast(label('La foto scattata non è utilizzabile', 'The captured photo is unavailable', '所拍照片不可用'))
+      else showMediaToast(label('La foto scattata non è utilizzabile', 'The captured photo is unavailable', '所拍照片不可用', '撮影した写真は利用できません', '촬영한 사진을 사용할 수 없습니다', 'La foto capturada no está disponible', 'La photo capturée n’est pas disponible', 'Das aufgenommene Foto ist nicht verfügbar'))
     }).catch((error: unknown) => {
       if (!mediaRequestIsCurrent(context)) return
       const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : ''
       if (code === 'cancelled') return
       showMediaToast(code === 'payload_too_large'
-        ? label('La foto supera il limite di 8 MiB', 'The photo exceeds the 8 MiB limit', '照片超过 8 MiB 限制')
-        : label('Impossibile aggiungere la foto', 'Could not attach the photo', '无法附加照片'))
+        ? label('La foto supera il limite di 8 MiB', 'The photo exceeds the 8 MiB limit', '照片超过 8 MiB 限制', '写真が 8 MiB の上限を超えています', '사진이 8 MiB 제한을 초과합니다', 'La foto supera el límite de 8 MiB', 'La photo dépasse la limite de 8 MiB', 'Das Foto überschreitet das Limit von 8 MiB')
+        : label('Impossibile aggiungere la foto', 'Could not attach the photo', '无法附加照片', '写真を添付できませんでした', '사진을 첨부할 수 없습니다', 'No se pudo adjuntar la foto', 'Impossible de joindre la photo', 'Das Foto konnte nicht angehängt werden'))
     })
   }
   const chooseGallery = (): void => {
     if (disposed || galleryBusy || galleryButton.disabled || boundComposer?.closest('.dshm-main') == null) return
     if (!canAcceptComposerDrop()) {
-      setCameraActionDisabled(true, label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用'))
+      setCameraActionDisabled(true, label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用', '画像の添付は利用できません', '이미지 첨부를 사용할 수 없습니다', 'Los archivos adjuntos de imagen no están disponibles', 'Les pièces jointes image ne sont pas disponibles', 'Bildanhänge sind nicht verfügbar'))
       dismissCommandMenu()
       return
     }
@@ -1639,7 +1663,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     void pickBrowserFiles({ accept: 'image/*', multiple: true, signal: mediaPickerAbortController.signal }).then(files => {
       if (files !== undefined) deliverImages(files, context)
     }).catch((_error: unknown) => {
-      if (mediaRequestIsCurrent(context)) showMediaToast(label('Impossibile aggiungere le immagini', 'Could not attach the images', '无法附加图片'))
+      if (mediaRequestIsCurrent(context)) showMediaToast(label('Impossibile aggiungere le immagini', 'Could not attach the images', '无法附加图片', '画像を添付できませんでした', '이미지를 첨부할 수 없습니다', 'No se pudieron adjuntar las imágenes', 'Impossible de joindre les images', 'Die Bilder konnten nicht angehängt werden'))
     }).finally(() => {
       galleryBusy = false
       galleryButton.removeAttribute('aria-busy')
@@ -1653,7 +1677,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
   const showBranchToast = (): void => {
     const header = document.querySelector<HTMLElement>('[data-dsh-mobile-header]')
     const title = header === null ? undefined : header.querySelector<HTMLElement>('[class*="_crumbCurrent"]')?.textContent?.trim()
-    const prefix = label('Ramo corrente', 'Current branch', '当前分支')
+    const prefix = label('Ramo corrente', 'Current branch', '当前分支', '現在のブランチ', '현재 브랜치', 'Rama actual', 'Branche actuelle', 'Aktueller Branch')
     branchToast.textContent = title === undefined ? prefix : `${prefix}: ${title}`
     branchToast.dataset.visible = 'true'
     if (branchToastTimer !== 0) window.clearTimeout(branchToastTimer)
@@ -1920,7 +1944,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       bindHistoryScroller(undefined, null)
       bindHistoryLoader(undefined)
       syncMediaBinding(null)
-      setCameraActionDisabled(true, label('Apri prima una sessione', 'Open a session first', '请先打开会话'))
+      setCameraActionDisabled(true, label('Apri prima una sessione', 'Open a session first', '请先打开会话', '先にセッションを開いてください', '먼저 세션을 열어 주십시오', 'Abrir primero una sesión', 'Ouvrir d’abord une session', 'Zuerst eine Sitzung öffnen'))
       cameraButton.remove()
       galleryButton.remove()
       return
@@ -1968,7 +1992,7 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
       if (!(composerRow instanceof HTMLElement)) {
         syncComposerEnterNewline(null)
         syncMediaBinding(null)
-        setCameraActionDisabled(true, label('Apri prima una sessione', 'Open a session first', '请先打开会话'))
+        setCameraActionDisabled(true, label('Apri prima una sessione', 'Open a session first', '请先打开会话', '先にセッションを開いてください', '먼저 세션을 열어 주십시오', 'Abrir primero una sesión', 'Ouvrir d’abord une session', 'Zuerst eine Sitzung öffnen'))
         cameraButton.remove()
         galleryButton.remove()
       }
@@ -1990,12 +2014,12 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
           const attachmentBlocked = !canAcceptComposerDrop()
           const mediaDisabled = conversation === null || currentSessionOrigin().sessionId === null || composerBusy || attachmentBlocked
           const mediaTitle = composerBusy
-            ? label('Attendi il completamento della risposta', 'Wait for the response to finish', '请等待回复完成')
+            ? label('Attendi il completamento della risposta', 'Wait for the response to finish', '请等待回复完成', '応答が完了するまでお待ちください', '응답이 완료될 때까지 기다려 주십시오', 'Esperar a que termine la respuesta', 'Attendre la fin de la réponse', 'Warten, bis die Antwort fertig ist')
             : attachmentBlocked
-              ? label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用')
+              ? label('Allegati immagine non disponibili', 'Image attachments are unavailable', '图片附件不可用', '画像の添付は利用できません', '이미지 첨부를 사용할 수 없습니다', 'Los archivos adjuntos de imagen no están disponibles', 'Les pièces jointes image ne sont pas disponibles', 'Bildanhänge sind nicht verfügbar')
               : mediaDisabled
-                ? label('Apri prima una sessione', 'Open a session first', '请先打开会话')
-                : label('Scatta una foto e allegala', 'Take a photo and attach it', '拍照并附加到当前消息')
+                ? label('Apri prima una sessione', 'Open a session first', '请先打开会话', '先にセッションを開いてください', '먼저 세션을 열어 주십시오', 'Abrir primero una sesión', 'Ouvrir d’abord une session', 'Zuerst eine Sitzung öffnen')
+                : label('Scatta una foto e allegala', 'Take a photo and attach it', '拍照并附加到当前消息', '写真を撮影して添付', '사진을 촬영하여 첨부', 'Tomar una foto y adjuntarla', 'Prendre une photo et la joindre', 'Ein Foto aufnehmen und anhängen')
           setCameraActionDisabled(mediaDisabled, mediaTitle)
           const commandMenu = composerCard?.querySelector<HTMLElement>('[data-trigger-menu]') ?? null
           if (commandMenu !== null) placeCameraAction(commandMenu)
@@ -2080,14 +2104,14 @@ export function installNativeMobileSurface(backServices: NativeMobileBackService
     completionFallback: false,
     label: (kind: TaskNotifyKind, sessionLabel: string) => kind === 'done'
       ? {
-          title: label('Attività completata', 'Task finished', '任务已完成'),
+          title: label('Attività completata', 'Task finished', '任务已完成', 'タスク完了', '작업 완료', 'Tarea completada', 'Tâche terminée', 'Aufgabe abgeschlossen'),
           body: sessionLabel === ''
-            ? label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成')
-            : label(`Il tuo task DSH è terminato: ${sessionLabel}`, `Your DSH task finished: ${sessionLabel}`, `你的 DSH 任务已完成：${sessionLabel}`),
+            ? label('Il tuo task DSH è terminato', 'Your DSH task finished', '你的 DSH 任务已完成', 'DSH タスクが完了しました', 'DSH 작업이 완료되었습니다', 'Tu tarea de DSH ha terminado', 'Votre tâche DSH est terminée', 'Deine DSH-Aufgabe ist abgeschlossen')
+            : label(`Il tuo task DSH è terminato: ${sessionLabel}`, `Your DSH task finished: ${sessionLabel}`, `你的 DSH 任务已完成：${sessionLabel}`, `DSH タスクが完了しました：${sessionLabel}`, `DSH 작업이 완료되었습니다: ${sessionLabel}`, `Tu tarea de DSH ha terminado: ${sessionLabel}`, `Votre tâche DSH est terminée : ${sessionLabel}`, `Deine DSH-Aufgabe ist abgeschlossen: ${sessionLabel}`),
         }
       : {
-          title: label('È richiesto un input', 'Input needed', '需要你确认'),
-          body: label('DSH attende una tua scelta', 'DSH waits for your choice', 'DSH 等待你的选择'),
+          title: label('È richiesto un input', 'Input needed', '需要你确认', '入力が必要です', '입력이 필요합니다', 'Se requiere una entrada', 'Une saisie est requise', 'Eingabe erforderlich'),
+          body: label('DSH attende una tua scelta', 'DSH waits for your choice', 'DSH 等待你的选择', 'DSH が選択を待っています', 'DSH가 선택을 기다리고 있습니다', 'DSH espera tu elección', 'DSH attend votre choix', 'DSH wartet auf Ihre Auswahl'),
         },
   })
   return () => {

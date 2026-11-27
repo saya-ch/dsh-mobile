@@ -1482,8 +1482,9 @@ describe('HTTP gateway', () => {
     expect(italianScript.status).toBe(200)
     expect(italianScript.body).toContain('Abbinamento non riuscito')
 
+    // An unsupported language falls back to English; `fr` is supported now.
     const englishLogin = await request(instance.address().port, '/mobile-access/login', {
-      headers: { ...base, accept: 'text/html', 'accept-language': 'fr-FR' },
+      headers: { ...base, accept: 'text/html', 'accept-language': 'nl-NL' },
     })
     expect(englishLogin.status).toBe(200)
     expect(englishLogin.body).toContain('Reconnect this device')

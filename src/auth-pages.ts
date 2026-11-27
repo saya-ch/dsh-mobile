@@ -1,7 +1,7 @@
 /** Browser-facing pairing and reauthentication pages with language negotiation. */
 import { MOBILE_VIEWPORT_CONTENT } from './mobile-viewport.js'
 
-export type AuthPageLocale = 'zh' | 'en' | 'it'
+export type AuthPageLocale = 'zh' | 'en' | 'it' | 'ja' | 'ko' | 'es' | 'fr' | 'de'
 
 interface AuthPageCopy {
   readonly lang: string
@@ -72,9 +72,84 @@ const COPY: Record<AuthPageLocale, AuthPageCopy> = {
     restoring: 'Ripristino della sessione sicura…', noLongerPaired: 'Questo dispositivo non è più abbinato. Apri l’abbinamento sul computer e ripeti la procedura.',
     openPairing: 'Apri abbinamento',
   },
+  ja: {
+    lang: 'ja-JP', pairTitle: 'DSH モバイルアクセスをペアリング', pairHeading: 'このデバイスをペアリング',
+    pairingCode: 'ペアリングコード', deviceName: 'デバイス名', pair: 'ペアリング', pairing: 'ペアリングしています…',
+    pairingCodeHint: 'コンピューターに表示されている 43 文字のペアリングコードを使用してください。dsh1. または dsh2. で始まるキーは Android アプリ用です。',
+    invalidPairingCode: 'コンピューターの現在のペアリングウィンドウに表示されている 43 文字のペアリングコードを入力してください。',
+    appKeyNotCode: 'これは Android アプリ用のキーです。アプリで使用するか、コンピューターからブラウザー用のペアリングコードをコピーしてください。',
+    pairFailed: 'ペアリングに失敗しました。コードを確認するか、コンピューターで新しいコードを生成してください。',
+    pairingExpired: 'ペアリングコードが無効か、有効期限が切れています。コンピューターで新しいコードを生成して、もう一度お試しください。',
+    pairingLimited: 'ペアリングの試行回数が多すぎます。しばらく待ってからもう一度お試しください。',
+    deviceLimit: 'ペアリング済みデバイスの上限に達しました。コンピューターで未使用のデバイスを削除し、新しいペアリングコードを生成してください。',
+    unavailable: 'コンピューターに接続できません。接続を確認して、もう一度お試しください。',
+    reconnectTitle: 'DSH モバイルアクセスを再接続', reconnectHeading: 'このデバイスを再接続',
+    restoring: '安全なセッションを復元しています…', noLongerPaired: 'このデバイスはペアリングされていません。コンピューターでペアリングを開き、もう一度ペアリングしてください。',
+    openPairing: 'ペアリングを開く',
+  },
+  ko: {
+    lang: 'ko-KR', pairTitle: 'DSH 모바일 액세스 페어링', pairHeading: '이 기기 페어링',
+    pairingCode: '페어링 코드', deviceName: '기기 이름', pair: '페어링', pairing: '페어링하는 중…',
+    pairingCodeHint: '컴퓨터에 표시된 43자리 페어링 코드를 사용하십시오. dsh1. 또는 dsh2.로 시작하는 키는 Android 앱용입니다.',
+    invalidPairingCode: '컴퓨터의 현재 페어링 창에 표시된 43자리 페어링 코드를 입력하십시오.',
+    appKeyNotCode: '이것은 Android 앱 키입니다. 앱에서 사용하거나 컴퓨터에서 브라우저용 페어링 코드를 복사하십시오.',
+    pairFailed: '페어링에 실패했습니다. 코드를 확인하거나 컴퓨터에서 새 코드를 생성하십시오.',
+    pairingExpired: '페어링 코드가 유효하지 않거나 만료되었습니다. 컴퓨터에서 새 코드를 생성한 후 다시 시도하십시오.',
+    pairingLimited: '페어링 시도가 너무 많습니다. 잠시 기다린 후 다시 시도하십시오.',
+    deviceLimit: '페어링된 기기 한도에 도달했습니다. 컴퓨터에서 사용하지 않는 기기를 제거하고 새 페어링 코드를 생성하십시오.',
+    unavailable: '컴퓨터를 사용할 수 없습니다. 연결을 확인한 후 다시 시도하십시오.',
+    reconnectTitle: 'DSH 모바일 액세스 다시 연결', reconnectHeading: '이 기기 다시 연결',
+    restoring: '보안 세션을 복원하는 중…', noLongerPaired: '이 기기는 더 이상 페어링되지 않았습니다. 컴퓨터에서 페어링을 연 후 다시 페어링하십시오.',
+    openPairing: '페어링 열기',
+  },
+  es: {
+    lang: 'es-ES', pairTitle: 'Emparejar el acceso móvil de DSH', pairHeading: 'Empareja este dispositivo',
+    pairingCode: 'Código de emparejamiento', deviceName: 'Nombre del dispositivo', pair: 'Empareja', pairing: 'Emparejando…',
+    pairingCodeHint: 'Usa el código de emparejamiento de 43 caracteres que se muestra en la computadora. Las claves que empiezan con dsh1. o dsh2. son para la app de Android.',
+    invalidPairingCode: 'Introduce el código de emparejamiento de 43 caracteres de la ventana de emparejamiento actual en la computadora.',
+    appKeyNotCode: 'Esta es una clave de la app de Android. Úsala en la app o copia el código de emparejamiento para el navegador desde la computadora.',
+    pairFailed: 'No se pudo emparejar. Comprueba el código o genera uno nuevo en la computadora.',
+    pairingExpired: 'El código de emparejamiento no es válido o ha caducado. Genera un código nuevo en la computadora y reintenta.',
+    pairingLimited: 'Demasiados intentos de emparejamiento. Espera un momento y reintenta.',
+    deviceLimit: 'Se alcanzó el límite de dispositivos emparejados. Elimina un dispositivo que no uses y genera un nuevo código de emparejamiento en la computadora.',
+    unavailable: 'La computadora no está disponible. Comprueba la conexión y reintenta.',
+    reconnectTitle: 'Reconectar el acceso móvil de DSH', reconnectHeading: 'Reconecta este dispositivo',
+    restoring: 'Restaurando la sesión segura…', noLongerPaired: 'Este dispositivo ya no está emparejado. Abre el emparejamiento en la computadora y vuelve a emparejarlo.',
+    openPairing: 'Abre el emparejamiento',
+  },
+  fr: {
+    lang: 'fr-FR', pairTitle: 'Appairer l’accès mobile DSH', pairHeading: 'Appairer cet appareil',
+    pairingCode: 'Code d’appairage', deviceName: 'Nom de l’appareil', pair: 'Appairer', pairing: 'Appairage…',
+    pairingCodeHint: 'Utiliser le code d’appairage de 43 caractères affiché sur l’ordinateur. Les clés commençant par dsh1. ou dsh2. sont destinées à l’app Android.',
+    invalidPairingCode: 'Saisir le code d’appairage de 43 caractères de la fenêtre d’appairage actuelle sur l’ordinateur.',
+    appKeyNotCode: 'Il s’agit d’une clé de l’app Android. L’utiliser dans l’app ou copier le code d’appairage pour le navigateur depuis l’ordinateur.',
+    pairFailed: 'Échec de l’appairage. Vérifier le code ou en générer un nouveau sur l’ordinateur.',
+    pairingExpired: 'Le code d’appairage n’est pas valide ou a expiré. Générer un nouveau code sur l’ordinateur, puis réessayer.',
+    pairingLimited: 'Trop de tentatives d’appairage. Patienter un instant, puis réessayer.',
+    deviceLimit: 'La limite d’appareils appairés est atteinte. Supprimer un appareil inutilisé et générer un nouveau code d’appairage sur l’ordinateur.',
+    unavailable: 'L’ordinateur n’est pas disponible. Vérifier la connexion, puis réessayer.',
+    reconnectTitle: 'Reconnecter l’accès mobile DSH', reconnectHeading: 'Reconnecter cet appareil',
+    restoring: 'Restauration de la session sécurisée…', noLongerPaired: 'Cet appareil n’est plus appairé. Ouvrir l’appairage sur l’ordinateur, puis l’appairer de nouveau.',
+    openPairing: 'Ouvrir l’appairage',
+  },
+  de: {
+    lang: 'de-DE', pairTitle: 'DSH-Mobilzugriff koppeln', pairHeading: 'Dieses Gerät koppeln',
+    pairingCode: 'Kopplungscode', deviceName: 'Gerätename', pair: 'Koppeln', pairing: 'Kopplung läuft…',
+    pairingCodeHint: 'Den auf dem Computer angezeigten 43-stelligen Kopplungscode verwenden. Schlüssel, die mit dsh1. oder dsh2. beginnen, sind für die Android-App bestimmt.',
+    invalidPairingCode: 'Den 43-stelligen Kopplungscode aus dem aktuellen Kopplungsfenster auf dem Computer eingeben.',
+    appKeyNotCode: 'Dies ist ein Schlüssel der Android-App. Diesen in der App verwenden oder den Kopplungscode für den Browser vom Computer kopieren.',
+    pairFailed: 'Kopplung fehlgeschlagen. Prüfen Sie den Code oder erzeugen Sie auf dem Computer einen neuen.',
+    pairingExpired: 'Der Kopplungscode ist ungültig oder abgelaufen. Erzeugen Sie auf dem Computer einen neuen Code und versuchen Sie es erneut.',
+    pairingLimited: 'Zu viele Kopplungsversuche. Warten Sie einen Moment und versuchen Sie es erneut.',
+    deviceLimit: 'Das Limit gekoppelter Geräte ist erreicht. Entfernen Sie ein ungenutztes Gerät und erzeugen Sie auf dem Computer einen neuen Kopplungscode.',
+    unavailable: 'Der Computer ist nicht verfügbar. Prüfen Sie die Verbindung und versuchen Sie es erneut.',
+    reconnectTitle: 'DSH-Mobilzugriff erneut verbinden', reconnectHeading: 'Dieses Gerät erneut verbinden',
+    restoring: 'Sichere Sitzung wird wiederhergestellt…', noLongerPaired: 'Dieses Gerät ist nicht mehr gekoppelt. Öffnen Sie die Kopplung auf dem Computer und koppeln Sie es erneut.',
+    openPairing: 'Kopplung öffnen',
+  },
 }
 
-/** Choose Chinese, Italian, or English from an HTTP Accept-Language header. */
+/** Choose Chinese, Japanese, Korean, Italian, Spanish, French, German, or English from an HTTP Accept-Language header. */
 export function resolveAuthPageLocale(header: string | undefined): AuthPageLocale {
   const values = header?.split(',').map((value, index) => {
     const [language, ...parameters] = value.split(';')
@@ -89,6 +164,11 @@ export function resolveAuthPageLocale(header: string | undefined): AuthPageLocal
   for (const value of values) {
     if (value.startsWith('zh')) return 'zh'
     if (value.startsWith('it')) return 'it'
+    if (value.startsWith('ja')) return 'ja'
+    if (value.startsWith('ko')) return 'ko'
+    if (value.startsWith('es')) return 'es'
+    if (value.startsWith('fr')) return 'fr'
+    if (value.startsWith('de')) return 'de'
     if (value.startsWith('en')) return 'en'
   }
   return 'en'

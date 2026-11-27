@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { browserUiLocaleCookie, readBrowserUiLocale, resolveBrowserUiLocale } from '../src/browser-ui-locale.js'
 
 describe('remembered browser UI locale', () => {
-  it.each(['en', 'zh', 'it'] as const)('prefers saved %s to browser language', locale => {
+  it.each(['en', 'zh', 'it', 'ja', 'ko', 'es', 'fr', 'de'] as const)('prefers saved %s to browser language', locale => {
     expect(resolveBrowserUiLocale(`other=bad; dsh_ma_ui_locale=${locale}`, 'zh-HK,en;q=0.8')).toBe(locale)
   })
 
   it.each([undefined, '', 'other=en', 'dsh_ma_ui_locale=', 'dsh_ma_ui_locale=EN',
-    'dsh_ma_ui_locale=%65n', 'dsh_ma_ui_locale=fr', 'dsh_ma_ui_locale=<script>',
+    'dsh_ma_ui_locale=%65n', 'dsh_ma_ui_locale=nl', 'dsh_ma_ui_locale=<script>',
     'dsh_ma_ui_locale=en=extra', 'dsh_ma_ui_locale=en; dsh_ma_ui_locale=zh',
     'dsh_ma_ui_locale=en; dsh_ma_ui_locale=en', 'dsh_ma_ui_locale',
     'dsh_ma_ui_locale; dsh_ma_ui_locale=en', 'dsh_ma_ui_locale=en; dsh_ma_ui_locale', 'x'.repeat(8193),

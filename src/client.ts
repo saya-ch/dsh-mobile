@@ -291,6 +291,7 @@ export function selectMobileControlLocale(documentLanguage = '', navigatorLangua
   for (const value of [documentLanguage, ...navigatorLanguages]) {
     const language = value.trim().toLowerCase().split(/[-_]/u)[0]
     if (language === 'it' || language === 'en' || language === 'zh') return language
+    if (language === 'ja' || language === 'ko' || language === 'es' || language === 'fr' || language === 'de') return language
   }
   return 'en'
 }
@@ -309,6 +310,11 @@ export function mobileBackBlockedMessage(locale: MobileControlLocale): string {
     en: 'Close the open panel first.',
     it: 'Chiudi prima il pannello aperto.',
     zh: '请先关闭当前弹层。',
+    ja: '先に開いているパネルを閉じてください。',
+    ko: '먼저 열린 패널을 닫으십시오.',
+    es: 'Cierra primero el panel abierto.',
+    fr: "Fermez d'abord le panneau ouvert.",
+    de: 'Schließen Sie zuerst das geöffnete Panel.',
   }
   return messages[locale]
 }
@@ -5113,8 +5119,7 @@ export function installCustomAssets(recovery?: {
   const removeNotice = customizationOwner
     ? installCustomizationNotice(document, {
       locale: () => {
-        const locale = selectedMobileControlLocale()
-        return locale === 'zh' || locale === 'it' ? locale : 'en'
+        return selectedMobileControlLocale()
       },
       reconnect: () => {
         // With a native bridge the recovery owner renews and reconnects; without
@@ -5903,6 +5908,11 @@ export function mobilePushNavigationNotice(locale: MobileControlLocale, key: 'se
     en: { 'session-unavailable': 'This conversation is no longer available.', 'session-resolved': 'Opened the conversation.' },
     it: { 'session-unavailable': 'Questa conversazione non è più disponibile.', 'session-resolved': 'Conversazione aperta.' },
     zh: { 'session-unavailable': '此会话已不可用。', 'session-resolved': '已打开会话。' },
+    ja: { 'session-unavailable': 'この会話は現在利用できません。', 'session-resolved': '会話を開きました。' },
+    ko: { 'session-unavailable': '이 대화는 더 이상 사용할 수 없습니다.', 'session-resolved': '대화를 열었습니다.' },
+    es: { 'session-unavailable': 'Esta conversación ya no está disponible.', 'session-resolved': 'Conversación abierta.' },
+    fr: { 'session-unavailable': "Cette conversation n'est plus disponible.", 'session-resolved': 'Conversation ouverte.' },
+    de: { 'session-unavailable': 'Diese Unterhaltung ist nicht mehr verfügbar.', 'session-resolved': 'Unterhaltung geöffnet.' },
   }
   return messages[locale][key]
 }

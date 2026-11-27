@@ -15,7 +15,7 @@
 import type { MobileAssetLoadFailure } from './mobile-custom-assets.js'
 
 /** Copy for the notice, per locale, kept beside the existing dictionaries. */
-const NOTICE_COPY: Record<'en' | 'zh' | 'it', {
+const NOTICE_COPY: Record<'en' | 'zh' | 'it' | 'ja' | 'ko' | 'es' | 'fr' | 'de', {
   readonly title: Record<'authentication_required' | 'gateway_required' | 'other', string>
   readonly action: string
   readonly dismiss: string
@@ -46,6 +46,51 @@ const NOTICE_COPY: Record<'en' | 'zh' | 'it', {
     },
     action: 'Riprova il caricamento',
     dismiss: 'Ignora',
+  },
+  ja: {
+    title: {
+      authentication_required: 'デバイスの認証を利用できません。',
+      gateway_required: 'カスタムのモバイル CSS、スクリプト、拡張機能は、ペアリング済みのモバイルアクセス入口から開く必要があります。',
+      other: 'モバイルのカスタマイズを読み込めませんでした。',
+    },
+    action: '再読み込み',
+    dismiss: '無視',
+  },
+  ko: {
+    title: {
+      authentication_required: '기기 인증을 사용할 수 없습니다.',
+      gateway_required: '사용자 지정 모바일 CSS, 스크립트, 확장 기능은 페어링된 모바일 액세스 진입점을 통해 열어야 합니다.',
+      other: '모바일 사용자 지정을 불러오지 못했습니다.',
+    },
+    action: '다시 불러오기',
+    dismiss: '무시',
+  },
+  es: {
+    title: {
+      authentication_required: 'La autenticación del dispositivo no está disponible.',
+      gateway_required: 'Los CSS, scripts y extensiones móviles personalizados necesitan la entrada de acceso móvil emparejada.',
+      other: 'No se pudo cargar la personalización móvil.',
+    },
+    action: 'Reintentar la carga',
+    dismiss: 'Descartar',
+  },
+  fr: {
+    title: {
+      authentication_required: 'L’authentification de l’appareil n’est pas disponible.',
+      gateway_required: 'Les CSS, scripts et extensions mobiles personnalisés nécessitent l’entrée d’accès mobile appairée.',
+      other: 'Impossible de charger la personnalisation mobile.',
+    },
+    action: 'Réessayer le chargement',
+    dismiss: 'Ignorer',
+  },
+  de: {
+    title: {
+      authentication_required: 'Die Geräteauthentifizierung ist nicht verfügbar.',
+      gateway_required: 'Benutzerdefiniertes mobiles CSS, Skripte und Erweiterungen benötigen den gekoppelten Eintrag für mobilen Zugriff.',
+      other: 'Die mobile Anpassung konnte nicht geladen werden.',
+    },
+    action: 'Erneut laden',
+    dismiss: 'Ausblenden',
   },
 }
 

@@ -1,6 +1,6 @@
 /** Framework-free feedback for a Gateway document whose application entry never renders. */
 type BootFailure = 'syntax_error' | 'script_execution_failed' | 'script_load_failed' | 'promise_rejected' | 'startup_stalled'
-type BootLocale = 'zh' | 'en' | 'it'
+type BootLocale = 'zh' | 'en' | 'it' | 'ja' | 'ko' | 'es' | 'fr' | 'de'
 
 const COPY = {
   en: {
@@ -36,6 +36,61 @@ const COPY = {
     retry: 'Ricarica pagina',
     dismiss: 'Continua ad attendere',
   },
+  ja: {
+    title: 'DSH を起動できませんでした',
+    syntax_error: 'この Web エンジンはページスクリプトを解釈できませんでした。この DSH クライアントには、より新しいエンジンが必要な可能性があります。',
+    script_execution_failed: 'DSH が画面を表示する前に、ページスクリプトが停止しました。',
+    script_load_failed: '必要なページスクリプトを読み込めませんでした。このコンピューターへの接続を確認してください。',
+    promise_rejected: 'DSH が画面を表示する前に、ページの起動に失敗しました。',
+    startup_stalled: 'DSH はまだ画面を表示していません。接続が遅いか、この Web エンジンがクライアントに対応していない可能性があります。',
+    help: '更新が提供されている場合は、システムの WebView またはそれを提供するブラウザーを更新してください。対応ブラウザーでこのコンピューターのモバイルアクセスアドレスを開くこともできます。既存のペアリングは削除されていません。',
+    retry: 'ページを再読み込み',
+    dismiss: '待機を続ける',
+  },
+  ko: {
+    title: 'DSH를 시작할 수 없습니다',
+    syntax_error: '이 웹 엔진이 페이지 스크립트를 해석할 수 없습니다. 이 DSH 클라이언트에는 더 새로운 엔진이 필요할 수 있습니다.',
+    script_execution_failed: 'DSH가 화면을 표시하기 전에 페이지 스크립트가 중지되었습니다.',
+    script_load_failed: '필수 페이지 스크립트를 불러올 수 없습니다. 이 컴퓨터와의 연결을 확인하십시오.',
+    promise_rejected: 'DSH가 화면을 표시하기 전에 페이지 시작에 실패했습니다.',
+    startup_stalled: 'DSH가 아직 화면을 표시하지 않았습니다. 연결이 느리거나 이 웹 엔진이 클라이언트를 지원하지 않을 수 있습니다.',
+    help: '사용 가능한 업데이트가 있으면 시스템 WebView 또는 이를 제공하는 브라우저를 업데이트하십시오. 지원되는 브라우저에서 이 컴퓨터의 모바일 액세스 주소를 열 수도 있습니다. 기존 페어링은 삭제되지 않았습니다.',
+    retry: '페이지 다시 로드',
+    dismiss: '계속 기다리기',
+  },
+  es: {
+    title: 'No se pudo iniciar DSH',
+    syntax_error: 'Este motor web no pudo leer un script de la página. Es posible que este cliente de DSH requiera un motor más reciente.',
+    script_execution_failed: 'Un script de la página se detuvo antes de que DSH pudiera mostrar su interfaz.',
+    script_load_failed: 'No se pudo cargar un script necesario de la página. Comprueba la conexión con esta computadora.',
+    promise_rejected: 'No se pudo iniciar la página antes de que DSH mostrara su interfaz.',
+    startup_stalled: 'DSH aún no ha mostrado su interfaz. Es posible que la conexión sea lenta o que este motor web no admita el cliente.',
+    help: 'Actualiza la WebView del sistema o el navegador que la proporciona si hay una actualización disponible. También puedes abrir la dirección de acceso móvil de esta computadora en un navegador compatible. Los emparejamientos no se han eliminado.',
+    retry: 'Vuelve a cargar la página',
+    dismiss: 'Sigue esperando',
+  },
+  fr: {
+    title: 'DSH n’a pas pu démarrer',
+    syntax_error: 'Ce moteur web n’a pas pu lire un script de la page. Ce client DSH peut nécessiter un moteur plus récent.',
+    script_execution_failed: 'Un script de la page s’est arrêté avant que DSH puisse afficher son interface.',
+    script_load_failed: 'Impossible de charger un script de page requis. Vérifier la connexion à cet ordinateur.',
+    promise_rejected: 'Le démarrage de la page a échoué avant que DSH puisse afficher son interface.',
+    startup_stalled: 'DSH n’a pas encore affiché son interface. La connexion est peut-être lente, ou ce moteur web ne prend peut-être pas en charge le client.',
+    help: 'Mettre à jour la WebView du système ou le navigateur qui la fournit si une mise à jour est disponible. Il est aussi possible d’ouvrir l’adresse d’accès mobile de cet ordinateur dans un navigateur pris en charge. Les appairages n’ont pas été supprimés.',
+    retry: 'Recharger la page',
+    dismiss: 'Continuer à attendre',
+  },
+  de: {
+    title: 'DSH konnte nicht gestartet werden',
+    syntax_error: 'Diese Web-Engine konnte ein Seitenskript nicht lesen. Dieser DSH-Client benötigt möglicherweise eine neuere Engine.',
+    script_execution_failed: 'Ein Seitenskript wurde beendet, bevor DSH seine Oberfläche anzeigen konnte.',
+    script_load_failed: 'Ein erforderliches Seitenskript konnte nicht geladen werden. Prüfen Sie die Verbindung zu diesem Computer.',
+    promise_rejected: 'Der Seitenstart ist fehlgeschlagen, bevor DSH seine Oberfläche anzeigen konnte.',
+    startup_stalled: 'DSH hat seine Oberfläche noch nicht angezeigt. Die Verbindung ist möglicherweise langsam, oder diese Web-Engine unterstützt den Client nicht.',
+    help: 'Aktualisieren Sie die System-WebView oder den Browser, der sie bereitstellt, sofern ein Update verfügbar ist. Sie können auch die Mobilzugriffsadresse dieses Computers in einem unterstützten Browser öffnen. Kopplungen wurden nicht entfernt.',
+    retry: 'Seite neu laden',
+    dismiss: 'Weiter warten',
+  },
 } satisfies Record<BootLocale, Record<BootFailure | 'title' | 'help' | 'retry' | 'dismiss', string>>
 
 const STYLE = `
@@ -48,7 +103,8 @@ const STYLE = `
 function locale(): BootLocale {
   for (const value of [...(navigator.languages ?? [navigator.language]), document.documentElement.lang]) {
     const language = value.toLowerCase().split(/[-_]/u)[0]
-    if (language === 'en' || language === 'it' || language === 'zh') return language
+    if (language === 'en' || language === 'it' || language === 'zh' || language === 'ja' || language === 'ko'
+      || language === 'es' || language === 'fr' || language === 'de') return language
   }
   return 'en'
 }

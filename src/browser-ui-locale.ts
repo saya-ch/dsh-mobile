@@ -11,7 +11,7 @@ export function readBrowserUiLocale(cookieHeader: string | undefined): AuthPageL
     const name = (separator === -1 ? part : part.slice(0, separator)).trim()
     if (name !== UI_LOCALE_COOKIE) continue
     const value = separator === -1 ? '' : part.slice(separator + 1).trim()
-    if (locale !== undefined || (value !== 'en' && value !== 'zh' && value !== 'it')) return undefined
+    if (locale !== undefined || (value !== 'en' && value !== 'zh' && value !== 'it' && value !== 'ja' && value !== 'ko' && value !== 'es' && value !== 'fr' && value !== 'de')) return undefined
     locale = value
   }
   return locale

@@ -53,6 +53,66 @@ const MESSAGES = {
     createParent: 'Crea in', creating: 'Creazione della cartella…', createStopping: 'Chiusura della richiesta di creazione…',
     createUnknown: 'Esito della creazione sconosciuto: la cartella potrebbe già esistere. Torna indietro e ricarica la directory prima di riprovare.',
   },
+  ja: {
+    title: 'ワークスペースディレクトリを選択', path: 'ディレクトリのパス', go: '移動', home: 'ホーム', up: '上の階層へ', cancel: 'キャンセル', close: '閉じる', open: '開く', retry: '再試行',
+    loading: 'フォルダーを読み込んでいます…', adopting: 'ワークスペースを開いています…', empty: 'このディレクトリにサブフォルダーはありません', truncated: 'フォルダーが多いため先頭のみ表示しています。完全なパスを入力すると別のディレクトリへ移動できます',
+    'bad-path': 'コンピューター上の絶対パスを入力してください（例: C:\\projects または /home/user/projects）', unavailable: 'このディレクトリを読み取れません。パスとアクセス権限を確認してから再試行してください',
+    unauthorized: '接続の認可を利用できません。ダイアログを閉じてコンピューターへ再接続してください', 'invalid-response': 'ディレクトリの応答を利用できません。再試行するか、コンピューターへ再接続してください',
+    'request-failed': 'ディレクトリを読み込めませんでした。接続を確認して再試行してください', timeout: 'ディレクトリの読み込みがタイムアウトしました。再試行するかキャンセルしてください',
+    failedOpen: 'ディレクトリ選択を開けませんでした。再接続してから再試行してください',
+    create: '新規フォルダー', createTitle: '新規フォルダー名', createAction: '作成', createInvalid: 'パス区切り文字を含まないフォルダー名を 1 つ入力してください。',
+    createExists: '同じ名前のフォルダーが既に存在します。', createFailed: 'フォルダーを作成できませんでした。このディレクトリの書き込み権限を確認して再試行してください。',
+    createParent: '作成先', creating: 'フォルダーを作成しています…', createStopping: '作成リクエストを終了しています…',
+    createUnknown: '作成結果を確認できません。フォルダーは既に存在する可能性があります。戻ってディレクトリを再読み込みし、確認してから再試行するかどうかを決めてください。',
+  },
+  ko: {
+    title: '워크스페이스 디렉터리 선택', path: '디렉터리 경로', go: '이동', home: '홈', up: '상위 폴더', cancel: '취소', close: '닫기', open: '열기', retry: '다시 시도',
+    loading: '폴더를 불러오는 중…', adopting: '워크스페이스를 여는 중…', empty: '이 디렉터리에 하위 폴더가 없습니다', truncated: '폴더가 너무 많아 처음 부분만 표시합니다. 전체 경로를 입력하면 다른 디렉터리로 이동할 수 있습니다',
+    'bad-path': '컴퓨터의 절대 경로를 입력하십시오. 예: C:\\projects 또는 /home/user/projects', unavailable: '이 디렉터리를 읽을 수 없습니다. 경로와 접근 권한을 확인한 후 다시 시도하십시오',
+    unauthorized: '연결 인증을 사용할 수 없습니다. 이 창을 닫고 컴퓨터에 다시 연결하십시오', 'invalid-response': '디렉터리 응답을 사용할 수 없습니다. 다시 시도하거나 컴퓨터에 다시 연결하십시오',
+    'request-failed': '디렉터리를 불러오지 못했습니다. 연결을 확인한 후 다시 시도하십시오', timeout: '디렉터리 읽기 시간이 초과되었습니다. 다시 시도하거나 취소하십시오',
+    failedOpen: '디렉터리 선택기를 열 수 없습니다. 다시 연결한 후 다시 시도하십시오',
+    create: '새 폴더', createTitle: '새 폴더 이름', createAction: '만들기', createInvalid: '경로 구분자를 포함하지 않은 폴더 이름 하나를 입력하십시오.',
+    createExists: '같은 이름의 폴더가 이미 있습니다.', createFailed: '폴더를 만들 수 없습니다. 이 디렉터리의 쓰기 권한을 확인한 후 다시 시도하십시오.',
+    createParent: '생성 위치', creating: '폴더를 만드는 중…', createStopping: '생성 요청을 마무리하는 중…',
+    createUnknown: '생성 결과를 확인할 수 없습니다. 폴더가 이미 만들어졌을 수 있습니다. 뒤로 돌아가 디렉터리를 다시 읽고 확인한 후 재시도할지 결정하십시오.',
+  },
+  es: {
+    title: 'Seleccionar directorio del espacio de trabajo', path: 'Ruta del directorio', go: 'Ir', home: 'Inicio', up: 'Subir un nivel', cancel: 'Cancelar', close: 'Cerrar', open: 'Abrir', retry: 'Reintentar',
+    loading: 'Cargando carpetas…', adopting: 'Abriendo el espacio de trabajo…', empty: 'No hay subcarpetas en este directorio', truncated: 'Solo se muestran las primeras carpetas; escribe una ruta completa para abrir otro directorio',
+    'bad-path': 'Escribe una ruta absoluta de la computadora, por ejemplo C:\\projects o /home/user/projects', unavailable: 'No se pudo leer este directorio. Revisa la ruta y los permisos de acceso y vuelve a intentarlo.',
+    unauthorized: 'La autorización de la conexión no está disponible. Cierra este cuadro de diálogo y vuelve a conectarte a la computadora.', 'invalid-response': 'La respuesta del directorio no está disponible. Vuelve a intentarlo o reconéctate a la computadora.',
+    'request-failed': 'No se pudo cargar este directorio. Revisa la conexión y vuelve a intentarlo.', timeout: 'Se agotó el tiempo de carga. Vuelve a intentarlo o cancela.',
+    failedOpen: 'No se pudo abrir el selector de directorios. Vuelve a conectarte e inténtalo de nuevo.',
+    create: 'Nueva carpeta', createTitle: 'Nombre de la nueva carpeta', createAction: 'Crear', createInvalid: 'Escribe un solo nombre de carpeta, sin separadores de ruta.',
+    createExists: 'Ya existe una carpeta con ese nombre.', createFailed: 'No se pudo crear la carpeta. Revisa los permisos de escritura de este directorio y vuelve a intentarlo.',
+    createParent: 'Crear en', creating: 'Creando la carpeta…', createStopping: 'Finalizando la solicitud de creación…',
+    createUnknown: 'El resultado de la creación es desconocido; es posible que la carpeta ya exista. Vuelve atrás y recarga el directorio antes de decidir si reintentar.',
+  },
+  fr: {
+    title: 'Sélectionner le répertoire de l’espace de travail', path: 'Chemin du répertoire', go: 'Aller', home: 'Accueil', up: 'Remonter', cancel: 'Annuler', close: 'Fermer', open: 'Ouvrir', retry: 'Réessayer',
+    loading: 'Chargement des dossiers…', adopting: 'Ouverture de l’espace de travail…', empty: 'Aucun sous-dossier dans ce répertoire', truncated: 'Seuls les premiers dossiers sont affichés ; saisir un chemin complet pour ouvrir un autre répertoire',
+    'bad-path': 'Saisir un chemin absolu de l’ordinateur, par exemple C:\\projects ou /home/user/projects', unavailable: 'Impossible de lire ce répertoire. Vérifier le chemin et les autorisations d’accès, puis réessayer.',
+    unauthorized: 'L’autorisation de connexion n’est pas disponible. Fermer cette fenêtre et se reconnecter à l’ordinateur.', 'invalid-response': 'La réponse du répertoire n’est pas disponible. Réessayer ou se reconnecter à l’ordinateur.',
+    'request-failed': 'Impossible de charger ce répertoire. Vérifier la connexion, puis réessayer.', timeout: 'Le chargement a expiré. Réessayer ou annuler.',
+    failedOpen: 'Impossible d’ouvrir le sélecteur de répertoire. Se reconnecter, puis réessayer.',
+    create: 'Nouveau dossier', createTitle: 'Nom du nouveau dossier', createAction: 'Créer', createInvalid: 'Saisir un seul nom de dossier, sans séparateur de chemin.',
+    createExists: 'Un dossier portant ce nom existe déjà.', createFailed: 'Impossible de créer le dossier. Vérifier les droits d’écriture de ce répertoire, puis réessayer.',
+    createParent: 'Créer dans', creating: 'Création du dossier…', createStopping: 'Fin de la demande de création…',
+    createUnknown: 'Le résultat de la création est inconnu ; le dossier existe peut-être déjà. Revenir en arrière et recharger le répertoire avant de décider de réessayer.',
+  },
+  de: {
+    title: 'Verzeichnis des Arbeitsbereichs auswählen', path: 'Verzeichnispfad', go: 'Wechseln', home: 'Startordner', up: 'Eine Ebene höher', cancel: 'Abbrechen', close: 'Schließen', open: 'Öffnen', retry: 'Erneut versuchen',
+    loading: 'Ordner werden geladen…', adopting: 'Arbeitsbereich wird geöffnet…', empty: 'In diesem Verzeichnis gibt es keine Unterordner', truncated: 'Es werden nur die ersten Ordner angezeigt; geben Sie einen vollständigen Pfad ein, um ein anderes Verzeichnis zu öffnen',
+    'bad-path': 'Geben Sie einen absoluten Pfad des Computers ein, zum Beispiel C:\\projects oder /home/user/projects', unavailable: 'Dieses Verzeichnis konnte nicht gelesen werden. Prüfen Sie den Pfad und die Zugriffsrechte und versuchen Sie es erneut.',
+    unauthorized: 'Die Verbindungsauthentifizierung ist nicht verfügbar. Schließen Sie diesen Dialog und verbinden Sie sich erneut mit dem Computer.', 'invalid-response': 'Die Antwort des Verzeichnisses ist nicht verfügbar. Versuchen Sie es erneut oder verbinden Sie sich erneut mit dem Computer.',
+    'request-failed': 'Das Verzeichnis konnte nicht geladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.', timeout: 'Zeitüberschreitung beim Laden. Versuchen Sie es erneut oder brechen Sie ab.',
+    failedOpen: 'Die Verzeichnisauswahl konnte nicht geöffnet werden. Verbinden Sie sich erneut und versuchen Sie es noch einmal.',
+    create: 'Neuer Ordner', createTitle: 'Name des neuen Ordners', createAction: 'Erstellen', createInvalid: 'Geben Sie einen einzelnen Ordnernamen ohne Pfadtrennzeichen ein.',
+    createExists: 'Ein Ordner mit diesem Namen ist bereits vorhanden.', createFailed: 'Der Ordner konnte nicht erstellt werden. Prüfen Sie die Schreibrechte für dieses Verzeichnis und versuchen Sie es erneut.',
+    createParent: 'Erstellen in', creating: 'Ordner wird erstellt…', createStopping: 'Erstellungsanfrage wird beendet…',
+    createUnknown: 'Das Ergebnis der Erstellung ist unbekannt; der Ordner wurde möglicherweise bereits erstellt. Gehen Sie zurück und laden Sie das Verzeichnis neu, bevor Sie über einen erneuten Versuch entscheiden.',
+  },
 } as const
 type Locale = keyof typeof MESSAGES
 
@@ -72,7 +132,7 @@ function localeOf(doc: Document): Locale {
   const languages = [doc.documentElement.lang, ...(doc.defaultView?.navigator.languages ?? [])]
   for (const language of languages) {
     const code = language.toLowerCase().split('-')[0]
-    if (code === 'zh' || code === 'en' || code === 'it') return code
+    if (code === 'zh' || code === 'en' || code === 'it' || code === 'ja' || code === 'ko' || code === 'es' || code === 'fr' || code === 'de') return code
   }
   return 'en'
 }

@@ -48,7 +48,8 @@ describe('mobile UI locale persistence', () => {
     f.change('zh-HK')
     f.change('  ')
     expect(f.writes).toHaveLength(1)
-    f.change('fr-FR')
+    // `fr` is supported now; use a language that genuinely is not.
+    f.change('nl-NL')
     expect(f.writes.at(-1)).toMatch(/^dsh_ma_ui_locale=en;/u)
     stop()
   })

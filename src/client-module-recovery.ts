@@ -27,7 +27,52 @@ export const CLIENT_MODULE_RECOVERY_COPY = {
     working: 'Aggiornamento dei moduli per questo dispositivo…',
     failed: 'Ripristino non riuscito. Verifica che il computer e la connessione remota siano online, poi riprova.',
   },
+  ja: {
+    title: 'モバイルページのモジュールを調整する必要があります',
+    explanation: 'コンピューターのプラグインまたは依存関係が変更されたため、保存されたモジュール選択ではこのページを読み込めません。',
+    scope: 'このデバイスのすべてのモジュールを読み込んで DSH を開き直します。コンピューターの既定設定、ほかのデバイス、インストール済みのプラグインは変更されません。',
+    action: 'このデバイスのすべてのモジュールを読み込んで再試行',
+    working: 'このデバイスのモジュール選択を更新しています…',
+    failed: '復元できませんでした。コンピューターとリモート接続がオンラインであることを確認して、再試行してください。',
+  },
+  ko: {
+    title: '모바일 페이지 모듈을 조정해야 합니다',
+    explanation: '컴퓨터의 플러그인 또는 종속성이 변경되어 저장된 모듈 선택으로는 이 페이지를 불러올 수 없습니다.',
+    scope: '이 기기의 모든 모듈을 불러오고 DSH를 다시 엽니다. 컴퓨터의 기본 설정, 다른 기기, 설치된 플러그인은 변경되지 않습니다.',
+    action: '이 기기의 모든 모듈을 불러오고 다시 시도',
+    working: '이 기기의 모듈 선택을 업데이트하는 중…',
+    failed: '복원하지 못했습니다. 컴퓨터와 원격 연결이 온라인인지 확인한 후 다시 시도하십시오.',
+  },
+  es: {
+    title: 'Los módulos de la página móvil necesitan atención',
+    explanation: 'Los plugins o las dependencias de la computadora cambiaron. La selección de módulos guardada ya no puede cargar esta página.',
+    scope: 'Carga todos los módulos para este dispositivo y vuelve a abrir DSH. Los valores predeterminados de la computadora, otros dispositivos y los plugins instalados no cambian.',
+    action: 'Cargar todos los módulos de este dispositivo y reintentar',
+    working: 'Actualizando la selección de módulos de este dispositivo…',
+    failed: 'No se pudo restaurar la página. Comprueba que la computadora y la conexión remota estén en línea y vuelve a intentarlo.',
+  },
+  fr: {
+    title: 'Les modules de la page mobile nécessitent une intervention',
+    explanation: 'Les plugins ou les dépendances de l’ordinateur ont changé. La sélection de modules enregistrée ne peut plus charger cette page.',
+    scope: 'Charger tous les modules pour cet appareil et rouvrir DSH. Les valeurs par défaut de l’ordinateur, les autres appareils et les plugins installés ne changent pas.',
+    action: 'Charger tous les modules de cet appareil et réessayer',
+    working: 'Mise à jour de la sélection de modules de cet appareil…',
+    failed: 'Impossible de restaurer la page. Vérifiez que l’ordinateur et la connexion distante sont en ligne, puis réessayez.',
+  },
+  de: {
+    title: 'Module der mobilen Seite benötigen Aufmerksamkeit',
+    explanation: 'Die Plugins oder Abhängigkeiten des Computers haben sich geändert. Die gespeicherte Modulauswahl kann diese Seite nicht mehr laden.',
+    scope: 'Alle Module für dieses Gerät laden und DSH erneut öffnen. Standardwerte des Computers, andere Geräte und installierte Plugins bleiben unverändert.',
+    action: 'Alle Module für dieses Gerät laden und erneut versuchen',
+    working: 'Modulauswahl dieses Geräts wird aktualisiert…',
+    failed: 'Die Seite konnte nicht wiederhergestellt werden. Prüfen Sie, ob der Computer und die Remote-Verbindung online sind, und versuchen Sie es erneut.',
+  },
 } as const
+
+/** Regional HTML tags for the negotiated page languages; the bare language code is used otherwise. */
+const CLIENT_MODULE_RECOVERY_HTML_LANG: Readonly<Record<string, string>> = {
+  zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', es: 'es-ES', fr: 'fr-FR', de: 'de-DE',
+}
 
 /** Render an explicit device-only recovery action without interpolating graph diagnostics or credentials.
  * @param locale - Negotiated browser display language.
@@ -36,7 +81,7 @@ export const CLIENT_MODULE_RECOVERY_COPY = {
 export function renderClientModuleRecoveryPage(locale: AuthPageLocale): string {
   const copy = CLIENT_MODULE_RECOVERY_COPY[locale]
   return `<!doctype html>
-<html lang="${locale === 'zh' ? 'zh-CN' : locale}">
+<html lang="${CLIENT_MODULE_RECOVERY_HTML_LANG[locale] ?? locale}">
 <head><meta charset="utf-8"><meta name="viewport" content="${MOBILE_VIEWPORT_CONTENT}">
 <meta name="color-scheme" content="light dark"><title>${copy.title}</title>
 <style>

@@ -11,7 +11,7 @@ export function installMobileUiLocalePersistence(page: Document, view: Window): 
     const language = page.documentElement.lang.trim().toLowerCase()
     if (language === '') return
     const base = language.split(/[-_]/u)[0]
-    const locale: AuthPageLocale = base === 'zh' || base === 'it' ? base : 'en'
+    const locale: AuthPageLocale = base === 'zh' || base === 'it' || base === 'ja' || base === 'ko' || base === 'es' || base === 'fr' || base === 'de' ? base : 'en'
     if (locale === previous) return
     try {
       page.cookie = browserUiLocaleCookie(locale, view.location.protocol === 'https:')

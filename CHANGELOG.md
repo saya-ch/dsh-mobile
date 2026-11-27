@@ -2,6 +2,14 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
+## Unreleased
+
+- **The interface speaks eight languages instead of three.** Italian, English and Simplified Chinese were joined by Japanese, Korean, Spanish, French and German — in the plugin's mobile UI, in the diagnostic copy, in the pairing and reconnect pages, in the directory picker and in the Android App. Nothing needed configuring: the page follows the DSH display language it already followed, and the App follows the system language it already followed, so a phone set to Japanese simply stops showing English.
+
+  The work exposed a gate that had stopped covering what it claimed. `check-mobile-release` compared only the Chinese and Italian Android resource files against the reference, so a language added without editing that list would drift silently — the check would pass while the App showed untranslated strings. It now compares all seven non-default locales, and a deliberately broken resource name fails it.
+
+  It also turned up contradictions between languages that were already shipping. `tailscaleDescription` says in English that the runtime component is installed per platform through npm, while the Chinese says it is bundled and needs no installation; across the FRP setup steps the two versions take different positions on whether a domain is required and what "attach" downloads. Those sentences were written in different releases and disagree about the product, which is a documentation defect independent of this change. They are recorded here rather than silently smoothed over, and the untranslated passages keep the English meaning until someone decides which behaviour is real.
+
 ## 0.9.2 - 2026-11-27
 
 - **The narrow-layout threshold matches DSH's own.** DSH turns the sidebar into an overlay drawer below `SIDEBAR_DRAWER_BREAKPOINT = 768`, while the plugin took the shell over at 720, so between 720 and 768 both layouts claimed the page and neither behaved predictably. The plugin's overlay query, its short-viewport rules, the composer toolbar's touch targets and the sidebar scroll memory now use 768, and the folded-rail offset — which starts one pixel above the overlay band — moves to 769. **Portrait phones are unaffected. A landscape phone or a small tablet in that 48px band now gets the drawer instead of the plugin's overlay**, and the smoke probes that bracket the band edge moved with it. The plugin still owns regions DSH does not provide — the panel back bar, the right-side details drawer and the composer toolbar — so this aligns the thresholds without replacing the layout.

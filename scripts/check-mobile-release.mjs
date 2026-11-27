@@ -91,7 +91,7 @@ async function checkBrandAndStoreIcon() {
 }
 
 async function checkAndroid() {
-  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, taskNotificationPublisher, backgroundNotificationService, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
+  const [gradle, manifest, networkSecurity, discovery, nativeAuth, nsdDiscovery, credentialStore, pairedDeviceStore, credentialStorage, webViewClient, scanActivity, qrDecoder, nativeBridge, taskNotificationPublisher, backgroundNotificationService, nativeBridgePolicy, mainActivity, defaultStrings, chineseStrings, italianStrings, japaneseStrings, koreanStrings, spanishStrings, frenchStrings, germanStrings, defaultColors, nightColors, clientSource, mobileLayoutSource, nativeMobileSource] = await Promise.all([
     read('apps/mobile/android/app/build.gradle.kts', 'utf8'),
     read('apps/mobile/android/app/src/main/AndroidManifest.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/xml/network_security_config.xml', 'utf8'),
@@ -112,6 +112,11 @@ async function checkAndroid() {
     read('apps/mobile/android/app/src/main/res/values/strings.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values-zh-rCN/strings.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values-it/strings.xml', 'utf8'),
+    read('apps/mobile/android/app/src/main/res/values-ja/strings.xml', 'utf8'),
+    read('apps/mobile/android/app/src/main/res/values-ko/strings.xml', 'utf8'),
+    read('apps/mobile/android/app/src/main/res/values-es/strings.xml', 'utf8'),
+    read('apps/mobile/android/app/src/main/res/values-fr/strings.xml', 'utf8'),
+    read('apps/mobile/android/app/src/main/res/values-de/strings.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values/colors.xml', 'utf8'),
     read('apps/mobile/android/app/src/main/res/values-night/colors.xml', 'utf8'),
     read('src/client.ts', 'utf8'),
@@ -230,7 +235,14 @@ async function checkAndroid() {
   if (!mainActivity.includes('DSHMobile/${BuildConfig.VERSION_NAME}')) {
     fail('Android WebView user agent must report BuildConfig.VERSION_NAME')
   }
-  for (const [source, label] of [[chineseStrings, 'Chinese'], [italianStrings, 'Italian']]) {
+  // Every non-default locale must declare the same resources. A language added here
+  // without this list would drift silently: the checks would pass while the app showed
+  // untranslated strings.
+  for (const [source, label] of [
+    [chineseStrings, 'Chinese'], [italianStrings, 'Italian'],
+    [japaneseStrings, 'Japanese'], [koreanStrings, 'Korean'],
+    [spanishStrings, 'Spanish'], [frenchStrings, 'French'], [germanStrings, 'German'],
+  ]) {
     requireSameResourceNames(defaultStrings, source, 'string', label)
     requireSameResourceNames(defaultStrings, source, 'plurals', label)
   }
