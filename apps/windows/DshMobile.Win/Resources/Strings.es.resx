@@ -925,10 +925,10 @@ Detalles: {0}</value>
     <comment>Check-update failure reason for a timeout</comment>
   </data>
     <data name="Update_RateLimited" xml:space="preserve">
-    <value>GitHub está limitando la frecuencia con la que este cliente busca actualizaciones (60 veces por hora sin iniciar sesión). Inténtalo más tarde.</value>
+    <value>GitHub está limitando la frecuencia con la que este cliente busca actualizaciones (60 veces por hora sin iniciar sesión)</value>
   </data>
   <data name="Update_ReleasesMissing" xml:space="preserve">
-    <value>No se encontró la página de la versión; puede que se haya eliminado. Abre la página de descarga para comprobarlo.</value>
+    <value>No se encontró la página de versiones; es posible que se haya eliminado</value>
   </data>
 <data name="Update_CannotReachGitHub" xml:space="preserve">
     <value>No se puede conectar con GitHub</value>
@@ -1213,5 +1213,9 @@ Si el problema se repite, adjunta ese registro en el issue.</value>
   <data name="AppIcon_WhaleWhite" xml:space="preserve">
     <value>Ballena · blanca</value>
     <comment>Icon choice label: white whale</comment>
+  </data>
+  <data name="Settings_InstalledHint" xml:space="preserve">
+    <value>Instalado: no escribe en el registro; los datos de ejecución se guardan en {0}</value>
+    <comment>Shown instead of Settings_PortableHint when the data folder had to fall back to the user profile; {0} is the absolute path.</comment>
   </data>
 </root>

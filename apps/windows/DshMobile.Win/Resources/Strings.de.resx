@@ -925,10 +925,10 @@ Details: {0}</value>
     <comment>Check-update failure reason for a timeout</comment>
   </data>
     <data name="Update_RateLimited" xml:space="preserve">
-    <value>GitHub begrenzt, wie oft dieser Client nach Updates sucht (60 Mal pro Stunde ohne Anmeldung). Versuchen Sie es später erneut.</value>
+    <value>GitHub begrenzt, wie oft dieser Client nach Aktualisierungen sucht (60 Mal pro Stunde ohne Anmeldung)</value>
   </data>
   <data name="Update_ReleasesMissing" xml:space="preserve">
-    <value>Die Release-Seite wurde nicht gefunden; diese Version wurde möglicherweise entfernt. Öffnen Sie die Download-Seite zur Prüfung.</value>
+    <value>Die Release-Seite wurde nicht gefunden; diese Version wurde möglicherweise entfernt</value>
   </data>
 <data name="Update_CannotReachGitHub" xml:space="preserve">
     <value>GitHub ist nicht erreichbar</value>
@@ -1213,5 +1213,9 @@ Tritt das Problem wiederholt auf, fügen Sie das Protokoll bitte einem Issue bei
   <data name="AppIcon_WhaleWhite" xml:space="preserve">
     <value>Wal · Weiß</value>
     <comment>Icon choice label: white whale</comment>
+  </data>
+  <data name="Settings_InstalledHint" xml:space="preserve">
+    <value>Installiert: schreibt nicht in die Registrierung; Laufzeitdaten liegen in {0}</value>
+    <comment>Shown instead of Settings_PortableHint when the data folder had to fall back to the user profile; {0} is the absolute path.</comment>
   </data>
 </root>

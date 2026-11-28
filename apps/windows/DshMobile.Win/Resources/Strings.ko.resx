@@ -925,10 +925,10 @@ EndpointId: {0}
     <comment>Check-update failure reason for a timeout</comment>
   </data>
     <data name="Update_RateLimited" xml:space="preserve">
-    <value>GitHub에서 업데이트 확인 빈도를 제한하고 있습니다(로그인하지 않으면 시간당 60회). 잠시 후 다시 시도하십시오.</value>
+    <value>GitHub에서 업데이트 확인 빈도를 제한하고 있습니다(로그인하지 않으면 시간당 60회)</value>
   </data>
   <data name="Update_ReleasesMissing" xml:space="preserve">
-    <value>릴리스 페이지를 찾을 수 없습니다. 해당 버전이 삭제되었을 수 있습니다. 다운로드 페이지를 열어 확인하십시오.</value>
+    <value>릴리스 페이지를 찾을 수 없으며 해당 버전이 삭제되었을 수 있습니다</value>
   </data>
 <data name="Update_CannotReachGitHub" xml:space="preserve">
     <value>GitHub에 연결할 수 없습니다</value>
@@ -1213,5 +1213,9 @@ Windows 11에는 보통 기본 포함되어 있으며, Windows 10에서는 Everg
   <data name="AppIcon_WhaleWhite" xml:space="preserve">
     <value>고래 · 흰색</value>
     <comment>Icon choice label: white whale</comment>
+  </data>
+  <data name="Settings_InstalledHint" xml:space="preserve">
+    <value>설치 버전: 레지스트리에 쓰지 않으며 런타임 데이터는 {0}에 저장됩니다</value>
+    <comment>Shown instead of Settings_PortableHint when the data folder had to fall back to the user profile; {0} is the absolute path.</comment>
   </data>
 </root>

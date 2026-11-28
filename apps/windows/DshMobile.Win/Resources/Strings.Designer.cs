@@ -431,6 +431,8 @@ public static class Strings
     public static string Settings_ClearFailed => Manager.GetString("Settings_ClearFailed", CultureInfo.CurrentUICulture) ?? string.Empty;
     /// <summary>Footer hint beside the version</summary>
     public static string Settings_PortableHint => Manager.GetString("Settings_PortableHint", CultureInfo.CurrentUICulture) ?? string.Empty;
+    /// <summary>Footer hint when the data folder fell back to the user profile; {0} is the path</summary>
+    public static string Settings_InstalledHint => Manager.GetString("Settings_InstalledHint", CultureInfo.CurrentUICulture) ?? string.Empty;
 
     // ---- Update ----
     /// <summary>Check-update button label (idle and after a check)</summary>

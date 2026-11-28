@@ -1642,6 +1642,14 @@ public partial class MainWindow : Window
             if (!ReferenceEquals(previous, _trayIconHandle)) previous?.Dispose();
         }
         VersionText.Text = $"DSH Mobile Windows {CurrentVersion}";
+        // The footer used to promise the data folder unconditionally. It is beside the
+        // executable only while that folder accepts writes; otherwise AppDataPaths fell back to
+        // the user's own directory, and naming the wrong one sends the user looking in the wrong
+        // place for their pairings.
+        DataLocationHint.Text = AppDataPaths.IsPortable
+            ? Strings.Settings_PortableHint
+            : string.Format(Strings.Settings_InstalledHint, AppDataPaths.DataRoot);
+        PortableBadge.Visibility = AppDataPaths.IsPortable ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Cycle to the next pose; the choice is stored beside the device list.</summary>

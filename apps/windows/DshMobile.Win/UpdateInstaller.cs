@@ -212,18 +212,35 @@ internal static class UpdatePayload
                "/DIR=\"" + directory + "\"";
     }
 
-    /// <summary>Why the release lookup failed, in user-facing Chinese.</summary>
-    internal static string DescribeCheckFailure(Exception error) => error switch
+    /// <summary>Why the release lookup failed, in the user's language.</summary>
+    /// <remarks>
+    /// Every branch returns a phrase without a trailing full stop, because the caller's template
+    /// supplies the punctuation: "检查失败：{0}。可以稍后重试…". Resource values are written that way,
+    /// and the catch-all branch passes an exception message through, which may not be.
+    /// </remarks>
+    internal static string DescribeCheckFailure(Exception error) =>
+        WithoutTerminalStop(error switch
+        {
+            TaskCanceledException => Strings.Update_TimeoutCheck,
+            // A refused request is not the same as an unreachable network: GitHub answers 403
+            // with a rate-limit body when the unauthenticated quota is spent, and the only useful
+            // advice there is to wait rather than to check the connection.
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden } => Strings.Update_RateLimited,
+            HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound } => Strings.Update_ReleasesMissing,
+            HttpRequestException => Strings.Update_CannotReachGitHub,
+            _ => string.IsNullOrWhiteSpace(error.Message) ? Strings.Update_UnknownError : error.Message,
+        });
+
+    /// <summary>Drop a trailing full stop so the template can add its own.</summary>
+    internal static string WithoutTerminalStop(string value)
     {
-        TaskCanceledException => Strings.Update_TimeoutCheck,
-        // A refused request is not the same as an unreachable network: GitHub answers 403
-        // with a rate-limit body when the unauthenticated quota is spent, and the only useful
-        // advice there is to wait rather than to check the connection.
-        HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden } => Strings.Update_RateLimited,
-        HttpRequestException { StatusCode: System.Net.HttpStatusCode.NotFound } => Strings.Update_ReleasesMissing,
-        HttpRequestException => Strings.Update_CannotReachGitHub,
-        _ => string.IsNullOrWhiteSpace(error.Message) ? Strings.Update_UnknownError : error.Message,
-    };
+        var trimmed = value.TrimEnd();
+        while (trimmed.Length > 0 && (trimmed[^1] == '.' || trimmed[^1] == '\u3002'))
+        {
+            trimmed = trimmed[..^1].TrimEnd();
+        }
+        return trimmed;
+    }
 }
 
 /// <summary>
