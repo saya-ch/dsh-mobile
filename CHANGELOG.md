@@ -12,7 +12,7 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 - **Eight locales, from the same dictionary work as the plugin.** Simplified Chinese, Italian, Japanese, Korean, Spanish, French and German each carry every string and plural the English source does, and the launcher-icon label test now covers all eight instead of three.
 
-### Windows client
+## Windows 0.1.3-alpha - 2026-11-28
 
 - **The interface language is a setting here too.** The client had no language choice; it now offers the same eight in Settings, written in each language's own words, and rebuilds the window into the chosen language without losing its position or size.
 

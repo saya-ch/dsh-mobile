@@ -10,7 +10,7 @@ A Windows client for DSH Mobile. It connects through the authenticated HTTPS pag
 
 ## Download
 
-**[Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe)** (49.2 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
+**[Download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe)** (49.2 MB) · [SHA-256 checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe.sha256) · [all releases](https://github.com/saya-ch/dsh-mobile/releases)
 
 Run it, **choose the install location** in the wizard (the default is `%LocalAppData%\Programs\DshMobile`; no administrator rights needed), then launch from the Start Menu. You can also tick the desktop shortcut.
 
@@ -23,7 +23,7 @@ The device token in `data\devices.json` is sealed with the current Windows accou
 <details>
 <summary>Need the portable build (no registry writes, folder you can carry)?</summary>
 
-[Download the portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip) (65.8 MB, about 149 MB unzipped) · [checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip.sha256)
+[Download the portable zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64.zip) (65.8 MB, about 149 MB unzipped) · [checksum](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64.zip.sha256)
 
 Unzip into any writable folder and run `DshMobile.Win.exe`. Nothing is installed and nothing is written to the registry; the whole folder can be carried on a stick, with `data\` sitting beside the program.
 
@@ -33,7 +33,7 @@ Same contents as the installer, just without the Start Menu shortcut and the uni
 
 To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the checksum file.
 
-> **Alpha preview**: currently `0.1.2-alpha`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. The three transports have not been accepted on real Windows hardware yet, so failures are expected; attach `data\client.log` when reporting one.
+> **Alpha preview**: currently `0.1.3-alpha`. It does not ship with the plugin and is not part of the npm package; the plugin and the Android app remain the stable surfaces. The three transports have not been accepted on real Windows hardware yet, so failures are expected; attach `data\client.log` when reporting one.
 
 ## Requirements
 

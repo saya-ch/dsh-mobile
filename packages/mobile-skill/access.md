@@ -173,7 +173,7 @@ The phone is not the only front end, and their versions are independent of the p
 |---|---|---|
 | Android app | minimum **0.2.2** | The gateway publishes it through `GET /mobile-access/metadata` and the diagnostic `versions` check only prints it — the computer cannot observe the installed App version, so the user has to report that |
 | Android app, iroh | **0.7.0+**, full app | The compatibility APK and mobile browsers cannot use iroh at all |
-| Windows desktop client | own `windows-v*` track, currently 0.1.2-alpha | A WebView2 shell that opens the same authenticated page and the same pairing link; Windows 10 1809+/11 x64, needs Evergreen WebView2 |
+| Windows desktop client | own `windows-v*` track, currently 0.1.3-alpha | A WebView2 shell that opens the same authenticated page and the same pairing link; Windows 10 1809+/11 x64, needs Evergreen WebView2 |
 | iOS / iPadOS | Safari, PWA | Add to Home Screen is required for Web Push |
 | Any browser | current | Works for LAN, Funnel, cpolar, cloudflared, frp and origin; **not** iroh |
 

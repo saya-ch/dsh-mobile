@@ -32,7 +32,7 @@
   <a href="README.en.md">English</a>
 </p>
 
-> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。**使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
+> DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。**使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
 > **当前正式版本：0.9.3**。插件界面与诊断文案扩展到八种语言（在原有中、英、意之外新增日、韩、西、法、德），Web Push 通知与诊断面板的数字和日期格式跟随所选语言；发布门禁补齐占位符与复数校验，并按目录枚举全部 Android 语言。Android App 为 0.8.4。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.3) · [完整更新记录](CHANGELOG.md)。
 >
@@ -48,10 +48,10 @@
   · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4-iroh.apk">64 位完整版</a>
   · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4">版本说明</a>
   <br>
-  <b>Windows 客户端 0.1.2-alpha</b>
-  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe">下载安装包</a>
+  <b>Windows 客户端 0.1.3-alpha</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe">下载安装包</a>
   · <a href="apps/windows/README.md">使用说明</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/windows-v0.1.2-alpha">版本说明</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/windows-v0.1.3-alpha">版本说明</a>
 </p>
 
 DSH Mobile 是一个 DeepSeek Harness 插件，让手机浏览器或 Android App 通过局域网，或可选的 Tailscale Funnel、cpolar、cloudflared、自建 FRP、自有反向代理远程通道连接电脑；Android 完整版还支持实验性 iroh 加密直连与中继。手机可以继续使用电脑上的会话、工作区、消息和工具。电脑端分别启停局域网与远程访问、分别管理配对授权；Android App 统一显示已配对电脑。插件不修改 DeepSeek Harness 源码。
@@ -143,13 +143,13 @@ dsh plugin --profile web add dshmarket
 
 Windows 上也可以用 DSH Mobile：[Windows 客户端](apps/windows/README.md)是一个 WebView2 外壳，通过与 Android 相同的插件认证 HTTPS 页面连接电脑。
 
-**[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe)**（49.0 MB）· [SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
+**[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe)**（49.0 MB）· [SHA-256 校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe.sha256) · [所有版本](https://github.com/saya-ch/dsh-mobile/releases)
 
 双击运行，按向导选择安装位置（默认 `%LocalAppData%\Programs\DshMobile`，**不需要管理员权限**），完成后从开始菜单启动。卸载时默认保留 `data\`，已配对电脑和设置不会丢。不需要另外安装 .NET。仅支持 Windows 10 1809+ / Windows 11 的 x64 电脑。
 
-<sub>需要不写注册表、整个文件夹能拷走的场景，可以改用[便携 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip)（65.6 MB，[校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64.zip.sha256)）：解压到任意可写目录后运行 `DshMobile.Win.exe`。</sub>
+<sub>需要不写注册表、整个文件夹能拷走的场景，可以改用[便携 zip](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64.zip)（65.6 MB，[校验文件](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64.zip.sha256)）：解压到任意可写目录后运行 `DshMobile.Win.exe`。</sub>
 
-> 该客户端仍是 **alpha 预览**（当前 `0.1.2-alpha`），以预发布形式单独发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
+> 该客户端仍是 **alpha 预览**（当前 `0.1.3-alpha`），以预发布形式单独发布，不随插件发布，也不在 npm 包里；插件与 Android App 才是稳定面。它尚未在真实 Windows 机器上完成验收，遇到问题属预期内，反馈时请附 `data\client.log`。
 
 ## 连接教程
 
@@ -409,7 +409,7 @@ excludedClientModules:
 | Android App | 日常使用 | 首次配对时分别提供局域网与远程入口；局域网自动发现，公开远程证书由系统验证，自签 FRP 入口由 App 固定 CA |
 | iPhone/iPad Safari 或主屏幕 Web App（PWA） | iOS 日常访问与可选推送 | [用 Safari 配对并添加主屏幕图标](<#iphone-与-ipad主屏幕-web-apppwa>)，无需原生 iOS App；具备能力的主屏幕 App 可开启[网页推送](docs/WEB_PUSH.md) |
 | 手机浏览器 | 日常或跨平台访问 | 打开“移动访问”卡片显示的 HTTPS 地址；局域网私有证书可能需要手动确认，公开远程证书不应出现警告。绕过证书警告不等于满足网页推送条件 |
-| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | [下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.2-alpha/dsh-mobile-windows-v0.1.2-alpha-win-x64-setup.exe)；WebView2 外壳，配对时固定电脑证书。支持局域网、远程与 iroh 三种入口，与手机使用同一套配对链接。仍是预览版 |
+| [Windows 客户端（alpha 预览）](apps/windows/README.md) | 在 Windows 电脑上访问 | [下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe)；WebView2 外壳，配对时固定电脑证书。支持局域网、远程与 iroh 三种入口，与手机使用同一套配对链接。仍是预览版 |
 
 Android App 只是 Kotlin WebView 薄壳，不内置另一份网页；手机浏览器访问的是同一页面。开发者可在已认证移动地址后追加 `?frontend=stock` 诊断启动与布局行为；该入口跳过专用移动启动改写和模块选择，但仍可能加载客户端移动适配及已认证定制，并非不含插件的对照页。部分 API 操作可能被拒绝，不能代替正常移动入口。详见[皮肤与移动布局](docs/SKIN_COMPATIBILITY.md)。
 

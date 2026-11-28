@@ -4,7 +4,7 @@
 
 This document describes the Windows client internals for maintainers and follow-up work. Features, build commands, requirements and release status are in [README.en.md](README.en.md).
 
-> Status: the client is merged into `main` and published as a prerelease on the `windows-v*` track (`0.1.0-alpha`–`0.1.2-alpha`); maintainer acceptance on real Windows hardware is still incomplete. The support envelope is under "Requirements" in the README, and the alpha-preview note under "Download" carries the acceptance status.
+> Status: the client is merged into `main` and published as a prerelease on the `windows-v*` track (`0.1.0-alpha`–`0.1.3-alpha`); maintainer acceptance on real Windows hardware is still incomplete. The support envelope is under "Requirements" in the README, and the alpha-preview note under "Download" carries the acceptance status.
 
 ## Component responsibilities
 
