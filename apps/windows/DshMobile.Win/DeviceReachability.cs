@@ -86,9 +86,9 @@ internal sealed class DeviceReachability : IDisposable
     }
 
     /// <summary>
-    /// Mark a record as revoked by the computer. Sticky: a discovery probe cannot see a
-    /// revocation, so it must never clear this. Called when a connection attempt reports
-    /// that the computer rejected the stored credential.
+    /// Mark a record as revoked by the computer. Sticky, so a later round cannot quietly clear
+    /// it. Called when a connection attempt reports that the computer rejected the stored
+    /// credential; the authenticated probe reaches the same conclusion on its own.
     /// </summary>
     internal void MarkRevoked(string endpointId)
     {
@@ -245,6 +245,10 @@ internal sealed class DeviceReachability : IDisposable
             if (owned)
             {
                 if (_revoked.Contains(device.EndpointId)) return;
+                // The probe is authenticated, so a rejection is first-hand evidence rather
+                // than something to be cleared by the next successful round: stick it, the
+                // same way a connection attempt would.
+                if (kind == DeviceStatusKind.Revoked) _revoked.Add(device.EndpointId);
                 _results[device.EndpointId] = kind;
             }
         }
@@ -312,24 +316,49 @@ internal sealed class DeviceReachability : IDisposable
     }
 
     /// <summary>
-    /// The default probe: the unauthenticated discovery call, classified against the
-    /// record. An instance-id mismatch means some other gateway took this address over
-    /// (a rotated tunnel, a reassigned LAN IP), which is exactly the phone's
-    /// "address may have changed" state.
+    /// The default probe: the authenticated native-probe, the same call the Android app makes.
     /// </summary>
+    /// <remarks>
+    /// This deliberately does not use the unauthenticated discovery payload. That payload
+    /// carries the gateway's local listening port next to its public origin, and the two only
+    /// agree on a LAN: over cpolar, cloudflared or FRP the tunnel terminates at the public
+    /// port while the gateway keeps listening on a private one, so the cross-check rejected a
+    /// healthy tunnel and every remote row read "unreachable".
+    ///
+    /// The device token is what actually answers the question, and it also lets a rejection be
+    /// reported as its own state: a computer that says "not this credential" is reachable but
+    /// revoked, which is not the same as unreachable. Only an older gateway that lacks the
+    /// endpoint at all falls back to discovery.
+    /// </remarks>
     internal static async Task<DeviceStatusKind> ProbeAsync(SavedDevice device, CancellationToken token)
     {
+        var deviceToken = device.GetDeviceToken();
+        if (deviceToken is null) return DeviceStatusKind.Expired;
+
         try
         {
-            var gateway = await LanDiscovery.ProbeAsync(device.Hostname, device.LocalPort, token)
+            var instanceId = await GatewayAuth.ProbeAsync(device, deviceToken, token)
                 .ConfigureAwait(false);
-            return gateway.InstanceId == device.InstanceId
+            return instanceId == device.InstanceId
                 ? DeviceStatusKind.Reachable
                 : DeviceStatusKind.AddressChanged;
         }
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (GatewayAuth.ProbeRejectedException)
+        {
+            // The computer answered and refused the stored credential: revoked or expired on
+            // its side, not unreachable.
+            return DeviceStatusKind.Revoked;
+        }
+        catch (GatewayAuth.ProbeUnsupportedException)
+        {
+            // A gateway from before the probe endpoint existed. Fall back to the unauthenticated
+            // discovery call so the row still shows something, accepting that its tunnel
+            // verdict is unreliable.
+            return await ProbeWithDiscoveryAsync(device, token).ConfigureAwait(false);
         }
         catch (SocketException)
         {
@@ -338,15 +367,24 @@ internal sealed class DeviceReachability : IDisposable
         catch (AuthenticationException)
         {
             // The host answered TCP but refused a TLS handshake: something is listening
-            // and it is not this gateway. Reporting "unreachable" would invite a retry
-            // against the wrong device, so treat it as a changed address.
+            // and it is not this gateway.
             return DeviceStatusKind.AddressChanged;
         }
         catch (Exception)
         {
-            // DNS failure, refused connection, non-200 or a malformed discovery payload.
+            // DNS failure, refused connection, unexpected status or a malformed reply.
             return DeviceStatusKind.Unreachable;
         }
+    }
+
+    /// <summary>The compatibility path for gateways that predate the authenticated probe.</summary>
+    private static async Task<DeviceStatusKind> ProbeWithDiscoveryAsync(SavedDevice device, CancellationToken token)
+    {
+        var gateway = await LanDiscovery.ProbeAsync(device.Hostname, device.LocalPort, token)
+            .ConfigureAwait(false);
+        return gateway.InstanceId == device.InstanceId
+            ? DeviceStatusKind.Reachable
+            : DeviceStatusKind.AddressChanged;
     }
 
     public void Dispose()

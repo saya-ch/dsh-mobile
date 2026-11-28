@@ -13,15 +13,14 @@
 ;   - uninstall deliberately keeps <install>\data (paired computers, settings,
 ;     logs) unless the user explicitly chooses to delete it.
 ;
-; Elevation is required rather than optional: the client stores its data under
-; <install>\data, and an unelevated installer silently fails to write a directory
-; the current user does not own.
+; No elevation. The client stores its data beside itself under <install>\data, so the
+; install directory has to be one the current user owns and the client has to run as
+; that user. Both follow from installing per-user into %LocalAppData%\Programs.
 ;
-; How the elevation happens matters. Inno's setup loader is always asInvoker and
-; raises the UAC prompt itself when PrivilegesRequired=admin, so the in-app
-; updater starts the installer WITHOUT Verb=runas on purpose: a setup started
-; from an already-elevated process cannot use [Run]'s runasoriginaluser, and the
-; relaunched client would then run as administrator.
+; The in-app updater therefore starts the installer without Verb=runas: elevation is
+; neither needed nor wanted, and a setup started from an already-elevated process
+; cannot use [Run]'s runasoriginaluser, which is what brings the client back as the
+; normal user rather than as administrator.
 
 #ifndef MyAppVersion
   #error MyAppVersion is required. Pass /DMyAppVersion=<version> (read from DshMobile.Win.csproj).
@@ -56,17 +55,18 @@ VersionInfoDescription=DSH Mobile Windows client installer
 VersionInfoCompany=DSH Mobile contributors
 VersionInfoCopyright=Copyright (c) DSH Mobile contributors
 
-; Per-machine installation: {autopf} resolves to %ProgramFiles% and the user
-; sees one UAC prompt, which the setup raises itself (see the note above). The
-; directory page remains enabled so the user can pick another path.
+; Per-user installation: {autopf} resolves to %LocalAppData%\Programs, which the
+; account that runs the client can write. That matters because the client keeps its
+; pairings, settings and log in <install>\data and runs unelevated: under
+; %ProgramFiles% it would start every launch complaining that the program folder is
+; not writable, and nothing it saved would survive. The directory page remains
+; enabled so the user can pick another writable path.
 DefaultDirName={autopf}\DshMobile
 DefaultGroupName=DSH Mobile
 DisableDirPage=no
-; Keep an existing per-user install in place instead of adding a second copy under
-; Program Files now that the installer is per-machine.
 UsePreviousAppDir=yes
 DisableProgramGroupPage=yes
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
 MinVersion=10.0.17763
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

@@ -32,7 +32,7 @@ public sealed partial class MainWindow
                 .ToList();
             // Read through _settings, which the window loaded from <root>/data/settings.json.
             // Using AppContext.BaseDirectory here would write a second, conflicting copy at
-            // the program root — and fail silently in a per-machine install under Program Files.
+            // the program root — and fail silently wherever that folder is not writable.
             var selection = InterfaceLanguages.CurrentSelection(_settings.Language);
             LanguagePicker.SelectedItem = ((System.Collections.IEnumerable)LanguagePicker.ItemsSource!)
                 .Cast<LanguagePickerItem>()

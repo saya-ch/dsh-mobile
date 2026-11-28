@@ -28,7 +28,9 @@ namespace DshMobile.Win;
 public partial class MainWindow : Window
 {
     private static readonly string Root = AppContext.BaseDirectory;
-    private static readonly string DataRoot = Path.Combine(Root, "data");
+    // Resolved once per process: the executable's own folder when it is writable, otherwise
+    // the user's local application data. See AppDataPaths for why this cannot be assumed.
+    private static readonly string DataRoot = AppDataPaths.DataRoot;
     private static readonly string WebViewProfile = Path.Combine(DataRoot, "webview2");
     private static readonly string LogPath = Path.Combine(DataRoot, "client.log");
     private static readonly string DevicesPath = Path.Combine(DataRoot, "devices.json");
@@ -80,7 +82,8 @@ public partial class MainWindow : Window
         // A portable folder under Program Files is readable but refuses new files, and
         // Directory.CreateDirectory throws for it. The client still works for this run,
         // so the failure is reported once instead of ending the process.
-        _dataWritable = PortableData.TryPrepare(DataRoot, out _dataFolderError);
+        _dataWritable = AppDataPaths.IsWritable;
+        _dataFolderError = AppDataPaths.PortableRejection;
         _settings = AppSettings.Load(DataRoot);
         _appIcon = AppIcons.Resolve(_settings.Icon);
         ApplyAppIcon();

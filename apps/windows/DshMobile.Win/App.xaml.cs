@@ -90,7 +90,7 @@ public partial class App : Application
     {
         try
         {
-            var path = System.IO.Path.Combine(AppContext.BaseDirectory, "data", "settings.json");
+            var path = System.IO.Path.Combine(AppDataPaths.DataRoot, "settings.json");
             if (!System.IO.File.Exists(path)) return fallback;
             using var stream = System.IO.File.OpenRead(path);
             using var document = System.Text.Json.JsonDocument.Parse(stream);

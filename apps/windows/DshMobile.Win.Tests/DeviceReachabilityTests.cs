@@ -238,14 +238,41 @@ public class DeviceReachabilityTests
         return port;
     }
 
-    private static SavedDevice DeviceWithPort(int port) => new()
+    private static SavedDevice DeviceWithPort(int port) => DeviceWithPort(port, withCredential: true);
+
+    private static SavedDevice DeviceWithPort(int port, bool withCredential)
     {
-        Channel = "remote",
-        EndpointId = InstanceA,
-        Name = "test",
-        Hostname = "127.0.0.1",
-        Origin = UrlPairing.SerializeOrigin("127.0.0.1", port),
-        LocalPort = port,
-        InstanceId = InstanceA,
-    };
+        var device = new SavedDevice
+        {
+            Channel = "remote",
+            EndpointId = InstanceA,
+            Name = "test",
+            Hostname = "127.0.0.1",
+            Origin = UrlPairing.SerializeOrigin("127.0.0.1", port),
+            LocalPort = port,
+            InstanceId = InstanceA,
+        };
+        // The probe is authenticated, so a record without a credential never reaches the
+        // network. The network-classification tests need one to exercise the path they cover.
+        if (withCredential)
+        {
+            device.DeviceId = "device-id";
+            device.SetDeviceToken("token");
+            device.DeviceExpiresAt = DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeMilliseconds();
+        }
+        return device;
+    }
+
+    /// <summary>
+    /// A record whose credential cannot be unsealed is reported as expired, not probed: the
+    /// probe has nothing to authenticate with, and "unreachable" would blame the network for
+    /// a local problem.
+    /// </summary>
+    [Fact]
+    public async Task ARecordWithoutACredentialIsExpiredRatherThanProbed()
+    {
+        var device = DeviceWithPort(FreePort(), withCredential: false);
+        var kind = await DeviceReachability.ProbeAsync(device, CancellationToken.None);
+        Assert.Equal(DeviceStatusKind.Expired, kind);
+    }
 }

@@ -160,8 +160,17 @@ internal static class GatewayAuth
     private static async Task<NativeSession> PostAsync(
         SavedDevice device, string path, string payload, bool requireDeviceCredential, CancellationToken ct)
     {
+        var raw = await PostForResponseAsync(device, path, payload, TimeSpan.FromSeconds(20), ct)
+            .ConfigureAwait(false);
+        return ParseHttpResponse(raw, device.InstanceId, requireDeviceCredential);
+    }
+
+    /// <summary>POST to the gateway and return the raw response, without interpreting it.</summary>
+    private static async Task<byte[]> PostForResponseAsync(
+        SavedDevice device, string path, string payload, TimeSpan timeout, CancellationToken ct)
+    {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        deadline.CancelAfter(timeout);
         var token = deadline.Token;
 
         var body = Encoding.UTF8.GetBytes(payload);
@@ -183,9 +192,79 @@ internal static class GatewayAuth
         await ssl.WriteAsync(Encoding.ASCII.GetBytes(head), token);
         await ssl.WriteAsync(body, token);
         await ssl.FlushAsync(token);
+        return await ReadHttpResponseAsync(ssl, token, MaxResponseBytes).ConfigureAwait(false);
+    }
 
-        var raw = await ReadHttpResponseAsync(ssl, token, MaxResponseBytes);
-        return ParseHttpResponse(raw, device.InstanceId, requireDeviceCredential);
+    /// <summary>Whether the gateway answered the probe with a credential rejection.</summary>
+    internal sealed class ProbeRejectedException : Exception
+    {
+        public ProbeRejectedException(string message) : base(message) { }
+    }
+
+    /// <summary>Whether the gateway does not offer the probe endpoint at all.</summary>
+    internal sealed class ProbeUnsupportedException : Exception
+    {
+        public ProbeUnsupportedException(string message) : base(message) { }
+    }
+
+    /// <summary>
+    /// Ask the computer whether this pairing is still valid, and return its instance id.
+    /// </summary>
+    /// <remarks>
+    /// This mirrors <c>NativeAuthClient.probe</c> in the Android app: the request carries the
+    /// stored device token, the reply carries the gateway's instance id, and nothing else is
+    /// compared. The token is what makes the answer trustworthy over a tunnel, where the
+    /// address alone says nothing about which computer is answering.
+    ///
+    /// A 401/403 means the computer is there but rejected the credential — revoked or expired,
+    /// which is a different thing from unreachable and has its own status. A 404 means an older
+    /// gateway that predates the endpoint; the caller may fall back to discovery.
+    /// </remarks>
+    internal static async Task<string> ProbeAsync(
+        SavedDevice device, string deviceToken, CancellationToken ct)
+    {
+        var raw = await PostForResponseAsync(
+            device, "/mobile-access/auth/native-probe",
+            JsonSerializer.Serialize(new { deviceToken }),
+            TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+
+        return ParseProbeResponse(raw);
+    }
+
+    /// <summary>
+    /// Classify one probe response.
+    /// </summary>
+    /// <remarks>
+    /// The gateway answers native-probe with 200 and {instanceId, deviceId, deviceExpiresAt} on
+    /// a valid credential, and 401 {error: authentication_failed} for an unknown or revoked one
+    /// (see the gateway's native-probe tests). 404 is not something the current gateway sends;
+    /// it means the endpoint predates this client.
+    /// </remarks>
+    internal static string ParseProbeResponse(byte[] raw)
+    {
+        var text = Encoding.UTF8.GetString(raw);
+        var split = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        if (split < 0) throw new InvalidOperationException("invalid probe HTTP response");
+        var headers = text[..split];
+        var statusLine = headers.Split("\r\n")[0];
+        var parts = statusLine.Split(' ');
+        if (parts.Length < 2 || !int.TryParse(parts[1], out var status))
+            throw new InvalidOperationException("invalid probe status line");
+        if (status is 401 or 403) throw new ProbeRejectedException(statusLine.Trim());
+        if (status == 404) throw new ProbeUnsupportedException(statusLine.Trim());
+        if (status is < 200 or > 299)
+            throw new InvalidOperationException($"Gateway rejected probe: {statusLine.Trim()}");
+
+        var body = text[(split + 4)..];
+        if (headers.Contains("Transfer-Encoding: chunked", StringComparison.OrdinalIgnoreCase))
+            body = DecodeChunked(body);
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("instanceId", out var instanceId)
+            || instanceId.ValueKind != JsonValueKind.String)
+            throw new InvalidOperationException("invalid probe response");
+        return instanceId.GetString() ?? string.Empty;
     }
 
     /// <summary>The iroh loopback proxy forwards raw TLS bytes; connect to 127.0.0.1 only.</summary>
