@@ -34,19 +34,19 @@
 
 > DSH Mobile 是 DeepSeek Harness 社区插件，原生 App 目前正式支持 Android；另有 **Windows 客户端（alpha 预览）**，支持 Windows 10 / 11 x64：[下载安装包](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe) · [使用说明](apps/windows/README.md)。**使用 iPhone 或 iPad？** 可以用 Safari 访问，或[添加到主屏幕作为 Web App（PWA）使用](<#iphone-与-ipad主屏幕-web-apppwa>)，无需下载原生 iOS App。
 >
-> **当前正式版本：0.9.3**。插件界面与诊断文案扩展到八种语言（在原有中、英、意之外新增日、韩、西、法、德），Web Push 通知与诊断面板的数字和日期格式跟随所选语言；发布门禁补齐占位符与复数校验，并按目录枚举全部 Android 语言。Android App 为 0.8.4。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.3) · [完整更新记录](CHANGELOG.md)。
+> **当前正式版本：0.9.3**。插件界面与诊断文案扩展到八种语言（在原有中、英、意之外新增日、韩、西、法、德），Web Push 通知与诊断面板的数字和日期格式跟随所选语言；发布门禁补齐占位符与复数校验，并按目录枚举全部 Android 语言。Android App 为 0.8.5。[插件更新与下载](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.3) · [完整更新记录](CHANGELOG.md)。
 >
 > **版本说明**：自插件 **0.6.2** 起，Android App 与插件改为独立发布（当时 App 仍为 0.6.1）；App 自 0.6.2 起使用独立编号，版本号无需一致；插件升级不代表 App 需要同步升级。App 图标可在设置中更换，不影响版本与配对。[兼容说明](#兼容性)。
 >
 > **国内 AtomGit 托管**：[saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile)。代码、标签与发布页（含 APK 等安装包）由 GitHub 主仓自动同步，下载入口见其 Releases。
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="64" height="64"></a>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.5/dsh-mobile-android-v0.8.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile 安卓应用图标" width="64" height="64"></a>
   <br>
-  <b>Android App 0.8.4</b>
-  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk">兼容版</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4-iroh.apk">64 位完整版</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4">版本说明</a>
+  <b>Android App 0.8.5</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.5/dsh-mobile-android-v0.8.5.apk">兼容版</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.5/dsh-mobile-android-v0.8.5-iroh.apk">64 位完整版</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.5">版本说明</a>
   <br>
   <b>Windows 客户端 0.1.3-alpha</b>
   &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe">下载安装包</a>
@@ -503,8 +503,8 @@ macOS 上局域网、Tailscale Funnel、cpolar、cloudflared、自建 FRP、自�
 
 | DSH Mobile 插件 | 已验证的 DeepSeek Harness 版本与范围 |
 | --- | --- |
-| `0.9.3` | 插件界面与诊断文案扩展到八种语言（在原有中、英、意之外新增日、韩、西、法、德），Web Push 通知与诊断面板的数字和日期格式跟随所选语言；发布门禁补齐占位符与复数校验，并按目录枚举全部 Android 语言。Android App 为 0.8.4 |
-| `0.9.2` | 侧边栏「移动访问」图标墨迹与同排入口等宽；窄屏阈值对齐 DSH 的 768px 抽屉断点；随包 skill 与各篇文档按源码逐条核对并修正；国内 AtomGit 镜像同步发布页与安装包。Android App 为 0.8.4 |
+| `0.9.3` | 插件界面与诊断文案扩展到八种语言（在原有中、英、意之外新增日、韩、西、法、德），Web Push 通知与诊断面板的数字和日期格式跟随所选语言；发布门禁补齐占位符与复数校验，并按目录枚举全部 Android 语言。Android App 为 0.8.5 |
+| `0.9.2` | 侧边栏「移动访问」图标墨迹与同排入口等宽；窄屏阈值对齐 DSH 的 768px 抽屉断点；随包 skill 与各篇文档按源码逐条核对并修正；国内 AtomGit 镜像同步发布页与安装包。Android App 为 0.8.5 |
 | `0.9.1` | 侧边栏跟随移动端字号设置（此前只影响输入框）；新增可选组件「移动访问 skill」，向 agent 提供各通道的配置接口与排障知识；随插件提供的组件在插件列表显示可读名称。 |
 | `0.9.0` | macOS 补齐 cpolar、iroh 与 Tailscale Funnel（均为双架构）；Funnel 组件改为按平台安装，插件解包体积 74.6 MB → 9.2 MB；iroh 组件升级到 0.1.0-alpha.2。Android App 为 0.8.3 |
 | `0.8.16` | 宽屏下会话列恢复全宽，左右侧栏均可拖拽调宽，侧栏打开不再顿挫（#465）；opaque-path WebView 上文件预览恢复（#415）。Android App 为 0.8.3 |

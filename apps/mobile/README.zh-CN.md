@@ -4,14 +4,14 @@
 
 DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。它直接打开插件提供的已认证 HTTPS 页面，不打包另一套 DSH 前端；App 与手机浏览器获得相同的 DSH 功能，以及电脑端配置的移动页面定制。
 
-当前正式 App 为 **0.8.4**；构建号为 97。插件和 App 各自更新，**升级插件一般不需要重装 App**。此次改进见 [0.8.4 更新](#084-更新)。
+当前正式 App 为 **0.8.5**；构建号为 98。插件和 App 各自更新，**升级插件一般不需要重装 App**。此次改进见 [0.8.5 更新](#085-更新)。
 
 此 APK 支持 Android 10 及以上系统。iPhone 和 iPad 使用 [Safari 主屏幕 Web App 与可选网页推送](../../docs/WEB_PUSH.md)，不安装 Android 包；本项目不分发原生 iOS App。
 
 ## 安装与配对
 
 1. 按[项目快速开始](../../README.md#快速开始)安装并启用插件。局域网配置可通过命令行或电脑端的 **移动访问** 面板完成。
-2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4) 下载安装。**平时用兼容版就行**；只有电脑端开了实验性 iroh 通道，才需要完整版 `-iroh.apk`。两个包装哪个都可以直接覆盖旧版，配对会保留——**不要卸载旧版或清除数据**，那会丢配对。
+2. 从 [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.5) 下载安装。**平时用兼容版就行**；只有电脑端开了实验性 iroh 通道，才需要完整版 `-iroh.apk`。两个包装哪个都可以直接覆盖旧版，配对会保留——**不要卸载旧版或清除数据**，那会丢配对。
 3. 在电脑 **移动访问 → 局域网访问** 中生成密钥／配对链接，或配置远程通道并在其面板生成配对二维码。在 App 选择对应方式，扫码或粘贴链接。
 4. 为电脑命名。每条局域网或远程配对单独保存；手机无需安装 cpolar、Cloudflare 或 Tailscale App。
 
@@ -38,6 +38,16 @@ DeepSeek Harness 是这个社区维护的 Android WebView App 的显示名称。
 页面缩放影响整个网页，与按地址保存的文字偏好不同。App 专属操作只在原生 Bridge 支持时显示。原生页面按 App 的界面语言显示，默认跟随 Android 系统语言，也可在设置里选定（简体中文、英文、意大利文、日文、韩文、西班牙文、法文、德文）；网页跟随 DSH 选择的语言，当前 DSH 尚未提供意大利语。
 
 删除本机记录会移除保存的设备令牌和固定 CA，不等于撤销电脑授权或清除所有 WebView 短期 Cookie。需要立即终止访问时，请在电脑的 **移动访问** 中撤销设备。Android“清除应用数据”会删除全部配对和网页数据，不是普通重连的处理步骤。
+
+## 0.8.5 更新
+
+界面语言现在是一个设置。App 以前只跟随 Android 系统语言；现在设置里新增「界面语言」，可选「跟随系统」或八种已发行语言（Italiano、English、简体中文、日本語、한국어、Español、Français、Deutsch），语言名用各自语言书写。选择方式和主题一致：保存后页面重建并回到设置页。
+
+这个选择覆盖整个 App，不只主页面。扫码页有自己的提示与缩放标签，后台服务读字符串的 context 也不经过任何页面的包装——所以常驻连接通知、任务完成通知，以及 Android 系统设置里显示的通知渠道名称，之前都停在系统语言。现在它们都用所选语言。
+
+八种语言的资源与插件同步补齐：简体中文、意大利语、日语、韩语、西班牙语、法语、德语各自具备源语言的全部字符串与复数形式。
+
+真机验证时发现并修复了一处显示缺陷：日文设置页里较长的标题在卡片边缘被直接裁掉且没有省略号，同时值列被压成两个字符。现在标题允许两行并带省略号，这也覆盖了更长的拉丁语系标题。
 
 ## 0.8.4 更新
 
@@ -240,10 +250,12 @@ Set-Location apps/mobile/android
 
 当前源码的 Debug 构建使用包名 `io.github.sayach.dshmobile.debug` 与 `-debug` 版本后缀，可与正式 App 并存，存储和配对彼此独立。它不会升级或迁移旧版无后缀 Debug 应用；切换包名时应保留旧应用和数据，不要为此卸载或清除。Release 构建继续使用 `io.github.sayach.dshmobile` 与既定正式签名。
 
-已核验的正式版本为 [Android 0.8.4](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4)，构建 97。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
+已核验的正式版本为 [Android 0.8.5](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.5)，构建 98。兼容版与完整版分别附有对应的 `.sha256` 校验文件；两个公开下载均沿用正式发布签名及包名 `io.github.sayach.dshmobile`。旧版本历史集中在 [CHANGELOG](../../CHANGELOG.md)。
 
 ## 验收与已知限制
 
+- App 0.8.5 的两份公开 APK 在发布后重新下载核验：兼容版 2,121,185 B 且不含原生库，完整版 30,241,760 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，均由 `f46bbee7dbe47d18f49f…` 签名，`versionCode 98` / `0.8.5`，SHA-256 与各自的 `.sha256` 文件一致。
+- 界面语言在真机上验证：Debug 构建（`0.8.5-debug`、98）装在 Android 16（API 36、arm64-v8a、1080×2412）上，语言偏好写入 `dsh_mobile.xml` 后冷启动，设备列表页、设置页与选择框全部渲染为所选语言（日语），无崩溃。设置行的截断缺陷就是这次验证发现的，修复后同一台设备上所有标题与值完整显示。未验证的部分：adb 点击坐标在该机型上不可用，因此没有通过界面点选完成一次真实切换；扫码页与通知文案的语言未做真机验证（前者需要相机运行时权限，adb 无法授予）。
 - App 0.8.4 的两份公开 APK 在发布后重新下载核验：兼容版 2,005,773 B 且不含原生库，完整版 30,128,200 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 97` / `versionName 0.8.4`，`.sha256` 资产一致。打 tag 的代码树通过 `npm run verify`、`lintDebug`（0 errors）与所述 Android 单元测试。
 - 文件名修复在真机上验证：同一构建（`0.8.4-debug`、97）在 Android 16 上安装、启动、配对，并对 `/api/file?path=…app-debug.apk` 触发下载；保存对话框预填 `app-debug` 并由系统补上 `.apk`，而不是此前的 `file.bin`。手机当时在移动数据上，通过 `adb reverse` 建立到网关的隧道完成配对。
 - App 0.8.2 的两份公开 APK 在发布后重新下载核验：兼容版 1,975,765 B 且不含原生库，完整版 30,105,416 B 只携带 arm64-v8a/x86_64 两个 iroh 传输库，均由 `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` 签名，`versionCode 95` / `versionName 0.8.2`，`.sha256` 资产一致。画中画缩放在发版前用移动视口模拟按设备报告的 324 px 宽度实测：尺寸固定的挂件占窗口比例由 0.37 降到 0.11，即整页按 0.3 缩小。本版未在真机上重复升级验证。

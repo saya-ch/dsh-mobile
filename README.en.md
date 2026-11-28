@@ -34,19 +34,19 @@
 
 > DSH Mobile is a DeepSeek Harness community plugin. The native app currently ships for Android; there is also a **Windows client (alpha preview)** for Windows 10 / 11 x64: [download the installer](https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe) · [guide](apps/windows/README.en.md). **Using an iPhone or iPad?** Use Safari or [add DSH Mobile to your Home Screen as a web app (PWA)](<#iphone-and-ipad-home-screen-web-app-pwa>)—no native iOS download needed.
 >
-> **Current stable release: 0.9.3**. The plugin UI and its diagnostic copy speak eight languages instead of three — Japanese, Korean, Spanish, French and German join Chinese, English and Italian — Web Push notifications and the diagnostics panel follow the chosen language, and the release gate now checks format placeholders and plural forms. Android app 0.8.4. [Plugin release and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.3) · [Full changelog](CHANGELOG.md).
+> **Current stable release: 0.9.3**. The plugin UI and its diagnostic copy speak eight languages instead of three — Japanese, Korean, Spanish, French and German join Chinese, English and Italian — Web Push notifications and the diagnostics panel follow the chosen language, and the release gate now checks format placeholders and plural forms. Android app 0.8.5. [Plugin release and downloads](https://github.com/saya-ch/dsh-mobile/releases/tag/v0.9.3) · [Full changelog](CHANGELOG.md).
 >
 > **Version policy**: from plugin **0.6.2** the Android app and plugin ship as independent releases (the app was still 0.6.1 then), and the app has used its own version numbers since app **0.6.2**. Their numbers do not need to match, and a plugin update does not imply an app update. The app icon can be switched from the Paired computers settings; it does not affect versions or pairings. [Compatibility notes](#compatibility).
 >
 > **Hosted on AtomGit (China)**: [saya-ch/dsh-mobile](https://atomgit.com/saya-ch/dsh-mobile). Code, tags and releases (including the APK downloads) are mirrored from this repository; download from its Releases page.
 
 <p align="center">
-  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="64" height="64"></a>
+  <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.5/dsh-mobile-android-v0.8.5.apk"><img src="https://raw.githubusercontent.com/saya-ch/dsh-mobile/main/assets/brand/app-icon-rounded.svg?v=ecdd13c4e227" alt="DSH Mobile Android app icon" width="64" height="64"></a>
   <br>
-  <b>Android app 0.8.4</b>
-  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4.apk">compatibility</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.4/dsh-mobile-android-v0.8.4-iroh.apk">64-bit full</a>
-  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4">release notes</a>
+  <b>Android app 0.8.5</b>
+  &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.5/dsh-mobile-android-v0.8.5.apk">compatibility</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/download/android-v0.8.5/dsh-mobile-android-v0.8.5-iroh.apk">64-bit full</a>
+  · <a href="https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.5">release notes</a>
   <br>
   <b>Windows client 0.1.3-alpha</b>
   &nbsp;<a href="https://github.com/saya-ch/dsh-mobile/releases/download/windows-v0.1.3-alpha/dsh-mobile-windows-v0.1.3-alpha-win-x64-setup.exe">installer</a>
@@ -503,8 +503,8 @@ This table describes the **computer**. Phones and tablets use the Android app or
 
 | DSH Mobile plugin | Verified DeepSeek Harness version |
 | --- | --- |
-| `0.9.3` | The plugin UI and its diagnostic copy speak eight languages instead of three — Japanese, Korean, Spanish, French and German join Chinese, English and Italian — Web Push notifications and the diagnostics panel follow the chosen language, and the release gate now checks format placeholders and plural forms. Android app 0.8.4 |
-| `0.9.2` | The sidebar Mobile access glyph matches the ink width of the entries beside it; the narrow threshold matches DSH's 768px drawer breakpoint; the bundled skill and every guide were re-checked against the source and corrected; the China AtomGit mirror serves releases and installers. Android app 0.8.4 |
+| `0.9.3` | The plugin UI and its diagnostic copy speak eight languages instead of three — Japanese, Korean, Spanish, French and German join Chinese, English and Italian — Web Push notifications and the diagnostics panel follow the chosen language, and the release gate now checks format placeholders and plural forms. Android app 0.8.5 |
+| `0.9.2` | The sidebar Mobile access glyph matches the ink width of the entries beside it; the narrow threshold matches DSH's 768px drawer breakpoint; the bundled skill and every guide were re-checked against the source and corrected; the China AtomGit mirror serves releases and installers. Android app 0.8.5 |
 | `0.9.1` | The sidebar follows the mobile font-size setting, which previously only moved the composer; a new optional component, Mobile access skill, gives the agent each channel's configuration interface and troubleshooting knowledge; bundled components show readable names in the plugin list. |
 | `0.9.0` | macOS gains cpolar, iroh and Tailscale Funnel, all on both architectures; Funnel helpers install per platform, shrinking the plugin from 74.6 MB to 9.2 MB unpacked; the iroh component moves to 0.1.0-alpha.2. Android app 0.8.3 |
 | `0.8.16` | The wide conversation column is full width again and both side panels are draggable, and the sidebar no longer stutters when opening (#465); file previews work on opaque-path WebViews (#415). Android app 0.8.3 |

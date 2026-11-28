@@ -4,14 +4,14 @@
 
 DeepSeek Harness is the display name of this community-maintained Android WebView app. It opens the plugin's authenticated HTTPS page rather than bundling another DSH frontend. The app and mobile browsers receive the same DSH features and computer-side mobile customizations.
 
-The current stable app is **0.8.4** (build 97). The plugin and the app update separately, and **a plugin update usually does not require reinstalling the app**. See the [0.8.4 changes](#084-update).
+The current stable app is **0.8.5** (build 98). The plugin and the app update separately, and **a plugin update usually does not require reinstalling the app**. See the [0.8.5 changes](#085-update).
 
 This APK supports Android 10 or later. iPhone and iPad use the [Safari Home Screen web app and optional Web Push](../../docs/WEB_PUSH.en.md), not this Android package; no native iOS app is distributed.
 
 ## Install and pair
 
 1. Install and enable the plugin using the [project quick start](../../README.en.md#quick-start). Complete LAN setup from the command line or the computer's **Mobile Access** panel.
-2. Install from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4). **The compatibility build is fine for normal use**; you only need the full `-iroh.apk` when the computer side has the experimental iroh channel enabled. Either build installs over the old one and keeps your pairings — **do not uninstall the old app or clear its data**, that loses them.
+2. Install from [GitHub Releases](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.5). **The compatibility build is fine for normal use**; you only need the full `-iroh.apk` when the computer side has the experimental iroh channel enabled. Either build installs over the old one and keeps your pairings — **do not uninstall the old app or clear its data**, that loses them.
 3. On the computer, generate a pairing key/link under **Mobile Access → Local network**, or configure a remote provider and generate a pairing QR code in its panel. In the app, choose the matching connection mode and scan or paste the link.
 4. Name the computer. The app stores each LAN or remote pairing as its own record. The phone does not need a cpolar, Cloudflare or Tailscale app.
 
@@ -38,6 +38,16 @@ The **Paired computers** list shows names, connection types, addresses, reachabi
 Page zoom changes the whole page and is separate from per-address text preferences. App-only actions are shown only when the native bridge supports them. Native screens follow the Android system language in the App's interface language, which follows the Android system language until you pick one in Settings (Simplified Chinese, English, Italian, Japanese, Korean, Spanish, French or German); webpage copy follows DSH's selected locale. DSH does not currently expose Italian.
 
 Deleting a local record removes its saved token and pinned CA, not the computer's authorization or every short-lived WebView cookie. Use **Mobile Access** on the computer to revoke access immediately. A full Android clear-app-data reset removes all pairings and web data and is not a normal reconnection step.
+
+## 0.8.5 update
+
+The interface language is now a setting. The app used to follow the Android system language and nothing else; Settings now offers Follow system plus the eight shipped languages (Italiano, English, 简体中文, 日本語, 한국어, Español, Français, Deutsch), each named in its own words. It is saved the way the theme is: the page rebuilds and returns to Settings.
+
+The choice covers the whole app, not just the main screen. The scanner has its own hint and zoom labels, and the background service reads its strings from a context no activity wrapper reaches — so the always-on connection notification, the task-completion notification and the channel names Android shows in system settings all stayed in the system language. They follow the choice now.
+
+Eight locales ship alongside the plugin: Simplified Chinese, Italian, Japanese, Korean, Spanish, French and German each carry every string and plural the source language does.
+
+A real-device pass found and fixed one display defect: on the Japanese settings page a longer title was clipped at the card edge with no ellipsis while the value column was squeezed to two characters. Titles now wrap to two lines with an ellipsis, which also covers the longer Latin locales.
 
 ## 0.8.4 update
 
@@ -240,10 +250,12 @@ Native builds also include the JVM TLS verifier matching `native/Cargo.lock`, fr
 
 Current-source Debug builds use package `io.github.sayach.dshmobile.debug` with a `-debug` version suffix. They install beside the official App with separate storage and pairings. They do not upgrade or migrate an older unsuffixed Debug installation; preserve that app and its data rather than uninstalling or clearing it to switch packages. Release builds keep `io.github.sayach.dshmobile` and the established signer.
 
-The verified stable release is [Android 0.8.4](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.4), build 97. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
+The verified stable release is [Android 0.8.5](https://github.com/saya-ch/dsh-mobile/releases/tag/android-v0.8.5), build 98. The compatibility and full APKs each have a matching `.sha256` asset. Both public downloads retain the established release signer and package `io.github.sayach.dshmobile`. Earlier release history belongs in [CHANGELOG](../../CHANGELOG.md).
 
 ## Acceptance and known limits
 
+- Both public App 0.8.5 APKs were downloaded and re-verified after publication: compatibility 2,121,185 B with no native libraries, full 30,241,760 B carrying only the arm64-v8a and x86_64 iroh transport libraries, both signed by `f46bbee7dbe47d18f49f…`, `versionCode 98` / `0.8.5`, each matching its `.sha256`.
+- The interface language was checked on a device: the debug build (`0.8.5-debug`, 98) on Android 16 (API 36, arm64-v8a, 1080×2412), with the preference written to `dsh_mobile.xml` and a cold start — the device list, the settings page and the choice sheet all rendered in Japanese, with no crash. That pass is also how the settings-row clipping was found; after the fix every title and value reads in full on the same device. Not verified: `adb` tap coordinates do not land correctly on this model, so no language was switched by tapping the UI, and the scanner and notification copy were not checked on the device (the first needs a camera runtime permission `adb` cannot grant).
 - Both public App 0.8.4 APKs were downloaded and re-verified after publication: compatibility 2,005,773 B with no native libraries, full 30,128,200 B carrying only the arm64-v8a/x86_64 iroh transport, both signed by `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` at `versionCode 97` / `versionName 0.8.4` with matching `.sha256` assets. The tagged tree passed `npm run verify`, `lintDebug` (0 errors) and the Android unit tests described above.
 - The filename fix was verified on a device: the same build (`0.8.4-debug`, 97) was installed on Android 16, launched and paired, then asked to download `/api/file?path=…app-debug.apk`; the save dialog prefilled `app-debug` and the system added `.apk`, where the earlier behaviour produced `file.bin`. The phone was on cellular data and reached the gateway through an `adb reverse` tunnel for the pairing.
 - Both public App 0.8.2 APKs were downloaded and re-verified after publication: compatibility 1,975,765 B with no native libraries, full 30,105,416 B carrying only the arm64-v8a/x86_64 iroh transport, both signed by `f46bbee7dbe47d18f49f95f940e1d368f0b79bd8ad9d15d488337fba51e92e87` at `versionCode 95` / `versionName 0.8.2` with matching `.sha256` assets. The picture-in-picture scaling was measured in Chromium with mobile viewport emulation at the 324 px width the device reports before release: a fixed-size widget's share of the window falls from 0.37 to 0.11, which is a page scaled by 0.3. The upgrade was not repeated on a device for this build.
