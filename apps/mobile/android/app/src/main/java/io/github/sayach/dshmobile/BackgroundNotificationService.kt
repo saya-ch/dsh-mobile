@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.res.Resources
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -295,11 +296,11 @@ internal class BackgroundNotificationService : Service() {
                 this,
                 BackgroundTaskNotification.title(
                     BackgroundTaskNotification.eventText(event, "title"),
-                    getString(R.string.background_notifications_done_title),
+                    localeResources.getString(R.string.background_notifications_done_title),
                 ),
                 BackgroundTaskNotification.body(
                     BackgroundTaskNotification.eventText(event, "body"),
-                    getString(R.string.background_notifications_done_body),
+                    localeResources.getString(R.string.background_notifications_done_body),
                 ),
                 BackgroundTaskNotification.tag(sessionId, turn),
                 navigate,
@@ -314,17 +315,27 @@ internal class BackgroundNotificationService : Service() {
         }
     }
 
+    /**
+     * Strings in the chosen interface language.
+     *
+     * Read per call rather than cached: the user can change the language while the service is
+     * running, and the next notification should already use it. Reading the preference is a
+     * cheap SharedPreferences lookup.
+     */
+    private val localeResources: Resources
+        get() = LocalePreference.resources(this)
+
     private fun foregroundNotification(): android.app.Notification {
         val prefs = preferences()
         val connected = prefs.getBoolean(KEY_CONNECTED, false)
         val failed = prefs.getString(KEY_LAST_ERROR, null) != null
         val title = when {
-            connected -> getString(R.string.background_notifications_running)
-            failed -> getString(R.string.background_notifications_failed)
-            else -> getString(R.string.background_notifications_connecting)
+            connected -> localeResources.getString(R.string.background_notifications_running)
+            failed -> localeResources.getString(R.string.background_notifications_failed)
+            else -> localeResources.getString(R.string.background_notifications_connecting)
         }
-        val text = if (connected) getString(R.string.background_notifications_running_text)
-            else getString(R.string.background_notifications_connecting_text)
+        val text = if (connected) localeResources.getString(R.string.background_notifications_running_text)
+            else localeResources.getString(R.string.background_notifications_connecting_text)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_task_notification)
             .setContentTitle(title)
@@ -351,9 +362,9 @@ internal class BackgroundNotificationService : Service() {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                getString(R.string.notification_channel_background),
+                localeResources.getString(R.string.notification_channel_background),
                 NotificationManager.IMPORTANCE_LOW,
-            ).apply { description = getString(R.string.notification_channel_background_description) },
+            ).apply { description = localeResources.getString(R.string.notification_channel_background_description) },
         )
         TaskNotificationPublisher.ensureChannel(this, manager)
     }

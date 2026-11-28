@@ -64,12 +64,16 @@ internal object TaskNotificationPublisher {
 
     fun ensureChannel(context: Context, manager: NotificationManager) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        // The channel name and description appear in Android's own notification settings, so
+        // they follow the interface language like every other string. Re-creating an existing
+        // channel updates both, which is how a language change reaches them.
+        val resources = LocalePreference.resources(context)
         manager.createNotificationChannel(
             NotificationChannel(
                 NativeBridgePolicy.TASK_NOTIFICATION_CHANNEL_ID,
-                context.getString(R.string.notification_channel_tasks),
+                resources.getString(R.string.notification_channel_tasks),
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = context.getString(R.string.notification_channel_tasks_description) },
+            ).apply { description = resources.getString(R.string.notification_channel_tasks_description) },
         )
     }
 }

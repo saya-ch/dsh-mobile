@@ -1,6 +1,7 @@
 package io.github.sayach.dshmobile
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -39,6 +40,17 @@ class ScanActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var zoomIn: ImageButton
     private lateinit var zoomLabel: TextView
     private var zoom = ScannerZoomState(0, null)
+
+    /**
+     * The scanner is a second screen with its own hint and labels, so it needs the same base
+     * context treatment as MainActivity: without this it would keep following the system
+     * language after the user picked one in Settings.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val language = newBase.getSharedPreferences(LocalePreference.PREFERENCES_NAME, MODE_PRIVATE)
+            .getString(LocalePreference.KEY, null)
+        super.attachBaseContext(LocalePreference.wrap(newBase, language))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

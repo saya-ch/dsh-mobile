@@ -5823,7 +5823,7 @@ class MainActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private companion object {
-        const val PREFERENCES_NAME = "dsh_mobile"
+        const val PREFERENCES_NAME = LocalePreference.PREFERENCES_NAME
         const val PREFERENCE_LAN_ORIGIN = "gateway_origin"
         const val PREFERENCE_REMOTE_ORIGIN = "remote_gateway_origin"
         const val PREFERENCE_LAST_ACCESS_MODE = "last_access_mode"
