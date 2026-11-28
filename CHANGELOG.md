@@ -4,24 +4,6 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Unreleased
 
-### Plugin
-
-- **The interface speaks eight languages instead of three.** Italian, English and Simplified Chinese were joined by Japanese, Korean, Spanish, French and German — in the mobile UI, the diagnostic copy, the pairing and reconnect pages and the directory picker. Nothing needed configuring: the page follows the DSH display language it already followed, so a user whose DSH is set to Japanese simply stops seeing English.
-
-  The work exposed a gate that had stopped covering what it claimed. `check-mobile-release` compared only the Chinese and Italian Android resource files against the reference, so a language added without editing that list would drift silently — the check would pass while the App showed untranslated strings. It now discovers every `values-*` folder that carries a `strings.xml` and asserts the count, and a deliberately broken resource name fails it.
-
-  It also turned up contradictions between languages that were already shipping. `tailscaleDescription` says in English that the runtime component is installed per platform through npm, while the Chinese says it is bundled and needs no installation; across the FRP setup steps the two versions take different positions on whether a domain is required and what "attach" downloads. Those sentences were written in different releases and disagree about the product, which is a documentation defect independent of this change. They are recorded here rather than silently smoothed over, and the untranslated passages keep the English meaning until someone decides which behaviour is real.
-
-- **Web Push notifications follow the chosen language.** The push payload type still listed three locales, so the settings page had been translated into eight while a Japanese or German user received an English lock-screen notification with `lang: "en"`. The type, the seven notification categories, the document-language mapping and the three enrolment validators now cover all eight, and validation lives in one `isPushLocale` guard whose list the type is derived from — a typo or a dropped language used to compile and would have failed every enrolment in that language with a 400.
-
-- **Numbers and dates in the diagnostics panel follow the interface language.** The `Intl` calls used a tag picked from Chinese, Italian and English only, so a German user read `1234.5` where their own locale writes `1.234,5`, and Japanese dates came out in US order.
-
-- **The native settings rows that only spoke Chinese and Italian now speak eight.** Switching computers, task notifications and the background connection row all fell back to English for the five new languages while the rest of the same page was translated.
-
-- **The release gate checks more than resource names.** It compared key names alone, so a format token changed from `%1$s` to `%1$d` — which renders the wrong value without raising anything — passed, as did a plural quantity that dropped `%d` for `%1$s`, which makes `getQuantityString` throw on the device. It now compares format tokens (including precision) and the per-language set of plural forms that each translation must provide. Both were verified by injecting the defect and watching the gate fail.
-
-- **The Windows palette table in the design reference matches the code again.** Thirteen of the sixteen documented colour values had been superseded, so the table described a blue-grey desktop that no longer existed, and its "muted text must stay at or above 5:1" rule contradicted the 3.7:1 decoration colour that shipped.
-
 ### Android
 
 - **The interface language is a setting.** The App followed the system language and nothing else. It now offers Follow system plus the eight shipped languages in its own settings page, named in each language's own words, following the same save-rebuild-return pattern as the theme picker.
@@ -41,6 +23,24 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 - **The update failure message no longer repeats itself.** The template already supplied a full stop and the next step, and two of the messages substituted into it ended their own sentence and offered the same advice, so a rate-limited check read `请稍后重试。。可以稍后重试`. A trailing full stop is now stripped from every branch, including the one that passes an exception message through.
 
 - **Filled buttons draw their label in the colour they intend.** An implicit `TextBlock` style set the foreground for every template, and a style setter outranks the inherited value, so the primary button, the segmented choice and the danger menu item all painted near-black text on their own fill. The colour now lives on each window root, where it still inherits everywhere but no longer wins over a template's explicit value.
+
+## 0.9.3 - 2026-11-28
+
+- **The interface speaks eight languages instead of three.** Italian, English and Simplified Chinese were joined by Japanese, Korean, Spanish, French and German — in the mobile UI, the diagnostic copy, the pairing and reconnect pages and the directory picker. Nothing needed configuring: the page follows the DSH display language it already followed, so a user whose DSH is set to Japanese simply stops seeing English.
+
+  The work exposed a gate that had stopped covering what it claimed. `check-mobile-release` compared only the Chinese and Italian Android resource files against the reference, so a language added without editing that list would drift silently — the check would pass while the App showed untranslated strings. It now discovers every `values-*` folder that carries a `strings.xml` and asserts the count, and a deliberately broken resource name fails it.
+
+  It also turned up contradictions between languages that were already shipping. `tailscaleDescription` says in English that the runtime component is installed per platform through npm, while the Chinese says it is bundled and needs no installation; across the FRP setup steps the two versions take different positions on whether a domain is required and what "attach" downloads. Those sentences were written in different releases and disagree about the product, which is a documentation defect independent of this change. They are recorded here rather than silently smoothed over, and the untranslated passages keep the English meaning until someone decides which behaviour is real.
+
+- **Web Push notifications follow the chosen language.** The push payload type still listed three locales, so the settings page had been translated into eight while a Japanese or German user received an English lock-screen notification with `lang: "en"`. The type, the seven notification categories, the document-language mapping and the three enrolment validators now cover all eight, and validation lives in one `isPushLocale` guard whose list the type is derived from — a typo or a dropped language used to compile and would have failed every enrolment in that language with a 400.
+
+- **Numbers and dates in the diagnostics panel follow the interface language.** The `Intl` calls used a tag picked from Chinese, Italian and English only, so a German user read `1234.5` where their own locale writes `1.234,5`, and Japanese dates came out in US order.
+
+- **The native settings rows that only spoke Chinese and Italian now speak eight.** Switching computers, task notifications and the background connection row all fell back to English for the five new languages while the rest of the same page was translated.
+
+- **The release gate checks more than resource names.** It compared key names alone, so a format token changed from `%1$s` to `%1$d` — which renders the wrong value without raising anything — passed, as did a plural quantity that dropped `%d` for `%1$s`, which makes `getQuantityString` throw on the device. It now compares format tokens (including precision) and the per-language set of plural forms that each translation must provide. Both were verified by injecting the defect and watching the gate fail.
+
+- **The Windows palette table in the design reference matches the code again.** Thirteen of the sixteen documented colour values had been superseded, so the table described a blue-grey desktop that no longer existed, and its "muted text must stay at or above 5:1" rule contradicted the 3.7:1 decoration colour that shipped.
 
 ## 0.9.2 - 2026-11-27
 
