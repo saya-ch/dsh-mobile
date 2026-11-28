@@ -2,9 +2,7 @@
 
 Notable changes are recorded here. GitHub Releases provide the downloadable packages and generated commit notes.
 
-## Unreleased
-
-### Android
+## Android 0.8.5 - 2026-11-28
 
 - **The interface language is a setting.** The App followed the system language and nothing else. It now offers Follow system plus the eight shipped languages in its own settings page, named in each language's own words, following the same save-rebuild-return pattern as the theme picker.
 
