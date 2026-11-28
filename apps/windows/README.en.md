@@ -57,7 +57,7 @@ To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the c
 
 ### Device list
 
-- **Visible status**: each computer shows whether it is reachable (reachable / checking / unreachable / connected / credential expired / revoked on the computer / address may have changed / checked after connecting); the last one is an iroh computer, which can only be probed once its tunnel is up. Reachability is polled in the background and paused while connecting.
+- **Visible status**: each computer shows whether it is reachable (reachable / checking / unreachable / connected / credential expired / revoked on the computer / address may have changed / checked after connecting); the last one is an iroh computer, which can only be probed once its tunnel is up. Reachability is polled in the background and paused while connecting. The probe asks the computer directly with the stored device credential, so a computer reached through cpolar, cloudflared or FRP is reported correctly instead of as unreachable, and a computer that rejects the credential reads as revoked rather than unreachable.
 - **Recency**: shows when the computer was last opened ("19 minutes ago", "2 days ago").
 - **Rename and order**: rename, move up, move to front; the order survives a restart.
 - **Undoable delete**: a delete can be undone within five seconds (it only removes the local record, not the computer's authorisation).
@@ -67,6 +67,7 @@ To verify a download, compare `Get-FileHash <file> -Algorithm SHA256` with the c
 - **Task notifications**: completions raise a desktop notification while connected; switchable in settings. Revoking the device on the computer reports it and stops the notifications.
 - **App icon**: 4 mascot poses and 6 whale colourways, the same artwork the phone ships. Frames below 32px use the simplified whale mark so the tray icon stays legible.
 - **Light and dark**: follows Windows, or pin light/dark in settings.
+- **Interface language**: follows the Windows display language by default, or pick Italian, English, Simplified Chinese, Japanese, Korean, Spanish, French or German in settings. The window reopens in the chosen language, in the same place and at the same size.
 - **Page zoom, font size, reading mode** stay in the DSH page's own settings, exactly as on the phone.
 
 ### Updates

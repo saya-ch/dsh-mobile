@@ -17,9 +17,10 @@
 | `AppIcons.cs` | 与 Android 同款的 10 种启动图标（4 种吉祥物姿态 + 6 种鲸鱼），标题栏与托盘共用，预览取文件里最大一帧 |
 | `StartupBehavior.cs` | 启动后「显示设备列表」还是「自动连接上次的电脑」的决策；凭据过期或读不出的记录永不自动连接 |
 | `DeviceOrder.cs` | 列表显示顺序（`SortOrder`）与「上移一位 / 移到最前」，对齐 Android `PairedDeviceOrderPolicy` |
-| `DeviceStatus.cs` / `DeviceReachability.cs` | 八种可达状态到文案与语义色 token 的映射；15 秒一轮探测、8 秒超时、连接期间暂停 |
+| `DeviceStatus.cs` / `DeviceReachability.cs` | 八种可达状态到文案与语义色 token 的映射；15 秒一轮探测、8 秒超时、连接期间暂停。探测走带凭据的 `/mobile-access/auth/native-probe`（与 Android 同一条路径），只比对 instanceId：无凭据的 `/discovery` 把本地监听端口和公网 origin 并列，两者只在局域网相等，隧道下会被判成格式错误，导致健康的隧道显示「暂不可达」 |
 | `ClientLog.cs` | `data/client.log` 追加写入；达到 2 MB 轮转为 `client.log.1`，写日志失败不影响运行 |
-| `PortableData.cs` | `data/` 可写性探测（写入再删除试探文件）；放在 Program Files 等不可写目录时给出一条可执行提示 |
+| `PortableData.cs` | `data/` 可写性探测（写入再删除试探文件） |
+| `AppDataPaths.cs` | 每进程解析一次数据目录：程序目录可写时数据跟着可执行文件走（便携 zip 与 per-user 安装）；不可写时退回 `%LOCALAPPDATA%\DshMobile\data`，并把已有的 `settings.json` / `devices.json` 复制过去。状态属性在首次读取时解析，避免先读 `IsWritable` 拿到未初始化值 |
 | `ConnectionDiagnosis.cs` | 连接失败分类（凭据失效、协议版本、WebView2 缺失、CA 不符、DNS、HTTP 426/429/5xx）与用户文案 |
 | `WebView2Availability.cs` | 启动前探测 WebView2 Evergreen 运行时；缺失时直接给出安装地址与 x64 提示，而不是等初始化超时 |
 | `UpdateCheck.cs` | `windows-v*` Release 的版本比较与选择，并取出安装包与同名 `.sha256` 资产（纯逻辑） |
@@ -33,7 +34,7 @@
 | `IrohCarrier.cs` | 管理固定版本的 `phone-sim` sidecar 进程；启动前复核二进制 pin |
 | `SidecarProvisioner.cs` | 按固定 URL/字节数/SHA-256 获取并校验官方 sidecar，不随仓库分发二进制 |
 | `DeviceStore.cs` | 设备记录的原子读写、DPAPI 加密与逐次校验；`AdoptNewOrigin` 跟随搬家的网关（同 instanceId 才允许） |
-| `LanDiscovery.cs` | 局域网发现：UDP 公告校验、手输地址归一化、单点 `/mobile-access/discovery` 探测、网段扫描 |
+| `LanDiscovery.cs` | 局域网发现：UDP 公告校验、手输地址归一化、单点 `/mobile-access/discovery` 探测、网段扫描。`discovery` 只用于局域网与旧网关兼容回退，已不用于已配对设备的可达性判定 |
 | `BackgroundEventWatcher.cs` | 连接期间订阅 `/mobile-access/background-events`，任务完成弹桌面气球；`SseParser` 逐行解析 SSE |
 | `WebViewPolicy.cs` | 精确网关 origin 判定（导航/下载/麦克风共用），无 WebView2 类型依赖以便单测 |
 | `DshMobile.Win.Tests/` | 纯逻辑单测（配对链接、信任决策、证书链/SAN、固定 origin 校验、设备存储与排序、可达状态、启动行为、日志轮转、便携目录、失败诊断、更新选择、WebView2 探测） |

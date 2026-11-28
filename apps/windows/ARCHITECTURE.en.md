@@ -17,9 +17,10 @@ This document describes the Windows client internals for maintainers and follow-
 | `AppIcons.cs` | The ten launcher artworks the Android app ships (four mascot poses, six whale skins), shared by the titlebar and the tray; previews use the largest frame in the file |
 | `StartupBehavior.cs` | Decides between the device list and "reconnect the last computer" on launch; a record whose credential expired or cannot be read is never auto-connected |
 | `DeviceOrder.cs` | Display order (`SortOrder`) and the move-up / move-to-top actions, mirroring Android `PairedDeviceOrderPolicy` |
-| `DeviceStatus.cs` / `DeviceReachability.cs` | Maps the eight reachability states to user-visible text and semantic colour tokens; 15-second probe rounds, 8-second timeout, paused while a session is live |
+| `DeviceStatus.cs` / `DeviceReachability.cs` | Maps the eight reachability states to user-visible text and semantic colour tokens; 15-second probe rounds, 8-second timeout, paused while a session is live. The probe uses the authenticated `/mobile-access/auth/native-probe` (the same call the Android app makes) and compares only the instance id: the unauthenticated `/discovery` payload pairs a local listening port with a public origin, which only agree on a LAN, so over a tunnel it was rejected as malformed and a healthy tunnel read "unreachable" |
 | `ClientLog.cs` | Appends to `data/client.log`; at 2 MB the live file rotates to `client.log.1`, and a failed write never becomes an application error |
-| `PortableData.cs` | Proves `data/` accepts a new file (write then delete a probe); an unwritable folder such as Program Files produces one actionable message |
+| `PortableData.cs` | Proves `data/` accepts a new file (write then delete a probe) |
+| `AppDataPaths.cs` | Resolves the data folder once per process: beside the executable when that folder accepts writes (the portable zip and the per-user install), otherwise `%LOCALAPPDATA%\DshMobile\data`, copying any existing `settings.json` and `devices.json` across. The status properties resolve on first read so a caller cannot observe the uninitialised values |
 | `ConnectionDiagnosis.cs` | Classifies connection failures (credential, protocol version, missing WebView2, CA mismatch, DNS, HTTP 426/429/5xx) and owns their user-facing text |
 | `WebView2Availability.cs` | Probes the WebView2 Evergreen Runtime before startup and reports the install link and x64 hint instead of waiting out an initialization timeout |
 | `UpdateCheck.cs` | Version comparison and `windows-v*` release selection, including the installer and its `.sha256` asset (pure logic) |
@@ -33,7 +34,7 @@ This document describes the Windows client internals for maintainers and follow-
 | `IrohCarrier.cs` | Runs the pinned `phone-sim` sidecar process; re-verifies the binary pin before launch |
 | `SidecarProvisioner.cs` | Acquires and verifies the official sidecar by pinned URL, byte count and SHA-256; the binary is not distributed in this repository |
 | `DeviceStore.cs` | Atomic device-record I/O, DPAPI encryption, and per-load validation; `AdoptNewOrigin` follows a moved gateway (same instanceId only) |
-| `LanDiscovery.cs` | LAN discovery: UDP announcement validation, manual address normalization, single `GET /mobile-access/discovery` probes, subnet scans |
+| `LanDiscovery.cs` | LAN discovery: UDP announcement validation, manual address normalization, single `GET /mobile-access/discovery` probes, subnet scans. Discovery now serves the LAN and the legacy-gateway fallback only, not the reachability verdict for a paired computer |
 | `BackgroundEventWatcher.cs` | While connected, subscribes to `/mobile-access/background-events` and raises desktop balloons on task completion; `SseParser` parses SSE line by line |
 | `WebViewPolicy.cs` | Exact gateway-origin check shared by navigation/downloads/microphone, free of WebView2 types so it stays testable |
 | `DshMobile.Win.Tests/` | Pure-logic unit tests (pairing links, trust decisions, certificate chain/SAN, pinned-origin gate, device store and ordering, reachability states, start behaviour, log rotation, portable folder, failure diagnosis, update selection, WebView2 probe) |

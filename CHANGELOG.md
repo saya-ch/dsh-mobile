@@ -4,11 +4,43 @@ Notable changes are recorded here. GitHub Releases provide the downloadable pack
 
 ## Unreleased
 
-- **The interface speaks eight languages instead of three.** Italian, English and Simplified Chinese were joined by Japanese, Korean, Spanish, French and German — in the plugin's mobile UI, in the diagnostic copy, in the pairing and reconnect pages, in the directory picker and in the Android App. Nothing needed configuring: the page follows the DSH display language it already followed, and the App follows the system language it already followed, so a phone set to Japanese simply stops showing English.
+### Plugin
 
-  The work exposed a gate that had stopped covering what it claimed. `check-mobile-release` compared only the Chinese and Italian Android resource files against the reference, so a language added without editing that list would drift silently — the check would pass while the App showed untranslated strings. It now compares all seven non-default locales, and a deliberately broken resource name fails it.
+- **The interface speaks eight languages instead of three.** Italian, English and Simplified Chinese were joined by Japanese, Korean, Spanish, French and German — in the mobile UI, the diagnostic copy, the pairing and reconnect pages and the directory picker. Nothing needed configuring: the page follows the DSH display language it already followed, so a user whose DSH is set to Japanese simply stops seeing English.
+
+  The work exposed a gate that had stopped covering what it claimed. `check-mobile-release` compared only the Chinese and Italian Android resource files against the reference, so a language added without editing that list would drift silently — the check would pass while the App showed untranslated strings. It now discovers every `values-*` folder that carries a `strings.xml` and asserts the count, and a deliberately broken resource name fails it.
 
   It also turned up contradictions between languages that were already shipping. `tailscaleDescription` says in English that the runtime component is installed per platform through npm, while the Chinese says it is bundled and needs no installation; across the FRP setup steps the two versions take different positions on whether a domain is required and what "attach" downloads. Those sentences were written in different releases and disagree about the product, which is a documentation defect independent of this change. They are recorded here rather than silently smoothed over, and the untranslated passages keep the English meaning until someone decides which behaviour is real.
+
+- **Web Push notifications follow the chosen language.** The push payload type still listed three locales, so the settings page had been translated into eight while a Japanese or German user received an English lock-screen notification with `lang: "en"`. The type, the seven notification categories, the document-language mapping and the three enrolment validators now cover all eight, and validation lives in one `isPushLocale` guard whose list the type is derived from — a typo or a dropped language used to compile and would have failed every enrolment in that language with a 400.
+
+- **Numbers and dates in the diagnostics panel follow the interface language.** The `Intl` calls used a tag picked from Chinese, Italian and English only, so a German user read `1234.5` where their own locale writes `1.234,5`, and Japanese dates came out in US order.
+
+- **The native settings rows that only spoke Chinese and Italian now speak eight.** Switching computers, task notifications and the background connection row all fell back to English for the five new languages while the rest of the same page was translated.
+
+- **The release gate checks more than resource names.** It compared key names alone, so a format token changed from `%1$s` to `%1$d` — which renders the wrong value without raising anything — passed, as did a plural quantity that dropped `%d` for `%1$s`, which makes `getQuantityString` throw on the device. It now compares format tokens (including precision) and the per-language set of plural forms that each translation must provide. Both were verified by injecting the defect and watching the gate fail.
+
+- **The Windows palette table in the design reference matches the code again.** Thirteen of the sixteen documented colour values had been superseded, so the table described a blue-grey desktop that no longer existed, and its "muted text must stay at or above 5:1" rule contradicted the 3.7:1 decoration colour that shipped.
+
+### Android
+
+- **The interface language is a setting.** The App followed the system language and nothing else. It now offers Follow system plus the eight shipped languages in its own settings page, named in each language's own words, following the same save-rebuild-return pattern as the theme picker.
+
+- **Choosing a language changes the whole app, not just the main screen.** The scanner had its own hint and labels, and the service read its strings from a context that no activity wrapper reaches — so its always-on notification, the task-completion notification and the channel names Android shows in system settings all stayed in the system language. Both now resolve through the stored choice.
+
+- **Eight locales, from the same dictionary work as the plugin.** Simplified Chinese, Italian, Japanese, Korean, Spanish, French and German each carry every string and plural the English source does, and the launcher-icon label test now covers all eight instead of three.
+
+### Windows client
+
+- **The interface language is a setting here too.** The client had no language choice; it now offers the same eight in Settings, written in each language's own words, and rebuilds the window into the chosen language without losing its position or size.
+
+- **Computers reached through a tunnel stop reading "unreachable".** The reachability probe used the unauthenticated discovery payload, whose local listening port and public origin only agree on a LAN: over cpolar, cloudflared or FRP the tunnel terminates at the public port while the gateway listens on a private one, so the cross-check rejected a healthy tunnel every round. It now asks the computer directly with the stored device token, the way the App does, and compares only the instance id. That also separates states that used to collapse into one: a rejected credential reads as revoked rather than unreachable, and a record whose credential cannot be unsealed reads as expired instead of blaming the network.
+
+- **The client can write its own data wherever it is installed.** It keeps pairings, settings and a log beside the executable and runs unelevated, so an install into a protected folder started every launch with a warning and then discarded whatever the user configured. The installer is per-user again, and the data folder is now probed rather than assumed: when the program folder refuses writes it falls back to the user's own local application data and carries the existing pairings and settings across. The footer names the folder that was actually chosen instead of promising the program folder.
+
+- **The update failure message no longer repeats itself.** The template already supplied a full stop and the next step, and two of the messages substituted into it ended their own sentence and offered the same advice, so a rate-limited check read `请稍后重试。。可以稍后重试`. A trailing full stop is now stripped from every branch, including the one that passes an exception message through.
+
+- **Filled buttons draw their label in the colour they intend.** An implicit `TextBlock` style set the foreground for every template, and a style setter outranks the inherited value, so the primary button, the segmented choice and the danger menu item all painted near-black text on their own fill. The colour now lives on each window root, where it still inherits everywhere but no longer wins over a template's explicit value.
 
 ## 0.9.2 - 2026-11-27
 
