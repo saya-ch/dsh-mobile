@@ -1456,9 +1456,14 @@ class MainActivity : Activity() {
                 setText(titleResource)
                 textSize = UiTokens.itemTitleSp
                 setTextColor(getColor(if (danger) R.color.app_error else R.color.app_foreground))
-                maxLines = 1
+                // Two lines, because sharing one line with the value only moved the truncation
+                // between the two: Japanese and the longer Latin locales need more width than a
+                // single line holds beside a value. A title that still does not fit ellipsises
+                // rather than being clipped at the card edge with no ellipsis.
+                maxLines = 2
+                ellipsize = TextUtils.TruncateAt.END
             },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT),
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
         )
         if (value.isNotEmpty()) {
             addView(
@@ -1470,7 +1475,12 @@ class MainActivity : Activity() {
                     ellipsize = TextUtils.TruncateAt.END
                     gravity = Gravity.END
                 },
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                // Natural width and no weight: the value is measured before the title takes the
+                // remainder, so a short value like "クジラ娘 A" is never truncated to make room.
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply {
                     marginStart = dp(UiTokens.gapSm)
                 },
             )
